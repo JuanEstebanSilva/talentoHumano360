@@ -5,7 +5,6 @@
 databases:
   - name: talento360-db
     databaseName: talento360
-    user: postgres
     plan: free
     region: oregon
 
