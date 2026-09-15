@@ -1,15 +1,22 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # Talento 360 — Render Blueprint (Infraestructura como Código)
-# Permite desplegar Base de Datos + Backend con un solo clic en Render
 # ═══════════════════════════════════════════════════════════════════════════════
+
+databases:
+  - name: talento360-db
+    databaseName: talento360
+    user: postgres
+    plan: free
+    region: oregon
 
 services:
   - type: web
     name: talento360-backend
-    runtime: docker
-    dockerfilePath: Dockerfile
+    runtime: node
     plan: free
-    healthCheckPath: /health
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: PORT
         value: 3000
@@ -21,9 +28,3 @@ services:
         fromDatabase:
           name: talento360-db
           property: connectionString
-
-databases:
-  - name: talento360-db
-    databaseName: talento360
-    user: postgres
-    plan: free
