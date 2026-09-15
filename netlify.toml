@@ -1,0 +1,23 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Talento 360 — Netlify Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[build]
+  # Directorio con los archivos del frontend estático
+  publish = "web/frontend/src"
+  # Aplicación estática nativa (sin bundle/build step necesario)
+  command = ""
+
+# Redirección SPA para que cualquier subruta recargue la aplicación en index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cabeceras HTTP de seguridad recomendadas
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -18,7 +18,7 @@ function truncate(str, n = 30) {
 }
 
 const API = (() => {
-  const BASE = '/api';
+  const BASE = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
 
   async function request(url, options = {}) {
     const headers = {
@@ -71,7 +71,7 @@ const API = (() => {
 
       let res;
       try {
-        res = await fetch('/api/employees/importar-excel', {
+        res = await fetch(BASE + '/employees/importar-excel', {
           method: 'POST',
           headers,
           body: formData

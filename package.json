@@ -1,0 +1,14 @@
+{
+  "name": "talento360",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Talento 360 — Plataforma de Gestión de Talento Humano",
+  "scripts": {
+    "postinstall": "npm --prefix web/backend install",
+    "start": "node web/backend/server.js",
+    "db:init": "node web/backend/scripts/init-db.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
