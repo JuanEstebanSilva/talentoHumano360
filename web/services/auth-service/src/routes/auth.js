@@ -26,28 +26,48 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Usuario y contraseña son requeridos.' });
+    return res.status(400).json({ error: 'Por favor ingresa usuario y contraseña.' });
   }
 
   const normalizedUser = username.trim().toLowerCase();
   const normalizedPass = password.trim();
 
   try {
-    const result = await pool.query(
-      `SELECT username, nombre, rol, cargo_laboral
+    // 1. Buscar si el usuario existe en la base de datos por email o prefijo de usuario
+    const userResult = await pool.query(
+      `SELECT username, password, nombre, rol, cargo_laboral, estado
        FROM usuarios
        WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
-         AND password = $2
-         AND estado = 'ACTIVO'
        LIMIT 1`,
-      [normalizedUser, normalizedPass]
+      [normalizedUser]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciales inválidas o usuario inactivo.' });
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
-    const user = result.rows[0];
+    const user = userResult.rows[0];
+
+    // Verificar si la cuenta está activa
+    if (user.estado && user.estado.toUpperCase() !== 'ACTIVO') {
+      return res.status(403).json({ error: 'Usuario inactivo. Contacte al administrador.' });
+    }
+
+    // 2. Verificar si la contraseña coincide (soporte para texto plano y hash bcrypt)
+    let passwordMatches = (user.password === normalizedPass);
+    if (!passwordMatches && user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'))) {
+      try {
+        const bcrypt = require('bcryptjs');
+        passwordMatches = bcrypt.compareSync(normalizedPass, user.password);
+      } catch (e) {
+        console.error('[auth] Error al verificar hash bcrypt:', e.message);
+      }
+    }
+
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Error en la contraseña o en el usuario.' });
+    }
+
     const payload = {
       username: user.username,
       name:     user.nombre,

@@ -415,7 +415,8 @@ const EmployeesModule = (() => {
   }
 
   async function openView(idOrCedula) {
-    let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula);
+    const norm = val => String(val || '').trim().replace(/[.,\s]/g, '');
+    let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula || (e.cedula && idOrCedula && norm(e.cedula) === norm(idOrCedula)));
     try {
       const full = await API.getEmployeeByCedula(idOrCedula);
       if (full) emp = full;
@@ -499,7 +500,7 @@ const EmployeesModule = (() => {
             <div class="ficha-card">
               <div class="ficha-card-top">
                 <div class="ficha-card-icon">📋</div>
-                <span class="ficha-card-label">Clasificación</span>
+                <span class="ficha-card-label">Tipo de Vinculación</span>
               </div>
               <div class="ficha-card-val">${badgeClasificacion(emp.clasificacionEmpleo || 'CARRERA ADMINISTRATIVA')}</div>
             </div>
@@ -691,7 +692,7 @@ const EmployeesModule = (() => {
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">🏷️</div>
-                  <span class="ficha-card-label">Nivel, Código y Grado</span>
+                  <span class="ficha-card-label">Código y Grado</span>
                 </div>
                 <div class="ficha-card-val font-mono">
                   Cód. <strong>${escHtml(emp.codigoActual || 'N/A')}</strong> • Grado <strong>${escHtml(emp.gradoActual || 'N/A')}</strong>
@@ -704,7 +705,7 @@ const EmployeesModule = (() => {
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">📋</div>
-                  <span class="ficha-card-label">Clasificación del Empleo</span>
+                  <span class="ficha-card-label">Tipo de Vinculación</span>
                 </div>
                 <div class="ficha-card-val">
                   ${badgeClasificacion(emp.clasificacionEmpleo || 'CARRERA ADMINISTRATIVA')}
@@ -1046,7 +1047,8 @@ const EmployeesModule = (() => {
   }
 
   async function openEdit(idOrCedula) {
-    let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula);
+    const norm = val => String(val || '').trim().replace(/[.,\s]/g, '');
+    let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula || (e.cedula && idOrCedula && norm(e.cedula) === norm(idOrCedula)));
     try {
       const full = await API.getEmployeeByCedula(idOrCedula);
       if (full) emp = full;
@@ -1218,7 +1220,7 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-clasificacion">Clasificación de Empleo</label>
+              <label class="form-label" for="ef-clasificacion">Tipo de Vinculación</label>
               <select id="ef-clasificacion" class="filter-select">
                 ${cats.clasificaciones.map(c => `<option value="${escHtml(c)}" ${c === emp.clasificacionEmpleo ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
               </select>
@@ -2061,7 +2063,7 @@ const EmployeesModule = (() => {
     { header: 'Cargo Base / Titular', key: 'cargoBase', width: 30, sample: 'TÉCNICO OPERATIVO' },
     { header: 'Código Cargo Base', key: 'codigoBase', width: 16, sample: '314' },
     { header: 'Grado Cargo Base', key: 'gradoBase', width: 14, sample: '01' },
-    { header: 'Clasificación Empleo', key: 'clasificacionEmpleo', width: 28, sample: 'CARRERA ADMINISTRATIVA' },
+    { header: 'Tipo de Vinculación', key: 'clasificacionEmpleo', width: 28, sample: 'CARRERA ADMINISTRATIVA' },
     { header: 'Fecha de Ingreso', key: 'fechaIngreso', width: 18, sample: '2018-02-01' },
     { header: 'Tiempo Servicio Cargo Actual', key: 'tiempoServicioCalculado', width: 28, sample: '6 años, 2 meses, 4 días' },
     { header: 'Fecha de Encargo', key: 'fechaEncargo', width: 18, sample: '2021-06-15' },
@@ -2542,8 +2544,20 @@ const EmployeesModule = (() => {
       </div>`;
 
     const searchInput = document.getElementById('emp-search');
+    let searchDebounce = null;
     if (searchInput) {
-      searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') search(); });
+      searchInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter') {
+          clearTimeout(searchDebounce);
+          search();
+        }
+      });
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+          search();
+        }, 350);
+      });
     }
 
     state.page = 1; state.q = '';

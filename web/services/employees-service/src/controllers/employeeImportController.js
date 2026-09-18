@@ -257,8 +257,8 @@ async function importarExcel(req, res, pool) {
           return;
         }
 
-        // D. Detección de Plaza Vacante y Asignación de Identificador
-        const esVacante = detectarVacante(rawRow, evaluacion);
+        // D. Detección de Plaza Vacante y Asignación de Identificador (estrictamente por PRIMER APELLIDO = VACANTE)
+        const esVacante = detectarVacante(rawRow);
         let cedulaFinal = null;
         let documentoPendiente = false;
 

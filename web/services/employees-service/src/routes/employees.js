@@ -79,14 +79,46 @@ router.get('/', auth, async (req, res) => {
   const { q = '', page = 1, limit = 30 } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
   try {
-    const whereClause = q
-      ? `WHERE LOWER(p.nombre_completo) LIKE LOWER($1) OR p.cedula LIKE $1
-              OR LOWER(d.dependencia) LIKE LOWER($1) OR LOWER(ca.cargo) LIKE LOWER($1)
-              OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)`
-      : '';
-    const params = q ? [`%${q.trim()}%`] : [];
-    const limitParam = q ? `$2` : `$1`;
-    const offsetParam = q ? `$3` : `$2`;
+    const trimmedQ = (q || '').trim();
+    const cleanCedula = trimmedQ.replace(/[.,\s]/g, '');
+    const digitsOnly = trimmedQ.replace(/\D/g, '');
+
+    let normCedula = '';
+    if (cleanCedula !== trimmedQ && cleanCedula.length > 0) {
+      normCedula = cleanCedula;
+    } else if (digitsOnly.length >= 3 && digitsOnly !== trimmedQ) {
+      normCedula = digitsOnly;
+    }
+
+    let whereClause = '';
+    const params = [];
+    if (trimmedQ) {
+      params.push(`%${trimmedQ}%`); // $1
+      if (normCedula) {
+        params.push(`%${normCedula}%`); // $2
+        whereClause = `WHERE (
+          LOWER(p.nombre_completo) LIKE LOWER($1)
+          OR p.cedula LIKE $1
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
+          OR p.cedula LIKE $2
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $2
+          OR LOWER(d.dependencia) LIKE LOWER($1)
+          OR LOWER(ca.cargo) LIKE LOWER($1)
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
+        )`;
+      } else {
+        whereClause = `WHERE (
+          LOWER(p.nombre_completo) LIKE LOWER($1)
+          OR p.cedula LIKE $1
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
+          OR LOWER(d.dependencia) LIKE LOWER($1)
+          OR LOWER(ca.cargo) LIKE LOWER($1)
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
+        )`;
+      }
+    }
+    const limitParam = `$${params.length + 1}`;
+    const offsetParam = `$${params.length + 2}`;
 
     const sql = `
       WITH vacantes_enum AS (
@@ -95,7 +127,7 @@ router.get('/', auth, async (req, res) => {
         FROM rel_principal r_sub
         JOIN personas p_sub ON p_sub.id_persona = r_sub.id_persona
         LEFT JOIN estados e_sub ON e_sub.id_estado = r_sub.id_estado
-        WHERE p_sub.es_vacante = true OR e_sub.situacion = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
+        WHERE p_sub.es_vacante = true OR p_sub.primer_apellido = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
       )
       SELECT r.id_registro,
              ve.numero_vacante,
@@ -105,7 +137,7 @@ router.get('/', auth, async (req, res) => {
              END AS codigo_vacante,
              COALESCE(p.cedula,'') AS cedula,
              COALESCE(p.documento_pendiente, (p.cedula LIKE 'PROV-%')) AS documento_pendiente,
-             COALESCE(p.es_vacante, (e.situacion = 'VACANTE')) AS es_vacante,
+             COALESCE(p.es_vacante, (p.primer_apellido = 'VACANTE')) AS es_vacante,
              COALESCE(p.nombre_completo,'') AS nombre_completo,
              COALESCE(p.primer_apellido,'') AS primer_apellido,
              COALESCE(p.segundo_apellido,'') AS segundo_apellido,
@@ -171,7 +203,7 @@ router.get('/', auth, async (req, res) => {
             OR TRIM(p.cedula) = ''
             OR TRIM(p.cedula) = '0'
             OR COALESCE(p.es_vacante, false) = true
-            OR e.situacion = 'VACANTE'
+            OR p.primer_apellido = 'VACANTE'
             OR p.nombre_completo LIKE 'PLAZA VACANTE%'
             THEN 1
           -- 3. Activos con cédula de primeras (prioridad 0)
@@ -191,7 +223,7 @@ router.get('/', auth, async (req, res) => {
         FROM rel_principal r_sub
         JOIN personas p_sub ON p_sub.id_persona = r_sub.id_persona
         LEFT JOIN estados e_sub ON e_sub.id_estado = r_sub.id_estado
-        WHERE p_sub.es_vacante = true OR e_sub.situacion = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
+        WHERE p_sub.es_vacante = true OR p_sub.primer_apellido = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
       )
       SELECT COUNT(DISTINCT r.id_registro) AS total
       FROM rel_principal r
@@ -689,7 +721,7 @@ router.get('/:cedula', auth, async (req, res) => {
         FROM rel_principal r_sub
         JOIN personas p_sub ON p_sub.id_persona = r_sub.id_persona
         LEFT JOIN estados e_sub ON e_sub.id_estado = r_sub.id_estado
-        WHERE p_sub.es_vacante = true OR e_sub.situacion = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
+        WHERE p_sub.es_vacante = true OR p_sub.primer_apellido = 'VACANTE' OR p_sub.nombre_completo LIKE 'PLAZA VACANTE%'
       )
       SELECT r.id_registro,
              ve.numero_vacante,
@@ -699,7 +731,7 @@ router.get('/:cedula', auth, async (req, res) => {
              END AS codigo_vacante,
              COALESCE(p.cedula,'') AS cedula,
              COALESCE(p.documento_pendiente, (p.cedula LIKE 'PROV-%')) AS documento_pendiente,
-             COALESCE(p.es_vacante, (e.situacion = 'VACANTE')) AS es_vacante,
+             COALESCE(p.es_vacante, (p.primer_apellido = 'VACANTE')) AS es_vacante,
              COALESCE(p.nombre_completo,'') AS nombre_completo,
              COALESCE(p.primer_apellido,'') AS primer_apellido,
              COALESCE(p.segundo_apellido,'') AS segundo_apellido,
@@ -754,11 +786,22 @@ router.get('/:cedula', auth, async (req, res) => {
       LEFT JOIN contactos con  ON con.id_contacto    = r.id_contacto
       LEFT JOIN educacion edu  ON edu.id_educacion   = r.id_educacion
       LEFT JOIN estados e      ON e.id_estado         = r.id_estado
-      WHERE (p.cedula = $1 OR r.id_registro = $1 OR p.id_persona = $1
+      WHERE (p.cedula = $1 
+             OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $1
+             OR ($2 <> '' AND (p.cedula = $2 OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $2))
+             OR r.id_registro = $1 
+             OR p.id_persona = $1
              OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1))
       LIMIT 1`;
 
-    const result = await pool.query(sql, [cedula.trim()]);
+    const rawCedula = (cedula || '').trim();
+    const cleanCedula = rawCedula.replace(/[.,\s]/g, '');
+    const digitsOnly = rawCedula.replace(/\D/g, '');
+    const normCedula = (cleanCedula !== rawCedula && cleanCedula.length > 0)
+      ? cleanCedula
+      : (digitsOnly.length >= 3 ? digitsOnly : '');
+
+    const result = await pool.query(sql, [rawCedula, normCedula]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Funcionario no encontrado.' });
     }
@@ -952,9 +995,24 @@ router.put('/:cedula', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const rawCedula = (cedula || '').trim();
+    const cleanCedula = rawCedula.replace(/[.,\s]/g, '');
+    const digitsOnly = rawCedula.replace(/\D/g, '');
+    const normCedula = (cleanCedula !== rawCedula && cleanCedula.length > 0)
+      ? cleanCedula
+      : (digitsOnly.length >= 3 ? digitsOnly : '');
+
     const r = await client.query(
-      'SELECT r.id_registro, r.id_persona, r.id_contacto, r.id_educacion, r.id_estado, r.id_cargo_actual FROM rel_principal r JOIN personas p ON p.id_persona=r.id_persona WHERE (p.cedula=$1 OR r.id_registro=$1 OR p.id_persona=$1) LIMIT 1',
-      [cedula]);
+      `SELECT r.id_registro, r.id_persona, r.id_contacto, r.id_educacion, r.id_estado, r.id_cargo_actual 
+       FROM rel_principal r 
+       JOIN personas p ON p.id_persona=r.id_persona 
+       WHERE (p.cedula=$1 
+              OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $1
+              OR ($2 <> '' AND (p.cedula = $2 OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $2))
+              OR r.id_registro=$1 
+              OR p.id_persona=$1) 
+       LIMIT 1`,
+      [rawCedula, normCedula]);
     if (r.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Servidor no encontrado.' }); }
     const { id_registro, id_persona, id_contacto, id_educacion, id_estado, id_cargo_actual } = r.rows[0];
 
@@ -1196,7 +1254,8 @@ router.delete('/:cedula', auth, async (req, res) => {
           OR r.id_persona = $1
           OR p.id_persona = $1
           OR p.cedula = $1
-          OR ($2 <> '' AND p.cedula = $2)
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $1
+          OR ($2 <> '' AND (p.cedula = $2 OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $2))
        LIMIT 1`,
       [cleanTarget, numericTarget]
     );

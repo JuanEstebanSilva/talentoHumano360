@@ -316,9 +316,9 @@ body {
 .login-logo-icon svg,
 .login-logo-icon img,
 .login-logo-condor {
-  height: 72px;
+  height: 80px;
   width: auto;
-  max-width: 62px;
+  max-width: 70px;
   object-fit: contain;
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.16));
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -332,7 +332,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
+  gap: 2px;
 }
 
 .login-logo-wordmark {
@@ -343,14 +343,14 @@ body {
 }
 
 .login-logo-talento {
-  font-size: 1.85rem;
+  font-size: 2.25rem;
   font-weight: 800;
   color: var(--color-green-dark);
   letter-spacing: -0.5px;
 }
 
 .login-logo-360 {
-  font-size: 1.85rem;
+  font-size: 2.25rem;
   font-weight: 800;
   color: var(--color-mustard);
   letter-spacing: -0.5px;
@@ -358,22 +358,16 @@ body {
 }
 
 .login-logo-humano {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--color-green-bright);
-  line-height: 1.2;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-top: 2px;
+  display: none !important;
 }
 
 .login-logo-dept {
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   color: var(--color-slate);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-top: 3px;
+  letter-spacing: 1px;
+  margin-top: 4px;
 }
 
 .login-divider-line {
@@ -998,9 +992,9 @@ body {
 .sidebar-logo svg,
 .sidebar-logo img,
 .sidebar-logo-condor {
-  height: 42px;
+  height: 52px;
   width: auto;
-  max-width: 38px;
+  max-width: 46px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -1013,7 +1007,7 @@ body {
   flex: 1;
   min-width: 0;
   overflow: visible;
-  margin-left: 4px;
+  margin-left: 6px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1021,23 +1015,19 @@ body {
 }
 .sidebar-title {
   display: block;
-  font-size: 1.22rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: #ffffff !important;
   white-space: nowrap;
-  letter-spacing: -0.2px;
-  line-height: 1.15;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
 }
-.sidebar-title span { color: var(--color-mustard) !important; }
+.sidebar-title span {
+  color: var(--color-mustard) !important;
+  margin-left: 0.12em;
+}
 .sidebar-dept {
-  display: block !important;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.78) !important;
-  white-space: nowrap;
-  letter-spacing: 0.3px;
-  margin-top: 2px;
-  line-height: 1.2;
+  display: none !important;
 }
 
 .app.sidebar-collapsed .sidebar-logo { display: none; }
@@ -2058,6 +2048,7 @@ body {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+.modal-box.modal-sm { max-width: 440px; }
 .modal-box.modal-lg { max-width: 820px; }
 .modal-box.modal-ficha { max-width: 900px !important; width: 92vw !important; }
 
@@ -2115,6 +2106,91 @@ body {
   justify-content: flex-end;
   gap: var(--space-3);
   flex-shrink: 0;
+}
+
+/* ─── Logout Confirmation Dialog ─── */
+.modal-box.modal-logout-confirm {
+  max-width: 440px;
+}
+
+.logout-confirm-modal-content {
+  text-align: center;
+  padding: 6px 4px 2px;
+}
+
+.logout-confirm-icon-badge {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(227, 36, 49, 0.1);
+  border: 1.5px solid rgba(227, 36, 49, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-red, #E32431);
+  box-shadow: 0 4px 14px rgba(227, 36, 49, 0.15);
+  transition: transform 0.25s ease;
+}
+
+.logout-confirm-icon-badge:hover {
+  transform: scale(1.05);
+}
+
+.logout-confirm-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.2px;
+}
+
+.logout-confirm-desc {
+  color: var(--text-secondary, #475569);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.logout-confirm-info-box {
+  background: var(--color-surface-2, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 11px 14px;
+  font-size: 0.82rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.45;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.logout-confirm-info-icon {
+  flex-shrink: 0;
+  color: var(--color-blue-light, #007BC7);
+  margin-top: 1px;
+}
+
+[data-theme="dark"] .logout-confirm-icon-badge {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
+}
+
+[data-theme="dark"] .logout-confirm-title {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .logout-confirm-desc {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .logout-confirm-info-box {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: var(--color-border);
+  color: #94a3b8;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */

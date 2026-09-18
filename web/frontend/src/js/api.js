@@ -30,14 +30,17 @@ const API = (() => {
 
     const res = await fetch(BASE + url, { ...options, headers });
 
-    if (res.status === 401) {
-      Auth.clear();
-      App.showLogin();
-      throw new Error('Sesión expirada. Por favor inicia sesión de nuevo.');
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      if (res.status === 401 && !url.includes('/auth/login')) {
+        Auth.clear();
+        App.showLogin();
+        throw new Error(data.error || 'Sesión expirada. Por favor inicia sesión de nuevo.');
+      }
+      throw new Error(data.error || `Error ${res.status}`);
     }
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
     return data;
   }
 
@@ -53,8 +56,19 @@ const API = (() => {
     getDashboardChart: () => request('/dashboard/chart'),
 
     // Employees
-    getEmployees: (params = {}) => request('/employees?' + new URLSearchParams(params)),
-    getEmployeeByCedula: (cedula) => request(`/employees/${cedula}`),
+    getEmployees: (params = {}) => {
+      const p = { ...params };
+      if (p.q && typeof p.q === 'string' && /^[\d.,\s]+$/.test(p.q.trim()) && /\d/.test(p.q)) {
+        p.q = p.q.trim().replace(/[.,\s]/g, '');
+      }
+      return request('/employees?' + new URLSearchParams(p));
+    },
+    getEmployeeByCedula: (cedula) => {
+      const clean = (typeof cedula === 'string' && /^[\d.,\s]+$/.test(cedula.trim()) && /\d/.test(cedula))
+        ? cedula.trim().replace(/[.,\s]/g, '')
+        : encodeURIComponent(cedula);
+      return request(`/employees/${clean}`);
+    },
     getEmployeeCatalogs: () => request('/employees/catalogs'),
     createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     bulkCreateEmployees: (rows) => request('/employees/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),

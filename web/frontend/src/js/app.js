@@ -621,6 +621,69 @@ const App = (() => {
     }
   }
 
+  // ─── Logout Confirmation Dialog ────────────────────────────────────────────
+  function confirmLogout() {
+    const user = Auth.getUser() || {};
+    const userName = user.name || user.username || '';
+    const nameFormatted = userName ? `<strong>${escHtml(userName)}</strong>` : 'su cuenta';
+
+    const modalHtml = `
+      <div class="logout-confirm-modal-content">
+        <div class="logout-confirm-icon-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </div>
+        <h3 class="logout-confirm-title">
+          ¿Deseas cerrar sesión?
+        </h3>
+        <p class="logout-confirm-desc">
+          ¿Estás seguro de que deseas cerrar la sesión activa de ${nameFormatted}?
+        </p>
+        <div class="logout-confirm-info-box">
+          <svg class="logout-confirm-info-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>Para volver a acceder a la plataforma institucional deberás ingresar nuevamente con tus credenciales de acceso.</span>
+        </div>
+      </div>
+    `;
+
+    openModal('Confirmar Cierre de Sesión', modalHtml, [
+      {
+        text: 'Cancelar',
+        cls: 'btn-secondary',
+        id: 'btn-logout-cancel',
+        action: () => closeModal()
+      },
+      {
+        text: 'Sí, cerrar sesión',
+        cls: 'btn-danger',
+        id: 'btn-logout-confirm',
+        action: () => {
+          closeModal();
+          // FX: logout sound
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.logout();
+          Auth.clear();
+          if (typeof Settings !== 'undefined') {
+            Settings.resetToDefaults();
+          }
+          showLogin();
+          showToast('Sesión cerrada correctamente.', 'info');
+        }
+      }
+    ], 'modal-sm modal-logout-confirm');
+
+    // Focus cancel button for safe keyboard interaction
+    setTimeout(() => {
+      document.getElementById('btn-logout-cancel')?.focus();
+    }, 50);
+  }
+
   // ─── Live Topbar Date & Time ───────────────────────────────────────────────
   function updateTopbarDateTime() {
     const dateEl = document.getElementById('topbar-date-text');
@@ -746,7 +809,7 @@ const App = (() => {
             navigate('dashboard');
           }
         } catch (err) {
-          errorEl.textContent = err.message || 'Credenciales inválidas.';
+          errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
           errorEl.classList.add('visible');
           // FX: error shake + sound
           if (typeof FX !== 'undefined') FX.animateLoginError();
@@ -761,14 +824,7 @@ const App = (() => {
     // Logout
     document.getElementById('logout-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      // FX: logout sound
-      if (typeof FX !== 'undefined') FX.Sound.logout();
-      Auth.clear();
-      if (typeof Settings !== 'undefined') {
-        Settings.resetToDefaults();
-      }
-      showLogin();
-      showToast('Sesión cerrada correctamente.', 'info');
+      confirmLogout();
     });
 
     // Profile modal openers
@@ -907,7 +963,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, updateTopbarQuickControls, updateTopbarDateTime };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime };
 })();
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────

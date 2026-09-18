@@ -112,7 +112,7 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   let nombres = sanitizeString(row['NOMBRES']) || '';
   let nombreCompleto = [primerApellido, segundoApellido, nombres].filter(Boolean).join(' ').trim();
 
-  if (esVacante || (!nombreCompleto && esDocumentoPendiente)) {
+  if (esVacante) {
     nombreCompleto = `PLAZA VACANTE - ${cargoPrincipal}`;
     nombres = 'PLAZA VACANTE';
     primerApellido = 'VACANTE';

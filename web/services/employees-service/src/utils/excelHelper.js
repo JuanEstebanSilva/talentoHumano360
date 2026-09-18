@@ -178,44 +178,42 @@ function evaluarCedula(val, rawRow = null, rowNumber = 0, sheetName = 'Principal
 }
 
 /**
- * Detecta si una fila del Excel corresponde a un cargo/plaza vacante:
- * - Tiene cargo definido (ej: "TECNICO OPERATIVO" o "PROFESIONAL UNIVERSITARIO").
- * - Pero no tiene número de cédula válido, y no tiene nombres personales reales (o dice "VACANTE").
+ * Detecta si una fila del Excel corresponde a una plaza vacante abierta:
+ * Regla de negocio estricta:
+ * La ÚNICA manera de determinar que una fila es una vacante abierta es si en la columna
+ * "PRIMER APELLIDO" (o sus variaciones de cabecera) dice o contiene la palabra "VACANTE".
+ *
+ * Si la palabra "VACANTE" aparece en cualquier otra columna (por ejemplo en "NOVEDADES",
+ * "SITUACION", etc.), NO se considera vacante abierta, ya que corresponde a un funcionario real
+ * que ocupó o cubre dicha vacante. Dicho funcionario debe crearse/registrarse común y corriente.
  *
  * @param {Object} rawRow
- * @param {Object} [resValidacionCedula=null]
  * @returns {boolean}
  */
-function detectarVacante(rawRow, resValidacionCedula = null) {
+function detectarVacante(rawRow) {
   if (!rawRow || typeof rawRow !== 'object') return false;
 
-  const cargo = extraerCargoExcel(rawRow);
-  const nombres = String(rawRow['NOMBRES'] || '').trim();
-  const apellido1 = String(rawRow['PRIMER APELLIDO'] || '').trim();
-  const apellido2 = String(rawRow['SEGUNDO APELLIDO'] || '').trim();
-  const situacion = String(rawRow['SITUACION'] || rawRow['SITUACIÓN'] || '').trim().toUpperCase();
-
-  const textoIdentidad = `${nombres} ${apellido1} ${apellido2}`.toUpperCase().trim();
-  const esCedulaInvalida = resValidacionCedula ? resValidacionCedula.esInvalida : validarCedulaExcel(rawRow['CEDULA'] ?? rawRow['CÉDULA']).esInvalida;
-
-  // Si la situación o novedad dice explícitamente VACANTE
-  if (situacion.includes('VACANTE') || String(rawRow['NOVEDADES'] || '').toUpperCase().includes('VACANTE')) {
-    return true;
-  }
-
-  // Si los nombres dicen explícitamente VACANTE o POR PROVEER
-  if (textoIdentidad.includes('VACANTE') || textoIdentidad.includes('POR PROVEER') || textoIdentidad.includes('SIN PROVEER')) {
-    return true;
-  }
-
-  // Si tiene cargo pero no tiene cédula válida ni nombres personales reales
-  if (cargo && esCedulaInvalida) {
-    if (!textoIdentidad || ['NAN', 'NULL', 'NO REPORTADO', 'SIN ASIGNAR', 'N/A', '-', '.'].includes(textoIdentidad)) {
-      return true;
+  // Buscar específicamente el valor de la columna 'PRIMER APELLIDO'
+  let valPrimerApellido = '';
+  for (const [k, v] of Object.entries(rawRow)) {
+    const cleanKey = (k || '').trim().toUpperCase();
+    if (
+      cleanKey === 'PRIMER APELLIDO' ||
+      cleanKey === 'PRIMER_APELLIDO' ||
+      cleanKey === 'APELLIDO 1' ||
+      cleanKey === '1ER APELLIDO'
+    ) {
+      valPrimerApellido = String(v || '').trim().toUpperCase();
+      break;
     }
   }
 
-  return false;
+  if (!valPrimerApellido && rawRow['PRIMER APELLIDO']) {
+    valPrimerApellido = String(rawRow['PRIMER APELLIDO']).trim().toUpperCase();
+  }
+
+  // La ÚNICA condición: en la columna 'PRIMER APELLIDO' dice / contiene 'VACANTE'
+  return valPrimerApellido.includes('VACANTE');
 }
 
 /**
