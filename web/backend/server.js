@@ -48,6 +48,32 @@ app.use('/api/viaticos', viaticosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/horarios', horariosRoutes);
 
+// Endpoint administrativo para ejecutar o forzar la inicialización de la base de datos sin necesitar Shell
+app.all('/api/admin/init-db', async (req, res) => {
+  const secret = req.query.secret || req.body?.secret;
+  const expectedSecret = process.env.DB_INIT_SECRET || 'talento360_init_secret';
+
+  if (secret !== expectedSecret) {
+    return res.status(403).json({ error: 'Acceso no autorizado. Secret inválido.' });
+  }
+
+  const force = req.query.force === 'true' || req.body?.force === true;
+
+  try {
+    await initDatabase({ force });
+    res.json({
+      success: true,
+      message: `Base de datos de Talento 360 inicializada correctamente (force=${force}).`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 // Manejador 404 para rutas API no encontradas
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
@@ -68,10 +94,11 @@ app.listen(PORT, async () => {
   console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
   console.log(`=============================================================\n`);
 
-  // Auto-inicializar base de datos si está vacía (comportamiento ideal para Render)
+  // Auto-inicializar base de datos si está vacía o si FORCE_DB_INIT=true
   if (process.env.AUTO_INIT_DB !== 'false') {
     try {
-      await initDatabase({ force: false });
+      const forceInit = process.env.FORCE_DB_INIT === 'true';
+      await initDatabase({ force: forceInit });
     } catch (dbErr) {
       console.warn('[Talento 360 DB Auto-Init] Aviso al verificar base de datos:', dbErr.message);
     }
