@@ -224,7 +224,8 @@ class EmployeeImportService {
                      edad = NULL,
                      sexo = NULL,
                      documento_pendiente = false,
-                     es_vacante = true
+                     es_vacante = true,
+                     tipo_discapacidad = NULL
                  WHERE id_persona = $5`,
                 [
                   funcionario.primerApellido,
@@ -250,8 +251,9 @@ class EmployeeImportService {
                      documento_pendiente = $11,
                      es_vacante = $12,
                      departamento_expedicion = COALESCE($13, departamento_expedicion),
-                     ciudad_expedicion = COALESCE($14, ciudad_expedicion)
-                 WHERE id_persona = $15`,
+                     ciudad_expedicion = COALESCE($14, ciudad_expedicion),
+                     tipo_discapacidad = COALESCE($15, tipo_discapacidad)
+                 WHERE id_persona = $16`,
                 [
                   funcionario.primerApellido,
                   funcionario.segundoApellido,
@@ -267,6 +269,7 @@ class EmployeeImportService {
                   Boolean(funcionario.es_vacante),
                   deptoExp,
                   ciudadExp,
+                  funcionario.tipoDiscapacidad || null,
                   personaId
                 ]
               );
@@ -350,15 +353,19 @@ class EmployeeImportService {
               if (funcionario.es_vacante) {
                 await client.query(
                   `UPDATE estados
-                   SET clasificacion_empleo = 'VACANTE',
+                   SET clasificacion_empleo = COALESCE($1, 'Vacante Definitiva'),
                        situacion = 'VACANTE',
                        estado_servidor = 'Activo',
-                       funciones = NULL,
-                       funciones_pagadas = NULL,
+                       funciones = $2,
+                       funciones_pagadas = $2,
                        novedades = 'PLAZA VACANTE',
                        opec = NULL
-                   WHERE id_estado = $1`,
-                  [estadoId]
+                   WHERE id_estado = $3`,
+                  [
+                    vinculacion.clasificacionEmpleo || 'Vacante Definitiva',
+                    vinculacion.funcionesPag || null,
+                    estadoId
+                  ]
                 );
               } else {
                 await client.query(
@@ -372,9 +379,9 @@ class EmployeeImportService {
                        opec = COALESCE($5, opec)
                    WHERE id_estado = $6`,
                   [
-                    vinculacion.clasificacionEmpleo,
+                    vinculacion.clasificacionEmpleo || 'Sin clasificar',
                     vinculacion.situacion || 'ACTIVO',
-                    vinculacion.funcionesPag,
+                    vinculacion.funcionesPag || null,
                     vinculacion.novedades,
                     vinculacion.opec,
                     estadoId
@@ -457,8 +464,8 @@ class EmployeeImportService {
               `INSERT INTO personas (
                  id_persona, cedula, primer_apellido, segundo_apellido, nombres,
                  nombre_completo, expedida, departamento_expedicion, ciudad_expedicion,
-                 tipo_sangre, fecha_nacimiento, edad, sexo, documento_pendiente, es_vacante
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                 tipo_sangre, tipo_discapacidad, fecha_nacimiento, edad, sexo, documento_pendiente, es_vacante
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
               [
                 newPersonId,
                 funcionario.es_vacante ? null : (funcionario.cedula || null),
@@ -470,6 +477,7 @@ class EmployeeImportService {
                 funcionario.es_vacante ? null : deptoExp,
                 funcionario.es_vacante ? null : ciudadExp,
                 funcionario.es_vacante ? null : (funcionario.tipoSangre || 'NO REGISTRADO'),
+                funcionario.es_vacante ? null : (funcionario.tipoDiscapacidad || null),
                 funcionario.es_vacante ? null : (funcionario.fechaNacimientoStr || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : (funcionario.edadCalculada || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : (funcionario.sexo || 'NO REGISTRADO'),
@@ -522,13 +530,13 @@ class EmployeeImportService {
                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
               [
                 newEstadoId,
-                funcionario.es_vacante ? 'VACANTE' : (vinculacion.clasificacionEmpleo || 'CARRERA ADMINISTRATIVA'),
+                funcionario.es_vacante ? (vinculacion.clasificacionEmpleo || 'Vacante Definitiva') : (vinculacion.clasificacionEmpleo || 'Sin clasificar'),
                 funcionario.es_vacante ? 'VACANTE' : (vinculacion.situacion || 'ACTIVO'),
-                funcionario.es_vacante ? null : (vinculacion.funcionesPag || 'NO REGISTRADO'),
+                funcionario.es_vacante ? null : (vinculacion.funcionesPag || null),
                 funcionario.es_vacante ? 'PLAZA VACANTE' : (vinculacion.novedades || ''),
                 funcionario.es_vacante ? null : (vinculacion.opec || 'NO REGISTRADO'),
                 funcionario.es_vacante ? 'Activo' : 'Activo',
-                funcionario.es_vacante ? null : vinculacion.funcionesPag
+                funcionario.es_vacante ? null : (vinculacion.funcionesPag || null)
               ]
             );
 

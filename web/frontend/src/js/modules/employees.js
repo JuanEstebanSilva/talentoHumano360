@@ -16,7 +16,25 @@ const EmployeesModule = (() => {
       cargosPorDependencia: {},
       divipola: { departamentos: [], municipiosPorDepto: {} },
       grados: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 'N/a', 'NE'],
-      clasificaciones: ['CARRERA ADMINISTRATIVA', 'LIBRE NOMBRAMIENTO Y REMOCIÓN', 'PROVISIONAL', 'PERIODO FIJO', 'TEMPORAL', 'TRABAJADOR OFICIAL'],
+      clasificaciones: [
+        'Carrera Administrativa',
+        'Encargo en Vacante Definitiva',
+        'Encargo en Vacante Temporal',
+        'Encargo con Licencia No Remunerada',
+        'Judicatura',
+        'Licencia No Remunerada',
+        'Empleo de Período Fijo',
+        'Provisional en Vacante Definitiva',
+        'Provisional en Vacante Temporal',
+        'Aprendiz o Contrato SENA',
+        'Vacante Definitiva',
+        'Vacante Definitiva provista por Provisional',
+        'Vacante Temporal',
+        'Vacante Temporal provista por Provisional',
+        'Libre Nombramiento y Remoción',
+        'Trabajador Oficial',
+        'Sin clasificar'
+      ],
       estadosServidor: ['Activo', 'Inactivo', 'Pensionado'],
       sexos: ['Femenino', 'Masculino', 'Prefiero no decirlo'],
       discapacidades: ['visual', 'auditiva', 'motora', 'cognitiva', 'sordomuda', 'sordociega'],
@@ -166,31 +184,114 @@ const EmployeesModule = (() => {
     return '<span class="badge badge--inactivo">Inactivo</span>';
   }
 
-  function badgeClasificacion(clasif) {
-    if (!clasif || clasif === '—') return '<span class="badge-clasif badge-clasif--default">—</span>';
-    const c = clasif.toUpperCase();
-    const iconShield = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
-    const iconBriefcase = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+  const CLASIFICACION_MAP = {
+    'C.A': 'Carrera Administrativa',
+    'CA': 'Carrera Administrativa',
+    'C.A.': 'Carrera Administrativa',
+    'CARRERA ADMINISTRATIVA': 'Carrera Administrativa',
+    'ENCAR T': 'Encargo en Vacante Temporal',
+    'ENCART': 'Encargo en Vacante Temporal',
+    'ENCARGO VT': 'Encargo en Vacante Temporal',
+    'ENCARGO EN VACANTE TEMPORAL': 'Encargo en Vacante Temporal',
+    'ENCARGO VD': 'Encargo en Vacante Definitiva',
+    'ENCARGO EN VACANTE DEFINITIVA': 'Encargo en Vacante Definitiva',
+    'JUDIC': 'Judicatura',
+    'JUDICATURA': 'Judicatura',
+    'L.N': 'Licencia No Remunerada',
+    'LN': 'Licencia No Remunerada',
+    'L.N.': 'Licencia No Remunerada',
+    'LICENCIA NO REMUNERADA': 'Licencia No Remunerada',
+    'L.N ENCARGO': 'Encargo con Licencia No Remunerada',
+    'LN ENCARGO': 'Encargo con Licencia No Remunerada',
+    'L.N. ENCARGO': 'Encargo con Licencia No Remunerada',
+    'ENCARGO CON LICENCIA NO REMUNERADA': 'Encargo con Licencia No Remunerada',
+    'PERIODO': 'Empleo de Período Fijo',
+    'PERÍODO': 'Empleo de Período Fijo',
+    'PERIODO FIJO': 'Empleo de Período Fijo',
+    'EMPLEO DE PERIODO FIJO': 'Empleo de Período Fijo',
+    'EMPLEO DE PERÍODO FIJO': 'Empleo de Período Fijo',
+    'PROV VD': 'Provisional en Vacante Definitiva',
+    'PROVISIONAL VD': 'Provisional en Vacante Definitiva',
+    'PROVISIONAL EN VACANTE DEFINITIVA': 'Provisional en Vacante Definitiva',
+    'PROV VT': 'Provisional en Vacante Temporal',
+    'PROVISIONAL VT': 'Provisional en Vacante Temporal',
+    'PROVISIONAL EN VACANTE TEMPORAL': 'Provisional en Vacante Temporal',
+    'SENA': 'Aprendiz o Contrato SENA',
+    'APRENDIZ SENA': 'Aprendiz o Contrato SENA',
+    'CONTRATO SENA': 'Aprendiz o Contrato SENA',
+    'APRENDIZ O CONTRATO SENA': 'Aprendiz o Contrato SENA',
+    'VD': 'Vacante Definitiva',
+    'VACANTE DEFINITIVA': 'Vacante Definitiva',
+    'VD PROV': 'Vacante Definitiva provista por Provisional',
+    'VACANTE DEFINITIVA PROVISTA POR PROVISIONAL': 'Vacante Definitiva provista por Provisional',
+    'VT': 'Vacante Temporal',
+    'VACANTE TEMPORAL': 'Vacante Temporal',
+    'VT PROV': 'Vacante Temporal provista por Provisional',
+    'VACANTE TEMPORAL PROVISTA POR PROVISIONAL': 'Vacante Temporal provista por Provisional',
+    'LIBRE NOMBRAMIENTO Y REMOCIÓN': 'Libre Nombramiento y Remoción',
+    'LIBRE NOMBRAMIENTO Y REMOCION': 'Libre Nombramiento y Remoción',
+    'TRABAJADOR OFICIAL': 'Trabajador Oficial',
+    'VACANTE': 'Vacante Definitiva',
+    'PROVISIONAL': 'Provisional en Vacante Definitiva',
+    'TEMPORAL': 'Encargo en Vacante Temporal',
+    'SIN CLASIFICAR': 'Sin clasificar'
+  };
 
-    if (c === 'VACANTE') {
-      return `<span class="badge-clasif badge-clasif--vacante">${iconBriefcase} VACANTE</span>`;
+  function normalizarClasificacion(val) {
+    if (!val || val === '—' || val === '-' || String(val).trim() === '') return 'Sin clasificar';
+    const s = String(val).trim().replace(/\s+/g, ' ');
+    const upper = s.toUpperCase();
+    if (CLASIFICACION_MAP[upper]) return CLASIFICACION_MAP[upper];
+    const noDots = upper.replace(/\./g, '').trim();
+    if (CLASIFICACION_MAP[noDots]) return CLASIFICACION_MAP[noDots];
+    const noAcc = upper.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (CLASIFICACION_MAP[noAcc]) return CLASIFICACION_MAP[noAcc];
+    if (upper === '(VACÍAS)' || upper === '(VACIAS)') return 'Sin clasificar';
+    return s;
+  }
+
+  function badgeClasificacion(clasif) {
+    const norm = normalizarClasificacion(clasif);
+    if (!norm || norm === 'Sin clasificar') {
+      return '<span class="badge-clasif badge-clasif--default"><span>📋</span> Sin clasificar</span>';
     }
+    const c = norm.toUpperCase();
+    let cls = 'badge-clasif--default';
+    let icon = '📋';
+
     if (c.includes('CARRERA')) {
-      return `<span class="badge-clasif badge-clasif--carrera" title="Carrera Administrativa">${iconShield} ${escHtml(clasif)}</span>`;
+      cls = 'badge-clasif--carrera';
+      icon = '🛡️';
+    } else if (c.includes('LIBRE')) {
+      cls = 'badge-clasif--libre';
+      icon = '⭐';
+    } else if (c.includes('ENCARGO') || c.includes('ENCAR')) {
+      cls = 'badge-clasif--encargo';
+      icon = '🔄';
+    } else if (c.includes('LICENCIA')) {
+      cls = 'badge-clasif--licencia';
+      icon = '📝';
+    } else if (c.includes('PROVISIONAL') || c.includes('PROV')) {
+      cls = 'badge-clasif--provisional';
+      icon = '⏳';
+    } else if (c.includes('JUDIC')) {
+      cls = 'badge-clasif--judicatura';
+      icon = '⚖️';
+    } else if (c.includes('PERIODO') || c.includes('TEMPORAL')) {
+      cls = 'badge-clasif--temporal';
+      icon = '⏱️';
+    } else if (c.includes('SENA')) {
+      cls = 'badge-clasif--sena';
+      icon = '🎓';
+    } else if (c.includes('TRABAJADOR')) {
+      cls = 'badge-clasif--trabajador';
+      icon = '👷';
+    } else if (c.includes('VACANTE')) {
+      cls = 'badge-clasif--vacante';
+      icon = '🏛️';
     }
-    if (c.includes('LIBRE')) {
-      return `<span class="badge-clasif badge-clasif--libre" title="Libre Nombramiento y Remoción">${iconShield} ${escHtml(clasif)}</span>`;
-    }
-    if (c.includes('PROVISIONAL')) {
-      return `<span class="badge-clasif badge-clasif--provisional" title="Nombramiento Provisional">${iconShield} ${escHtml(clasif)}</span>`;
-    }
-    if (c.includes('TEMPORAL') || c.includes('PERIODO')) {
-      return `<span class="badge-clasif badge-clasif--temporal" title="Empleo Temporal / Periodo Fijo">${iconBriefcase} ${escHtml(clasif)}</span>`;
-    }
-    if (c.includes('TRABAJADOR')) {
-      return `<span class="badge-clasif badge-clasif--trabajador" title="Trabajador Oficial">${iconBriefcase} ${escHtml(clasif)}</span>`;
-    }
-    return `<span class="badge-clasif badge-clasif--default">${iconBriefcase} ${escHtml(clasif)}</span>`;
+
+    return `<span class="badge-clasif ${cls}"><span>${icon}</span> ${escHtml(norm)}</span>`;
   }
 
   async function load() {
@@ -385,35 +486,6 @@ const EmployeesModule = (() => {
     });
   }
 
-  function badgeClasificacion(clasif) {
-    if (!clasif) return '<span class="badge-clasif badge-clasif--default">No definida</span>';
-    const c = String(clasif).trim().toUpperCase();
-    let cls = 'badge-clasif--default';
-    let icon = '📋';
-
-    if (c.includes('CARRERA')) {
-      cls = 'badge-clasif--carrera';
-      icon = '🛡️';
-    } else if (c.includes('LIBRE') || c.includes('NOMBRAMIENTO')) {
-      cls = 'badge-clasif--libre';
-      icon = '⭐';
-    } else if (c.includes('PROVISIONAL')) {
-      cls = 'badge-clasif--provisional';
-      icon = '⏳';
-    } else if (c.includes('TEMPORAL')) {
-      cls = 'badge-clasif--temporal';
-      icon = '⏱️';
-    } else if (c.includes('TRABAJADOR')) {
-      cls = 'badge-clasif--trabajador';
-      icon = '👷';
-    } else if (c.includes('VACANTE')) {
-      cls = 'badge-clasif--vacante';
-      icon = '🏛️';
-    }
-
-    return `<span class="badge-clasif ${cls}"><span>${icon}</span> ${escHtml(clasif)}</span>`;
-  }
-
   async function openView(idOrCedula) {
     const norm = val => String(val || '').trim().replace(/[.,\s]/g, '');
     let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula || (e.cedula && idOrCedula && norm(e.cedula) === norm(idOrCedula)));
@@ -502,7 +574,18 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-icon">📋</div>
                 <span class="ficha-card-label">Tipo de Vinculación</span>
               </div>
-              <div class="ficha-card-val">${badgeClasificacion(emp.clasificacionEmpleo || 'CARRERA ADMINISTRATIVA')}</div>
+              <div class="ficha-card-val">${badgeClasificacion(emp.clasificacionEmpleo)}</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">📖</div>
+                <span class="ficha-card-label">Funciones</span>
+              </div>
+              <div class="ficha-card-val">
+                ${emp.funciones ? `<span class="badge badge--primary" style="font-size:0.95rem; font-weight:700; padding:4px 10px;">${/^\d+$/.test(String(emp.funciones).trim()) ? `Pág. ${escHtml(emp.funciones)}` : escHtml(emp.funciones)}</span>` : '<span style="color:var(--text-muted);">No registra funciones</span>'}
+              </div>
+              <div class="ficha-card-sub">Manual Específico de Funciones (FUNCIONES PAG.)</div>
             </div>
           </div>
         </div>
@@ -654,7 +737,7 @@ const EmployeesModule = (() => {
                 </div>
                 <div class="ficha-card-val">
                   ${emp.tipoDiscapacidad
-          ? `<span class="badge badge--revision" style="text-transform: capitalize; font-size:12px; font-weight:700;">${escHtml(emp.tipoDiscapacidad)}</span>`
+          ? `<span class="badge badge--revision" style="text-transform: capitalize; font-size:12px; font-weight:700;">♿ ${escHtml(emp.tipoDiscapacidad)}</span>`
           : '<span style="color:var(--text-muted); font-size:0.9rem; font-weight:500;">No registra condición de discapacidad</span>'
         }
                 </div>
@@ -708,7 +791,7 @@ const EmployeesModule = (() => {
                   <span class="ficha-card-label">Tipo de Vinculación</span>
                 </div>
                 <div class="ficha-card-val">
-                  ${badgeClasificacion(emp.clasificacionEmpleo || 'CARRERA ADMINISTRATIVA')}
+                  ${badgeClasificacion(emp.clasificacionEmpleo || 'Carrera Administrativa')}
                 </div>
               </div>
 
@@ -731,6 +814,17 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-val font-mono">
                   ${emp.opec ? `OPEC # <strong>${escHtml(emp.opec)}</strong>` : '<span style="color:var(--text-muted);">No registra OPEC</span>'}
                 </div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📖</div>
+                  <span class="ficha-card-label">Funciones</span>
+                </div>
+                <div class="ficha-card-val">
+                  ${emp.funciones ? `<span class="badge badge--primary" style="font-size:0.95rem; font-weight:700; padding:4px 10px;">${/^\d+$/.test(String(emp.funciones).trim()) ? `Pág. ${escHtml(emp.funciones)}` : escHtml(emp.funciones)}</span>` : '<span style="color:var(--text-muted);">No registra funciones</span>'}
+                </div>
+                <div class="ficha-card-sub">Manual Específico de Funciones (FUNCIONES PAG.)</div>
               </div>
             </div>
           </div>
@@ -1222,7 +1316,7 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-clasificacion">Tipo de Vinculación</label>
               <select id="ef-clasificacion" class="filter-select">
-                ${cats.clasificaciones.map(c => `<option value="${escHtml(c)}" ${c === emp.clasificacionEmpleo ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
+                ${cats.clasificaciones.map(c => `<option value="${escHtml(c)}" ${normalizarClasificacion(c) === normalizarClasificacion(emp.clasificacionEmpleo) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
               </select>
             </div>
 
@@ -1864,7 +1958,7 @@ const EmployeesModule = (() => {
       cargoActual: document.getElementById('ef-cargo')?.value || null,
       codigoCargo: codigoCargo || null,
       grado: grado || null,
-      clasificacionEmpleo: document.getElementById('ef-clasificacion')?.value || 'CARRERA ADMINISTRATIVA',
+      clasificacionEmpleo: normalizarClasificacion(document.getElementById('ef-clasificacion')?.value || 'Carrera Administrativa'),
       estadoServidor: document.getElementById('ef-estado-servidor')?.value || 'Activo',
       opec: document.getElementById('ef-opec')?.value.trim() || null,
       situacion,

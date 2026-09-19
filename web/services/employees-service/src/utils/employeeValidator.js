@@ -11,13 +11,167 @@ const GRADOS_VALIDOS = [
 ];
 
 const CLASIFICACIONES_EMPLEO = [
-  'CARRERA ADMINISTRATIVA',
-  'LIBRE NOMBRAMIENTO Y REMOCIÓN',
-  'PROVISIONAL',
-  'PERIODO FIJO',
-  'TEMPORAL',
-  'TRABAJADOR OFICIAL'
+  'Carrera Administrativa',
+  'Encargo en Vacante Definitiva',
+  'Encargo en Vacante Temporal',
+  'Encargo con Licencia No Remunerada',
+  'Judicatura',
+  'Licencia No Remunerada',
+  'Empleo de Período Fijo',
+  'Provisional en Vacante Definitiva',
+  'Provisional en Vacante Temporal',
+  'Aprendiz o Contrato SENA',
+  'Vacante Definitiva',
+  'Vacante Definitiva provista por Provisional',
+  'Vacante Temporal',
+  'Vacante Temporal provista por Provisional',
+  'Libre Nombramiento y Remoción',
+  'Trabajador Oficial',
+  'Sin clasificar'
 ];
+
+const CLASIFICACION_EMPLEO_MAP = {
+  'C.A': 'Carrera Administrativa',
+  'CA': 'Carrera Administrativa',
+  'C.A.': 'Carrera Administrativa',
+  'CARRERA ADMINISTRATIVA': 'Carrera Administrativa',
+  'ENCAR T': 'Encargo en Vacante Temporal',
+  'ENCART': 'Encargo en Vacante Temporal',
+  'ENCARGO VT': 'Encargo en Vacante Temporal',
+  'ENCARGO EN VACANTE TEMPORAL': 'Encargo en Vacante Temporal',
+  'ENCARGO VD': 'Encargo en Vacante Definitiva',
+  'ENCARGO EN VACANTE DEFINITIVA': 'Encargo en Vacante Definitiva',
+  'JUDIC': 'Judicatura',
+  'JUDICATURA': 'Judicatura',
+  'L.N': 'Licencia No Remunerada',
+  'LN': 'Licencia No Remunerada',
+  'L.N.': 'Licencia No Remunerada',
+  'LICENCIA NO REMUNERADA': 'Licencia No Remunerada',
+  'L.N ENCARGO': 'Encargo con Licencia No Remunerada',
+  'LN ENCARGO': 'Encargo con Licencia No Remunerada',
+  'L.N. ENCARGO': 'Encargo con Licencia No Remunerada',
+  'ENCARGO CON LICENCIA NO REMUNERADA': 'Encargo con Licencia No Remunerada',
+  'PERIODO': 'Empleo de Período Fijo',
+  'PERÍODO': 'Empleo de Período Fijo',
+  'PERIODO FIJO': 'Empleo de Período Fijo',
+  'EMPLEO DE PERIODO FIJO': 'Empleo de Período Fijo',
+  'EMPLEO DE PERÍODO FIJO': 'Empleo de Período Fijo',
+  'PROV VD': 'Provisional en Vacante Definitiva',
+  'PROVISIONAL VD': 'Provisional en Vacante Definitiva',
+  'PROVISIONAL EN VACANTE DEFINITIVA': 'Provisional en Vacante Definitiva',
+  'PROV VT': 'Provisional en Vacante Temporal',
+  'PROVISIONAL VT': 'Provisional en Vacante Temporal',
+  'PROVISIONAL EN VACANTE TEMPORAL': 'Provisional en Vacante Temporal',
+  'SENA': 'Aprendiz o Contrato SENA',
+  'APRENDIZ SENA': 'Aprendiz o Contrato SENA',
+  'CONTRATO SENA': 'Aprendiz o Contrato SENA',
+  'APRENDIZ O CONTRATO SENA': 'Aprendiz o Contrato SENA',
+  'VD': 'Vacante Definitiva',
+  'VACANTE DEFINITIVA': 'Vacante Definitiva',
+  'VD PROV': 'Vacante Definitiva provista por Provisional',
+  'VACANTE DEFINITIVA PROVISTA POR PROVISIONAL': 'Vacante Definitiva provista por Provisional',
+  'VT': 'Vacante Temporal',
+  'VACANTE TEMPORAL': 'Vacante Temporal',
+  'VT PROV': 'Vacante Temporal provista por Provisional',
+  'VACANTE TEMPORAL PROVISTA POR PROVISIONAL': 'Vacante Temporal provista por Provisional',
+  'LIBRE NOMBRAMIENTO Y REMOCIÓN': 'Libre Nombramiento y Remoción',
+  'LIBRE NOMBRAMIENTO Y REMOCION': 'Libre Nombramiento y Remoción',
+  'TRABAJADOR OFICIAL': 'Trabajador Oficial',
+  'VACANTE': 'Vacante Definitiva',
+  'PROVISIONAL': 'Provisional en Vacante Definitiva',
+  'TEMPORAL': 'Encargo en Vacante Temporal',
+  'SIN CLASIFICAR': 'Sin clasificar'
+};
+
+/**
+ * Normaliza las siglas de clasificación de empleo al nombre completo formal.
+ * @param {string|null} val
+ * @returns {string}
+ */
+function normalizarClasificacionEmpleo(val) {
+  if (val === null || val === undefined) return 'Sin clasificar';
+  const str = String(val).trim().replace(/\s+/g, ' ');
+  if (!str || str === '—' || str === '-' || str.toLowerCase() === '(vacías)' || str.toLowerCase() === '(vacias)' || str.toLowerCase() === 'sin clasificar') {
+    return 'Sin clasificar';
+  }
+
+  const upper = str.toUpperCase();
+  if (CLASIFICACION_EMPLEO_MAP[upper]) {
+    return CLASIFICACION_EMPLEO_MAP[upper];
+  }
+
+  const noDots = upper.replace(/\./g, '').trim();
+  if (CLASIFICACION_EMPLEO_MAP[noDots]) {
+    return CLASIFICACION_EMPLEO_MAP[noDots];
+  }
+
+  const noAccents = upper.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (CLASIFICACION_EMPLEO_MAP[noAccents]) {
+    return CLASIFICACION_EMPLEO_MAP[noAccents];
+  }
+
+  const matchCat = CLASIFICACIONES_EMPLEO.find(c => c.toLowerCase() === str.toLowerCase());
+  if (matchCat) return matchCat;
+
+  return str;
+}
+
+/**
+ * Analiza la columna SITUACION (Columna W) y extrae la condición especial o tipo de discapacidad.
+ * @param {string|null} rawSituacion
+ * @param {string|null} [rawDiscapacidad=null]
+ * @returns {{ situacion: string, tipoDiscapacidad: string|null, valido: boolean }}
+ */
+function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
+  const sitClean = String(rawSituacion || '').trim();
+  const discClean = String(rawDiscapacidad || '').trim();
+
+  if (discClean) {
+    const sitVal = sitClean ? sitClean.toUpperCase() : 'DISCAPACIDAD';
+    return {
+      valido: true,
+      situacion: sitVal,
+      tipoDiscapacidad: discClean.toLowerCase()
+    };
+  }
+
+  if (!sitClean) {
+    return { valido: true, situacion: 'ACTIVO', tipoDiscapacidad: null };
+  }
+
+  const sitUpper = sitClean.toUpperCase();
+  if (sitUpper.includes('DISCAPACIDAD')) {
+    let tipo = null;
+    if (sitUpper.includes('AUDITIV')) {
+      tipo = 'auditiva';
+    } else if (sitUpper.includes('VISUAL')) {
+      tipo = 'visual';
+    } else if (sitUpper.includes('MOTOR')) {
+      tipo = 'motora';
+    } else if (sitUpper.includes('COGNITIV')) {
+      tipo = 'cognitiva';
+    } else if (sitUpper.includes('SORDOMUD')) {
+      tipo = 'sordomuda';
+    } else if (sitUpper.includes('SORDOCIEG')) {
+      tipo = 'sordociega';
+    } else {
+      const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim().toLowerCase();
+      tipo = rem ? rem : 'auditiva'; // Si sólo dice DISCAPACIDAD pero no detalla
+    }
+
+    return {
+      valido: true,
+      situacion: 'DISCAPACIDAD',
+      tipoDiscapacidad: tipo
+    };
+  }
+
+  return {
+    valido: true,
+    situacion: sitUpper,
+    tipoDiscapacidad: null
+  };
+}
 
 const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
 
@@ -219,22 +373,7 @@ function validateSexo(val) {
  * Regla 12: Situación y Discapacidad (Ambos opcionales).
  */
 function validateSituacionDiscapacidad(situacion, discapacidad) {
-  const sit = (situacion || 'ACTIVO').trim();
-  const esDiscapacidad = sit.toLowerCase() === 'discapacidad';
-
-  if (esDiscapacidad) {
-    if (!discapacidad || !discapacidad.trim()) {
-      return { valido: true, situacion: 'DISCAPACIDAD', tipoDiscapacidad: null };
-    }
-    const discStr = discapacidad.trim().toLowerCase();
-    const match = DISCAPACIDADES_VALIDAS.find(d => d.toLowerCase() === discStr);
-    if (!match) {
-      return { valido: false, error: `Tipo de discapacidad inválido. Opciones permitidas: ${DISCAPACIDADES_VALIDAS.join(', ')}.` };
-    }
-    return { valido: true, situacion: 'DISCAPACIDAD', tipoDiscapacidad: match };
-  }
-
-  return { valido: true, situacion: sit.toUpperCase(), tipoDiscapacidad: null };
+  return parseSituacionYDiscapacidad(situacion, discapacidad);
 }
 
 /**
@@ -736,6 +875,9 @@ function sumarTiemposExactos(tiempo1, tiempo2) {
 module.exports = {
   GRADOS_VALIDOS,
   CLASIFICACIONES_EMPLEO,
+  CLASIFICACION_EMPLEO_MAP,
+  normalizarClasificacionEmpleo,
+  parseSituacionYDiscapacidad,
   ESTADOS_SERVIDOR,
   SEXOS_VALIDOS,
   DISCAPACIDADES_VALIDAS,

@@ -28,6 +28,7 @@ CREATE TABLE personas (
     nombre_completo VARCHAR(280),
     expedida VARCHAR(120),
     tipo_sangre VARCHAR(30),
+    tipo_discapacidad VARCHAR(50),
     fecha_nacimiento VARCHAR(60),
     edad VARCHAR(30),
     sexo VARCHAR(30),

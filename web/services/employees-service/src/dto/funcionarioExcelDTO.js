@@ -9,12 +9,18 @@ const {
   formatDateISO,
   calcularDiferenciaFechas
 } = require('../utils/excelHelper');
-const { calcularDiferenciaFechasExacta, sumarTiemposExactos } = require('../utils/employeeValidator');
+const {
+  calcularDiferenciaFechasExacta,
+  sumarTiemposExactos,
+  normalizarClasificacionEmpleo,
+  parseSituacionYDiscapacidad
+} = require('../utils/employeeValidator');
 
 /**
  * Normaliza las cabeceras de la fila:
  * - Aplica trim() a los nombres de columna (limpia 'POSTGRADO ', 'TIEMPO DE SERVICIO ', 'CORREO PERSONAL ').
  * - Descarta columnas basura tipo Unnamed (ej. Unnamed: 38).
+ * - Registra tanto la clave original limpia como su versión en mayúsculas para búsquedas seguras.
  */
 function cleanRowHeaders(rawRow) {
   const row = {};
@@ -23,6 +29,10 @@ function cleanRowHeaders(rawRow) {
     if (!trimmedKey) continue;
     if (trimmedKey.toLowerCase().startsWith('unnamed')) continue; // Ignora Unnamed: 38
     row[trimmedKey] = value;
+    const upperKey = trimmedKey.toUpperCase();
+    if (!row[upperKey]) {
+      row[upperKey] = value;
+    }
   }
   return row;
 }
@@ -139,6 +149,31 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   // 8. Expedición de documento y DIVIPOLA (Regla 10)
   const lugarExpedida = sanitizeString(row['EXPEDIDA']);
 
+  // Procesar Situación y Condición Especial / Discapacidad (Columna W: SITUACION)
+  const situacionRaw = row['SITUACION'] || row['SITUACIÓN'] || row['SITUACION LABORAL'] || row['CONDICIÓN ESPECIAL'] || row['CONDICION ESPECIAL'];
+  const discapacidadRaw = row['TIPO DE DISCAPACIDAD'] || row['DISCAPACIDAD'] || row['TIPO DISCAPACIDAD'];
+  const parsedSituacion = parseSituacionYDiscapacidad(situacionRaw, discapacidadRaw);
+
+  // Procesar Clasificación de Empleo (Columna V: CLASIFICACION EMPLEO)
+  const clasifRaw = row['CLASIFICACION EMPLEO'] || row['CLASIFICACIÓN EMPLEO'] || row['CLASIFICACION'] || row['CLASIFICACIÓN'] || row['TIPO DE VINCULACION'] || row['TIPO DE VINCULACIÓN'];
+  const clasificacionFinal = esVacante
+    ? (clasifRaw ? normalizarClasificacionEmpleo(clasifRaw) : 'Vacante Definitiva')
+    : normalizarClasificacionEmpleo(clasifRaw);
+
+  // Procesar Funciones del Cargo (Columna X: FUNCIONES PAG.)
+  const funcionesPagRaw = sanitizeString(
+    row['FUNCIONES PAG.'] ||
+    row['FUNCIONES PAG'] ||
+    row['FUNCIONES PÁG.'] ||
+    row['FUNCIONES PÁG'] ||
+    row['FUNCIONES PAGINA'] ||
+    row['FUNCIONES PÁGINA'] ||
+    row['FUNCIONES PAGADAS'] ||
+    row['FUNCIONES'] ||
+    row['PAGINA FUNCIONES'] ||
+    row['PÁGINA FUNCIONES']
+  );
+
   return {
     hoja: sheetName,
     rowNumber,
@@ -155,6 +190,7 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       segundoApellido: esVacante ? '' : segundoApellido,
       nombreCompleto: esVacante ? `PLAZA VACANTE - ${cargoPrincipal}` : nombreCompleto,
       tipoSangre: esVacante ? null : sanitizeString(row['TIPO DE SANGRE']),
+      tipoDiscapacidad: esVacante ? null : parsedSituacion.tipoDiscapacidad,
       fechaNacimientoDate: esVacante ? null : fechaNacimiento,
       fechaNacimientoStr: esVacante ? null : formatDateISO(fechaNacimiento),
       edadCalculada: esVacante ? null : (edadObj ? edadObj.texto : (sanitizeString(row['EDAD']) || null)),
@@ -179,10 +215,10 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       fechaEncargoDate: esVacante ? null : fechaEncargo,
       fechaEncargoStr: esVacante ? null : formatDateISO(fechaEncargo),
       tiempoServicioCalculado: esVacante ? null : (tiempoServicioObj ? tiempoServicioObj.texto : (sanitizeString(row['TIEMPO DE SERVICIO'] || row['TIEMPO DE SERVICIO ']) || null)),
-      clasificacionEmpleo: esVacante ? 'VACANTE' : sanitizeString(row['CLASIFICACION EMPLEO'] || row['CLASIFICACIÓN EMPLEO']),
-      situacion: esVacante ? 'VACANTE' : (sanitizeString(row['SITUACION'] || row['SITUACIÓN']) || 'ACTIVO'),
+      clasificacionEmpleo: clasificacionFinal,
+      situacion: esVacante ? 'VACANTE' : parsedSituacion.situacion,
       estadoServidor: esVacante ? 'Activo' : 'Activo', // Regla 6: Por defecto todos en estado "Activo"
-      funcionesPag: esVacante ? null : sanitizeString(row['FUNCIONES PAG.'] || row['FUNCIONES PAGADAS']),
+      funcionesPag: esVacante ? null : funcionesPagRaw,
       opec: esVacante ? null : sanitizeString(row['OPEC']),
       novedades: esVacante ? 'PLAZA VACANTE' : sanitizeString(row['NOVEDADES']),
       otroTiempoGober: esVacante ? null : sanitizeString(row['OTRO TIEMPO CON LA GOBER']),
