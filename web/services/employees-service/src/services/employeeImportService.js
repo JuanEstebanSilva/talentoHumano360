@@ -1,4 +1,5 @@
 // src/services/employeeImportService.js
+const { inferirNivelCargo } = require('../utils/employeeValidator');
 
 class EmployeeImportService {
   constructor(pool) {
@@ -76,9 +77,10 @@ class EmployeeImportService {
 
     idGenerators.cargo++;
     const newId = 'CAR' + String(idGenerators.cargo).padStart(3, '0');
+    const nivelCalculado = inferirNivelCargo(denominacion, codigo);
     await client.query(
       'INSERT INTO cargos (id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [newId, 'PLANTA', denominacion, codigo, grado, asignacion, 'PROFESIONAL']
+      [newId, 'PLANTA', denominacion, codigo, grado, asignacion, nivelCalculado]
     );
 
     cargoCache.set(cacheKey, newId);

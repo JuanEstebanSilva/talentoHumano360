@@ -223,9 +223,6 @@ const ExcelService = (() => {
 
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeModal();
-    });
 
     // Descarga de plantilla
     downloadTemplateBtn.addEventListener('click', () => {

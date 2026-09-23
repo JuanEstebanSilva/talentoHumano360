@@ -250,49 +250,100 @@ const EmployeesModule = (() => {
     return s;
   }
 
-  function badgeClasificacion(clasif) {
-    const norm = normalizarClasificacion(clasif);
+  function renderSingleBadgeClasif(clasifText) {
+    const norm = normalizarClasificacion(clasifText);
     if (!norm || norm === 'Sin clasificar') {
-      return '<span class="badge-clasif badge-clasif--default"><span>📋</span> Sin clasificar</span>';
+      return '<span class="badge-clasif badge-clasif--default"><span>📝</span> Sin clasificar</span>';
     }
     const c = norm.toUpperCase();
     let cls = 'badge-clasif--default';
-    let icon = '📋';
+    let icon = '📝';
 
-    if (c.includes('CARRERA')) {
-      cls = 'badge-clasif--carrera';
-      icon = '🛡️';
-    } else if (c.includes('LIBRE')) {
-      cls = 'badge-clasif--libre';
-      icon = '⭐';
-    } else if (c.includes('ENCARGO') || c.includes('ENCAR')) {
+    if (c.includes('ENCARGO') || c.includes('ENCAR')) {
       cls = 'badge-clasif--encargo';
       icon = '🔄';
+    } else if (c.includes('CARRERA')) {
+      cls = 'badge-clasif--carrera';
+    } else if (c.includes('LIBRE')) {
+      cls = 'badge-clasif--libre';
     } else if (c.includes('LICENCIA')) {
       cls = 'badge-clasif--licencia';
-      icon = '📝';
     } else if (c.includes('PROVISIONAL') || c.includes('PROV')) {
       cls = 'badge-clasif--provisional';
-      icon = '⏳';
     } else if (c.includes('JUDIC')) {
       cls = 'badge-clasif--judicatura';
-      icon = '⚖️';
     } else if (c.includes('PERIODO') || c.includes('TEMPORAL')) {
       cls = 'badge-clasif--temporal';
-      icon = '⏱️';
     } else if (c.includes('SENA')) {
       cls = 'badge-clasif--sena';
-      icon = '🎓';
     } else if (c.includes('TRABAJADOR')) {
       cls = 'badge-clasif--trabajador';
-      icon = '👷';
     } else if (c.includes('VACANTE')) {
       cls = 'badge-clasif--vacante';
-      icon = '🏛️';
     }
 
     return `<span class="badge-clasif ${cls}"><span>${icon}</span> ${escHtml(norm)}</span>`;
   }
+
+  function badgeClasificacion(clasifOrEmp, maybeEmp = null) {
+    let emp = null;
+    let rawClasif = '';
+    if (clasifOrEmp && typeof clasifOrEmp === 'object') {
+      emp = clasifOrEmp;
+      rawClasif = emp.clasificacionEmpleo || '';
+    } else {
+      rawClasif = clasifOrEmp || '';
+      emp = maybeEmp;
+    }
+
+    const norm = normalizarClasificacion(rawClasif);
+    const normUpper = (norm || '').toUpperCase();
+    const situacionUpper = String(emp?.situacion || '').toUpperCase();
+    const fechaEncargoRaw = String(emp?.fechaEncargo || '').trim();
+    const hasFechaEncargo = Boolean(
+      fechaEncargoRaw &&
+      fechaEncargoRaw !== 'NO REGISTRADO' &&
+      fechaEncargoRaw !== 'N/A' &&
+      fechaEncargoRaw !== '—' &&
+      fechaEncargoRaw !== 'NULL'
+    );
+
+    // Un servidor tiene encargo si su clasificación lo indica, su situación es encargo, o tiene fecha de encargo
+    const isEncargo = normUpper.includes('ENCARGO') ||
+                      normUpper.includes('ENCAR') ||
+                      situacionUpper.includes('ENCARGO') ||
+                      situacionUpper.includes('ENCAR') ||
+                      hasFechaEncargo;
+
+    // Si NO tiene encargo: mantener única y exclusivamente su tipo de vinculación original con emoji 📝
+    if (!isEncargo) {
+      return renderSingleBadgeClasif(norm);
+    }
+
+    // Si y solo si tiene encargo:
+    // 1. Debe tener la etiqueta de Carrera Administrativa (con emoji 📝)
+    // 2. Y adicionalmente aparecer que es un encargo con su emoji distintivo 🔄
+    const badgeCarrera = renderSingleBadgeClasif('Carrera Administrativa');
+
+    let encargoLabel = norm;
+    if (!normUpper.includes('ENCARGO') && !normUpper.includes('ENCAR')) {
+      encargoLabel = 'Encargo';
+    }
+    const badgeEncargo = `<span class="badge-clasif badge-clasif--encargo"><span>🔄</span> ${escHtml(encargoLabel)}</span>`;
+
+    // Si además tenía otra clasificación previa diferente de Carrera y de Encargo, se conserva
+    let extraBadge = '';
+    if (!normUpper.includes('CARRERA') && !normUpper.includes('ENCAR') && norm !== 'Sin clasificar') {
+      extraBadge = renderSingleBadgeClasif(norm);
+    }
+
+    return `<div style="display:inline-flex; flex-wrap:wrap; gap:6px; align-items:center;">
+      ${badgeCarrera}
+      ${badgeEncargo}
+      ${extraBadge ? extraBadge : ''}
+    </div>`;
+  }
+
 
   async function load() {
     try {
@@ -366,7 +417,7 @@ const EmployeesModule = (() => {
           </div>
         </td>
         <td title="${escHtml(e.cargoActual)}">
-          <div style="font-weight:600; color:var(--text-primary);">${truncate(e.cargoActual, 28) || '—'}</div>
+          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">${truncate(e.cargoActual, 28) || '—'}</div>
           <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
             ${(e.codigoActual && e.codigoActual !== 'N/A') ? `Cód. <strong>${escHtml(e.codigoActual)}</strong>` : 'Sin código'}
             ${(e.gradoActual && e.gradoActual !== 'N/A') ? ` • Grado <strong>${escHtml(e.gradoActual)}</strong>` : ''}
@@ -571,10 +622,10 @@ const EmployeesModule = (() => {
 
             <div class="ficha-card">
               <div class="ficha-card-top">
-                <div class="ficha-card-icon">📋</div>
+                <div class="ficha-card-icon">📝</div>
                 <span class="ficha-card-label">Tipo de Vinculación</span>
               </div>
-              <div class="ficha-card-val">${badgeClasificacion(emp.clasificacionEmpleo)}</div>
+              <div class="ficha-card-val">${badgeClasificacion(emp.clasificacionEmpleo, emp)}</div>
             </div>
 
             <div class="ficha-card">
@@ -585,7 +636,7 @@ const EmployeesModule = (() => {
               <div class="ficha-card-val">
                 ${emp.funciones ? `<span class="badge badge--primary" style="font-size:0.95rem; font-weight:700; padding:4px 10px;">${/^\d+$/.test(String(emp.funciones).trim()) ? `Pág. ${escHtml(emp.funciones)}` : escHtml(emp.funciones)}</span>` : '<span style="color:var(--text-muted);">No registra funciones</span>'}
               </div>
-              <div class="ficha-card-sub">Manual Específico de Funciones (FUNCIONES PAG.)</div>
+              <div class="ficha-card-sub">Manual Específico de Funciones</div>
             </div>
           </div>
         </div>
@@ -787,11 +838,11 @@ const EmployeesModule = (() => {
 
               <div class="ficha-card">
                 <div class="ficha-card-top">
-                  <div class="ficha-card-icon">📋</div>
+                  <div class="ficha-card-icon">📝</div>
                   <span class="ficha-card-label">Tipo de Vinculación</span>
                 </div>
                 <div class="ficha-card-val">
-                  ${badgeClasificacion(emp.clasificacionEmpleo || 'Carrera Administrativa')}
+                  ${badgeClasificacion(emp.clasificacionEmpleo || 'Carrera Administrativa', emp)}
                 </div>
               </div>
 
@@ -824,7 +875,7 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-val">
                   ${emp.funciones ? `<span class="badge badge--primary" style="font-size:0.95rem; font-weight:700; padding:4px 10px;">${/^\d+$/.test(String(emp.funciones).trim()) ? `Pág. ${escHtml(emp.funciones)}` : escHtml(emp.funciones)}</span>` : '<span style="color:var(--text-muted);">No registra funciones</span>'}
                 </div>
-                <div class="ficha-card-sub">Manual Específico de Funciones (FUNCIONES PAG.)</div>
+                <div class="ficha-card-sub">Manual Específico de Funciones</div>
               </div>
             </div>
           </div>
@@ -872,7 +923,7 @@ const EmployeesModule = (() => {
 
               <div class="ficha-card ficha-grid--full">
                 <div class="ficha-card-top">
-                  <div class="ficha-card-icon">🔖</div>
+                  <div class="ficha-card-icon">🔄</div>
                   <span class="ficha-card-label">Fecha de Encargo</span>
                 </div>
                 <div class="ficha-card-val font-mono">
@@ -2620,7 +2671,7 @@ const EmployeesModule = (() => {
               <thead>
                 <tr>
                   <th>Servidor / Documento</th>
-                  <th>Cargo & Código</th>
+                  <th>Nivel, Cargo & Código</th>
                   <th>Otro Tiempo Gobernación</th>
                   <th>Tiempo de Servicio</th>
                   <th>Tiempo Total Gobernación</th>

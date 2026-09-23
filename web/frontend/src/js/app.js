@@ -890,14 +890,8 @@ const App = (() => {
     document.getElementById('sidebar-toggle')?.addEventListener('click', toggleSidebar);
     document.getElementById('topbar-sidebar-toggle')?.addEventListener('click', toggleSidebar);
 
-    // Modal close
+    // Modal close - Únicamente mediante los botones del modal/formulario (sin parpadeos al hacer clic afuera)
     document.getElementById('modal-close')?.addEventListener('click', closeModal);
-    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
-      if (e.target.id === 'modal-overlay') closeModal();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
-    });
 
     // Nav items
     document.querySelectorAll('.nav-item[data-module]:not(.nav-group-toggle), .sidebar-settings-btn[data-module]').forEach(btn => {

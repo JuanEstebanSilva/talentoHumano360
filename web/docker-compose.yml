@@ -20,6 +20,7 @@ services:
       - ../database/06_hr_updates_experiencia_multiple.sql:/docker-entrypoint-initdb.d/06_hr_updates_experiencia_multiple.sql
       - ../database/07_add_tiempo_total_gobernacion.sql:/docker-entrypoint-initdb.d/07_add_tiempo_total_gobernacion.sql
       - ../database/08_full_divipola_update.sql:/docker-entrypoint-initdb.d/08_full_divipola_update.sql
+      - ../database/09_cargos_nivel_update.sql:/docker-entrypoint-initdb.d/09_cargos_nivel_update.sql
     ports:
       - "5432:5432"
     networks:

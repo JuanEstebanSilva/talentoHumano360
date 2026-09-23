@@ -872,6 +872,36 @@ function sumarTiemposExactos(tiempo1, tiempo2) {
   };
 }
 
+/**
+ * Deduce e infiere el nivel jerárquico del cargo según normas DAFP / Decreto 785 de 2005.
+ * Niveles: DIRECTIVO, ASESOR, PROFESIONAL, TÉCNICO, ASISTENCIAL.
+ */
+function inferirNivelCargo(cargo, codigo, nivelDb) {
+  const n = String(nivelDb || '').trim().toUpperCase();
+  if (n && n !== 'PROFESIONAL' && n !== 'PLANTA' && n !== 'N/A' && n !== 'NO REGISTRADO') {
+    return n;
+  }
+  const cod = String(codigo || '').trim();
+  const c = String(cargo || '').toUpperCase();
+  if (/^0\d{2}/.test(cod) || c.includes('DIRECT') || c.includes('GOBERNADOR') || c.includes('SECRETARIO DE DESPACHO') || c.includes('SUBDIRECTOR') || c.includes('GERENTE') || c.includes('COORDINADOR')) {
+    return 'DIRECTIVO';
+  }
+  if (/^1\d{2}/.test(cod) || c.includes('ASESOR') || c.includes('JEFE DE OFICINA')) {
+    return 'ASESOR';
+  }
+  if (/^3\d{2}/.test(cod) || c.includes('TECNIC') || c.includes('TÉCNIC')) {
+    return 'TÉCNICO';
+  }
+  if (/^4\d{2}/.test(cod) || c.includes('AUXILIAR') || c.includes('SECRETARI') || c.includes('CONDUCTOR') || c.includes('CELADOR') || c.includes('OPERARIO') || c.includes('ASISTENCIAL')) {
+    return 'ASISTENCIAL';
+  }
+  if (/^2\d{2}/.test(cod) || c.includes('PROFESIONAL') || c.includes('ESPECIALIZADO') || c.includes('UNIVERSITARIO') || c.includes('MEDICO') || c.includes('MÉDICO') || c.includes('TESORERO') || c.includes('ALMACENISTA') || c.includes('ANALISTA') || c.includes('INSPECTOR')) {
+    return 'PROFESIONAL';
+  }
+  if (n) return n;
+  return 'PROFESIONAL';
+}
+
 module.exports = {
   GRADOS_VALIDOS,
   CLASIFICACIONES_EMPLEO,
@@ -903,7 +933,8 @@ module.exports = {
   sumarTiemposExactos,
   parseDuracionTexto,
   parseFechaFlexible,
-  calcularOtroTiempoNormalizado
+  calcularOtroTiempoNormalizado,
+  inferirNivelCargo
 };
 
 

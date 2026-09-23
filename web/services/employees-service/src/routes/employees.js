@@ -31,7 +31,8 @@ const {
   validateEmail,
   validateOtroTiempoPeriodos,
   sumarTiemposExactos,
-  calcularOtroTiempoNormalizado
+  calcularOtroTiempoNormalizado,
+  inferirNivelCargo
 } = require('../utils/employeeValidator');
 
 const pool = new Pool(
@@ -156,9 +157,11 @@ router.get('/', auth, async (req, res) => {
              COALESCE(ca.cargo,'') AS cargo_actual,
              COALESCE(ca.codigo,'') AS codigo_actual,
              COALESCE(ca.grado,'') AS grado_actual,
+             COALESCE(ca.nivel,'') AS nivel_actual,
              COALESCE(cb.cargo,'') AS cargo_base,
              COALESCE(cb.codigo,'') AS codigo_base,
              COALESCE(cb.grado,'') AS grado_base,
+             COALESCE(cb.nivel,'') AS nivel_base,
              COALESCE(con.correo_institucional,'') AS correo,
              COALESCE(con.correo_personal,'') AS correo_personal,
              COALESCE(con.celular,'') AS celular,
@@ -294,11 +297,16 @@ router.get('/', auth, async (req, res) => {
           fechaNacimiento: esVacante ? null : r.fecha_nacimiento,
           edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
           edadAnios: esVacante ? null : (edadCalc ? edadCalc.anios : null),
-          dependencia: clean(r.dependencia),
+           dependencia: clean(r.dependencia),
           cargoActual: clean(r.cargo_actual),
           codigoActual: clean(r.codigo_actual),
           gradoActual: clean(r.grado_actual),
+          nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
+          nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           cargoBase: clean(r.cargo_base),
+          codigoBase: clean(r.codigo_base),
+          gradoBase: clean(r.grado_base),
+          nivelBase: inferirNivelCargo(r.cargo_base, r.codigo_base, r.nivel_base),
           correo: esVacante ? null : r.correo,
           correoPersonal: esVacante ? null : r.correo_personal,
           celular: esVacante ? null : (celularesArr[0] || r.celular),
@@ -349,9 +357,9 @@ router.get('/catalogs', auth, async (_, res) => {
   try {
     const [depsRes, cargosRes, cargosPorDepRes, divipolaRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
-      pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
+      pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
       pool.query(`
-        SELECT DISTINCT d.dependencia, c.cargo, c.codigo, c.grado, c.asignacion_sueldo
+        SELECT DISTINCT d.dependencia, c.cargo, c.codigo, c.grado, c.asignacion_sueldo, c.nivel
         FROM rel_principal r
         JOIN dependencias d ON d.id_dependencia = r.id_dependencia
         JOIN cargos c ON (c.id_cargo = r.id_cargo_actual OR c.id_cargo = r.id_cargo_base)
@@ -370,7 +378,8 @@ router.get('/catalogs', auth, async (_, res) => {
         cargo: clean(row.cargo),
         codigo: clean(row.codigo),
         grado: clean(row.grado),
-        asignacion: row.asignacion_sueldo
+        asignacion: row.asignacion_sueldo,
+        nivel: inferirNivelCargo(row.cargo, row.codigo, row.nivel)
       });
     }
 
@@ -392,7 +401,8 @@ router.get('/catalogs', auth, async (_, res) => {
         cargo: clean(r.cargo),
         codigo: clean(r.codigo),
         grado: clean(r.grado),
-        asignacion: r.asignacion_sueldo
+        asignacion: r.asignacion_sueldo,
+        nivel: inferirNivelCargo(r.cargo, r.codigo, r.nivel)
       })).filter(c => Boolean(c.cargo)),
       cargosPorDependencia,
       divipola: {
@@ -572,8 +582,8 @@ router.post('/', auth, async (req, res) => {
 
     const cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual || 'NO REGISTRADO', async (id, name) =>
       client.query(
-        "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,'PROFESIONAL')",
-        [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0']
+        "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
+        [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
       ));
 
     // Inserción en personas
@@ -752,10 +762,12 @@ router.get('/:cedula', auth, async (req, res) => {
              COALESCE(ca.cargo,'') AS cargo_actual,
              COALESCE(ca.codigo,'') AS codigo_actual,
              COALESCE(ca.grado,'') AS grado_actual,
+             COALESCE(ca.nivel,'') AS nivel_actual,
              COALESCE(ca.asignacion_sueldo,'') AS asignacion,
              COALESCE(cb.cargo,'') AS cargo_base,
              COALESCE(cb.codigo,'') AS codigo_base,
              COALESCE(cb.grado,'') AS grado_base,
+             COALESCE(cb.nivel,'') AS nivel_base,
              COALESCE(con.correo_institucional,'') AS correo,
              COALESCE(con.correo_personal,'') AS correo_personal,
              COALESCE(con.celular,'') AS celular,
@@ -859,9 +871,12 @@ router.get('/:cedula', auth, async (req, res) => {
       cargoActual: clean(r.cargo_actual),
       codigoActual: clean(r.codigo_actual),
       gradoActual: clean(r.grado_actual),
+      nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
+      nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
       cargoBase: clean(r.cargo_base),
       codigoBase: clean(r.codigo_base),
       gradoBase: clean(r.grado_base),
+      nivelBase: inferirNivelCargo(r.cargo_base, r.codigo_base, r.nivel_base),
       asignacion: r.asignacion,
       correo: esVacante ? null : r.correo,
       correoPersonal: esVacante ? null : r.correo_personal,
@@ -1160,8 +1175,10 @@ router.put('/:cedula', auth, async (req, res) => {
     let cargoId = null;
     if (cargoActual) {
       cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual, async (id, name) =>
-        client.query("INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,'PROFESIONAL')",
-          [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0']));
+        client.query(
+          "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
+          [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
+        ));
 
       // Actualizar el código y grado en el cargo
       await client.query(
