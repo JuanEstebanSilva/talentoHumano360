@@ -155,5 +155,30 @@ const API = (() => {
     calculateHorarioDates: (data) => request('/horarios/calculate-dates', { method: 'POST', body: JSON.stringify(data) }),
     checkHorariosExpirations: () => request('/horarios/check-expirations', { method: 'POST' }),
     bulkCreateHorarios: (rows) => request('/horarios/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+
+    // Seguridad y Salud en el Trabajo (SST)
+    getSstCatalogs: () => request('/sst/catalogs'),
+    getSstStats: () => request('/sst/stats'),
+
+    getSstEpidemiologico: (params = {}) => request('/sst/epidemiologico?' + new URLSearchParams(params)),
+    createSstEpidemiologico: (data) => request('/sst/epidemiologico', { method: 'POST', body: JSON.stringify(data) }),
+    updateSstEpidemiologico: (id, data) => request(`/sst/epidemiologico/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateSstEpidemiologicoStatus: (id, estadoFinalCaso, actividadesPendientes = '') =>
+      request(`/sst/epidemiologico/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estadoFinalCaso, actividadesPendientes }) }),
+    checkSstEmoVencimientos: () => request('/sst/epidemiologico/check-vencimientos', { method: 'POST' }),
+    bulkCreateSstEpidemiologico: (rows) => request('/sst/epidemiologico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    deleteSstEpidemiologico: (id) => request(`/sst/epidemiologico/${id}`, { method: 'DELETE' }),
+
+    getSstEpp: (params = {}) => request('/sst/epp?' + new URLSearchParams(params)),
+    createSstEpp: (data) => request('/sst/epp', { method: 'POST', body: JSON.stringify(data) }),
+    updateSstEpp: (id, data) => request(`/sst/epp/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    bulkCreateSstEpp: (rows) => request('/sst/epp/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    deleteSstEpp: (id) => request(`/sst/epp/${id}`, { method: 'DELETE' }),
+
+    getSstSociodemografico: (params = {}) => request('/sst/sociodemografico?' + new URLSearchParams(params)),
+    createSstSociodemografico: (data) => request('/sst/sociodemografico', { method: 'POST', body: JSON.stringify(data) }),
+    updateSstSociodemografico: (id, data) => request(`/sst/sociodemografico/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    bulkCreateSstSociodemografico: (rows) => request('/sst/sociodemografico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    deleteSstSociodemografico: (id) => request(`/sst/sociodemografico/${id}`, { method: 'DELETE' }),
   };
 })();

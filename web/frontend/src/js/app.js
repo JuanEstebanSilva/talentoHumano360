@@ -102,6 +102,7 @@ const App = (() => {
     'admin-requests': 'Solicitudes Administrativas',
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
+    sst: 'Seguridad y Salud en el Trabajo (SST)',
     settings: 'Configuración',
   };
 
@@ -112,6 +113,7 @@ const App = (() => {
     'admin-requests': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   };
 
@@ -138,6 +140,17 @@ const App = (() => {
       if (menu) {
         menu.setAttribute('aria-hidden', 'false');
       }
+    } else if (module === 'sst') {
+      const sstGroupBtn = document.getElementById('nav-sst-group');
+      const sstMenu = document.getElementById('sst-submenu');
+      if (sstGroupBtn) {
+        sstGroupBtn.classList.add('active');
+        sstGroupBtn.setAttribute('aria-current', 'true');
+        sstGroupBtn.setAttribute('aria-expanded', 'true');
+      }
+      if (sstMenu) {
+        sstMenu.setAttribute('aria-hidden', 'false');
+      }
     } else {
       const navBtn = document.getElementById(`nav-${module}`);
       if (navBtn) {
@@ -161,6 +174,15 @@ const App = (() => {
         title = 'Licencias Institucionales';
         iconSvg = '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>';
       }
+    } else if (module === 'sst') {
+      const tabKey = options.tab || 'epidemiologico';
+      if (tabKey === 'epidemiologico') {
+        title = 'SST · Perfil Epidemiológico y EMO';
+      } else if (tabKey === 'epp') {
+        title = 'SST · Entrega de EPP';
+      } else if (tabKey === 'sociodemografico') {
+        title = 'SST · Perfil Sociodemográfico';
+      }
     }
 
     if (pageTitle) pageTitle.textContent = title;
@@ -170,40 +192,7 @@ const App = (() => {
     if (badge) badge.setAttribute('title', title);
     document.getElementById('app')?.setAttribute('data-current-module', module);
 
-    // FX: page transition
-    if (typeof FX !== 'undefined') {
-      FX.animatePageTransition(container, async () => {
-        switch (module) {
-          case 'dashboard':      await DashboardModule.render(container); break;
-          case 'employees':     await EmployeesModule.render(container); break;
-          case 'requests':      await RequestsModule.render(container); break;
-          case 'admin-requests': {
-            const tipoKey = options.tipo || 'permisos';
-            await AdminRequestsModule.render(container, tipoKey);
-            const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
-            const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
-            if (activeSubBtn) {
-              activeSubBtn.classList.add('active');
-              activeSubBtn.setAttribute('aria-current', 'page');
-            }
-            const adminGroupBtn = document.getElementById('nav-admin-group');
-            if (adminGroupBtn) adminGroupBtn.classList.add('active');
-            expandAdminGroup();
-            break;
-          }
-          case 'viaticos':      await ViaticosModule.render(container); break;
-          case 'horarios':      await HorariosModule.render(container); break;
-          case 'settings':
-            if (typeof SettingsModule !== 'undefined') await SettingsModule.render(container);
-            break;
-          default:
-            container.innerHTML = `<div class="module-enter"><p style="color:var(--text-muted)">Módulo no encontrado.</p></div>`;
-        }
-        FX.onModuleRendered(container);
-        container.scrollTop = 0;
-      });
-    } else {
-      // Render module (no FX)
+    const renderSelectedModule = async () => {
       switch (module) {
         case 'dashboard':      await DashboardModule.render(container); break;
         case 'employees':     await EmployeesModule.render(container); break;
@@ -224,12 +213,40 @@ const App = (() => {
         }
         case 'viaticos':      await ViaticosModule.render(container); break;
         case 'horarios':      await HorariosModule.render(container); break;
+        case 'sst': {
+          const tabKey = options.tab || 'epidemiologico';
+          if (typeof SstModule !== 'undefined') await SstModule.render(container, tabKey);
+          const sstSubMap = {
+            epidemiologico: 'nav-sst-epidemiologico',
+            epp: 'nav-sst-epp',
+            sociodemografico: 'nav-sst-sociodemografico'
+          };
+          const activeSstSub = document.getElementById(sstSubMap[tabKey] || 'nav-sst-epidemiologico');
+          if (activeSstSub) {
+            activeSstSub.classList.add('active');
+            activeSstSub.setAttribute('aria-current', 'page');
+          }
+          const sstGroupBtn = document.getElementById('nav-sst-group');
+          if (sstGroupBtn) sstGroupBtn.classList.add('active');
+          break;
+        }
         case 'settings':
           if (typeof SettingsModule !== 'undefined') await SettingsModule.render(container);
           break;
         default:
           container.innerHTML = `<div class="module-enter"><p style="color:var(--text-muted)">Módulo no encontrado.</p></div>`;
       }
+    };
+
+    // FX: page transition
+    if (typeof FX !== 'undefined') {
+      FX.animatePageTransition(container, async () => {
+        await renderSelectedModule();
+        FX.onModuleRendered(container);
+        container.scrollTop = 0;
+      });
+    } else {
+      await renderSelectedModule();
       container.scrollTop = 0;
     }
   }
@@ -900,9 +917,12 @@ const App = (() => {
         if (typeof FX !== 'undefined') FX.animateNavClick(btn);
         const module = btn.dataset.module;
         const tipo = btn.dataset.tipo;
+        const tab = btn.dataset.tab;
         if (module === 'admin-requests') {
           const tipoKey = { 'Permiso Laboral': 'permisos', 'Incapacidad': 'incapacidades', 'Licencia': 'licencias' }[tipo] || 'permisos';
           navigate('admin-requests', { tipo: tipoKey });
+        } else if (module === 'sst') {
+          navigate('sst', { tab: tab || 'epidemiologico' });
         } else {
           navigate(module);
         }
@@ -915,6 +935,16 @@ const App = (() => {
     document.getElementById('nav-admin-group')?.addEventListener('click', () => {
       const toggle = document.getElementById('nav-admin-group');
       const menu = document.getElementById('admin-submenu');
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      menu.setAttribute('aria-hidden', String(expanded));
+      if (typeof FX !== 'undefined') FX.Sound.navClick();
+    });
+
+    // SST group toggle
+    document.getElementById('nav-sst-group')?.addEventListener('click', () => {
+      const toggle = document.getElementById('nav-sst-group');
+      const menu = document.getElementById('sst-submenu');
       const expanded = toggle.getAttribute('aria-expanded') === 'true';
       toggle.setAttribute('aria-expanded', String(!expanded));
       menu.setAttribute('aria-hidden', String(expanded));
