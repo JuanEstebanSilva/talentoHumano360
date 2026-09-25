@@ -21,6 +21,7 @@ services:
       - ../database/07_add_tiempo_total_gobernacion.sql:/docker-entrypoint-initdb.d/07_add_tiempo_total_gobernacion.sql
       - ../database/08_full_divipola_update.sql:/docker-entrypoint-initdb.d/08_full_divipola_update.sql
       - ../database/09_cargos_nivel_update.sql:/docker-entrypoint-initdb.d/09_cargos_nivel_update.sql
+      - ../database/10_sst_module.sql:/docker-entrypoint-initdb.d/10_sst_module.sql
     ports:
       - "5432:5432"
     networks:
@@ -180,6 +181,27 @@ services:
       - talento360_net
 
   # ─────────────────────────────────────────────────
+  # MICROSERVICE 9 — SST Service (Seguridad y Salud en el Trabajo)
+  # ─────────────────────────────────────────────────
+  sst-service:
+    build: ./services/sst-service
+    container_name: talento360_sst
+    restart: unless-stopped
+    environment:
+      PORT: 3008
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-talento360}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - talento360_net
+
+  # ─────────────────────────────────────────────────
   # FRONTEND + GATEWAY (Nginx)
   # ─────────────────────────────────────────────────
   frontend:
@@ -199,6 +221,7 @@ services:
       - viaticos-service
       - dashboard-service
       - horarios-service
+      - sst-service
     networks:
       - talento360_net
 

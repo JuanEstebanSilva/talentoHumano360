@@ -31,6 +31,8 @@ const SQL_FILES = [
   '06_hr_updates_experiencia_multiple.sql',
   '07_add_tiempo_total_gobernacion.sql',
   '08_full_divipola_update.sql',
+  '09_cargos_nivel_update.sql',
+  '10_sst_module.sql',
 ];
 
 function findDatabaseDir() {

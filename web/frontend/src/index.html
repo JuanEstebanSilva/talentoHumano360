@@ -333,6 +333,54 @@
               <span class="nav-label">Horarios</span>
             </button>
           </li>
+          <li class="nav-group">
+            <button class="nav-item nav-group-toggle" id="nav-sst-group" aria-expanded="false"
+              aria-controls="sst-submenu" title="Seguridad y Salud en el Trabajo (SST)" data-tooltip="SST">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+              <span class="nav-label">Seguridad y Salud (SST)</span>
+              <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <ul id="sst-submenu" class="nav-submenu" aria-hidden="true" role="list">
+              <li>
+                <button class="nav-item nav-subitem" data-module="sst" data-tab="epidemiologico"
+                  id="nav-sst-epidemiologico">
+                  <svg class="nav-icon nav-icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" aria-hidden="true">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                  </svg>
+                  <span class="nav-label">Perfil Epidemiológico</span>
+                </button>
+              </li>
+              <li>
+                <button class="nav-item nav-subitem" data-module="sst" data-tab="epp"
+                  id="nav-sst-epp">
+                  <svg class="nav-icon nav-icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" aria-hidden="true">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span class="nav-label">Entrega de EPP</span>
+                </button>
+              </li>
+              <li>
+                <button class="nav-item nav-subitem" data-module="sst" data-tab="sociodemografico"
+                  id="nav-sst-sociodemografico">
+                  <svg class="nav-icon nav-icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                  <span class="nav-label">Perfil Sociodemográfico</span>
+                </button>
+              </li>
+            </ul>
+          </li>
         </ul>
       </nav>
 
@@ -512,7 +560,8 @@
   <script src="js/modules/admin-requests.js?v=20260905_ui8"></script>
   <script src="js/modules/viaticos.js?v=20260905_ui8"></script>
   <script src="js/modules/horarios.js?v=20260906_1"></script>
-  <script src="js/app.js?v=20260916_logout"></script>
+  <script src="js/modules/sst.js?v=20260924_1"></script>
+  <script src="js/app.js?v=20260924_sst"></script>
 </body>
 
 </html>

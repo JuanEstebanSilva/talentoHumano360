@@ -38,6 +38,7 @@ const adminRequestsRoutes = require('../services/admin-requests-service/src/rout
 const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
 const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
 const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
+const sstRoutes           = require('../services/sst-service/src/routes/sst');
 
 // ─── Montaje de Rutas API ─────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -47,6 +48,7 @@ app.use('/api/admin-requests', adminRequestsRoutes);
 app.use('/api/viaticos', viaticosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/horarios', horariosRoutes);
+app.use('/api/sst', sstRoutes);
 
 // Endpoint administrativo para ejecutar o forzar la inicialización de la base de datos sin necesitar Shell
 app.all('/api/admin/init-db', async (req, res) => {
