@@ -36,8 +36,10 @@
   --color-blue-light:   #007BC7;
   --color-navy:         #005387;
 
-  /* Aliases Semánticos de Paleta Institucional */
-  --color-primary:     var(--color-green-dark);
+  /* Aliases Semánticos de Paleta Institucional (Gobernación de Boyacá) */
+  --color-primary:        var(--color-green-dark);   /* #287522 Branding base institucional */
+  --color-primary-cta:    var(--color-green-bright); /* #28871B Acción principal (CTA) de alto contraste */
+  --color-primary-dark:   var(--color-forest);       /* #355833 */
   --color-primary-50:  rgba(40, 135, 27, 0.08);
   --color-primary-100: rgba(40, 135, 27, 0.16);
   --color-primary-200: rgba(40, 135, 27, 0.28);
@@ -52,6 +54,7 @@
   --color-gold-400: var(--color-mustard);
   --color-gold-500: var(--color-mustard);
   --color-gold-600: var(--color-taupe);
+  --color-gold:     var(--color-mustard);      /* #D1AD2A Grados y distinciones */
 
   --color-surface:   #ffffff;
   --color-surface-2: #f8fafc;
@@ -61,16 +64,28 @@
   --color-border:    #e2e8f0;
   --color-border-2:  var(--color-slate);
 
-  --color-success:   var(--color-green-bright);
-  --color-warning:   var(--color-orange);
-  --color-danger:    var(--color-red);
-  --color-info:      var(--color-blue-light);
+  --color-success:        var(--color-green-bright); /* #28871B Éxito y confirmación */
+  --color-warning:        var(--color-orange);       /* #D14600 Alertas intermedias */
+  --color-warning-strong: var(--color-rust);         /* #A5451B Alertas críticas */
+  --color-danger:         var(--color-red);          /* #E32431 Errores, eliminación */
+  --color-error:          var(--color-red);          /* #E32431 */
+  --color-info:           var(--color-blue-light);   /* #007BC7 Información */
+  --color-info-dark:      var(--color-navy);         /* #005387 */
+  --color-metric:         var(--color-teal);         /* #1D8096 Métricas y cómputos */
+  --color-focus:          var(--color-blue-light);   /* #007BC7 Indicador accesible :focus-visible */
+  --color-focus-ring:     rgba(0, 123, 199, 0.35);
 
-  /* Text Colors — Crisp Light Platform Hierarchy */
-  --text-primary:   #0f172a;
-  --text-secondary: var(--color-slate);
-  --text-muted:     #94a3b8;
+  /* Jerarquía de Texto con Contraste Conforme a WCAG 2.1 AA (>= 4.5:1 sobre fondo claro) */
+  --text-primary:   #0f172a;                  /* Ratio 14.8:1 */
+  --text-secondary: #334155;                  /* Ratio 8.1:1 */
+  --text-muted:     #52606d;                  /* Ratio 4.7:1 (reemplaza #94a3b8 para garantizar legibilidad) */
   --text-inverse:   #ffffff;
+
+  /* Tokens de Carga Skeleton (Derivados del gris corporativo #738993 con opacidad controlada) */
+  --bg-skeleton:          rgba(115, 137, 147, 0.14);
+  --bg-skeleton-subtle:   rgba(115, 137, 147, 0.08);
+  --bg-skeleton-shimmer:  rgba(115, 137, 147, 0.28);
+  --border-skeleton:      rgba(115, 137, 147, 0.20);
 
   /* Backgrounds */
   --bg-gradient:    #f8fafc;
@@ -167,6 +182,14 @@ html {
   zoom: var(--page-zoom, 0.90);
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+}
+
+/* ─── WCAG 2.1 AA Focus-Visible Altamente Notorio para Teclado ─────────── */
+:focus-visible {
+  outline: 3px solid var(--color-focus, #007BC7) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--color-focus-ring, rgba(0, 123, 199, 0.35)) !important;
+  transition: outline-offset 0.15s ease !important;
 }
 
 /* ─── Font Size Scaling (Global Preference) ─────────────────────────────── */
@@ -951,6 +974,10 @@ body {
   transition: grid-template-columns var(--transition-base);
 }
 
+.app:not([style*="display: none"]):not([style*="display:none"]) {
+  display: grid !important;
+}
+
 .app.sidebar-collapsed {
   grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr);
 }
@@ -1612,17 +1639,17 @@ body {
   flex-direction: column;
   min-width: 0;
   width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip; /* clip does not establish an overflow scroll context, allowing position: sticky to stick to viewport */
   background: radial-gradient(ellipse 70% 50% at 20% 0%, rgba(37, 99, 235, 0.04), transparent 70%),
               radial-gradient(ellipse 60% 50% at 90% 20%, rgba(40, 135, 27, 0.04), transparent 70%),
               radial-gradient(ellipse 80% 60% at 50% 100%, rgba(13, 148, 136, 0.03), transparent 70%),
               #f8fafc;
 }
 
-/* ─── Topbar ─────────────────────────────────────────────────────────────── */
+/* ─── Topbar (Pinned / Static at Top of Viewport) ────────────────────────── */
 .topbar {
   height: var(--topbar-height);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid rgba(226, 232, 240, 0.85);
@@ -1633,7 +1660,7 @@ body {
   padding: 0 var(--space-6);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 100;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
@@ -2235,6 +2262,17 @@ body {
   --text-secondary: #cbd5e1;
   --text-muted:     var(--color-slate);
   --text-inverse:   #041624;
+
+  /* Semantic Tokens Dark Mode */
+  --color-primary-cta:    #22c55e;
+  --color-focus:          #38bdf8;
+  --color-focus-ring:     rgba(56, 189, 248, 0.4);
+
+  /* Skeletons Dark Mode */
+  --bg-skeleton:          rgba(255, 255, 255, 0.08);
+  --bg-skeleton-subtle:   rgba(255, 255, 255, 0.04);
+  --bg-skeleton-shimmer:  rgba(255, 255, 255, 0.18);
+  --border-skeleton:      rgba(255, 255, 255, 0.12);
 
   /* Fondos institucionales basados en --color-navy y --color-forest */
   --bg-gradient:    #031422;

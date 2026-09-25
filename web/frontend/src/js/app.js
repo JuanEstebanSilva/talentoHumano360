@@ -103,6 +103,7 @@ const App = (() => {
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
     sst: 'Seguridad y Salud en el Trabajo (SST)',
+    '404': '404 · Página No Encontrada',
     settings: 'Configuración',
   };
 
@@ -114,6 +115,7 @@ const App = (() => {
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    '404': '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   };
 
@@ -193,48 +195,68 @@ const App = (() => {
     document.getElementById('app')?.setAttribute('data-current-module', module);
 
     const renderSelectedModule = async () => {
-      switch (module) {
-        case 'dashboard':      await DashboardModule.render(container); break;
-        case 'employees':     await EmployeesModule.render(container); break;
-        case 'requests':      await RequestsModule.render(container); break;
-        case 'admin-requests': {
-          const tipoKey = options.tipo || 'permisos';
-          await AdminRequestsModule.render(container, tipoKey);
-          const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
-          const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
-          if (activeSubBtn) {
-            activeSubBtn.classList.add('active');
-            activeSubBtn.setAttribute('aria-current', 'page');
+      // Ocultar pantalla completa 404 solo si estaba visible y navegamos a otro módulo
+      const errorOverlay = document.getElementById('error-screen-404');
+      if (module !== '404' && errorOverlay && errorOverlay.style.display !== 'none' && typeof Error404Module !== 'undefined') {
+        Error404Module.hideFullScreen();
+      }
+
+      try {
+        switch (module) {
+          case 'dashboard':      await DashboardModule.render(container); break;
+          case 'employees':     await EmployeesModule.render(container); break;
+          case 'requests':      await RequestsModule.render(container); break;
+          case 'admin-requests': {
+            const tipoKey = options.tipo || 'permisos';
+            await AdminRequestsModule.render(container, tipoKey);
+            const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
+            const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
+            if (activeSubBtn) {
+              activeSubBtn.classList.add('active');
+              activeSubBtn.setAttribute('aria-current', 'page');
+            }
+            const adminGroupBtn = document.getElementById('nav-admin-group');
+            if (adminGroupBtn) adminGroupBtn.classList.add('active');
+            expandAdminGroup();
+            break;
           }
-          const adminGroupBtn = document.getElementById('nav-admin-group');
-          if (adminGroupBtn) adminGroupBtn.classList.add('active');
-          expandAdminGroup();
-          break;
-        }
-        case 'viaticos':      await ViaticosModule.render(container); break;
-        case 'horarios':      await HorariosModule.render(container); break;
-        case 'sst': {
-          const tabKey = options.tab || 'epidemiologico';
-          if (typeof SstModule !== 'undefined') await SstModule.render(container, tabKey);
-          const sstSubMap = {
-            epidemiologico: 'nav-sst-epidemiologico',
-            epp: 'nav-sst-epp',
-            sociodemografico: 'nav-sst-sociodemografico'
-          };
-          const activeSstSub = document.getElementById(sstSubMap[tabKey] || 'nav-sst-epidemiologico');
-          if (activeSstSub) {
-            activeSstSub.classList.add('active');
-            activeSstSub.setAttribute('aria-current', 'page');
+          case 'viaticos':      await ViaticosModule.render(container); break;
+          case 'horarios':      await HorariosModule.render(container); break;
+          case 'sst': {
+            const tabKey = options.tab || 'epidemiologico';
+            if (typeof SstModule !== 'undefined') await SstModule.render(container, tabKey);
+            const sstSubMap = {
+              epidemiologico: 'nav-sst-epidemiologico',
+              epp: 'nav-sst-epp',
+              sociodemografico: 'nav-sst-sociodemografico'
+            };
+            const activeSstSub = document.getElementById(sstSubMap[tabKey] || 'nav-sst-epidemiologico');
+            if (activeSstSub) {
+              activeSstSub.classList.add('active');
+              activeSstSub.setAttribute('aria-current', 'page');
+            }
+            const sstGroupBtn = document.getElementById('nav-sst-group');
+            if (sstGroupBtn) sstGroupBtn.classList.add('active');
+            break;
           }
-          const sstGroupBtn = document.getElementById('nav-sst-group');
-          if (sstGroupBtn) sstGroupBtn.classList.add('active');
-          break;
+          case 'settings':
+            if (typeof SettingsModule !== 'undefined') await SettingsModule.render(container);
+            break;
+          case '404':
+          default:
+            if (typeof Error404Module !== 'undefined') {
+              await Error404Module.render(container, module, options.error);
+            } else {
+              container.innerHTML = `<div class="module-enter"><p style="color:var(--text-muted)">Módulo no encontrado.</p></div>`;
+            }
         }
-        case 'settings':
-          if (typeof SettingsModule !== 'undefined') await SettingsModule.render(container);
-          break;
-        default:
-          container.innerHTML = `<div class="module-enter"><p style="color:var(--text-muted)">Módulo no encontrado.</p></div>`;
+      } catch (err) {
+        console.error('[Talento 360] Error renderizando módulo:', err);
+        if (typeof Error404Module !== 'undefined') {
+          await Error404Module.render(container, module, err.message || 'Error inesperado al cargar el módulo');
+        } else {
+          container.innerHTML = `<div class="module-enter"><p style="color:var(--color-danger)">Error: ${err.message}</p></div>`;
+        }
       }
     };
 
@@ -975,7 +997,12 @@ const App = (() => {
         Settings.loadForUser(storedUser.username);
       }
       showApp();
-      navigate('dashboard');
+      const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+      if (initialHash) {
+        navigate(initialHash);
+      } else {
+        navigate('dashboard');
+      }
     } else {
       if (typeof Settings !== 'undefined') {
         Settings.resetToDefaults();
@@ -989,6 +1016,18 @@ const App = (() => {
 
   return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime };
 })();
+
+// Exposición global amigable (soporta tanto App como app con minúscula en consola)
+window.App = App;
+window.app = App;
+
+// Enrutador reactivo por hash en URL (ej: http://localhost/#404)
+window.addEventListener('hashchange', () => {
+  const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+  if (hash && typeof App !== 'undefined' && App.navigate) {
+    App.navigate(hash);
+  }
+});
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => App.init());

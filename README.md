@@ -1,32 +1,82 @@
 # Talento 360 — Plataforma de Gestión de Talento Humano
 
-Plataforma web institucional para la administración integral de servidores públicos, solicitudes de vacaciones, trámites administrativos (permisos, incapacidades, licencias), comisiones de viáticos y modalidades de trabajo/horarios, implementada con una interfaz web SPA, microservicios en Node.js y base de datos PostgreSQL orquestados mediante Docker.
+Plataforma web institucional para la administración integral de servidores públicos de la **Gobernación de Boyacá**, solicitudes de vacaciones, trámites administrativos (permisos, incapacidades, licencias), comisiones de viáticos, modalidades de trabajo/horarios y gestión de **Seguridad y Salud en el Trabajo (SST)**. Desarrollada con arquitectura de microservicios en Node.js, base de datos relacional PostgreSQL y frontend SPA de alto rendimiento con diseño accesible (WCAG 2.1 AA).
 
 ---
 
-## Requisitos
+## 🏛️ Módulos de la Plataforma
 
-Para ejecutar el proyecto en tu máquina únicamente necesitas tener instalado y en ejecución:
+- **📊 Dashboard Integral:** Métricas ejecutivas, distribución por dependencias, alertas de solicitudes y exportación de reportes PDF/Excel.
+- **👥 Directorio de Servidores Públicos:** Hoja de vida digital, historial de vinculaciones, cargos homologados (Ley 785 de 2005), registro de discapacidades y motor inteligente de importación/exportación masiva en Excel (XLSX).
+- **🏖️ Gestión de Vacaciones:** Solicitud, cálculo automático de días hábiles y flujo de aprobación por talento humano.
+- **📋 Trámites Administrativos:** Permisos laborales, incapacidades médicas con soporte documental y licencias remuneradas/no remuneradas/maternidad.
+- **✈️ Comisiones y Viáticos:** Registro de resoluciones, anticipos, legalizaciones y tarifas departamentales.
+- **⏰ Horarios y Modalidades:** Control de esquemas laborales (Presencial, Teletrabajo, Trabajo en Casa y Horario Flexible).
+- **🦺 Seguridad y Salud en el Trabajo (SST):** Perfil epidemiológico y seguimiento a EMOs, matriz de entrega de Elementos de Protección Personal (EPP) y caracterización sociodemográfica de la planta.
+
+---
+
+## 🏗️ Arquitectura y Microservicios
+
+| Servicio | Contenedor | Puerto Interno | Responsabilidad |
+|---|---|---|---|
+| **Frontend Gateway** | `talento360_frontend` | `80` | Servidor Nginx SPA y proxy inverso hacia los microservicios |
+| **Auth Service** | `talento360_auth` | `3001` | Autenticación, JWT, roles y permisos de acceso |
+| **Employees Service** | `talento360_employees` | `3002` | Servidores públicos, cargos, perfiles e importador masivo |
+| **Requests Service** | `talento360_requests` | `3003` | Solicitudes y aprobaciones de vacaciones |
+| **Admin Requests** | `talento360_admin_requests` | `3004` | Permisos, incapacidades y licencias |
+| **Viáticos Service** | `talento360_viaticos` | `3005` | Comisiones de servicio, viáticos y legalizaciones |
+| **Dashboard Service** | `talento360_dashboard` | `3006` | Agregación de KPIs y analítica institucional |
+| **Horarios Service** | `talento360_horarios` | `3007` | Modalidades de trabajo y franjas horarias |
+| **SST Service** | `talento360_sst` | `3008` | Perfil epidemiológico, EMO, EPP y sociodemográfico |
+| **PostgreSQL** | `talento360_db` | `5432` | Base de datos relacional (esquemas `01_` a `10_`) |
+
+> Para despliegues en la nube Serverless (Render / Netlify), el proyecto cuenta además con un **Backend Unificado / API Gateway** en `web/backend/server.js` y blueprint `render.yaml`. Consulta la [Guía de Despliegue en Netlify + Render](docs/DEPLOY_NETLIFY_RENDER.md).
+
+---
+
+## 📸 Vistas de la Aplicación
+
+| Inicio de Sesión | Panel Principal (Dashboard) |
+|:---:|:---:|
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+| Perfil del Servidor Público | Gestión de Vacaciones |
+|:---:|:---:|
+| ![Perfil](docs/screenshots/perfil.png) | ![Vacaciones](docs/screenshots/vacaciones.png) |
+
+| Permisos Administrativos | Incapacidades Médicas |
+|:---:|:---:|
+| ![Permisos](docs/screenshots/permisos.png) | ![Incapacidades](docs/screenshots/incapacidades.png) |
+
+| Licencias de Maternidad / Paternidad | Directorio de Dependencias |
+|:---:|:---:|
+| ![Licencias](docs/screenshots/licencia_maternidad.png) | ![Dependencias](docs/screenshots/dependencias.png) |
+
+---
+
+## 🎨 Identidad Institucional
+
+Las normas de colorimetría departamental y recursos gráficos oficiales se encuentran documentados en [`docs/branding/`](docs/branding/README.md).
+
+---
+
+## 💻 Requisitos de Entorno Local
 
 * **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (con Docker Compose v2+)
 * **[Git](https://git-scm.com/)**
 
 ---
 
-## Ejecutar desde cero
-
-Sigue estos pasos si acabas de clonar el repositorio o nunca has levantado el proyecto:
+## 🚀 Ejecutar desde Cero
 
 ### 1. Clonar el repositorio y entrar a la carpeta de ejecución
-Abre una terminal y ejecuta:
 ```bash
 git clone https://github.com/juanSilvaE/talentoHumano360.git
 cd talentoHumano360/web
 ```
 
 ### 2. Configurar variables de entorno (Solo la primera vez)
-Copia el archivo de ejemplo para crear tu archivo `.env`:
-
 * **En Windows (PowerShell):**
   ```powershell
   Copy-Item .env.example .env
@@ -37,75 +87,59 @@ Copia el archivo de ejemplo para crear tu archivo `.env`:
   ```
 
 ### 3. Construir y levantar todos los contenedores
-Ejecuta el siguiente comando dentro de la carpeta `web/`:
 ```bash
 docker compose up --build -d
 ```
-> Este comando crea la red interna, inicializa PostgreSQL ejecutando automáticamente los esquemas y datos iniciales en orden, compila los microservicios y levanta el servidor web Nginx en segundo plano.
+> Este comando crea la red interna, inicializa PostgreSQL ejecutando automáticamente los esquemas SQL (`01_schema.sql` a `10_sst_module.sql`), compila los microservicios y levanta el servidor web Nginx en segundo plano.
 
 ### 4. Abrir la aplicación
 Ingresa en tu navegador web a:
 👉 **[http://localhost](http://localhost)**
 
 ### 5. Iniciar sesión
-Puedes ingresar con cualquiera de las credenciales de administrador precargadas:
+Credenciales de administrador precargadas:
 
 | Usuario / Alias | Contraseña | Rol |
 |---|---|---|
-| `admin` o `admin@boyaca.gov.co` | `admin123` | Administrador |
-| `angela.ussa` o `angela.ussa@boyaca.gov.co` | `@Angela123` | Administrador |
+| `admin` o `admin@boyaca.gov.co` | `admin123` | Administrador General |
+| `angela.ussa` o `angela.ussa@boyaca.gov.co` | `@Angela123` | Directora de Talento Humano |
 
 ---
 
-## Ejecutar después de realizar cambios
+## 🔄 Flujo de Trabajo tras Modificaciones
 
-Una vez que el proyecto ya fue configurado y levantado previamente, utiliza el flujo adecuado según el tipo de cambio que hayas realizado:
+### Cambios de Frontend (`.html`, `.css`, `.js`)
+La carpeta `frontend/src/` está montada directamente como volumen. **No es necesario reconstruir contenedores.**
+1. Guarda los cambios en tu editor.
+2. Recarga en el navegador con limpieza de caché forzada: **`Ctrl + F5`** (o **`Cmd + Shift + R`** en Mac).
 
-### Si modificaste archivos de Frontend (`.html`, `.css`, `.js`)
-La carpeta `frontend/src/` está montada directamente como volumen en el contenedor. **No es necesario reconstruir los contenedores.**
-1. Guarda tus cambios en el editor.
-2. Ve al navegador y recarga forzando la limpieza de caché con **`Ctrl + F5`** (o **`Shift + F5`** / **`Cmd + Shift + R`** en Mac).
-
-### Si modificaste código de los Microservicios (`services/`) o agregaste dependencias
-El código de los servicios se empaqueta en las imágenes de Docker. Debes recompilar los servicios modificados:
+### Cambios en Microservicios (`services/`)
 * **Recompilar todos los servicios:**
   ```bash
   docker compose up --build -d
   ```
-* **Recompilar un solo servicio específico (ejemplo: employees-service):**
+* **Recompilar un solo servicio (ejemplo: `sst-service` o `employees-service`):**
   ```bash
-  docker compose up --build -d employees-service
+  docker compose up --build -d sst-service
   ```
 
-### Si modificaste la configuración del servidor web (`frontend/nginx.conf`)
-Basta con reiniciar el contenedor del frontend:
+### Cambios en Nginx (`frontend/nginx.conf`)
 ```bash
 docker compose restart frontend
 ```
 
-### Si necesitas reiniciar la base de datos desde cero
-Si modificaste los scripts SQL de `database/` y deseas reconstruir la base de datos limpia con todos los esquemas iniciales:
-> ⚠️ **Atención:** Este comando borrará los datos creados localmente en la base de datos.
+### Reiniciar la Base de Datos desde Cero
+> ⚠️ **Atención:** Este comando borrará los datos creados localmente y volverá a cargar las tablas y semillas originales.
 ```bash
 docker compose down -v
 docker compose up --build -d
 ```
 
-### Iniciar y detener el proyecto día a día (sin cambios de código)
-* **Para pausar/detener el proyecto:**
-  ```bash
-  docker compose stop
-  ```
-* **Para volver a iniciarlo:**
-  ```bash
-  docker compose start
-  ```
-
 ---
 
-## Comandos principales
+## 🛠️ Comandos Principales
 
-Todos estos comandos deben ejecutarse desde la carpeta `web/`:
+Todos estos comandos deben ejecutarse dentro de la carpeta `web/`:
 
 | Acción | Comando |
 |---|---|

@@ -345,7 +345,69 @@ const EmployeesModule = (() => {
   }
 
 
+  function getInitials(name) {
+    if (!name) return 'SP';
+    const clean = String(name).trim();
+    if (clean.startsWith('PLAZA VACANTE') || clean === '??') return '??';
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function renderSkeletonTable() {
+    const tbody = document.getElementById('emp-tbody');
+    if (!tbody) return;
+
+    // Estándares de Accesibilidad WCAG 2.1 AA
+    tbody.setAttribute('aria-busy', 'true');
+    tbody.setAttribute('role', 'progressbar');
+    tbody.setAttribute('aria-label', 'Cargando listado de servidores públicos...');
+    tbody.setAttribute('aria-valuemin', '0');
+    tbody.setAttribute('aria-valuemax', '100');
+    tbody.setAttribute('aria-valuetext', 'Cargando datos del servidor...');
+
+    const countEl = document.getElementById('emp-count');
+    if (countEl) {
+      countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
+    }
+
+    // Mockup de baja fidelidad estilo feed con avatares circulares y bloques horizontales de texto
+    const skeletonRows = Array.from({ length: 7 }).map((_, idx) => `
+      <tr class="skeleton-row" aria-hidden="true">
+        <td class="td-servidor">
+          <div class="user-table-cell user-table-cell--avatar" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
+            <div class="user-table-info" style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; text-align:left;">
+              <div class="skeleton skeleton-line skeleton-line--title" style="width:${idx % 2 === 0 ? '75%' : '65%'};" aria-hidden="true"></div>
+              <div class="skeleton skeleton-line" style="width:45%; height:11px;" aria-hidden="true"></div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <div class="skeleton skeleton-line" style="width:${idx % 3 === 0 ? '85%' : '70%'}; height:13px;" aria-hidden="true"></div>
+            <div class="skeleton skeleton-line" style="width:40%; height:10px;" aria-hidden="true"></div>
+          </div>
+        </td>
+        <td><div class="skeleton skeleton-line" style="width:60%; height:12px;" aria-hidden="true"></div></td>
+        <td><div class="skeleton skeleton-line" style="width:65%; height:12px;" aria-hidden="true"></div></td>
+        <td><div class="skeleton skeleton-line" style="width:70%; height:13px;" aria-hidden="true"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width:75px; height:22px; border-radius:9999px;" aria-hidden="true"></div></td>
+        <td class="td-actions">
+          <div class="td-actions-wrap" style="display:flex; gap:6px;">
+            <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
+            <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
+            <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.innerHTML = skeletonRows;
+  }
+
   async function load() {
+    renderSkeletonTable();
     try {
       const res = await API.getEmployees({ q: state.q, page: state.page, limit: 25 });
       let records = res.data || [];
@@ -379,6 +441,16 @@ const EmployeesModule = (() => {
       renderTable();
       renderPagination();
     } catch (err) {
+      const tbody = document.getElementById('emp-tbody');
+      if (tbody) {
+        tbody.setAttribute('aria-busy', 'false');
+        tbody.removeAttribute('role');
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state" style="color:var(--color-danger); border-color:var(--color-danger);">
+          <span class="empty-state-title" style="color:var(--color-danger);">Error al cargar servidores</span>
+          <span class="empty-state-desc">${escHtml(err.message)}</span>
+          <button class="btn btn-secondary btn-sm" onclick="EmployeesModule.load()" style="margin-top:12px;">Reintentar</button>
+        </div></td></tr>`;
+      }
       App.showToast('Error al cargar servidores: ' + err.message, 'error');
     }
   }
@@ -386,6 +458,14 @@ const EmployeesModule = (() => {
   function renderTable() {
     const tbody = document.getElementById('emp-tbody');
     if (!tbody) return;
+
+    // Resetear atributos de accesibilidad tras completar la carga
+    tbody.setAttribute('aria-busy', 'false');
+    tbody.removeAttribute('role');
+    tbody.removeAttribute('aria-valuemin');
+    tbody.removeAttribute('aria-valuemax');
+    tbody.removeAttribute('aria-valuetext');
+
     if (!state.data.length) {
       tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -398,22 +478,29 @@ const EmployeesModule = (() => {
     tbody.innerHTML = state.data.map(e => {
       const itemKey = e.cedula || e.id;
       const formattedCc = formatCedulaDots(e.cedula);
+      const isVac = Boolean(e.es_vacante || e.situacion === 'VACANTE' || (e.nombreCompleto && e.nombreCompleto.startsWith('PLAZA VACANTE')));
+      const initials = getInitials(e.nombreCompleto);
 
       return `
       <tr>
-        <td>
-          <div class="user-table-cell">
-            <span class="td-primary" title="${escHtml(e.nombreCompleto)}">${escHtml(e.nombreCompleto) || '—'}</span>
-            ${(e.es_vacante || e.situacion === 'VACANTE' || (e.nombreCompleto && e.nombreCompleto.startsWith('PLAZA VACANTE')))
-          ? `<span class="badge badge--vacante" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
-          : ((e.documento_pendiente || (e.cedula && e.cedula.startsWith('PROV-')))
-            ? `<span class="badge badge--provisional font-mono" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
-            : (e.cedula
-              ? `<span class="user-table-cc font-mono" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
-              : `<span class="badge badge--pendiente">Sin Cédula</span>`
-            )
-          )
-        }
+        <td class="td-servidor">
+          <div class="user-table-cell user-table-cell--avatar" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
+            <div class="user-row-avatar ${isVac ? 'user-row-avatar--vacante' : ''}" aria-hidden="true" title="${escHtml(e.nombreCompleto || 'Servidor')}">
+              ${isVac ? '??' : escHtml(initials)}
+            </div>
+            <div class="user-table-info" style="display:flex; flex-direction:column; gap:2px; min-width:0; text-align:left;">
+              <span class="td-primary" title="${escHtml(e.nombreCompleto)}">${escHtml(e.nombreCompleto) || '—'}</span>
+              ${isVac
+                ? `<span class="badge badge--vacante" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
+                : ((e.documento_pendiente || (e.cedula && e.cedula.startsWith('PROV-')))
+                  ? `<span class="badge badge--provisional font-mono" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
+                  : (e.cedula
+                    ? `<span class="user-table-cc font-mono" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
+                    : `<span class="badge badge--pendiente">Sin Cédula</span>`
+                  )
+                )
+              }
+            </div>
           </div>
         </td>
         <td title="${escHtml(e.cargoActual)}">
@@ -429,18 +516,18 @@ const EmployeesModule = (() => {
           : (e.otroTiempoCalculado ? `<span style="color:var(--text-muted);">${escHtml(e.otroTiempoCalculado)}</span>` : '—')}
         </td>
         <td style="font-size:12px;" title="${escHtml(e.tiempoServicioCalculado)}">${escHtml(e.tiempoServicioCalculado || '—')}</td>
-        <td style="font-size:12px; font-weight:700; color:var(--primary);" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</td>
+        <td style="font-size:12px; font-weight:700; color:var(--color-primary);" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</td>
         <td>${badgeEstadoServidor(e.estadoServidor)}</td>
         <td class="td-actions">
           <div class="td-actions-wrap">
-            <button class="btn-action-view" onclick="EmployeesModule.openView('${itemKey}')" title="Ver Detalles">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button class="btn-action-view" onclick="EmployeesModule.openView('${itemKey}')" title="Ver Detalles" aria-label="Ver detalles de ${escHtml(e.nombreCompleto)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            <button class="btn-action-edit" onclick="EmployeesModule.openEdit('${itemKey}')" title="Editar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <button class="btn-action-edit" onclick="EmployeesModule.openEdit('${itemKey}')" title="Editar" aria-label="Editar información de ${escHtml(e.nombreCompleto)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            ${Auth.canEdit() ? `<button class="btn-action-delete" onclick="EmployeesModule.confirmDelete('${itemKey}','${escHtml(e.nombreCompleto)}')" title="Eliminar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            ${Auth.canEdit() ? `<button class="btn-action-delete" onclick="EmployeesModule.confirmDelete('${itemKey}','${escHtml(e.nombreCompleto)}')" title="Eliminar" aria-label="Eliminar servidor ${escHtml(e.nombreCompleto)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
           </div>
         </td>
@@ -540,12 +627,41 @@ const EmployeesModule = (() => {
   async function openView(idOrCedula) {
     const norm = val => String(val || '').trim().replace(/[.,\s]/g, '');
     let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula || (e.cedula && idOrCedula && norm(e.cedula) === norm(idOrCedula)));
+
+    // Si aún no tenemos los datos completos, renderizamos el Skeleton de la Ficha (mockup baja fidelidad feed)
+    if (!emp) {
+      App.openModal('Ficha del Servidor Público', `
+        <div class="skeleton-ficha-view" role="progressbar" aria-busy="true" aria-label="Cargando ficha del servidor..." style="padding: 12px;">
+          <div class="skeleton" style="height: 110px; border-radius: 14px; margin-bottom: 20px; width: 100%;"></div>
+          <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 24px;">
+            <div class="skeleton skeleton-avatar--lg"></div>
+            <div style="flex: 1;">
+              <div class="skeleton skeleton-line skeleton-line--title" style="width: 55%; height: 20px; margin-bottom: 8px;"></div>
+              <div class="skeleton skeleton-line" style="width: 35%; height: 14px;"></div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+            <div class="skeleton" style="height: 72px; border-radius: 10px;"></div>
+            <div class="skeleton" style="height: 72px; border-radius: 10px;"></div>
+            <div class="skeleton" style="height: 72px; border-radius: 10px;"></div>
+            <div class="skeleton" style="height: 72px; border-radius: 10px;"></div>
+          </div>
+        </div>
+      `, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      ], 'modal-xl modal-ficha-emp');
+    }
+
     try {
       const full = await API.getEmployeeByCedula(idOrCedula);
       if (full) emp = full;
     } catch (_) { }
 
-    if (!emp) return;
+    if (!emp) {
+      App.showToast('No se encontró el servidor público solicitado', 'error');
+      App.closeModal();
+      return;
+    }
 
     const isVacante = Boolean(emp.es_vacante || emp.situacion === 'VACANTE' || (emp.nombreCompleto && emp.nombreCompleto.startsWith('PLAZA VACANTE')));
     const formattedCc = formatCedulaDots(emp.cedula);
@@ -560,8 +676,8 @@ const EmployeesModule = (() => {
 
       content = `
         <div class="ficha-wrapper">
-          <!-- Hero Banner Vacante -->
-          <div class="ficha-hero" style="background: linear-gradient(135deg, #78350f 0%, #b45309 45%, #92400e 100%);">
+          <!-- Hero Banner Vacante con Tokens Semánticos -->
+          <div class="ficha-hero" style="background: linear-gradient(135deg, var(--color-forest) 0%, var(--color-taupe) 50%, var(--color-rust) 100%);">
             <div class="ficha-hero-inner">
               <div class="ficha-avatar-box">
                 <div class="ficha-avatar avatar--vacante">🏛</div>
@@ -569,12 +685,12 @@ const EmployeesModule = (() => {
               </div>
               <div class="ficha-hero-info">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom: 6px;">
-                  <span class="badge" style="font-size:12px; font-weight:800; padding:3px 10px; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">
+                  <span class="badge" style="font-size:12px; font-weight:800; padding:3px 10px; background:rgba(209, 173, 42, 0.15); color:var(--color-rust); border:1px solid var(--color-mustard);">
                     ${escHtml(codVacante)}
                   </span>
-                  <span style="font-size:12px; font-weight:700; color:#fef08a;">Plaza de la Planta de Personal</span>
+                  <span style="font-size:12px; font-weight:700; color:var(--color-mustard);">Plaza de la Planta de Personal</span>
                 </div>
-                <h3 class="ficha-hero-name" style="color:#ffffff;">${escHtml(cargoName)}</h3>
+                <h3 class="ficha-hero-name" style="color:var(--text-inverse);">${escHtml(cargoName)}</h3>
                 <div class="ficha-hero-sub">
                   <span>🏢 Dependencia: <strong>${escHtml(depName)}</strong></span>
                 </div>
@@ -727,7 +843,7 @@ const EmployeesModule = (() => {
                   <div class="ficha-card-icon">🪪</div>
                   <span class="ficha-card-label">Cédula de Ciudadanía</span>
                 </div>
-                <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary, #287522);">
+                <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary);">
                   ${isProv
           ? `<span class="badge badge--pendiente font-mono" style="font-size:12px; font-weight:700;">${escHtml(emp.cedula)} (Provisional)</span>`
           : (emp.cedula ? `C.C. ${escHtml(formattedCc)}` : 'Sin Cédula Registrada')
@@ -771,12 +887,12 @@ const EmployeesModule = (() => {
               <div class="ficha-card ficha-card--featured ficha-grid--full">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">⏳</div>
-                  <span class="ficha-card-label" style="color:#2563eb;">Edad Exacta (Cálculo Dinámico)</span>
+                  <span class="ficha-card-label" style="color:var(--color-navy);">Edad Exacta (Cálculo Dinámico)</span>
                 </div>
-                <div class="ficha-card-val" style="font-size: 1.25rem; font-weight: 800; color: #10b981;">
+                <div class="ficha-card-val" style="font-size: 1.25rem; font-weight: 800; color: var(--color-success);">
                   ${escHtml(emp.edadCalculada || 'No disponible')}
                 </div>
-                <div class="ficha-card-sub" style="color:#2563eb;">
+                <div class="ficha-card-sub" style="color:var(--color-info);">
                   Actualizado en tiempo real a la fecha de hoy con base en la fecha de nacimiento
                 </div>
               </div>
@@ -852,7 +968,7 @@ const EmployeesModule = (() => {
                   <span class="ficha-card-label">Situación Administrativa</span>
                 </div>
                 <div class="ficha-card-val">
-                  <span style="font-weight:800; color:var(--color-primary, #287522);">${escHtml(emp.situacion || 'ACTIVO')}</span>
+                  <span style="font-weight:800; color:var(--color-primary);">${escHtml(emp.situacion || 'ACTIVO')}</span>
                 </div>
                 <div class="ficha-card-sub">Condición operativa del funcionario</div>
               </div>
@@ -884,15 +1000,15 @@ const EmployeesModule = (() => {
           <div class="ficha-tab-pane" id="ficha-tiempos">
             <div class="ficha-grid">
               <!-- Grand Highlight: Tiempo Total Acumulado -->
-              <div class="ficha-card ficha-card--featured ficha-grid--full" style="background: linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(16,185,129,0.08) 100%); border: 1.5px solid rgba(37,99,235,0.35); padding: 18px 20px;">
+              <div class="ficha-card ficha-card--featured ficha-grid--full" style="background: linear-gradient(135deg, rgba(0,123,199,0.08) 0%, rgba(40,135,27,0.08) 100%); border: 1.5px solid rgba(0,123,199,0.35); padding: 18px 20px;">
                 <div class="ficha-card-top">
-                  <div class="ficha-card-icon" style="background: rgba(37,99,235,0.15); color: #2563eb; font-size:16px;">🏆</div>
-                  <span class="ficha-card-label" style="color: #1d4ed8; font-size: 0.78rem;">Tiempo Total en la Gobernación de Boyacá</span>
+                  <div class="ficha-card-icon" style="background: rgba(0,123,199,0.15); color: var(--color-info); font-size:16px;">🏆</div>
+                  <span class="ficha-card-label" style="color: var(--color-navy); font-size: 0.78rem;">Tiempo Total en la Gobernación de Boyacá</span>
                 </div>
-                <div class="ficha-card-val" style="font-size: 1.38rem; font-weight: 800; color: #1d4ed8; margin: 6px 0;">
+                <div class="ficha-card-val" style="font-size: 1.38rem; font-weight: 800; color: var(--color-navy); margin: 6px 0;">
                   ${escHtml(emp.tiempoTotalGobernacion || emp.tiempoServicioCalculado || '0 años, 0 meses, 0 días')}
                 </div>
-                <div style="font-size:0.8rem; color:#2563eb; background:rgba(37,99,235,0.08); padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <div style="font-size:0.8rem; color:var(--color-info); background:rgba(0,123,199,0.08); padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
                   <span>Servicio Actual: <strong>${escHtml(emp.tiempoServicioCalculado || '0')}</strong></span>
                   <span>+</span>
                   <span>Otro Tiempo: <strong>${escHtml(emp.otroTiempoCalculado || emp.otroTiempoGobernacion || '0')}</strong></span>
@@ -915,7 +1031,7 @@ const EmployeesModule = (() => {
                   <div class="ficha-card-icon">⏱️</div>
                   <span class="ficha-card-label">Tiempo de Servicio Actual</span>
                 </div>
-                <div class="ficha-card-val" style="color: #10b981; font-weight:800;">
+                <div class="ficha-card-val" style="color: var(--color-success); font-weight:800;">
                   ${escHtml(emp.tiempoServicioCalculado || '—')}
                 </div>
                 <div class="ficha-card-sub">Cálculo dinámico a partir de la fecha de ingreso</div>
@@ -954,20 +1070,20 @@ const EmployeesModule = (() => {
                             <td style="padding: 7px 12px; color: var(--text-muted);">${idx + 1}</td>
                             <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.desde)}</td>
                             <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.hasta)}</td>
-                            <td style="padding: 7px 12px; color: #10b981; font-weight: 700;">${escHtml(p.duracionTexto || '—')}</td>
+                            <td style="padding: 7px 12px; color: var(--color-success); font-weight: 700;">${escHtml(p.duracionTexto || '—')}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
-                        <tr style="background: rgba(34, 197, 94, 0.08); font-weight: 700;">
+                        <tr style="background: rgba(40, 135, 27, 0.08); font-weight: 700;">
                           <td colspan="3" style="padding: 8px 12px; text-align: right; color: var(--text-primary);">Total Acumulado Otros Tiempos:</td>
-                          <td style="padding: 8px 12px; color: #10b981; font-weight: 800;">${escHtml(emp.otroTiempoGobernacion || '—')}</td>
+                          <td style="padding: 8px 12px; color: var(--color-success); font-weight: 800;">${escHtml(emp.otroTiempoGobernacion || '—')}</td>
                         </tr>
                       </tfoot>
                     </table>
                   </div>
                 ` : `
-                  <div class="ficha-card-val" style="color: #10b981; font-size:1.05rem; margin-top:4px;">
+                  <div class="ficha-card-val" style="color: var(--color-success); font-size:1.05rem; margin-top:4px;">
                     ${escHtml(emp.otroTiempoCalculado && emp.otroTiempoCalculado !== '0 años, 0 meses, 0 días' ? emp.otroTiempoCalculado : (emp.otroTiempoGobernacion || 'No registra experiencia previa o externa'))}
                   </div>
                   ${(emp.otroTiempoCalculado && emp.otroTiempoGobernacion && emp.otroTiempoGobernacion !== emp.otroTiempoCalculado && emp.otroTiempoGobernacion !== 'NO REGISTRADO') ? `
@@ -1022,7 +1138,7 @@ const EmployeesModule = (() => {
               <div class="ficha-card ficha-grid--full ficha-card--featured" style="padding: 16px 18px;">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">📞</div>
-                  <span class="ficha-card-label" style="color:#2563eb;">Canales de Contacto Directo</span>
+                  <span class="ficha-card-label" style="color:var(--color-navy);">Canales de Contacto Directo</span>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1220,8 +1336,8 @@ const EmployeesModule = (() => {
 
     if (isVacante) {
       return `
-        <div style="background: rgba(254, 240, 138, 0.16); border: 1px solid #fde047; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
-          <div style="font-weight: 700; color: #854d0e; font-size: 13px; margin-bottom: 4px;">🏛 Plaza Vacante — Planta de Personal</div>
+        <div style="background: rgba(209, 173, 42, 0.12); border: 1px solid var(--color-mustard); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+          <div style="font-weight: 700; color: var(--color-rust); font-size: 13px; margin-bottom: 4px;">🏛 Plaza Vacante — Planta de Personal</div>
           <div style="font-size: 12px; color: var(--text-secondary);">Para las plazas vacantes, solo se definen la dependencia y el cargo correspondiente.</div>
         </div>
         <div class="form-grid">
@@ -1440,7 +1556,7 @@ const EmployeesModule = (() => {
                       ${escHtml(p.duracionTexto || '')}
                     </div>
                     <div style="padding-top:14px;">
-                      <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:#ef4444;" title="Eliminar periodo">🗑️</button>
+                      <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:var(--color-danger);" title="Eliminar periodo">🗑️</button>
                     </div>
                   </div>
                 `).join('')}
@@ -1449,7 +1565,7 @@ const EmployeesModule = (() => {
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-add-periodo" style="font-size:11px;">+ Agregar Periodo Histórico</button>
                 <div id="ef-periodos-total-display" style="font-size:12px; font-weight:700; color:var(--color-green-bright);"></div>
               </div>
-              <div id="ef-tiempo-total-display" style="display:none; font-size:12px; font-weight:700; color:#1d4ed8; margin-top:6px; padding:6px 10px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:6px;"></div>
+              <div id="ef-tiempo-total-display" style="display:none; font-size:12px; font-weight:700; color:var(--color-navy); margin-top:6px; padding:6px 10px; background:rgba(0,123,199,0.08); border:1px solid rgba(0,123,199,0.25); border-radius:6px;"></div>
               ${(emp.otroTiempoGobernacion && (!periodosList || periodosList.length === 0)) ? `
                 <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
                   Nota histórica anterior: <em>${escHtml(emp.otroTiempoGobernacion)}</em>
@@ -1713,7 +1829,7 @@ const EmployeesModule = (() => {
             validCount++;
           } else {
             if (durDisplay) {
-              durDisplay.style.color = '#ef4444';
+              durDisplay.style.color = 'var(--color-danger)';
               durDisplay.textContent = 'Hasta debe ser ≥ Desde';
             }
           }
@@ -1799,7 +1915,7 @@ const EmployeesModule = (() => {
           </div>
           <div style="font-size:12px; color:var(--color-green-bright); font-weight:600; padding-top:14px;" class="ef-periodo-duracion"></div>
           <div style="padding-top:14px;">
-            <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:#ef4444;" title="Eliminar periodo">🗑️</button>
+            <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:var(--color-danger);" title="Eliminar periodo">🗑️</button>
           </div>
         `;
         periodosContainer.appendChild(div);
@@ -2083,9 +2199,9 @@ const EmployeesModule = (() => {
         <p style="color:var(--text-secondary); margin: 0 0 14px; font-size: 14px; line-height: 1.6;">
           ¿Está seguro de que desea eliminar al servidor público <strong style="color:var(--text-primary); font-weight: 700;">${escHtml(nombre)}</strong>?
         </p>
-        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+        <div style="background: rgba(227, 36, 49, 0.08); border: 1px solid rgba(227, 36, 49, 0.25); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 18px; line-height: 1;">⚠️</span>
-          <span style="color: #ef4444; font-size: 12.5px; font-weight: 600; line-height: 1.4;">
+          <span style="color: var(--color-danger); font-size: 12.5px; font-weight: 600; line-height: 1.4;">
             Esta acción eliminará el registro de manera definitiva y no se puede deshacer.
           </span>
         </div>
@@ -2105,7 +2221,7 @@ const EmployeesModule = (() => {
           if (deleteBtn) {
             deleteBtn.disabled = true;
             deleteBtn.innerHTML = `
-              <span class="spinner" style="width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;margin-right:6px;vertical-align:middle;"></span>
+              <span class="btn-progress-pulse" aria-hidden="true"></span>
               Eliminando...
             `;
           }
@@ -2121,7 +2237,7 @@ const EmployeesModule = (() => {
             if (bodyEl) {
               bodyEl.innerHTML = `
                 <div style="text-align: center; padding: 18px 10px 12px;">
-                  <div style="width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 50%; background: rgba(34, 197, 94, 0.12); border: 2px solid rgba(34, 197, 94, 0.4); display: flex; align-items: center; justify-content: center; color: #22c55e;">
+                  <div style="width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 50%; background: rgba(40, 135, 27, 0.12); border: 2px solid rgba(40, 135, 27, 0.4); display: flex; align-items: center; justify-content: center; color: var(--color-success);">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
@@ -2523,7 +2639,7 @@ const EmployeesModule = (() => {
       confirmBtn.disabled = true;
       cancelBtn.disabled = true;
       confirmText.innerHTML = `
-        <span style="display:inline-block; width:13px; height:13px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin-right:6px;"></span>
+        <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
       `;
       App.showToast('Procesando archivo masivo... Por favor espere.', 'info');
@@ -2622,6 +2738,89 @@ const EmployeesModule = (() => {
     });
   }
 
+  /* ─── Manejo Accesible del Dropdown de Acciones (Ley de Hick & WCAG 2.1 AA) ─ */
+  function toggleActionsDropdown(e) {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const menu = document.getElementById('emp-dropdown-menu');
+    const toggleBtn = document.getElementById('emp-dropdown-toggle');
+    if (!menu || !toggleBtn) return;
+
+    const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+    if (isExpanded) {
+      closeActionsDropdown();
+    } else {
+      menu.removeAttribute('hidden');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      const firstItem = menu.querySelector('.emp-dropdown-item');
+      if (firstItem) {
+        firstItem.setAttribute('tabindex', '0');
+        firstItem.focus();
+      }
+      setTimeout(() => {
+        document.addEventListener('click', onDocClickCloseDropdown, { once: true });
+      }, 10);
+    }
+  }
+
+  function closeActionsDropdown() {
+    const menu = document.getElementById('emp-dropdown-menu');
+    const toggleBtn = document.getElementById('emp-dropdown-toggle');
+    if (menu) menu.setAttribute('hidden', '');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.focus();
+    }
+    document.removeEventListener('click', onDocClickCloseDropdown);
+  }
+
+  function onDocClickCloseDropdown(e) {
+    const wrap = document.getElementById('emp-actions-dropdown-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+      closeActionsDropdown();
+    }
+  }
+
+  function handleDropdownKeydown(e) {
+    const menu = document.getElementById('emp-dropdown-menu');
+    if (!menu) return;
+
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleActionsDropdown(e);
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeActionsDropdown();
+    }
+  }
+
+  function handleMenuKeydown(e) {
+    const menu = document.getElementById('emp-dropdown-menu');
+    if (!menu) return;
+    const items = Array.from(menu.querySelectorAll('.emp-dropdown-item'));
+    const currentIndex = items.indexOf(document.activeElement);
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeActionsDropdown();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = (currentIndex + 1) % items.length;
+      items[nextIndex]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIndex = (currentIndex - 1 + items.length) % items.length;
+      items[prevIndex]?.focus();
+    } else if (e.key === 'Tab') {
+      closeActionsDropdown();
+    }
+  }
+
   async function render(container) {
     container.innerHTML = `
       <div class="module-enter">
@@ -2630,19 +2829,74 @@ const EmployeesModule = (() => {
             <h1 class="page-heading">Servidores Públicos</h1>
             <p class="page-desc">Módulo de gestión integral del talento humano — Gobernación de Boyacá</p>
           </div>
-          <div class="page-actions">
-            <button class="btn btn-secondary" onclick="EmployeesModule.exportExcel()" style="display:inline-flex; align-items:center; gap:6px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Exportar Excel
-            </button>
+          <div class="page-actions" style="display:flex; align-items:center; gap:12px;">
+            <!-- Opciones secundarias agrupadas en Dropdown (Ley de Hick) -->
+            <div class="emp-actions-dropdown-wrap" id="emp-actions-dropdown-wrap">
+              <button
+                type="button"
+                class="btn btn-secondary emp-dropdown-btn"
+                id="emp-dropdown-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="emp-dropdown-menu"
+                aria-label="Opciones y acciones secundarias"
+                onclick="EmployeesModule.toggleActionsDropdown(event)"
+                onkeydown="EmployeesModule.handleDropdownKeydown(event)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;" aria-hidden="true">
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="19" cy="12" r="1.5"></circle>
+                  <circle cx="5" cy="12" r="1.5"></circle>
+                </svg>
+                <span>Acciones</span>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px;" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+
+              <div
+                class="emp-dropdown-menu"
+                id="emp-dropdown-menu"
+                role="menu"
+                aria-labelledby="emp-dropdown-toggle"
+                onkeydown="EmployeesModule.handleMenuKeydown(event)"
+                hidden
+              >
+                <button
+                  type="button"
+                  class="emp-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="EmployeesModule.exportExcel(); EmployeesModule.closeActionsDropdown();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <div>
+                    <strong>Exportar a Excel</strong>
+                    <small>Descargar listado filtrado (.xlsx)</small>
+                  </div>
+                </button>
+                ${Auth.canEdit() ? `
+                <button
+                  type="button"
+                  class="emp-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="EmployeesModule.openImportModal(); EmployeesModule.closeActionsDropdown();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <div>
+                    <strong>Carga Masiva Excel</strong>
+                    <small>Importar o actualizar planta de personal</small>
+                  </div>
+                </button>` : ''}
+              </div>
+            </div>
+
+            <!-- Acción Principal (CTA) - Alto Contraste y Salience Visual -->
             ${Auth.canEdit() ? `
-            <button class="btn btn-secondary" onclick="EmployeesModule.openImportModal()" style="display:inline-flex; align-items:center; gap:6px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              Carga Masiva Excel
-            </button>
-            <button class="btn btn-primary btn-liquid-create" onclick="EmployeesModule.openCreate()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nuevo Servidor
+            <button class="btn btn-primary-cta" onclick="EmployeesModule.openCreate()" id="btn-nuevo-servidor" aria-label="Crear nuevo servidor público">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Nuevo Servidor</span>
             </button>` : ''}
           </div>
         </div>
@@ -2650,37 +2904,38 @@ const EmployeesModule = (() => {
         <div class="filters-card">
           <div class="filters-row">
             <div class="filter-group" style="flex:2;min-width:240px">
-              <label class="filter-label">Buscar Servidor</label>
-              <input id="emp-search" class="filter-input" placeholder="Buscar por nombre, cédula, dependencia, cargo..." />
+              <label class="filter-label" for="emp-search">Buscar Servidor</label>
+              <input id="emp-search" class="filter-input" placeholder="Buscar por nombre, cédula, dependencia, cargo..." aria-label="Buscar servidor por nombre, cédula o cargo" />
             </div>
-            <button class="btn btn-primary" onclick="EmployeesModule.search()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <button class="btn btn-primary" onclick="EmployeesModule.search()" aria-label="Ejecutar búsqueda">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Buscar
             </button>
-            <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()">Limpiar</button>
+            <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
           </div>
         </div>
 
         <div class="table-card">
           <div class="table-header">
             <span class="table-title">Lista de Servidores Públicos</span>
-            <span class="table-count" id="emp-count">Cargando...</span>
+            <span class="table-count" id="emp-count">
+              <span class="skeleton" style="width:100px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+            </span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table aria-label="Listado de Servidores Públicos">
               <thead>
                 <tr>
-                  <th>Servidor / Documento</th>
-                  <th>Nivel, Cargo & Código</th>
-                  <th>Otro Tiempo Gobernación</th>
-                  <th>Tiempo de Servicio</th>
-                  <th>Tiempo Total Gobernación</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  <th scope="col" class="th-servidor">Servidor / Documento</th>
+                  <th scope="col">Nivel, Cargo & Código</th>
+                  <th scope="col">Otro Tiempo Gobernación</th>
+                  <th scope="col">Tiempo de Servicio</th>
+                  <th scope="col" class="th-tiempo-total">Tiempo Total</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col">Acciones</th>
                 </tr>
               </thead>
-              <tbody id="emp-tbody">
-                <tr><td colspan="7"><div class="empty-state loading-pulse">Cargando servidores...</div></td></tr>
+              <tbody id="emp-tbody" aria-busy="true" role="progressbar" aria-label="Cargando servidores públicos..." aria-valuemin="0" aria-valuemax="100" aria-valuetext="Cargando datos...">
               </tbody>
             </table>
           </div>
@@ -2737,6 +2992,11 @@ const EmployeesModule = (() => {
     formatCedulaDots,
     switchFichaTab,
     switchFormTab,
-    copyFichaText
+    copyFichaText,
+    toggleActionsDropdown,
+    closeActionsDropdown,
+    handleDropdownKeydown,
+    handleMenuKeydown,
+    renderSkeletonTable
   };
 })();

@@ -58,7 +58,7 @@ Render incluye soporte para el archivo `render.yaml` que ya configuramos en tu p
    - Servicio Web: `talento360-backend` (Plan Free).
 5. Haz clic en **Apply**.
 6. Render creará la base de datos y levantará el backend.
-7. Al arrancar por primera vez, el backend **inicializará automáticamente** todas las tablas (`01_schema.sql` a `08_full_divipola_update.sql`) sin que tengas que hacer nada más.
+7. Al arrancar por primera vez, el backend **inicializará automáticamente** todas las tablas (`01_schema.sql` a `10_sst_module.sql`) sin que tengas que hacer nada más.
 8. Copia la URL de tu servicio web generado por Render (por ejemplo: `https://talento360-backend.onrender.com`).
 
 ---

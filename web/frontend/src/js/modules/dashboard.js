@@ -8,11 +8,13 @@ const DashboardModule = (() => {
   let chartDona = null;
   let chartModule = null;
   let chartDep = null;
+  let chartSst = null;
 
   let lastStats = null;
   let lastChart = null;
   let lastAdminStats = null;
   let lastViaticosStats = null;
+  let lastSstStats = null;
 
   // Configurar tipografía global de Chart.js si está cargado
   if (typeof Chart !== 'undefined' && Chart.defaults) {
@@ -81,7 +83,7 @@ const DashboardModule = (() => {
             <p class="page-desc">Resumen general del sistema de gestión de talento humano</p>
           </div>
           <div class="page-actions">
-            <button class="btn btn-secondary" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px; font-weight:700;">
+            <button class="btn btn-primary btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px;">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
@@ -93,7 +95,7 @@ const DashboardModule = (() => {
           </div>
         </div>
 
-        <div class="stats-grid" id="db-stats-grid">
+        <div class="stats-grid" id="db-stats-grid" aria-busy="true" role="progressbar">
           ${[1,2,3,4,5].map(() => `
             <div class="stat-card db-glass-card">
               <div class="stat-top-stripe"></div>
@@ -133,11 +135,31 @@ const DashboardModule = (() => {
             <div class="chart-title">Gestión por Módulo (Aprobadas vs. Pendientes)</div>
             <div class="chart-wrap" id="wrap-chart-module-status"><canvas id="chart-module-status"></canvas></div>
           </div>
+
+          <!-- Gráfica & Métricas de Seguridad y Salud en el Trabajo (SST) -->
+          <div class="chart-card db-glass-card chart-card--wide" id="db-sst-card">
+            <div class="chart-title">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-green-dark);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Seguridad y Salud en el Trabajo (SST)</span>
+              </div>
+              <span class="badge badge--aprobada" style="font-size:0.75rem;font-weight:700;">Gestión Integral SST</span>
+            </div>
+            <div class="sst-dashboard-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:12px;">
+              <div class="chart-wrap" id="wrap-chart-sst" style="position:relative;height:240px;">
+                <canvas id="chart-by-sst"></canvas>
+              </div>
+              <div class="sst-quick-metrics" id="db-sst-quick-metrics" style="display:flex;flex-direction:column;justify-content:center;gap:12px;">
+                <div class="skeleton" style="height:80px;border-radius:12px;" aria-busy="true" role="progressbar"></div>
+                <div class="skeleton" style="height:80px;border-radius:12px;" aria-busy="true" role="progressbar"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="activity-card db-glass-card">
           <div class="activity-title">Actividad Reciente</div>
-          <ul class="activity-list" id="db-activity-list">
+          <ul class="activity-list" id="db-activity-list" aria-busy="true" role="progressbar">
             ${[1,2,3,4].map(() => `<li class="activity-item"><div class="activity-dot skeleton" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></div><div class="activity-content"><div class="skeleton" style="width:200px;height:14px;border-radius:4px;margin-bottom:6px"></div><div class="skeleton" style="width:140px;height:11px;border-radius:4px"></div></div></li>`).join('')}
           </ul>
         </div>
@@ -149,19 +171,22 @@ const DashboardModule = (() => {
     if (chartDona)       { chartDona.destroy();       chartDona       = null; }
     if (chartModule)     { chartModule.destroy();     chartModule     = null; }
     if (chartDep)        { chartDep.destroy();        chartDep        = null; }
+    if (chartSst)        { chartSst.destroy();        chartSst        = null; }
 
     try {
-      const [stats, chart, adminStats, viaticosStats] = await Promise.all([
+      const [stats, chart, adminStats, viaticosStats, sstStats] = await Promise.all([
         API.getDashboardStats(),
         API.getDashboardChart(),
         API.getAdminRequestsStats().catch(() => []),
         API.getViaticosStats().catch(() => ({})),
+        API.getSstStats().catch(() => ({})),
       ]);
 
       lastStats = stats;
       lastChart = chart;
       lastAdminStats = adminStats;
       lastViaticosStats = viaticosStats;
+      lastSstStats = sstStats;
 
       // ─── Stats Grid ─────────────────────────────────────────────────────
       const grid = document.getElementById('db-stats-grid');
@@ -644,6 +669,127 @@ const DashboardModule = (() => {
             }
           });
         }
+      }
+
+      // ─── Gráfica SST: Seguridad y Salud en el Trabajo ────────────────────
+      const ctxSst = document.getElementById('chart-by-sst')?.getContext('2d');
+      const wrapSst = document.getElementById('wrap-chart-sst');
+      const sstMetricsWrap = document.getElementById('db-sst-quick-metrics');
+      
+      const sst = sstStats || {};
+      const sstLabels = [
+        'Exámenes Médicos (EMO)',
+        'Vigilancia Epidem. (PVE)',
+        'Casos AT / EL',
+        'Dotaciones EPP',
+        'Sociodemográfico'
+      ];
+      const sstValues = [
+        Number(sst.totalEmo) || 0,
+        Number(sst.direccionadosPve) || 0,
+        Number(sst.casosSeguimiento) || 0,
+        Number(sst.totalEpp) || 0,
+        Number(sst.totalSociodemografico) || 0
+      ];
+
+      if (sstMetricsWrap) {
+        sstMetricsWrap.innerHTML = `
+          <div style="background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:var(--shadow-card);">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:40px; height:40px; border-radius:10px; background:rgba(0,123,199,0.12); color:var(--color-primary); display:flex; align-items:center; justify-content:center;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Cobertura EMO</div>
+                <div style="font-size:1.15rem; font-weight:800; color:var(--text-primary);">${sst.emoVigentes || 0} <span style="font-size:0.8rem; font-weight:600; color:var(--color-success);">vigentes</span></div>
+              </div>
+            </div>
+            <span class="badge ${Number(sst.emoAlertas) > 0 ? 'badge--rechazada' : 'badge--neutral'}" style="font-size:0.75rem; font-weight:700;">
+              ${sst.emoAlertas || 0} Alertas
+            </span>
+          </div>
+
+          <div style="background:var(--bg-glass); border:1px solid var(--border-glass); border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:var(--shadow-card);">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:40px; height:40px; border-radius:10px; background:rgba(98,128,1,0.12); color:var(--color-green-dark); display:flex; align-items:center; justify-content:center;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Gestión de Protección</div>
+                <div style="font-size:1.15rem; font-weight:800; color:var(--text-primary);">${sst.servidoresDotados || sst.totalEpp || 0} <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">servidores</span></div>
+              </div>
+            </div>
+            <span class="badge badge--blue" style="font-size:0.75rem; font-weight:700;">
+              ${sst.dependenciasCubiertas || 0} Dependencias
+            </span>
+          </div>
+        `;
+      }
+
+      if (ctxSst) {
+        chartSst = new Chart(ctxSst, {
+          type: 'bar',
+          data: {
+            labels: sstLabels,
+            datasets: [{
+              label: 'Registros Gestionados',
+              data: sstValues,
+              backgroundColor: [
+                'rgba(0, 123, 199, 0.85)',   // Azul corporativo #007BC7 (EMO)
+                'rgba(98, 128, 1, 0.85)',    // Verde corporativo #628001 (PVE)
+                'rgba(227, 36, 49, 0.85)',   // Rojo corporativo #E32431 (AT/EL)
+                'rgba(184, 75, 167, 0.85)',  // Magenta corporativo #B84BA7 (EPP)
+                'rgba(29, 128, 150, 0.85)'   // Teal corporativo #1D8096 (Sociodemográfico)
+              ],
+              borderColor: [
+                '#007BC7',
+                '#628001',
+                '#E32431',
+                '#B84BA7',
+                '#1D8096'
+              ],
+              borderWidth: 1,
+              borderRadius: 8,
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                titleColor: isDark ? '#ffffff' : '#0f172a',
+                bodyColor: isDark ? '#94a3b8' : '#475569',
+                titleFont: { size: 13, weight: 'bold' },
+                bodyFont: { size: 12 },
+                padding: 12,
+                cornerRadius: 10,
+                borderColor: isDark ? '#334155' : '#e2e8f0',
+                borderWidth: 1
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: gridColor },
+                ticks: { color: tickColor, precision: 0, font: { size: 11 } }
+              },
+              y: {
+                grid: { color: gridColor },
+                ticks: {
+                  color: tickColor,
+                  font: { size: 11, weight: '600' },
+                  callback: function(val, index) {
+                    const label = this.getLabelForValue(val) || '';
+                    return label.length > 24 ? label.slice(0, 22) + '…' : label;
+                  }
+                }
+              }
+            }
+          }
+        });
       }
 
       // ─── Activity Feed ───────────────────────────────────────────────────

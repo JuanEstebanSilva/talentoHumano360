@@ -61,6 +61,69 @@ const HorariosModule = (() => {
     }
   }
 
+  // ─── Dropdown de Opciones Secundarias (Ley de Hick & WCAG 2.1 AA) ──────────
+  function toggleActionsDropdown(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('horarios-dropdown-menu');
+    const toggleBtn = document.getElementById('horarios-dropdown-toggle');
+    if (!menu || !toggleBtn) return;
+    const isHidden = menu.hasAttribute('hidden');
+    if (isHidden) {
+      menu.removeAttribute('hidden');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      const firstItem = menu.querySelector('.actions-dropdown-item');
+      if (firstItem) firstItem.focus();
+    } else {
+      closeActionsDropdown();
+    }
+  }
+
+  function closeActionsDropdown() {
+    const menu = document.getElementById('horarios-dropdown-menu');
+    const toggleBtn = document.getElementById('horarios-dropdown-toggle');
+    if (menu) menu.setAttribute('hidden', '');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      toggleBtn.focus();
+    }
+  }
+
+  function handleDropdownKeydown(event) {
+    if (event.key === 'Escape') {
+      closeActionsDropdown();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const menu = document.getElementById('horarios-dropdown-menu');
+      if (menu && menu.hasAttribute('hidden')) {
+        toggleActionsDropdown(event);
+      } else if (menu) {
+        const first = menu.querySelector('.actions-dropdown-item');
+        if (first) first.focus();
+      }
+    }
+  }
+
+  function bindDropdownOutsideClick() {
+    document.addEventListener('click', (e) => {
+      const wrap = document.querySelector('.actions-dropdown-wrap');
+      const menu = document.getElementById('horarios-dropdown-menu');
+      if (menu && !menu.hasAttribute('hidden') && wrap && !wrap.contains(e.target)) {
+        menu.setAttribute('hidden', '');
+        const toggleBtn = document.getElementById('horarios-dropdown-toggle');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const menu = document.getElementById('horarios-dropdown-menu');
+        if (menu && !menu.hasAttribute('hidden')) {
+          closeActionsDropdown();
+        }
+      }
+    });
+  }
+
   // ─── Renderizado Principal ────────────────────────────────────────────────
   async function render(container) {
     const canManage = Auth.canEdit();
@@ -75,20 +138,70 @@ const HorariosModule = (() => {
               Administración de esquemas de trabajo institucional: Presencial, Teletrabajo, Trabajo en casa y Horarios flexibles
             </p>
           </div>
-          <div class="page-actions">
-            <button class="btn btn-secondary" onclick="HorariosModule.exportExcel()" style="display:inline-flex; align-items:center; gap:6px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Exportar Excel
-            </button>
+          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <!-- Dropdown de Opciones Secundarias (Hick's Law) -->
+            <div class="actions-dropdown-wrap">
+              <button
+                type="button"
+                class="btn btn-secondary actions-dropdown-btn"
+                id="horarios-dropdown-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="horarios-dropdown-menu"
+                onclick="HorariosModule.toggleActionsDropdown(event)"
+                onkeydown="HorariosModule.handleDropdownKeydown(event)"
+                title="Opciones secundarias (Excel y plantillas)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                <span>Acciones</span>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div
+                class="actions-dropdown-menu"
+                id="horarios-dropdown-menu"
+                role="menu"
+                aria-labelledby="horarios-dropdown-toggle"
+                hidden
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.exportExcel();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <div>
+                    <strong>Exportar Esquemas a Excel</strong>
+                    <small>Descarga el listado filtrado actual en formato .xlsx</small>
+                  </div>
+                </button>
+                ${
+                  canManage
+                    ? `<button
+                        type="button"
+                        role="menuitem"
+                        tabindex="-1"
+                        class="actions-dropdown-item"
+                        onclick="HorariosModule.closeActionsDropdown(); HorariosModule.openImportModal();"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <div>
+                          <strong>Carga Masiva Excel</strong>
+                          <small>Importar registros desde plantilla institucional</small>
+                        </div>
+                      </button>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <!-- Acción Primaria (CTA - Visual Salience) -->
             ${
               canManage
-                ? `<button class="btn btn-secondary" onclick="HorariosModule.openImportModal()" style="display:inline-flex; align-items:center; gap:6px;">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                     Carga Masiva Excel
-                   </button>
-                   <button class="btn btn-primary btn-liquid-create" onclick="HorariosModule.openCreate()">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                     Nuevo Horario
+                ? `<button class="btn btn-primary btn-primary-cta" onclick="HorariosModule.openCreate()">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                     <span>Nuevo Horario</span>
                    </button>`
                 : ''
             }
@@ -169,12 +282,55 @@ const HorariosModule = (() => {
       </div>
     `;
 
+    bindDropdownOutsideClick();
     loadStats();
     await loadData();
   }
 
   function renderStatsSkeletons() {
-    return Array(5).fill(0).map(() => `<div class="stat-card skeleton" style="height:80px"></div>`).join('');
+    return Array(5).fill(0).map(() => `<div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>`).join('');
+  }
+
+  function renderSkeletonTable() {
+    const tbody = document.getElementById('horarios-tbody');
+    if (!tbody) return;
+    const skeletonRows = Array.from({ length: 6 }).map((_, i) => `
+      <tr class="skeleton-row" style="animation-delay: ${i * 0.08}s">
+        <td>
+          <div class="skeleton-user-cell">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-text-group">
+              <div class="skeleton-bar" style="width: 140px; height: 14px;"></div>
+              <div class="skeleton-bar" style="width: 90px; height: 11px;"></div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="skeleton-text-group">
+            <div class="skeleton-bar" style="width: 130px; height: 13px;"></div>
+            <div class="skeleton-bar" style="width: 80px; height: 11px;"></div>
+          </div>
+        </td>
+        <td><div class="skeleton-bar" style="width: 85px; height: 22px; border-radius: 12px;"></div></td>
+        <td>
+          <div class="skeleton-text-group">
+            <div class="skeleton-bar" style="width: 110px; height: 13px;"></div>
+            <div class="skeleton-bar" style="width: 60px; height: 11px;"></div>
+          </div>
+        </td>
+        <td><div class="skeleton-bar" style="width: 100px; height: 13px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 75px; height: 20px; border-radius: 12px;"></div></td>
+        <td>
+          <div style="display: flex; gap: 6px; justify-content: flex-end;">
+            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = skeletonRows;
+    tbody.setAttribute('aria-busy', 'true');
+    tbody.setAttribute('role', 'progressbar');
   }
 
   // ─── Carga de Estadísticas ────────────────────────────────────────────────
@@ -240,6 +396,7 @@ const HorariosModule = (() => {
 
   // ─── Carga de Datos y Tabla ────────────────────────────────────────────────
   async function loadData() {
+    renderSkeletonTable();
     const tbody = document.getElementById('horarios-tbody');
     if (!tbody) return;
 
@@ -263,6 +420,8 @@ const HorariosModule = (() => {
       const countEl = document.getElementById('horarios-count');
       if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} esquemas`;
     } catch (err) {
+      tbody.removeAttribute('role');
+      tbody.setAttribute('aria-busy', 'false');
       tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><span class="empty-state-title">Error al cargar</span><span class="empty-state-desc">${escHtml(err.message)}</span></div></td></tr>`;
     }
   }
@@ -270,6 +429,8 @@ const HorariosModule = (() => {
   function renderTable() {
     const tbody = document.getElementById('horarios-tbody');
     if (!tbody) return;
+    tbody.removeAttribute('role');
+    tbody.setAttribute('aria-busy', 'false');
 
     if (state.data.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
@@ -1659,5 +1820,8 @@ const HorariosModule = (() => {
     exportExcel,
     openImportModal,
     viewSoporte,
+    toggleActionsDropdown,
+    closeActionsDropdown,
+    handleDropdownKeydown,
   };
 })();
