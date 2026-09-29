@@ -5373,35 +5373,108 @@ tbody tr:last-child td {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PANTALLA DE ERROR 404 — TALENTO 360 / GOBERNACIÓN DE BOYACÁ (MOCKUP OFICIAL)
+   PANTALLA GLOBAL DE ERROR 404 — TALENTO 360 / GOBERNACIÓN DE BOYACÁ
+   Overlay global independiente que ocupa el viewport completo (100vw x 100vh)
    ═══════════════════════════════════════════════════════════════════════════ */
+
+html.error-404-active {
+  zoom: 1 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.error-404-active {
+  zoom: 1 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ocultamiento absoluto del layout general de la aplicación y de login mientras 404 esté activa */
+html.error-404-active #app,
+body.error-404-active #app,
+html.error-404-active #login-screen,
+body.error-404-active #login-screen {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+.error-404-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  z-index: 999999 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: clamp(16px, 3vh, 36px);
+  background-color: #f7f6f1;
+  background: 
+    radial-gradient(ellipse at 88% 12%, rgba(217, 180, 74, 0.22) 0%, rgba(217, 180, 74, 0.04) 45%, transparent 65%),
+    radial-gradient(ellipse at 12% 50%, rgba(40, 135, 27, 0.08) 0%, transparent 50%),
+    linear-gradient(135deg, #fbfbf9 0%, #f7f6f1 100%);
+  animation: error404FadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="dark"] .error-404-overlay {
+  background-color: #060913;
+  background: 
+    radial-gradient(ellipse at 88% 12%, rgba(217, 180, 74, 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse at 12% 50%, rgba(34, 197, 94, 0.10) 0%, transparent 55%),
+    linear-gradient(135deg, #0b1120 0%, #060913 100%);
+}
+
+@keyframes error404FadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
 .error-404-container {
   width: 100%;
-  min-height: calc(100vh - var(--topbar-height, 64px) - 36px);
+  max-width: 1240px;
+  min-height: min(680px, calc(100vh - 56px));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  border-radius: 20px;
-  padding: 30px 40px 16px 40px;
-  background: 
-    radial-gradient(ellipse at 88% 12%, rgba(217, 180, 74, 0.28) 0%, rgba(217, 180, 74, 0.06) 45%, transparent 65%),
-    radial-gradient(ellipse at 12% 50%, rgba(40, 135, 27, 0.08) 0%, transparent 50%),
-    linear-gradient(135deg, #fbfbf9 0%, #f7f6f1 100%);
-  border: 1px solid rgba(220, 215, 200, 0.6);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+  margin: auto;
+  border-radius: 24px;
+  padding: 36px 44px 20px 44px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(220, 215, 200, 0.7);
+  box-shadow: 
+    0 25px 60px -15px rgba(0, 0, 0, 0.08),
+    0 10px 25px -5px rgba(0, 0, 0, 0.03);
 }
 
 [data-theme="dark"] .error-404-container {
-  background: 
-    radial-gradient(ellipse at 88% 12%, rgba(217, 180, 74, 0.16) 0%, transparent 60%),
-    radial-gradient(ellipse at 12% 50%, rgba(34, 197, 94, 0.12) 0%, transparent 55%),
-    linear-gradient(135deg, #0b1120 0%, #060913 100%);
+  background: rgba(15, 23, 42, 0.88);
   border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 40px -15px rgba(0, 0, 0, 0.7);
+  box-shadow: 
+    0 30px 70px -15px rgba(0, 0, 0, 0.75),
+    0 10px 30px -5px rgba(0, 0, 0, 0.5);
 }
 
 .error-404-layout {
@@ -5411,12 +5484,12 @@ tbody tr:last-child td {
   gap: 40px;
   flex: 1;
   width: 100%;
-  max-width: 1350px;
+  max-width: 1200px;
   margin: 0 auto;
   position: relative;
 }
 
-/* ─── Columna Izquierda (Marca de agua, Medallón Dorado, Logos) ──────────── */
+/* ─── Columna Izquierda (Marca de agua, Escudo Institucional, Logos) ──────── */
 .error-404-left-section {
   flex: 1;
   display: flex;
@@ -5426,10 +5499,10 @@ tbody tr:last-child td {
   text-align: center;
   position: relative;
   padding: 20px;
-  min-height: 440px;
+  min-height: 420px;
 }
 
-/* Marca de Agua 404 Gigante detrás del medallón */
+/* Marca de Agua 404 Gigante detrás del escudo */
 .error-404-huge-watermark {
   position: absolute;
   font-size: clamp(14rem, 24vw, 25rem);
@@ -5452,65 +5525,34 @@ tbody tr:last-child td {
   opacity: 0.28;
 }
 
-/* Medallón Dorado Tridimensional */
-.error-404-gold-medal {
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: conic-gradient(from 180deg at 50% 50%, #edd887 0deg, #f9ebb2 40deg, #c39e38 85deg, #f4e39d 135deg, #9f7b1e 180deg, #f4e39d 225deg, #c39e38 270deg, #f9ebb2 320deg, #edd887 360deg);
-  padding: 10px;
-  box-shadow: 
-    0 22px 45px -8px rgba(180, 140, 35, 0.42),
-    0 10px 20px -4px rgba(0, 0, 0, 0.12),
-    inset 0 3px 5px rgba(255, 255, 255, 0.9),
-    inset 0 -3px 5px rgba(120, 90, 15, 0.5);
+/* Escudo Oficial de Boyacá (Sin círculos artificiales decorativos) */
+.error-404-escudo-wrapper {
+  width: 190px;
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 2;
-  margin-bottom: 22px;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 20px;
+  transition: transform 0.3s ease;
 }
 
-.error-404-gold-medal:hover {
-  transform: translateY(-4px) scale(1.02);
+.error-404-escudo-wrapper:hover {
+  transform: translateY(-3px) scale(1.02);
 }
 
-[data-theme="dark"] .error-404-gold-medal {
-  box-shadow: 
-    0 22px 50px -8px rgba(217, 180, 74, 0.35),
-    0 10px 20px -4px rgba(0, 0, 0, 0.6),
-    inset 0 3px 5px rgba(255, 255, 255, 0.6),
-    inset 0 -3px 5px rgba(0, 0, 0, 0.6);
-}
-
-.error-404-medal-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #faf8f0 60%, #eee9d7 100%);
-  border: 3.5px solid #d4af37;
-  box-shadow: 
-    inset 0 4px 12px rgba(0, 0, 0, 0.18),
-    inset 0 -2px 6px rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  overflow: hidden;
-}
-
-[data-theme="dark"] .error-404-medal-inner {
-  background: radial-gradient(circle at 35% 35%, #1e293b 0%, #0f172a 100%);
-  border-color: #d4af37;
-}
-
-.error-404-medal-seal {
-  width: 86%;
-  height: 86%;
+.error-404-escudo-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.22));
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.12));
+}
+
+[data-theme="dark"] .error-404-escudo-img {
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.65));
 }
 
 /* Logos Inferiores de la Columna Izquierda */
@@ -5783,8 +5825,8 @@ tbody tr:last-child td {
   text-align: center;
   font-size: 0.85rem;
   color: #64748b;
-  padding-top: 28px;
-  padding-bottom: 8px;
+  padding-top: 24px;
+  padding-bottom: 6px;
   position: relative;
   z-index: 2;
 }
@@ -5795,22 +5837,57 @@ tbody tr:last-child td {
 
 /* Responsive */
 @media (max-width: 980px) {
+  .error-404-container {
+    min-height: auto;
+    padding: 28px 24px 16px 24px;
+  }
   .error-404-layout {
     flex-direction: column;
-    gap: 32px;
+    gap: 28px;
   }
   .error-404-left-section {
     min-height: auto;
     padding: 10px;
   }
+  .error-404-escudo-wrapper {
+    width: 140px;
+    height: 140px;
+    margin-bottom: 14px;
+  }
+  .error-404-secgen-brand {
+    max-width: 230px;
+  }
   .error-404-floating-card {
     max-width: 100%;
-    padding: 32px 24px;
+    padding: 30px 22px;
   }
   .error-404-title {
-    font-size: 1.9rem;
+    font-size: 1.85rem;
   }
   .error-404-huge-watermark {
-    font-size: 13rem;
+    font-size: 12rem;
+    top: 40%;
+  }
+}
+
+@media (max-width: 480px) {
+  .error-404-overlay {
+    padding: 12px;
+  }
+  .error-404-container {
+    padding: 20px 16px 14px 16px;
+    border-radius: 16px;
+  }
+  .error-404-floating-card {
+    padding: 24px 16px;
+    border-radius: 18px;
+  }
+  .error-404-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  .error-404-btn-primary,
+  .error-404-btn-secondary {
+    width: 100%;
   }
 }

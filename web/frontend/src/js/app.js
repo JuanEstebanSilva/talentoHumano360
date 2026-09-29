@@ -103,7 +103,6 @@ const App = (() => {
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
     sst: 'Seguridad y Salud en el Trabajo (SST)',
-    '404': '404 · Página No Encontrada',
     settings: 'Configuración',
     privacidad: 'Política de Tratamiento de Datos Personales',
     terminos: 'Términos y Condiciones de Uso',
@@ -118,14 +117,50 @@ const App = (() => {
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
-    '404': '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     privacidad: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     terminos: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
     accesibilidad: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
   };
 
+  const VALID_ROUTES = new Set([
+    'dashboard',
+    'employees',
+    'requests',
+    'admin-requests',
+    'viaticos',
+    'horarios',
+    'sst',
+    'settings',
+    'privacidad',
+    'terminos',
+    'accesibilidad'
+  ]);
+
   async function navigate(module, options = {}) {
+    const rawModule = String(module || '').replace(/^#\/?/, '').trim();
+
+    // 1. Si la ruta o módulo NO existe en las rutas válidas:
+    // Mostrar inmediatamente la pantalla global 404 fuera del layout y sin tocar el módulo actual.
+    if (!rawModule || !VALID_ROUTES.has(rawModule)) {
+      if (typeof Error404Module !== 'undefined') {
+        Error404Module.show(rawModule || '404', options.error);
+      }
+      return;
+    }
+
+    // 2. Ruta válida: ocultar overlay global 404 si estaba visible y asegurar visualización del app
+    if (typeof Error404Module !== 'undefined') {
+      Error404Module.hide();
+    }
+
+    const appElement = document.getElementById('app');
+    if (appElement && typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
+      if (appElement.style.display === 'none') {
+        appElement.style.display = 'grid';
+      }
+    }
+
     const container = document.getElementById('module-container');
     const pageTitle = document.getElementById('page-title');
     const breadcrumbIcon = document.querySelector('.breadcrumb-icon');
@@ -137,7 +172,7 @@ const App = (() => {
       b.removeAttribute('aria-current');
     });
 
-    if (module === 'admin-requests') {
+    if (rawModule === 'admin-requests') {
       const adminGroupBtn = document.getElementById('nav-admin-group');
       const menu = document.getElementById('admin-submenu');
       if (adminGroupBtn) {
@@ -148,7 +183,7 @@ const App = (() => {
       if (menu) {
         menu.setAttribute('aria-hidden', 'false');
       }
-    } else if (module === 'sst') {
+    } else if (rawModule === 'sst') {
       const sstGroupBtn = document.getElementById('nav-sst-group');
       const sstMenu = document.getElementById('sst-submenu');
       if (sstGroupBtn) {
@@ -160,17 +195,17 @@ const App = (() => {
         sstMenu.setAttribute('aria-hidden', 'false');
       }
     } else {
-      const navBtn = document.getElementById(`nav-${module}`);
+      const navBtn = document.getElementById(`nav-${rawModule}`);
       if (navBtn) {
         navBtn.classList.add('active');
         navBtn.setAttribute('aria-current', 'page');
       }
     }
 
-    let title = MODULE_TITLES[module] || module;
-    let iconSvg = MODULE_ICONS[module] || MODULE_ICONS.dashboard;
+    let title = MODULE_TITLES[rawModule] || rawModule;
+    let iconSvg = MODULE_ICONS[rawModule] || MODULE_ICONS.dashboard;
 
-    if (module === 'admin-requests') {
+    if (rawModule === 'admin-requests') {
       const tipoKey = options.tipo || 'permisos';
       if (tipoKey === 'permisos') {
         title = 'Permisos Laborales';
@@ -182,7 +217,7 @@ const App = (() => {
         title = 'Licencias Institucionales';
         iconSvg = '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>';
       }
-    } else if (module === 'sst') {
+    } else if (rawModule === 'sst') {
       const tabKey = options.tab || 'epidemiologico';
       if (tabKey === 'epidemiologico') {
         title = 'SST · Perfil Epidemiológico y EMO';
@@ -198,25 +233,19 @@ const App = (() => {
     if (breadcrumbIcon) breadcrumbIcon.innerHTML = iconSvg;
     const badge = document.getElementById('topbar-breadcrumb-badge');
     if (badge) badge.setAttribute('title', title);
-    document.getElementById('app')?.setAttribute('data-current-module', module);
+    document.getElementById('app')?.setAttribute('data-current-module', rawModule);
 
-    const targetHash = module + (options.tab ? `?tab=${options.tab}` : '') + (options.tipo ? `?tipo=${options.tipo}` : '');
+    const targetHash = rawModule + (options.tab ? `?tab=${options.tab}` : '') + (options.tipo ? `?tipo=${options.tipo}` : '');
     const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-    if (currentHash !== targetHash && currentHash !== module) {
+    if (currentHash !== targetHash && currentHash !== rawModule) {
       if (window.history && window.history.pushState) {
         window.history.pushState(null, '', `#${targetHash}`);
       }
     }
 
     const renderSelectedModule = async () => {
-      // Ocultar pantalla completa 404 solo si estaba visible y navegamos a otro módulo
-      const errorOverlay = document.getElementById('error-screen-404');
-      if (module !== '404' && errorOverlay && errorOverlay.style.display !== 'none' && typeof Error404Module !== 'undefined') {
-        Error404Module.hideFullScreen();
-      }
-
       try {
-        switch (module) {
+        switch (rawModule) {
           case 'dashboard':      await DashboardModule.render(container); break;
           case 'employees':     await EmployeesModule.render(container); break;
           case 'requests':      await RequestsModule.render(container); break;
@@ -260,24 +289,18 @@ const App = (() => {
           case 'terminos':
           case 'accesibilidad':
             if (typeof LegalModule !== 'undefined') {
-              await LegalModule.render(container, module);
+              await LegalModule.render(container, rawModule);
             }
             break;
-          case '404':
           default:
             if (typeof Error404Module !== 'undefined') {
-              await Error404Module.render(container, module, options.error);
-            } else {
-              container.innerHTML = `<div class="module-enter"><p style="color:var(--text-muted)">Módulo no encontrado.</p></div>`;
+              Error404Module.show(rawModule, options.error);
             }
+            return;
         }
       } catch (err) {
         console.error('[Talento 360] Error renderizando módulo:', err);
-        if (typeof Error404Module !== 'undefined') {
-          await Error404Module.render(container, module, err.message || 'Error inesperado al cargar el módulo');
-        } else {
-          container.innerHTML = `<div class="module-enter"><p style="color:var(--color-danger)">Error: ${err.message}</p></div>`;
-        }
+        container.innerHTML = `<div class="module-enter"><div class="card" style="padding: 24px; text-align: center;"><p style="color:var(--color-danger); font-weight:700;">Error al cargar el módulo</p><p style="color:var(--text-muted); font-size:0.9rem;">${err.message}</p></div></div>`;
       }
     };
 
@@ -1033,10 +1056,14 @@ const App = (() => {
       }
       showApp();
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-      const publicLegalRoutes = ['privacidad', 'terminos', 'accesibilidad'];
+      const [initMod, initQuery] = initialHash.split('?');
 
-      if (initialHash) {
-        navigate(initialHash);
+      if (initMod) {
+        const params = new URLSearchParams(initQuery || '');
+        const options = {};
+        if (params.get('tab')) options.tab = params.get('tab');
+        if (params.get('tipo')) options.tipo = params.get('tipo');
+        navigate(initMod, options);
       } else {
         if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
           LegalModule.requireConsentModal(() => navigate('dashboard'));
@@ -1049,10 +1076,18 @@ const App = (() => {
         Settings.resetToDefaults();
       }
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+      const [initMod] = initialHash.split('?');
       const publicLegalRoutes = ['privacidad', 'terminos', 'accesibilidad'];
-      if (publicLegalRoutes.includes(initialHash)) {
+      if (publicLegalRoutes.includes(initMod)) {
         showApp();
-        navigate(initialHash);
+        navigate(initMod);
+      } else if (initMod && !VALID_ROUTES.has(initMod)) {
+        // Enlace o ruta inválida directa antes de autenticar: mostrar 404 global
+        if (typeof Error404Module !== 'undefined') {
+          Error404Module.show(initMod);
+        } else {
+          showLogin();
+        }
       } else {
         showLogin();
       }
@@ -1069,10 +1104,18 @@ const App = (() => {
 window.App = App;
 window.app = App;
 
-// Enrutador reactivo por hash en URL (ej: http://localhost/#404 o #/sst?tab=epp)
+// Enrutador reactivo por hash en URL (ej: http://localhost/#/settingsggg o #/sst?tab=epp)
 window.addEventListener('hashchange', () => {
   const fullHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-  if (fullHash && typeof App !== 'undefined' && App.navigate) {
+  if (typeof App !== 'undefined' && App.navigate) {
+    if (!fullHash) {
+      if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
+        App.navigate('dashboard');
+      } else {
+        App.showLogin();
+      }
+      return;
+    }
     const [mod, query] = fullHash.split('?');
     const params = new URLSearchParams(query || '');
     const options = {};

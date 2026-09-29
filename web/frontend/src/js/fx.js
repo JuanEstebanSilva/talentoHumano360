@@ -57,6 +57,9 @@ const FX = (() => {
     navClick() {
       _tone({ freq: 600, freq2: 480, type: 'sine', volume: 0.06, duration: 0.08, attack: 0.002 });
     },
+    click() {
+      this.navClick();
+    },
     // Toast success
     toastSuccess() {
       _tone({ freq: 523, freq2: 659, type: 'sine', volume: 0.09, duration: 0.18, attack: 0.005 });
