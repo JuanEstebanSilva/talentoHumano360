@@ -1,0 +1,35 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# robots.txt — Talento 360 (Gobernación de Boyacá)
+# Seguridad de la Información y Directivas para Motores de Búsqueda
+# ═══════════════════════════════════════════════════════════════════════════
+
+User-agent: *
+
+# Permitir indexación de la portada y los documentos públicos de transparencia
+Allow: /$
+Allow: /index.html$
+Allow: /views/privacidad.html$
+Allow: /views/terminos.html$
+Allow: /views/accesibilidad.html$
+Allow: /sitemap.xml$
+
+# Bloquear explícitamente todos los endpoints de la API (datos sensibles y transaccionales)
+Disallow: /api/
+Disallow: /api/*
+
+# Bloquear directorios internos de scripts, estilos, respaldos y configuración
+Disallow: /js/
+Disallow: /css/
+Disallow: /database/
+Disallow: /backend/
+Disallow: /scripts/
+Disallow: /*.json$
+Disallow: /*.sql$
+Disallow: /*.env*
+
+# Bloquear parámetros de consulta y rutas hash internas de la SPA
+Disallow: /*?*
+Disallow: /#/*
+
+# Declaración del mapa de sitio oficial
+Sitemap: https://talento360.boyaca.gov.co/sitemap.xml

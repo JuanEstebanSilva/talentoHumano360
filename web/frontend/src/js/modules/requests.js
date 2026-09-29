@@ -17,37 +17,72 @@ const RequestsModule = (() => {
     return 'badge--pendiente';
   }
 
-  function renderSkeletonTable() {
-    const tbody = document.getElementById('req-tbody');
-    if (!tbody) return;
-    const skeletonRows = Array.from({ length: 6 }).map((_, i) => `
-      <tr class="skeleton-row" style="animation-delay: ${i * 0.08}s">
-        <td><div class="skeleton-bar" style="width: 80px; height: 16px;"></div></td>
+  function renderSkeletonRows(count = 6) {
+    return Array.from({ length: count }).map((_, i) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.08}s">
+        <td><div class="skeleton skeleton-line" style="width: 85px; height: 16px; border-radius: 4px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
-            <div class="skeleton-avatar"></div>
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
             <div class="skeleton-text-group">
-              <div class="skeleton-bar" style="width: 140px; height: 14px;"></div>
-              <div class="skeleton-bar" style="width: 90px; height: 11px;"></div>
+              <div class="skeleton skeleton-line skeleton-line--title" style="width: ${i % 2 === 0 ? '78%' : '65%'}; height: 14px;"></div>
+              <div class="skeleton skeleton-line" style="width: 45%; height: 11px;"></div>
             </div>
           </div>
         </td>
-        <td><div class="skeleton-bar" style="width: 130px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 85px; height: 20px; border-radius: 12px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 75px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 45px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 90px; height: 22px; border-radius: 12px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: ${i % 3 === 0 ? '85%' : '70%'}; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width: 90px; height: 22px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 40px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width: 88px; height: 24px;"></div></td>
         <td>
-          <div style="display: flex; gap: 6px; justify-content: flex-end;">
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+          <div class="skeleton-actions-wrap">
+            <div class="skeleton skeleton-btn"></div>
+            <div class="skeleton skeleton-btn"></div>
+            ${Auth.canEdit() ? '<div class="skeleton skeleton-btn"></div>' : ''}
           </div>
         </td>
       </tr>
     `).join('');
-    tbody.innerHTML = skeletonRows;
+  }
+
+  function renderSkeletonTable() {
+    const tbody = document.getElementById('req-tbody');
+    if (!tbody) return;
     tbody.setAttribute('aria-busy', 'true');
     tbody.setAttribute('role', 'progressbar');
+    tbody.setAttribute('aria-label', 'Cargando solicitudes de vacaciones...');
+    tbody.setAttribute('aria-valuemin', '0');
+    tbody.setAttribute('aria-valuemax', '100');
+    tbody.setAttribute('aria-valuetext', 'Cargando datos del servidor...');
+    const countEl = document.getElementById('req-count');
+    if (countEl) {
+      countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span>`;
+    }
+    tbody.innerHTML = renderSkeletonRows(6);
+  }
+
+  function renderDetailModalSkeleton() {
+    return `
+      <div class="skeleton-detail-wrapper" role="progressbar" aria-busy="true" aria-label="Cargando detalles de solicitud de vacaciones...">
+        <div class="skeleton-detail-header">
+          <div class="skeleton skeleton-avatar--lg" aria-hidden="true"></div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+            <div class="skeleton skeleton-line skeleton-line--title" style="width:55%; height:18px;"></div>
+            <div class="skeleton skeleton-line" style="width:35%; height:12px;"></div>
+          </div>
+          <div class="skeleton skeleton-badge" style="width:90px; height:26px;"></div>
+        </div>
+        <div class="skeleton-detail-section">
+          <div class="skeleton skeleton-line skeleton-line--title" style="width:30%; height:15px; margin-bottom:10px;"></div>
+          <div class="skeleton-detail-grid">
+            <div class="skeleton-detail-item"><div class="skeleton skeleton-line" style="width:40%;height:10px;"></div><div class="skeleton skeleton-line" style="width:80%;height:14px;"></div></div>
+            <div class="skeleton-detail-item"><div class="skeleton skeleton-line" style="width:45%;height:10px;"></div><div class="skeleton skeleton-line" style="width:75%;height:14px;"></div></div>
+            <div class="skeleton-detail-item"><div class="skeleton skeleton-line" style="width:35%;height:10px;"></div><div class="skeleton skeleton-line" style="width:65%;height:14px;"></div></div>
+            <div class="skeleton-detail-item"><div class="skeleton skeleton-line" style="width:50%;height:10px;"></div><div class="skeleton skeleton-line" style="width:70%;height:14px;"></div></div>
+          </div>
+        </div>
+      </div>`;
   }
 
   async function load() {
@@ -503,7 +538,7 @@ const RequestsModule = (() => {
         <div class="table-card">
           <div class="table-header">
             <span class="table-title">Solicitudes de Vacaciones</span>
-            <span class="table-count" id="req-count">Cargando...</span>
+            <span class="table-count" id="req-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
           </div>
           <div class="table-wrap">
             <table>
@@ -511,7 +546,9 @@ const RequestsModule = (() => {
                 <th>Radicado</th><th>Servidor Público</th><th>Dependencia</th>
                 <th>Tipo</th><th>Fecha Inicio</th><th>Días</th><th>Estado</th><th>Acciones</th>
               </tr></thead>
-              <tbody id="req-tbody"><tr><td colspan="8"><div class="empty-state loading-pulse">Cargando...</div></td></tr></tbody>
+              <tbody id="req-tbody" role="progressbar" aria-busy="true" aria-label="Cargando solicitudes de vacaciones...">
+                ${renderSkeletonRows(6)}
+              </tbody>
             </table>
           </div>
           <div class="pagination" id="req-pagination"></div>

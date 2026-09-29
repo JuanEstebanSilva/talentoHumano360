@@ -1,0 +1,338 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   legal.css — Estilos para Vistas Legales, Accesibilidad y Consentimiento
+   Gobernación de Boyacá · Talento 360
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Contenedor de Páginas Legales Estáticas ────────────────────────────── */
+.legal-body {
+  background-color: var(--color-surface-2, #f8fafc);
+  color: var(--text-main, #1e293b);
+  font-family: var(--font-main, 'Nunito Sans', sans-serif);
+  line-height: 1.65;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.legal-header {
+  background: var(--color-surface, #ffffff);
+  border-bottom: 2px solid var(--color-primary, #287522);
+  padding: 1.25rem 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.legal-header-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.legal-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.legal-logo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+}
+
+.legal-institution {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: var(--color-primary, #287522);
+  text-transform: uppercase;
+  display: block;
+}
+
+.legal-system-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main, #0f172a);
+}
+
+.legal-main {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
+.legal-card {
+  background: var(--color-surface, #ffffff);
+  border-radius: 12px;
+  padding: 2.5rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.legal-doc-header {
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.legal-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-primary-dark, #1c331a);
+  margin: 0.85rem 0 0.5rem 0;
+  line-height: 1.3;
+}
+
+.legal-meta {
+  font-size: 0.9rem;
+  color: var(--text-muted, #64748b);
+  margin: 0.5rem 0 0 0;
+  line-height: 1.6;
+}
+
+.legal-section {
+  margin-bottom: 2.25rem;
+}
+
+.legal-section h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary, #287522);
+  margin-bottom: 0.85rem;
+  border-left: 4px solid var(--color-primary, #287522);
+  padding-left: 0.75rem;
+}
+
+.legal-section p {
+  margin-bottom: 1rem;
+  font-size: 0.98rem;
+  color: var(--text-main, #334155);
+}
+
+.legal-list, .legal-ordered-list {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.legal-list li, .legal-ordered-list li {
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+}
+
+/* ─── Cajas de Alerta Normativa ─────────────────────────────────────────── */
+.legal-alert-box {
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  margin: 1.25rem 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.legal-alert-warning {
+  background-color: #fffbeb;
+  border-left: 5px solid var(--color-amber, #d97706);
+  color: #92400e;
+}
+
+.legal-alert-danger {
+  background-color: #fef2f2;
+  border-left: 5px solid var(--color-red, #e32431);
+  color: #991b1b;
+}
+
+.legal-alert-info {
+  background-color: #f0fdf4;
+  border-left: 5px solid var(--color-primary, #287522);
+  color: #166534;
+}
+
+/* ─── Cuadrículas de Contenido ─────────────────────────────────────────── */
+.legal-channels-grid, .legal-laws-grid, .legal-accessibility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.legal-channel-item, .legal-law-card, .legal-acc-card {
+  background: var(--color-surface-2, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.legal-law-card h4, .legal-acc-card h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary-dark, #1c331a);
+  font-size: 1.05rem;
+}
+
+.legal-footer {
+  background: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+  margin-top: auto;
+}
+
+/* ─── Modal y Banner de Consentimiento Legal Obligatorio ────────────────── */
+.consent-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(4, 22, 36, 0.75);
+  backdrop-filter: blur(6px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  animation: consentFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.consent-modal-box {
+  background: var(--color-surface, #ffffff);
+  border-radius: 14px;
+  max-width: 640px;
+  width: 100%;
+  border: 2px solid var(--color-primary, #287522);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.consent-modal-header {
+  background: linear-gradient(135deg, var(--color-forest, #1c331a) 0%, var(--color-primary, #287522) 100%);
+  color: #ffffff;
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.consent-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.consent-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.consent-modal-body {
+  padding: 1.75rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  font-size: 0.94rem;
+  color: var(--text-main, #334155);
+  line-height: 1.6;
+}
+
+.consent-legal-highlight {
+  background-color: #f1f8e9;
+  border-left: 4px solid var(--color-primary, #287522);
+  padding: 0.85rem 1rem;
+  margin: 1rem 0;
+  border-radius: 4px;
+  font-size: 0.88rem;
+}
+
+.consent-checkbox-wrap {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+  cursor: pointer;
+}
+
+.consent-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--color-primary, #287522);
+  cursor: pointer;
+}
+
+.consent-modal-footer {
+  padding: 1.25rem 1.75rem;
+  background-color: var(--color-surface-2, #f8fafc);
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.consent-link {
+  color: var(--color-primary, #287522);
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+.consent-link:hover {
+  color: var(--color-primary-dark, #1c331a);
+}
+
+@keyframes consentFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Modo Oscuro para Vistas Legales */
+[data-theme="dark"] .legal-body {
+  background-color: #041624;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .legal-card,
+[data-theme="dark"] .legal-header,
+[data-theme="dark"] .legal-footer,
+[data-theme="dark"] .consent-modal-box {
+  background-color: #0b2238;
+  border-color: #1e3a5f;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .legal-title,
+[data-theme="dark"] .legal-system-title,
+[data-theme="dark"] .legal-channel-item,
+[data-theme="dark"] .legal-law-card,
+[data-theme="dark"] .legal-acc-card {
+  background-color: #07192a;
+  border-color: #1e3a5f;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .legal-section p,
+[data-theme="dark"] .consent-modal-body {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .consent-legal-highlight {
+  background-color: #0e3022;
+  color: #a7f3d0;
+}

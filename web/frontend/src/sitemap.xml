@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+                            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- Portal de Inicio / Acceso Institucional -->
+  <url>
+    <loc>https://talento360.boyaca.gov.co/</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://talento360.boyaca.gov.co/index.html</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Vistas Públicas de Cumplimiento Normativo (Ley 1581 de 2012 y MinTIC) -->
+  <url>
+    <loc>https://talento360.boyaca.gov.co/views/privacidad.html</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>quarterly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://talento360.boyaca.gov.co/views/terminos.html</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>quarterly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://talento360.boyaca.gov.co/views/accesibilidad.html</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>quarterly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

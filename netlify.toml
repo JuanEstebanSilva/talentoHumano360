@@ -1,20 +1,27 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# Talento 360 — Netlify Configuration
-# ═══════════════════════════════════════════════════════════════════════════════
-
 [build]
-  # Directorio con los archivos del frontend estático
   publish = "web/frontend/src"
-  # Aplicación estática nativa (sin bundle/build step necesario)
   command = ""
 
-# Redirección SPA para que cualquier subruta recargue la aplicación en index.html
+# Cabeceras específicas para sitemap.xml
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Content-Type = "application/xml; charset=UTF-8"
+    Cache-Control = "public, max-age=86400"
+
+# Cabeceras específicas para robots.txt
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=UTF-8"
+    Cache-Control = "public, max-age=86400"
+
+# Redirección SPA general (Netlify sirve estáticos existentes antes de redirigir)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Cabeceras HTTP de seguridad recomendadas
 [[headers]]
   for = "/*"
   [headers.values]

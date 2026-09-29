@@ -105,6 +105,9 @@ const App = (() => {
     sst: 'Seguridad y Salud en el Trabajo (SST)',
     '404': '404 · Página No Encontrada',
     settings: 'Configuración',
+    privacidad: 'Política de Tratamiento de Datos Personales',
+    terminos: 'Términos y Condiciones de Uso',
+    accesibilidad: 'Declaración de Accesibilidad Web',
   };
 
   const MODULE_ICONS = {
@@ -117,6 +120,9 @@ const App = (() => {
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     '404': '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+    privacidad: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    terminos: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+    accesibilidad: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
   };
 
   async function navigate(module, options = {}) {
@@ -194,6 +200,14 @@ const App = (() => {
     if (badge) badge.setAttribute('title', title);
     document.getElementById('app')?.setAttribute('data-current-module', module);
 
+    const targetHash = module + (options.tab ? `?tab=${options.tab}` : '') + (options.tipo ? `?tipo=${options.tipo}` : '');
+    const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+    if (currentHash !== targetHash && currentHash !== module) {
+      if (window.history && window.history.pushState) {
+        window.history.pushState(null, '', `#${targetHash}`);
+      }
+    }
+
     const renderSelectedModule = async () => {
       // Ocultar pantalla completa 404 solo si estaba visible y navegamos a otro módulo
       const errorOverlay = document.getElementById('error-screen-404');
@@ -241,6 +255,13 @@ const App = (() => {
           }
           case 'settings':
             if (typeof SettingsModule !== 'undefined') await SettingsModule.render(container);
+            break;
+          case 'privacidad':
+          case 'terminos':
+          case 'accesibilidad':
+            if (typeof LegalModule !== 'undefined') {
+              await LegalModule.render(container, module);
+            }
             break;
           case '404':
           default:
@@ -837,15 +858,29 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
-          // FX: success animation then transition
-          if (typeof FX !== 'undefined') {
-            FX.animateLoginSuccess(() => {
-              showApp();
-              navigate('dashboard');
-            });
-          } else {
+          
+          const proceedToDashboard = () => {
             showApp();
             navigate('dashboard');
+          };
+
+          // FX: success animation then transition with legal consent gate
+          if (typeof FX !== 'undefined') {
+            FX.animateLoginSuccess(() => {
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+                showApp();
+                LegalModule.requireConsentModal(() => navigate('dashboard'));
+              } else {
+                proceedToDashboard();
+              }
+            });
+          } else {
+            if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+              showApp();
+              LegalModule.requireConsentModal(() => navigate('dashboard'));
+            } else {
+              proceedToDashboard();
+            }
           }
         } catch (err) {
           errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
@@ -998,16 +1033,29 @@ const App = (() => {
       }
       showApp();
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+      const publicLegalRoutes = ['privacidad', 'terminos', 'accesibilidad'];
+
       if (initialHash) {
         navigate(initialHash);
       } else {
-        navigate('dashboard');
+        if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+          LegalModule.requireConsentModal(() => navigate('dashboard'));
+        } else {
+          navigate('dashboard');
+        }
       }
     } else {
       if (typeof Settings !== 'undefined') {
         Settings.resetToDefaults();
       }
-      showLogin();
+      const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+      const publicLegalRoutes = ['privacidad', 'terminos', 'accesibilidad'];
+      if (publicLegalRoutes.includes(initialHash)) {
+        showApp();
+        navigate(initialHash);
+      } else {
+        showLogin();
+      }
     }
 
     // FX: init effects engine
@@ -1021,11 +1069,16 @@ const App = (() => {
 window.App = App;
 window.app = App;
 
-// Enrutador reactivo por hash en URL (ej: http://localhost/#404)
+// Enrutador reactivo por hash en URL (ej: http://localhost/#404 o #/sst?tab=epp)
 window.addEventListener('hashchange', () => {
-  const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-  if (hash && typeof App !== 'undefined' && App.navigate) {
-    App.navigate(hash);
+  const fullHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+  if (fullHash && typeof App !== 'undefined' && App.navigate) {
+    const [mod, query] = fullHash.split('?');
+    const params = new URLSearchParams(query || '');
+    const options = {};
+    if (params.get('tab')) options.tab = params.get('tab');
+    if (params.get('tipo')) options.tipo = params.get('tipo');
+    App.navigate(mod, options);
   }
 });
 

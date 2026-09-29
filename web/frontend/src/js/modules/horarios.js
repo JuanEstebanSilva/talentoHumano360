@@ -257,23 +257,25 @@ const HorariosModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               <span>Verificar Vencimientos</span>
             </button>
-            <span class="table-count" id="horarios-count">Cargando...</span>
+            <span class="table-count" id="horarios-count">
+              <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+            </span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table aria-label="Registro de Horarios y Modalidades">
               <thead>
                 <tr>
-                  <th>Servidor Público</th>
-                  <th>Dependencia & Cargo</th>
-                  <th>Modalidad</th>
-                  <th>Vigencia & Duración</th>
-                  <th>Acto Administrativo</th>
-                  <th>Estado</th>
-                  <th style="text-align:right">Acciones</th>
+                  <th scope="col">Servidor Público</th>
+                  <th scope="col">Dependencia & Cargo</th>
+                  <th scope="col">Modalidad</th>
+                  <th scope="col">Vigencia & Duración</th>
+                  <th scope="col">Acto Administrativo</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col" style="text-align:right">Acciones</th>
                 </tr>
               </thead>
-              <tbody id="horarios-tbody">
-                <tr><td colspan="7"><div class="empty-state loading-pulse">Cargando esquemas de horarios...</div></td></tr>
+              <tbody id="horarios-tbody" aria-busy="true" role="progressbar" aria-label="Cargando esquemas de horarios...">
+                ${renderSkeletonRows()}
               </tbody>
             </table>
           </div>
@@ -288,49 +290,65 @@ const HorariosModule = (() => {
   }
 
   function renderStatsSkeletons() {
-    return Array(5).fill(0).map(() => `<div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>`).join('');
+    return Array(5).fill(0).map(() => `
+      <div class="stat-card" aria-busy="true" role="progressbar">
+        <div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px;"></div>
+        <div class="stat-info" style="display:flex;flex-direction:column;gap:6px;flex:1;">
+          <span class="skeleton skeleton-line" style="width:50px;height:24px;border-radius:4px;margin-bottom:0;"></span>
+          <span class="skeleton skeleton-line" style="width:90px;height:12px;border-radius:4px;margin-bottom:0;"></span>
+        </div>
+      </div>
+    `).join('');
   }
 
-  function renderSkeletonTable() {
-    const tbody = document.getElementById('horarios-tbody');
-    if (!tbody) return;
-    const skeletonRows = Array.from({ length: 6 }).map((_, i) => `
-      <tr class="skeleton-row" style="animation-delay: ${i * 0.08}s">
+  function renderSkeletonRows(count = 7) {
+    return Array.from({ length: count }).map((_, i) => `
+      <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
         <td>
           <div class="skeleton-user-cell">
-            <div class="skeleton-avatar"></div>
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
             <div class="skeleton-text-group">
-              <div class="skeleton-bar" style="width: 140px; height: 14px;"></div>
-              <div class="skeleton-bar" style="width: 90px; height: 11px;"></div>
+              <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
+              <div class="skeleton skeleton-line" style="width:55%; height:11px;"></div>
             </div>
           </div>
         </td>
         <td>
           <div class="skeleton-text-group">
-            <div class="skeleton-bar" style="width: 130px; height: 13px;"></div>
-            <div class="skeleton-bar" style="width: 80px; height: 11px;"></div>
+            <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
+            <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton-bar" style="width: 85px; height: 22px; border-radius: 12px;"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width:95px; height:22px;"></div></td>
         <td>
           <div class="skeleton-text-group">
-            <div class="skeleton-bar" style="width: 110px; height: 13px;"></div>
-            <div class="skeleton-bar" style="width: 60px; height: 11px;"></div>
+            <div class="skeleton skeleton-line" style="width:110px; height:13px;"></div>
+            <div class="skeleton skeleton-line" style="width:65px; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton-bar" style="width: 100px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 75px; height: 20px; border-radius: 12px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width:100px; height:13px;"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width:75px; height:22px;"></div></td>
         <td>
-          <div style="display: flex; gap: 6px; justify-content: flex-end;">
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+          <div class="skeleton-actions-wrap">
+            <div class="skeleton skeleton-btn"></div>
+            <div class="skeleton skeleton-btn"></div>
           </div>
         </td>
       </tr>
     `).join('');
-    tbody.innerHTML = skeletonRows;
+  }
+
+  function renderSkeletonTable() {
+    const countEl = document.getElementById('horarios-count');
+    if (countEl) {
+      countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
+    }
+    const tbody = document.getElementById('horarios-tbody');
+    if (!tbody) return;
     tbody.setAttribute('aria-busy', 'true');
     tbody.setAttribute('role', 'progressbar');
+    tbody.setAttribute('aria-label', 'Cargando esquemas de horarios...');
+    tbody.innerHTML = renderSkeletonRows();
   }
 
   // ─── Carga de Estadísticas ────────────────────────────────────────────────
@@ -1215,7 +1233,84 @@ const HorariosModule = (() => {
   }
 
   // ─── Modal de Vista Detallada & Trazabilidad (Historial) ───────────────────
+  function renderDetailModalSkeleton() {
+    return `
+      <div class="skeleton-detail-wrapper" role="progressbar" aria-busy="true" aria-label="Cargando detalle del horario...">
+        <div class="skeleton-detail-header">
+          <div class="skeleton skeleton-avatar skeleton-avatar--lg"></div>
+          <div class="skeleton-text-group" style="flex:1;">
+            <div class="skeleton skeleton-line skeleton-line--title" style="width: 55%; height: 20px;"></div>
+            <div class="skeleton skeleton-line" style="width: 40%; height: 13px;"></div>
+            <div class="skeleton skeleton-line" style="width: 30%; height: 12px;"></div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <div class="skeleton skeleton-badge" style="width: 95px; height: 24px;"></div>
+            <div class="skeleton skeleton-badge" style="width: 75px; height: 24px;"></div>
+          </div>
+        </div>
+
+        <div class="skeleton-detail-section">
+          <div class="skeleton skeleton-line skeleton-line--title" style="width: 35%; height: 16px;"></div>
+          <div class="skeleton-detail-grid">
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 60%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 85%; height: 15px;"></div>
+            </div>
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 50%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 70%; height: 15px;"></div>
+            </div>
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 65%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 80%; height: 15px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="skeleton-detail-section">
+          <div class="skeleton skeleton-line skeleton-line--title" style="width: 30%; height: 16px;"></div>
+          <div class="skeleton-detail-grid">
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 55%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 75%; height: 15px;"></div>
+            </div>
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 60%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 80%; height: 15px;"></div>
+            </div>
+            <div class="skeleton-detail-item">
+              <div class="skeleton skeleton-line" style="width: 50%; height: 11px;"></div>
+              <div class="skeleton skeleton-line" style="width: 65%; height: 15px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="skeleton-detail-section">
+          <div class="skeleton skeleton-line skeleton-line--title" style="width: 40%; height: 16px;"></div>
+          <div class="skeleton-timeline-item">
+            <div class="skeleton skeleton-avatar skeleton-avatar--sm"></div>
+            <div class="skeleton-text-group" style="flex:1;">
+              <div class="skeleton skeleton-line" style="width: 45%; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 70%; height: 12px;"></div>
+            </div>
+          </div>
+          <div class="skeleton-timeline-item">
+            <div class="skeleton skeleton-avatar skeleton-avatar--sm"></div>
+            <div class="skeleton-text-group" style="flex:1;">
+              <div class="skeleton skeleton-line" style="width: 40%; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 60%; height: 12px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   async function openDetailModal(id) {
+    App.openModal('Detalle de Esquema de Horario', renderDetailModalSkeleton(), [
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+    ]);
+
     try {
       const res = await API.getHorarioById(id);
       const h = res.horario;

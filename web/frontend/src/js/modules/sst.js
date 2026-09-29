@@ -45,6 +45,172 @@ const SstModule = (() => {
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
 
+  function escHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function loadStats() {
+    API.getSstStats().then(stats => {
+      state.stats = stats || {};
+      const grid = document.getElementById('sst-stats-grid');
+      if (!grid) return;
+
+      if (state.tab === 'epp') {
+        grid.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.totalEpp) || 0}</span>
+              <span class="stat-label">Total Dotaciones</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.servidoresDotados) || 0}</span>
+              <span class="stat-label">Servidores Dotados</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.eppEntregados) || 0}</span>
+              <span class="stat-label">EPP Entregados</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${Math.max(0, (parseInt(stats.totalEpp) || 0) - (parseInt(stats.eppEntregados) || 0))}</span>
+              <span class="stat-label">En Reposición / Pendiente</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">E-DO-ST-F-028</span>
+              <span class="stat-label">Formato Oficial V4</span>
+            </div>
+          </div>
+        `;
+      } else if (state.tab === 'sociodemografico') {
+        grid.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.totalSociodemografico) || 0}</span>
+              <span class="stat-label">Perfiles Registrados</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.dependenciasCubiertas) || 0}</span>
+              <span class="stat-label">Dependencias Cubiertas</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">E-DO-ST-F-011</span>
+              <span class="stat-label">Formato Oficial V5</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">100%</span>
+              <span class="stat-label">Confidencialidad Ley 1581</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">Vigencia 2026</span>
+              <span class="stat-label">Actualización Periódica</span>
+            </div>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.totalEmo) || 0}</span>
+              <span class="stat-label">Total Exámenes EMO</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.emoVigentes) || 0}</span>
+              <span class="stat-label">EMO Vigentes</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.emoAlertas) || 0}</span>
+              <span class="stat-label">Alertas / Vencidos</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.casosSeguimiento) || 0}</span>
+              <span class="stat-label">En Seguimiento</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value">${parseInt(stats.direccionadosPve) || 0}</span>
+              <span class="stat-label">Direccionados PVE</span>
+            </div>
+          </div>
+        `;
+      }
+    }).catch(err => {
+      console.error('[SstModule] Error cargando estadísticas SST:', err);
+    });
+  }
+
   // ─── Catálogos Fallback Locales ────────────────────────────────────────────
   const DEFAULT_CATALOGS = {
     eppCatalogo: [
@@ -385,11 +551,7 @@ const SstModule = (() => {
 
         <!-- KPIs SST -->
         <div class="stats-grid" id="sst-stats-grid" style="margin-bottom:var(--space-5);">
-          <div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>
-          <div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>
-          <div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>
-          <div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>
-          <div class="stat-card skeleton" style="height:80px" aria-busy="true" role="progressbar"></div>
+          ${renderStatsSkeletons()}
         </div>
 
         <!-- Pestañas de Submódulos SST -->
@@ -421,13 +583,15 @@ const SstModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
               <span>Verificar Vencimientos EMO</span>
             </button>
-            <span class="table-count" id="sst-count">Cargando...</span>
+            <span class="table-count" id="sst-count">
+              <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+            </span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table aria-label="Registros de Seguridad y Salud en el Trabajo">
               <thead id="sst-thead">${renderTheadHtml()}</thead>
-              <tbody id="sst-tbody">
-                <tr><td colspan="8"><div class="empty-state loading-pulse">Cargando registros de SST...</div></td></tr>
+              <tbody id="sst-tbody" aria-busy="true" role="progressbar" aria-label="Cargando registros de SST...">
+                ${renderSkeletonRows(state.tab)}
               </tbody>
             </table>
           </div>
@@ -595,95 +759,164 @@ const SstModule = (() => {
     const thead = document.getElementById('sst-thead');
     if (thead) thead.innerHTML = renderTheadHtml();
 
+    renderSkeletonTable();
+    loadStats();
     await load();
   }
 
-  function loadStats() {
-    API.getSstStats().then(s => {
-      state.stats = s;
-      const grid = document.getElementById('sst-stats-grid');
-      if (!grid) return;
-      grid.innerHTML = `
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${s.totalEmo || 0}</span>
-            <span class="stat-label">Perfiles Epidemiológicos (EMO)</span>
-          </div>
+  function renderStatsSkeletons() {
+    return Array(5).fill(0).map(() => `
+      <div class="stat-card" aria-busy="true" role="progressbar">
+        <div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px;"></div>
+        <div class="stat-info" style="display:flex;flex-direction:column;gap:6px;flex:1;">
+          <span class="skeleton skeleton-line" style="width:50px;height:24px;border-radius:4px;margin-bottom:0;"></span>
+          <span class="skeleton skeleton-line" style="width:110px;height:12px;border-radius:4px;margin-bottom:0;"></span>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${s.direccionadosPve || 0}</span>
-            <span class="stat-label">Activos en Programas PVE</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${s.casosSeguimiento || 0}</span>
-            <span class="stat-label">Casos AT / EL en Seguimiento</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${s.totalEpp || 0}</span>
-            <span class="stat-label">Dotaciones EPP Entregadas</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${s.totalSociodemografico || 0}</span>
-            <span class="stat-label">Perfiles Sociodemográficos</span>
-          </div>
-        </div>
-      `;
-    }).catch(() => {});
+      </div>
+    `).join('');
   }
 
-  function renderSkeletonTable() {
-    const tbody = document.getElementById('sst-tbody');
-    if (!tbody) return;
-    const skeletonRows = Array.from({ length: 6 }).map((_, i) => `
-      <tr class="skeleton-row" style="animation-delay: ${i * 0.08}s">
-        <td><div class="skeleton-bar" style="width: 85px; height: 16px;"></div></td>
+  function renderSkeletonRows(tabKey = 'epidemiologico', count = 7) {
+    if (tabKey === 'epp') {
+      return Array.from({ length: count }).map((_, i) => `
+        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
+          <td>
+            <div class="skeleton-user-cell">
+              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
+              <div class="skeleton-text-group">
+                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
+                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
+              <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
+            </div>
+          </td>
+          <td><div class="skeleton skeleton-line" style="width: 140px; height: 13px;"></div></td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-badge" style="width: 65px; height: 18px;"></div>
+              <div class="skeleton skeleton-line" style="width: 45px; height: 10px;"></div>
+            </div>
+          </td>
+          <td><div class="skeleton skeleton-line" style="width: 80px; height: 13px;"></div></td>
+          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 22px;"></div></td>
+          <td>
+            <div class="skeleton-actions-wrap">
+              <div class="skeleton skeleton-btn"></div>
+              <div class="skeleton skeleton-btn"></div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    if (tabKey === 'sociodemografico') {
+      return Array.from({ length: count }).map((_, i) => `
+        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
+          <td>
+            <div class="skeleton-user-cell">
+              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
+              <div class="skeleton-text-group">
+                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
+                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width: 70px; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 45px; height: 11px;"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 80px; height: 11px;"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '90%' : '80%'}; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 60px; height: 11px;"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width: 85px; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 70px; height: 11px;"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div>
+              <div class="skeleton skeleton-line" style="width: 55px; height: 11px;"></div>
+            </div>
+          </td>
+          <td>
+            <div class="skeleton-actions-wrap">
+              <div class="skeleton skeleton-btn"></div>
+              <div class="skeleton skeleton-btn"></div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // epidemiologico (default)
+    return Array.from({ length: count }).map((_, i) => `
+      <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+        <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
-            <div class="skeleton-avatar"></div>
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
             <div class="skeleton-text-group">
-              <div class="skeleton-bar" style="width: 140px; height: 14px;"></div>
-              <div class="skeleton-bar" style="width: 90px; height: 11px;"></div>
+              <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
+              <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
             </div>
           </div>
         </td>
-        <td><div class="skeleton-bar" style="width: 130px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 100px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 110px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 75px; height: 13px;"></div></td>
-        <td><div class="skeleton-bar" style="width: 85px; height: 22px; border-radius: 12px;"></div></td>
         <td>
-          <div style="display: flex; gap: 6px; justify-content: flex-end;">
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
-            <div class="skeleton-bar" style="width: 28px; height: 28px; border-radius: 6px;"></div>
+          <div class="skeleton-text-group">
+            <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
+            <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
+          </div>
+        </td>
+        <td>
+          <div class="skeleton-text-group">
+            <div class="skeleton skeleton-badge" style="width: 75px; height: 18px;"></div>
+            <div class="skeleton skeleton-line" style="width: 65px; height: 11px;"></div>
+          </div>
+        </td>
+        <td><div class="skeleton skeleton-line" style="width: 110px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-badge" style="width: 80px; height: 22px;"></div></td>
+        <td>
+          <div class="skeleton-actions-wrap">
+            <div class="skeleton skeleton-btn"></div>
+            <div class="skeleton skeleton-btn"></div>
           </div>
         </td>
       </tr>
     `).join('');
-    tbody.innerHTML = skeletonRows;
+  }
+
+  function renderSkeletonTable() {
+    const countEl = document.getElementById('sst-count');
+    if (countEl) {
+      countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
+    }
+    const tbody = document.getElementById('sst-tbody');
+    if (!tbody) return;
     tbody.setAttribute('aria-busy', 'true');
     tbody.setAttribute('role', 'progressbar');
+    tbody.setAttribute('aria-label', `Cargando registros de ${TABS[state.tab]?.title || 'SST'}...`);
+    tbody.innerHTML = renderSkeletonRows(state.tab);
   }
 
   async function load() {
@@ -1718,3 +1951,7 @@ const SstModule = (() => {
     handleDropdownKeydown
   };
 })();
+
+if (typeof window !== 'undefined') {
+  window.SstModule = SstModule;
+}

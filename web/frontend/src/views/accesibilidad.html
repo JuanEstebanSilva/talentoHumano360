@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Declaración de Accesibilidad Web — Talento 360</title>
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="../css/components.css" />
+  <link rel="stylesheet" href="../css/legal.css" />
+</head>
+<body class="legal-body">
+
+  <header class="legal-header" role="banner">
+    <div class="legal-header-container">
+      <div class="legal-brand">
+        <img src="../imgs/logoCondor.png" alt="Escudo del Departamento de Boyacá" class="legal-logo" />
+        <div>
+          <span class="legal-institution">GOBERNACIÓN DE BOYACÁ</span>
+          <h1 class="legal-system-title">Talento 360 · Dirección de Talento Humano</h1>
+        </div>
+      </div>
+      <a href="../#/dashboard" class="btn btn-outline legal-back-btn">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Volver a la Plataforma</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="legal-main" role="main" id="contenido-principal">
+    <article class="legal-card card">
+      <header class="legal-doc-header">
+        <span class="badge badge-success">Estándar MinTIC Colombia</span>
+        <h2 class="legal-title">DECLARACIÓN DE ACCESIBILIDAD DIGITAL DE LA PLATAFORMA</h2>
+        <p class="legal-meta">
+          <strong>Nivel de Conformidad:</strong> WCAG 2.1 Nivel AA (Directrices de Accesibilidad para el Contenido Web del W3C/WAI).<br />
+          <strong>Marco Reglamentario:</strong> Resolución 1519 de 2020 expedida por el Ministerio de Tecnologías de la Información y las Comunicaciones (MinTIC).<br />
+          <strong>Última Auditoría Técnica:</strong> Marzo de 2026.
+        </p>
+      </header>
+
+      <section class="legal-section">
+        <h3>1. Compromiso Institucional de Inclusión Digital</h3>
+        <p>
+          La <strong>Gobernación de Boyacá</strong> está firmemente comprometida con garantizar que sus servicios y sistemas digitales sean plenamente accesibles para todos los servidores públicos y ciudadanos, independientemente de sus capacidades físicas, visuales, auditivas, cognitivas o tecnológicas.
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h3>2. Principios y Características Técnicas Implementadas</h3>
+        <p>
+          La arquitectura de <strong>Talento 360</strong> cumple rigurosamente con los cuatro principios fundamentales de las directrices WCAG 2.1:
+        </p>
+
+        <div class="legal-accessibility-grid">
+          <div class="legal-acc-card">
+            <h4>1. Principio de Perceptibilidad</h4>
+            <ul>
+              <li><strong>Razón de Contraste Superior:</strong> Razón de contraste de color superior a <strong>4.5:1</strong> para texto normal y <strong>3:1</strong> para componentes de interfaz según el estándar WCAG AA.</li>
+              <li><strong>Modo Alto Contraste Integrado:</strong> Botón nativo en la barra superior que refuerza contornos y eleva la relación de contraste a niveles superiores a <strong>7:1 (AAA)</strong>.</li>
+              <li><strong>Modo Oscuro Oficial:</strong> Paleta adaptada que reduce la fatiga visual en jornadas laborales extensas.</li>
+              <li><strong>Alternativas Textuales:</strong> Toda la iconografía funcional y logotipos poseen atributos <code>alt</code> y <code>aria-label</code> descriptivos.</li>
+            </ul>
+          </div>
+
+          <div class="legal-acc-card">
+            <h4>2. Principio de Operabilidad</h4>
+            <ul>
+              <li><strong>Navegación 100% por Teclado:</strong> Toda la plataforma es operable mediante la tecla <code>Tab</code>, <code>Shift + Tab</code>, <code>Enter</code> y <code>Barra Espaciadora</code>.</li>
+              <li><strong>Sin Trampas de Foco:</strong> Los modales retienen el foco de manera controlada y se cierran de forma segura con la tecla <code>Escape</code>.</li>
+              <li><strong>Indicadores de Foco Resaltados:</strong> Anillos de foco visibles de 2px con color de alto contraste en cada elemento activo.</li>
+              <li><strong>Sin Destellos Perjudiciales:</strong> Respeto a la preferencia del sistema operativo <code>prefers-reduced-motion</code> para personas con trastornos vestibulares.</li>
+            </ul>
+          </div>
+
+          <div class="legal-acc-card">
+            <h4>3. Principio de Comprensibilidad</h4>
+            <ul>
+              <li><strong>Estructura Jerárquica Clara:</strong> Encabezados ordenados (<code>h1</code>, <code>h2</code>, <code>h3</code>) que facilitan la navegación estructural.</li>
+              <li><strong>Mensajes de Validación Asertivos:</strong> Los errores en formularios identifican el campo erróneo de forma descriptiva, sin depender únicamente de códigos de color.</li>
+              <li><strong>Consistencia en la Interfaz:</strong> Menús de navegación y acciones ubicadas siempre en la misma posición relativa.</li>
+            </ul>
+          </div>
+
+          <div class="legal-acc-card">
+            <h4>4. Principio de Robustez</h4>
+            <ul>
+              <li><strong>HTML5 Semántico Nativo:</strong> Uso estricto de elementos <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>, <code>&lt;header&gt;</code>, <code>&lt;article&gt;</code> y <code>&lt;button&gt;</code>.</li>
+              <li><strong>Compatibilidad con Lectores de Pantalla:</strong> Optimizado y probado con herramientas líderes como <strong>NVDA</strong> (Windows), <strong>JAWS</strong>, <strong>VoiceOver</strong> (macOS/iOS) y <strong>TalkBack</strong> (Android).</li>
+              <li><strong>Regiones Activas (ARIA Live):</strong> Notificaciones de tipo Toast e indicadores de carga anuncian cambios dinámicos a través de <code>aria-live="polite"</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="legal-section">
+        <h3>3. Canal de Retroalimentación sobre Barreras de Accesibilidad</h3>
+        <p>
+          Si usted experimenta alguna dificultad de acceso, incompatibilidad con su tecnología de asistencia o desea proponer una mejora en la accesibilidad de <strong>Talento 360</strong>, ponemos a su disposición el canal especializado de la Dirección de Talento Humano y la Dirección de Sistemas:
+        </p>
+        <div class="legal-alert-box legal-alert-info">
+          <p><strong>Correo electrónico de soporte accesible:</strong> <a href="mailto:accesibilidad.talento@boyaca.gov.co">accesibilidad.talento@boyaca.gov.co</a></p>
+          <p><strong>Teléfono de atención:</strong> (+57) 608 7420150 Ext. 2155 · Subdirección de Talento Humano</p>
+          <p><em>Nos comprometemos a evaluar y dar respuesta a su requerimiento de accesibilidad en un término no mayor a cinco (5) días hábiles.</em></p>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="legal-footer" role="contentinfo">
+    <p>© 2026 Gobernación de Boyacá · En cumplimiento de la Resolución 1519 de 2020 de MinTIC</p>
+  </footer>
+
+</body>
+</html>
