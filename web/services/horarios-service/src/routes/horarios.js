@@ -1181,6 +1181,8 @@ router.put('/:id', auth, async (req, res) => {
   const current = currentQ.rows[0];
 
   const {
+    documento = current.documento,
+    apellidos_nombres = current.apellidos_nombres,
     numero_consecutivo = current.numero_consecutivo,
     codigo = current.codigo,
     grado = current.grado,
@@ -1244,8 +1246,8 @@ router.put('/:id', auth, async (req, res) => {
          subtipo_teletrabajo = $19, dias_teletrabajo = $20, dias_presencial = $21, domicilio_laboral = $22, notificacion_arl = $23, fecha_reporte_arl = $24,
          motivo_trabajo_casa = $25, direccion_trabajo_casa = $26, herramientas_tic = $27, prorroga = $28,
          franja_ingreso = $29, franja_salida = $30, horas_semanales = $31, tiempo_almuerzo = $32, justificacion_flex = $33,
-         observaciones = $34, actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_horario = $35
+         observaciones = $34, documento = $35, apellidos_nombres = $36, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_horario = $37
        RETURNING *`,
       [
         numero_consecutivo !== undefined && numero_consecutivo !== null && String(numero_consecutivo).trim() !== ''
@@ -1284,6 +1286,8 @@ router.put('/:id', auth, async (req, res) => {
         tiempo_almuerzo,
         justificacion_flex,
         observaciones,
+        upper(documento),
+        upper(apellidos_nombres),
         id,
       ]
     );

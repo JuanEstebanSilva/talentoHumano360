@@ -534,6 +534,11 @@ const HorariosModule = (() => {
                 <span class="duracion-badge">${escHtml(item.duracion_texto || `${item.duracion_dias} días`)}</span>
                 ${tipoCalculoTag}
               </div>
+              ${item.numero_resolucion ? `
+                <div style="margin-top:3px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono, monospace);">
+                  Res: <strong style="color:var(--text-secondary);">${escHtml(item.numero_resolucion)}</strong>
+                </div>
+              ` : ''}
             </div>
           </td>
 
@@ -639,24 +644,26 @@ const HorariosModule = (() => {
           </div>
         </div>
 
+        ${!isEdit ? `
         <div class="form-group span-2 autocomplete-wrapper">
-          <label for="horario-search-emp" class="form-label required">Buscar Servidor (Nombre o Cédula)</label>
-          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba el nombre o cédula del funcionario..." autocomplete="off" value="${escHtml(
-            item ? `${item.apellidos_nombres} - ${item.documento}` : ''
-          )}" ${isEdit ? 'readonly' : ''} />
+          <label for="horario-search-emp" class="form-label">Buscar Servidor en Nómina (Nombre o Cédula)</label>
+          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba para autocompletar desde el directorio de empleados..." autocomplete="off" />
           <div id="horario-emp-results" class="autocomplete-dropdown" style="display:none;"></div>
-        </div>
+          <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:3px;">
+            Selecciona un funcionario para autocompletar sus datos o digítalos manualmente abajo.
+          </small>
+        </div>` : ''}
 
         <div class="form-group">
           <label for="horario-documento" class="form-label required">Documento de Identidad (C.C.)</label>
-          <input type="text" id="horario-documento" class="form-input" readonly placeholder="Número de documento" value="${escHtml(
+          <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de documento / Cédula" value="${escHtml(
             item?.documento || ''
           )}" />
         </div>
 
         <div class="form-group">
           <label for="horario-nombre" class="form-label required">Nombres y Apellidos</label>
-          <input type="text" id="horario-nombre" class="form-input" readonly placeholder="Nombres completos" value="${escHtml(
+          <input type="text" id="horario-nombre" class="form-input font-bold" placeholder="Nombres y apellidos completos" value="${escHtml(
             item?.apellidos_nombres || ''
           )}" />
         </div>
@@ -2636,7 +2643,9 @@ const HorariosModule = (() => {
         'Dependencia': item.dependencia,
         'Secretaría': item.secretaria || '',
         'Situación': item.modalidad,
-        'Dias Teletrabajo': item.dias_teletrabajo || '',
+        'Resolución': item.numero_resolucion || '',
+        'Fecha Inicio': item.fecha_inicio || '',
+        'Dias Teletrabajo': item.dias_teletrabajo || item.franja_ingreso || '',
         'Estado': item.estado,
         'Soporte Adjunto': item.soporte_acto ? 'Sí' : 'No',
       }));
