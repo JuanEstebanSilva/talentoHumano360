@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS viaticos (
     observaciones     VARCHAR(500),
     fecha_solicitud   VARCHAR(80),
     aprobado_por      VARCHAR(160),
+    numero_resolucion VARCHAR(120),
+    saldo             NUMERIC(15,2),
     tipo_destino      VARCHAR(30)   NOT NULL DEFAULT 'Nacional',
     soporte           TEXT,
     creado_en         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP

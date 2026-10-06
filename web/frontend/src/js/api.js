@@ -137,7 +137,8 @@ const API = (() => {
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
     getViaticosStats: () => request('/viaticos/stats'),
     createViatico: (data) => request('/viaticos', { method: 'POST', body: JSON.stringify(data) }),
-    bulkCreateViaticos: (rows) => request('/viaticos/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateViaticos: (payload) =>
+      request('/viaticos/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
     updateViatico: (id, data) => request(`/viaticos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateViaticoStatus: (id, estado, observaciones = '') =>
       request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
