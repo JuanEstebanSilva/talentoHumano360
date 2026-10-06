@@ -271,7 +271,17 @@ const ExcelService = (() => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          if (!workbook.SheetNames || !workbook.SheetNames.length) {
+            alert('El archivo Excel no contiene hojas de cálculo.');
+            return;
+          }
           const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          if (!worksheet) {
+            alert('No se pudo acceder a la hoja principal del archivo Excel.');
+            return;
+          }
+
           // Detectar automáticamente la fila de encabezados reales (evita confundir títulos o banners superiores)
           const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
           let headerRowIndex = 0;
@@ -281,7 +291,8 @@ const ExcelService = (() => {
               v.includes('nombre') || v.includes('identifica') || v.includes('cedula') ||
               v.includes('cargo') || v.includes('dependencia') || v.includes('situaci') ||
               v.includes('documento') || v.includes('codigo') || v.includes('grado') ||
-              v.includes('secretaria') || v === 'no.' || v === 'no' || v === 'item'
+              v.includes('secretaria') || v.includes('teletrabajo') || v.includes('modalidad') ||
+              v === 'no.' || v === 'no' || v === 'item' || v === 'n°'
             );
             if (matches.length >= 2) {
               headerRowIndex = r;
@@ -291,6 +302,11 @@ const ExcelService = (() => {
 
           parsedData = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: '' });
 
+          // Filtrar filas completamente vacías
+          parsedData = (parsedData || []).filter(row =>
+            Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
+          );
+
           if (!parsedData || !parsedData.length) {
             alert('El archivo no contiene filas de datos o está vacío.');
             return;
@@ -299,7 +315,7 @@ const ExcelService = (() => {
           processAndPreview(parsedData);
         } catch (err) {
           console.error('[ExcelService] error parsing file:', err);
-          alert('Ocurrió un error al leer el archivo Excel. Verifica que no esté corrupto o protegido con contraseña.');
+          alert('Ocurrió un error al leer el archivo Excel: ' + (err.message || 'Verifica que no esté corrupto o protegido con contraseña.'));
         }
       };
       reader.readAsArrayBuffer(file);

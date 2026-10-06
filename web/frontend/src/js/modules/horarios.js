@@ -2225,16 +2225,37 @@ const HorariosModule = (() => {
         },
       ],
       validateRow: (row) => {
-        const consecutivoRaw = (row['No.'] || row['No'] || row['Consecutivo'] || row['N°'] || row['NUMERO'] || row.numero_consecutivo || row.consecutivo || '').toString().trim();
-        const documento = (row['De Identificación'] || row['De Identificacion'] || row['Documento'] || row['Cédula'] || row['Cedula'] || row['Identificación'] || row['Identificacion'] || row['No. Identificación'] || row.documento || row.cedula || '').toString().trim();
-        const nombre = (row['Nombres y Apellidos'] || row['Nombres y apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || row['Nombre Completo'] || row['Nombre'] || row.apellidos_nombres || row.persona || '').toString().trim();
-        const cargo = (row['Cargo'] || row['Cargo Actual'] || row.cargo || 'PROFESIONAL UNIVERSITARIO').toString().trim();
-        const codigo = (row['Código'] || row['Codigo'] || row.codigo || '').toString().trim();
-        const grado = (row['Grado'] || row.grado || '').toString().trim();
-        const dependencia = (row['Dependencia'] || row.dependencia || 'DESPACHO GOBERNADOR').toString().trim();
-        const secretaria = (row['Secretaría'] || row['Secretaria'] || row.secretaria || dependencia).toString().trim();
-        const situacion = (row['Situación'] || row['Situacion'] || row['Modalidad'] || row.modalidad || 'Teletrabajo').toString().trim();
-        const diasTeletrabajo = (row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Días teletrabajo'] || row['Horario'] || row.dias_teletrabajo || '').toString().trim();
+        const getVal = (...keys) => {
+          for (const k of keys) {
+            if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+              return String(row[k]).trim();
+            }
+          }
+          const rowKeys = Object.keys(row);
+          for (const k of keys) {
+            const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            if (!cleanK) continue;
+            const foundKey = rowKeys.find(rk => {
+              const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+              return cleanRK === cleanK || cleanRK.includes(cleanK) || cleanK.includes(cleanRK);
+            });
+            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+              return String(row[foundKey]).trim();
+            }
+          }
+          return '';
+        };
+
+        const consecutivoRaw = getVal('No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
+        const documento = getVal('De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
+        const nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Nombre', 'Nombres', 'Funcionario', 'apellidos_nombres');
+        const cargo = getVal('Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
+        const codigo = getVal('Código', 'Codigo', 'codigo');
+        const grado = getVal('Grado', 'grado');
+        const dependencia = getVal('Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
+        const secretaria = getVal('Secretaría', 'Secretaria', 'secretaria') || dependencia;
+        const situacion = getVal('Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
+        const diasTeletrabajo = getVal('Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
 
         if (!documento || !nombre) {
           return { valid: false, error: 'Documento (De Identificación) y Nombres y Apellidos son obligatorios.' };
