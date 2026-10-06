@@ -42,7 +42,12 @@ function canEdit(role) {
 }
 
 function upper(v) {
-  return v == null ? '' : String(v).trim().replace(/\s+/g, ' ').toUpperCase();
+  return v == null ? '' : String(v).normalize('NFC').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+function cleanString(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).normalize('NFC').trim();
 }
 
 // ─── Calendario de Festivos de Colombia (Ley 51 de 1983 / Ley Emiliani) ──────
@@ -644,7 +649,10 @@ router.post('/bulk', auth, async (req, res) => {
 
   const client = await pool.connect();
   let inserted = 0;
+  let updated = 0;
   let skipped = 0;
+  let teletrabajoCount = 0;
+  let otrasCount = 0;
   const errors = [];
 
   try {
@@ -674,7 +682,7 @@ router.post('/bulk', auth, async (req, res) => {
 
       // Identificación y Nombres
       const documento = (row.documento || row.cedula || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
-      const apellidos_nombres = (row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '').toString().trim();
+      const apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
 
       if (!documento || !apellidos_nombres) {
         errors.push(`Fila ${i + 1}: Cédula y Nombre son obligatorios.`);
@@ -685,12 +693,12 @@ router.post('/bulk', auth, async (req, res) => {
       // Estructura Institucional
       const codigo = (row.codigo || row['Código'] || row['Codigo'] || row['Cod'] || '').toString().trim();
       const grado = (row.grado || row['Grado'] || row['Gra'] || '').toString().trim();
-      const cargo = (row.cargo || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO').toString().trim();
-      const dependencia = (row.dependencia || row['Dependencia'] || 'SECRETARÍA GENERAL').toString().trim();
-      const secretaria = (row.secretaria || row['Secretaría'] || row['Secretaria'] || '').toString().trim();
+      const cargo = cleanString(row.cargo || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
+      const dependencia = cleanString(row.dependencia || row['Dependencia'] || 'SECRETARÍA GENERAL');
+      const secretaria = cleanString(row.secretaria || row['Secretaría'] || row['Secretaria'] || dependencia);
 
       // Situación laboral / Modalidad
-      const rawSituacion = (row.situacion || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '').toString().trim();
+      const rawSituacion = cleanString(row.situacion || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
       let modalidad = 'Presencial';
       if (/teletrabaj/i.test(rawSituacion)) {
         modalidad = 'Teletrabajo';
@@ -707,7 +715,7 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Días / Horario específico
-      const diasRaw = (row.dias_teletrabajo || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '').toString().trim();
+      const diasRaw = cleanString(row.dias_teletrabajo || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
       let dias_teletrabajo = diasRaw;
       let subtipo_teletrabajo = null;
       let franja_ingreso = null;
@@ -732,6 +740,18 @@ router.post('/bulk', auth, async (req, res) => {
         const parts = fecha_inicio.split('/');
         if (parts.length === 3) {
           fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) {
+        const months = {
+          enero: '01', febrero: '02', marzo: '03', abril: '04',
+          mayo: '05', junio: '06', julio: '07', agosto: '08',
+          septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+        };
+        const match = fecha_inicio.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+        if (match && months[match[2].toLowerCase()]) {
+          fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+        } else {
+          fecha_inicio = '2026-01-15';
         }
       }
 
@@ -773,69 +793,164 @@ router.post('/bulk', auth, async (req, res) => {
         row['Resolución'] ||
         `RES-2026-${String(Math.floor(1000 + Math.random() * 9000))}`
       ).toString().trim();
-      const aprobado_por = (row.aprobado_por || row['Aprobado Por'] || req.user.name || 'Angela Ussa').toString().trim();
-      const observaciones = (row.observaciones || row['Observaciones'] || 'Carga Masiva Excel - Alternancia').toString().trim();
+      const aprobado_por = cleanString(row.aprobado_por || row['Aprobado Por'] || req.user.name || 'Angela Ussa');
+      const observaciones = cleanString(row.observaciones || row['Observaciones'] || 'Carga Masiva Excel - Alternancia');
       const soporte_acto = row.soporte_acto || row.soporte || null;
 
-      const ins = await client.query(
-        `INSERT INTO horarios (
-           numero_consecutivo, documento, apellidos_nombres, codigo, grado,
-           dependencia, secretaria, cargo, modalidad, estado,
-           fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
-           numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
-           subtipo_teletrabajo, dias_teletrabajo, franja_ingreso, justificacion_flex,
-           observaciones, creado_por
-         ) VALUES (
-           $1, $2, $3, $4, $5,
-           $6, $7, $8, $9, $10,
-           $11, $12, $13, $14, $15,
-           $16, CURRENT_DATE, CURRENT_DATE, $17, $18,
-           $19, $20, $21, $22,
-           $23, $24
-         ) RETURNING id_horario`,
-        [
-          numConsecutivo,
-          documento,
-          apellidos_nombres.toUpperCase(),
-          codigo || null,
-          grado || null,
-          dependencia.toUpperCase(),
-          secretaria ? secretaria.toUpperCase() : null,
-          cargo.toUpperCase(),
-          modalidad,
-          estado,
-          fecha_inicio,
-          finalFechaFin,
-          finalDuracionTexto,
-          finalDuracionDias,
-          isBusiness ? 'Hábiles' : 'Calendario',
-          numero_resolucion,
-          aprobado_por,
-          soporte_acto,
-          subtipo_teletrabajo,
-          dias_teletrabajo || null,
-          franja_ingreso || null,
-          justificacion_flex || null,
-          observaciones,
-          req.user.name || 'Carga Masiva',
-        ]
+      // ──────────────────────────────────────────────────────────────────────────
+      // Lógica UPSERT: Si ya existe un registro con la misma cédula, lo actualiza
+      // para evitar duplicados en re-importaciones, tal como en Servidores Públicos.
+      // ──────────────────────────────────────────────────────────────────────────
+      const existingRes = await client.query(
+        'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE documento = $1 LIMIT 1',
+        [documento]
       );
 
-      const newId = ins.rows[0].id_horario;
-      await client.query(
-        `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-         VALUES ($1, 'Creación Masiva', $2, 'Carga masiva desde archivo Excel de teletrabajadores y alternancia.', $3)`,
-        [newId, estado, req.user.name || 'Carga Masiva']
-      );
+      let finalId = null;
 
-      inserted++;
+      if (existingRes.rows.length > 0) {
+        finalId = existingRes.rows[0].id_horario;
+        const consecToUse = numConsecutivo || existingRes.rows[0].numero_consecutivo;
+        const soporteToUse = soporte_acto || existingRes.rows[0].soporte_acto;
+
+        await client.query(
+          `UPDATE horarios SET
+             numero_consecutivo = $1,
+             apellidos_nombres  = $2,
+             codigo             = COALESCE($3, codigo),
+             grado              = COALESCE($4, grado),
+             dependencia        = $5,
+             secretaria         = COALESCE($6, secretaria),
+             cargo              = $7,
+             modalidad          = $8,
+             estado             = $9,
+             fecha_inicio       = $10,
+             fecha_fin          = $11,
+             duracion_texto     = $12,
+             duracion_dias      = $13,
+             tipo_calculo       = $14,
+             numero_resolucion  = COALESCE($15, numero_resolucion),
+             soporte_acto       = $16,
+             subtipo_teletrabajo= $17,
+             dias_teletrabajo   = $18,
+             franja_ingreso     = COALESCE($19, franja_ingreso),
+             justificacion_flex = COALESCE($20, justificacion_flex),
+             observaciones      = $21,
+             actualizado_en     = NOW()
+           WHERE id_horario = $22`,
+          [
+            consecToUse,
+            apellidos_nombres.toUpperCase(),
+            codigo || null,
+            grado || null,
+            dependencia.toUpperCase(),
+            secretaria ? secretaria.toUpperCase() : null,
+            cargo.toUpperCase(),
+            modalidad,
+            estado,
+            fecha_inicio,
+            finalFechaFin,
+            finalDuracionTexto,
+            finalDuracionDias,
+            isBusiness ? 'Hábiles' : 'Calendario',
+            numero_resolucion,
+            soporteToUse,
+            subtipo_teletrabajo,
+            dias_teletrabajo || null,
+            franja_ingreso || null,
+            justificacion_flex || null,
+            observaciones,
+            finalId,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
+           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (UPSERT).', $3)`,
+          [finalId, estado, req.user.name || 'Carga Masiva']
+        );
+
+        updated++;
+      } else {
+        const ins = await client.query(
+          `INSERT INTO horarios (
+             numero_consecutivo, documento, apellidos_nombres, codigo, grado,
+             dependencia, secretaria, cargo, modalidad, estado,
+             fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
+             numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
+             subtipo_teletrabajo, dias_teletrabajo, franja_ingreso, justificacion_flex,
+             observaciones, creado_por
+           ) VALUES (
+             $1, $2, $3, $4, $5,
+             $6, $7, $8, $9, $10,
+             $11, $12, $13, $14, $15,
+             $16, CURRENT_DATE, CURRENT_DATE, $17, $18,
+             $19, $20, $21, $22,
+             $23, $24
+           ) RETURNING id_horario`,
+          [
+            numConsecutivo,
+            documento,
+            apellidos_nombres.toUpperCase(),
+            codigo || null,
+            grado || null,
+            dependencia.toUpperCase(),
+            secretaria ? secretaria.toUpperCase() : null,
+            cargo.toUpperCase(),
+            modalidad,
+            estado,
+            fecha_inicio,
+            finalFechaFin,
+            finalDuracionTexto,
+            finalDuracionDias,
+            isBusiness ? 'Hábiles' : 'Calendario',
+            numero_resolucion,
+            aprobado_por,
+            soporte_acto,
+            subtipo_teletrabajo,
+            dias_teletrabajo || null,
+            franja_ingreso || null,
+            justificacion_flex || null,
+            observaciones,
+            req.user.name || 'Carga Masiva',
+          ]
+        );
+
+        finalId = ins.rows[0].id_horario;
+        await client.query(
+          `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
+           VALUES ($1, 'Creación Masiva', $2, 'Carga masiva desde archivo Excel de teletrabajadores y alternancia.', $3)`,
+          [finalId, estado, req.user.name || 'Carga Masiva']
+        );
+
+        inserted++;
+      }
+
+      if (modalidad === 'Teletrabajo') {
+        teletrabajoCount++;
+      } else {
+        otrasCount++;
+      }
     }
+
+    const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) && req.body.hojasProcesadas.length
+      ? req.body.hojasProcesadas
+      : ['Hoja 1'];
 
     await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Se importaron ${inserted} esquemas de horario exitosamente.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      message: `Carga masiva procesada: ${inserted} nuevos registros creados, ${updated} actualizados.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      resumen: {
+        totalFilas: inserted + updated,
+        insertados: inserted,
+        actualizados: updated,
+        teletrabajo: teletrabajoCount,
+        otrasModalidades: otrasCount,
+      },
+      hojasProcesadas,
       inserted,
+      updated,
       skipped,
       errors,
     });

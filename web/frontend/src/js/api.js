@@ -157,7 +157,8 @@ const API = (() => {
     getNextHorarioConsecutivo: () => request('/horarios/next-consecutivo'),
     updateHorarioSoporte: (id, soporte_acto) =>
       request(`/horarios/${id}/soporte`, { method: 'PATCH', body: JSON.stringify({ soporte_acto }) }),
-    bulkCreateHorarios: (rows) => request('/horarios/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateHorarios: (payload) =>
+      request('/horarios/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
 
     // Seguridad y Salud en el Trabajo (SST)
     getSstCatalogs: () => request('/sst/catalogs'),

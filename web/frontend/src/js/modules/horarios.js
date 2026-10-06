@@ -2176,133 +2176,451 @@ const HorariosModule = (() => {
   ];
 
   function openImportModal() {
-    if (typeof ExcelService === 'undefined') {
-      App.showToast('Módulo de importación Excel no disponible.', 'error');
-      return;
+    const existing = document.getElementById('excel-hor-modal-overlay');
+    if (existing) existing.remove();
+
+    let selectedFile = null;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'excel-hor-modal-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box excel-import-modal-box" style="max-width: 680px; width: 95%;">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-green-bright)" stroke-width="2" style="width:24px; height:24px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Carga Masiva de Horarios y Modalidades
+            </h2>
+            <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar esquemas de trabajo y alternancia en el sistema.</p>
+          </div>
+          <button class="modal-close" id="btn-close-hor-import">&times;</button>
+        </div>
+
+        <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
+          <!-- Sección de Selección y Confirmación de Archivo -->
+          <div id="hor-upload-section">
+            <div class="excel-dropzone" id="hor-excel-dropzone">
+              <input type="file" id="hor-excel-file-input" accept=".xlsx, .xls" style="display:none;" />
+              <div class="excel-dropzone-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-green-bright)" stroke-width="2" style="width:48px;height:48px;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </div>
+              <p class="excel-dropzone-title" id="hor-dropzone-main-text">
+                Haz clic para seleccionar o arrastra aquí tu archivo Excel
+              </p>
+              <p class="excel-dropzone-sub">
+                Formatos soportados: archivos Excel (.xlsx, .xls)
+              </p>
+            </div>
+
+            <!-- Previsualización del archivo seleccionado con opción de cancelar/cambiar -->
+            <div id="hor-file-preview" style="display:none; margin-top: 16px;">
+              <div class="excel-file-preview-card">
+                <div class="excel-file-preview-left">
+                  <div class="excel-file-preview-icon">
+                    📊
+                  </div>
+                  <div class="excel-file-preview-info">
+                    <div id="hor-file-name" class="excel-file-preview-name"></div>
+                    <div id="hor-file-size" class="excel-file-preview-size"></div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-change-hor-file" style="font-size: 12px; padding: 6px 14px; font-weight: 600;">
+                  Cambiar archivo
+                </button>
+              </div>
+
+              <!-- Cuadro Informativo de Confirmación Previa -->
+              <div class="excel-notice-card">
+                <div class="excel-notice-icon">📋</div>
+                <div class="excel-notice-content">
+                  <strong>Confirmación de Carga Masiva</strong>
+                  <p>Al confirmar la importación, se procesarán los registros de todas las hojas del archivo para crear o actualizar los esquemas laborales en la base de datos institucional.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje de Aceptación y Resultados (Aparece tras procesar con éxito) -->
+          <div id="hor-import-result" style="display:none;"></div>
+        </div>
+
+        <div class="modal-footer" id="hor-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-hor-import">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-confirm-hor-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span id="btn-confirm-hor-text">Confirmar Importación</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector('#btn-close-hor-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-hor-import');
+    const dropzone = overlay.querySelector('#hor-excel-dropzone');
+    const fileInput = overlay.querySelector('#hor-excel-file-input');
+    const filePreview = overlay.querySelector('#hor-file-preview');
+    const fileNameEl = overlay.querySelector('#hor-file-name');
+    const fileSizeEl = overlay.querySelector('#hor-file-size');
+    const changeFileBtn = overlay.querySelector('#btn-change-hor-file');
+    const confirmBtn = overlay.querySelector('#btn-confirm-hor-import');
+    const confirmText = overlay.querySelector('#btn-confirm-hor-text');
+    const uploadSection = overlay.querySelector('#hor-upload-section');
+    const resultDiv = overlay.querySelector('#hor-import-result');
+    const modalFooter = overlay.querySelector('#hor-import-footer');
+
+    const closeModal = () => overlay.remove();
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    const resetSelection = () => {
+      selectedFile = null;
+      fileInput.value = '';
+      dropzone.style.display = 'block';
+      filePreview.style.display = 'none';
+      confirmBtn.disabled = true;
+      confirmText.textContent = 'Confirmar Importación';
+    };
+
+    changeFileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetSelection();
+      fileInput.click();
+    });
+
+    const selectFile = (file) => {
+      if (!file) return;
+      if (file.name.startsWith('~$')) {
+        App.showToast('Archivo temporal de bloqueo (~$). Cierra Excel y selecciona el original.', 'error');
+        fileInput.value = '';
+        return;
+      }
+      if (!file.name.match(/\.(xlsx|xls)$/i)) {
+        App.showToast('Por favor selecciona un archivo Excel (.xlsx o .xls).', 'error');
+        fileInput.value = '';
+        return;
+      }
+      selectedFile = file;
+
+      fileNameEl.textContent = file.name;
+      const sizeKb = (file.size / 1024);
+      fileSizeEl.textContent = sizeKb >= 1024
+        ? `${(sizeKb / 1024).toFixed(2)} MB`
+        : `${sizeKb.toFixed(1)} KB`;
+
+      dropzone.style.display = 'none';
+      filePreview.style.display = 'block';
+      confirmBtn.disabled = false;
+      confirmText.textContent = 'Confirmar Importación';
+    };
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length) selectFile(e.target.files[0]);
+    });
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('excel-dropzone-dragover');
+    });
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('excel-dropzone-dragover');
+    });
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('excel-dropzone-dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+    });
+
+    function validateRow(row) {
+      const getVal = (...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+            return String(row[k]).normalize('NFC').trim();
+          }
+        }
+        const rowKeys = Object.keys(row);
+        for (const k of keys) {
+          const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+          if (!cleanK) continue;
+          const foundKey = rowKeys.find(rk => {
+            const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            return cleanRK === cleanK || cleanRK.includes(cleanK) || cleanK.includes(cleanRK);
+          });
+          if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+            return String(row[foundKey]).normalize('NFC').trim();
+          }
+        }
+        return '';
+      };
+
+      const consecutivoRaw = getVal('No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
+      const documento = getVal('De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
+      const nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Nombre', 'Nombres', 'Funcionario', 'apellidos_nombres');
+      const cargo = getVal('Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
+      const codigo = getVal('Código', 'Codigo', 'codigo');
+      const grado = getVal('Grado', 'grado');
+      const dependencia = getVal('Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
+      const secretaria = getVal('Secretaría', 'Secretaria', 'secretaria') || dependencia;
+      const situacion = getVal('Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
+      const diasTeletrabajo = getVal('Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
+      const resolucion = getVal('Resolución', 'Resolucion', 'Res.', 'Res', 'numero_resolucion');
+      const fechaRaw = getVal('fecha', 'Fecha', 'Fecha Inicio', 'fecha_inicio');
+
+      if (!documento || !nombre) {
+        return { valid: false, error: 'Documento y Nombres y Apellidos son obligatorios.' };
+      }
+
+      let modalidadNorm = situacion;
+      const sitLower = situacion.toLowerCase();
+      if (sitLower.includes('teletrabajo')) {
+        modalidadNorm = 'Teletrabajo';
+      } else if (sitLower.includes('casa') || sitLower.includes('domicilio')) {
+        modalidadNorm = 'Trabajo en casa';
+      } else if (sitLower.includes('flexible')) {
+        modalidadNorm = 'Horario flexible';
+      } else if (sitLower.includes('presencial')) {
+        modalidadNorm = 'Presencial';
+      }
+
+      let parsedFecha = null;
+      if (fechaRaw) {
+        const s = String(fechaRaw).toLowerCase().trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+          parsedFecha = s;
+        } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+          const parts = s.split('/');
+          parsedFecha = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        } else {
+          const months = {
+            enero: '01', febrero: '02', marzo: '03', abril: '04',
+            mayo: '05', junio: '06', julio: '07', agosto: '08',
+            septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+          };
+          const match = s.match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+          if (match && months[match[2].toLowerCase()]) {
+            parsedFecha = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          }
+        }
+      }
+
+      const numConsecutivo = consecutivoRaw && !isNaN(parseInt(consecutivoRaw, 10))
+        ? parseInt(consecutivoRaw, 10)
+        : null;
+
+      return {
+        valid: true,
+        cleanRow: {
+          numero_consecutivo: numConsecutivo,
+          documento,
+          apellidos_nombres: nombre,
+          cargo,
+          codigo,
+          grado,
+          dependencia,
+          secretaria,
+          modalidad: modalidadNorm,
+          dias_teletrabajo: diasTeletrabajo,
+          numero_resolucion: resolucion || null,
+          fecha_inicio: parsedFecha || new Date().toISOString().split('T')[0],
+          duracion_texto: (modalidadNorm === 'Presencial' ? 'Permanente' : '1 año'),
+          tipo_calculo: 'Hábiles',
+          estado: 'Activa',
+        },
+      };
     }
 
-    ExcelService.openImportModal({
-      title: 'Importar Listado de Teletrabajadores / Modalidad Alternancia',
-      subtitle: 'Cargue el archivo Excel (.xlsx / .xls) de la Gobernación con las asignaciones de teletrabajo y esquemas laborales.',
-      moduleName: 'horarios',
-      columns: EXCEL_COLUMNS,
-      sampleRows: [
-        {
-          'No.': '1',
-          'Nombres y Apellidos': 'SILVA PARRA NATALIA FERNANDA',
-          'De Identificación': '1000000007',
-          'Cargo': 'PROFESIONAL UNIVERSITARIO',
-          'Código': '219',
-          'Grado': '05',
-          'Dependencia': 'CONTROL INTERNO DE GESTION',
-          'Secretaría': 'DESPACHO GOBERNADOR',
-          'Situación': 'Teletrabajo',
-          'Dias Teletrabajo': 'martes y jueves',
-        },
-        {
-          'No.': '2',
-          'Nombres y Apellidos': 'GÓMEZ RUIZ PAULA ANDREA',
-          'De Identificación': '1000000005',
-          'Cargo': 'PROFESIONAL UNIVERSITARIO',
-          'Código': '219',
-          'Grado': '03',
-          'Dependencia': 'DIRECCIÓN DE COBERTURA',
-          'Secretaría': 'SECRETARÍA DE EDUCACIÓN',
-          'Situación': 'Horario flexible',
-          'Dias Teletrabajo': 'Lunes a Viernes 7:00 am - 4:00 pm',
-        },
-        {
-          'No.': '3',
-          'Nombres y Apellidos': 'VARGAS PEÑA ANDRÉS FELIPE',
-          'De Identificación': '1000000008',
-          'Cargo': 'PROFESIONAL ESPECIALIZADO',
-          'Código': '222',
-          'Grado': '04',
-          'Dependencia': 'DIRECCIÓN DE INFRAESTRUCTURA',
-          'Secretaría': 'SECRETARÍA DE INFRAESTRUCTURA PÚBLICA',
-          'Situación': 'Teletrabajo',
-          'Dias Teletrabajo': 'lunes y miércoles',
-        },
-      ],
-      validateRow: (row) => {
-        const getVal = (...keys) => {
-          for (const k of keys) {
-            if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
-              return String(row[k]).trim();
-            }
-          }
-          const rowKeys = Object.keys(row);
-          for (const k of keys) {
-            const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-            if (!cleanK) continue;
-            const foundKey = rowKeys.find(rk => {
-              const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-              return cleanRK === cleanK || cleanRK.includes(cleanK) || cleanK.includes(cleanRK);
-            });
-            if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
-              return String(row[foundKey]).trim();
-            }
-          }
-          return '';
-        };
+    confirmBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
 
-        const consecutivoRaw = getVal('No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
-        const documento = getVal('De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
-        const nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Nombre', 'Nombres', 'Funcionario', 'apellidos_nombres');
-        const cargo = getVal('Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
-        const codigo = getVal('Código', 'Codigo', 'codigo');
-        const grado = getVal('Grado', 'grado');
-        const dependencia = getVal('Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
-        const secretaria = getVal('Secretaría', 'Secretaria', 'secretaria') || dependencia;
-        const situacion = getVal('Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
-        const diasTeletrabajo = getVal('Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
+      confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+      confirmText.innerHTML = `
+        <span class="btn-progress-pulse" aria-hidden="true"></span>
+        Procesando Carga Masiva...
+      `;
+      App.showToast('Analizando hojas y procesando registros... Por favor espere.', 'info');
 
-        if (!documento || !nombre) {
-          return { valid: false, error: 'Documento (De Identificación) y Nombres y Apellidos son obligatorios.' };
+      try {
+        if (typeof XLSX === 'undefined') {
+          throw new Error('La biblioteca SheetJS aún no se ha cargado en el navegador.');
         }
 
-        let modalidadNorm = situacion;
-        const sitLower = situacion.toLowerCase();
-        if (sitLower.includes('teletrabajo')) {
-          modalidadNorm = 'Teletrabajo';
-        } else if (sitLower.includes('casa') || sitLower.includes('domicilio')) {
-          modalidadNorm = 'Trabajo en casa';
-        } else if (sitLower.includes('flexible')) {
-          modalidadNorm = 'Horario flexible';
-        } else if (sitLower.includes('presencial')) {
-          modalidadNorm = 'Presencial';
+        const fileData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(selectedFile);
+        });
+
+        const workbook = XLSX.read(fileData, { type: 'array', cellDates: true });
+        if (!workbook.SheetNames || !workbook.SheetNames.length) {
+          throw new Error('El archivo Excel no contiene ninguna hoja de cálculo.');
         }
 
-        const numConsecutivo = consecutivoRaw && !isNaN(parseInt(consecutivoRaw, 10))
-          ? parseInt(consecutivoRaw, 10)
-          : null;
+        const allCleanRows = [];
+        const hojasProcesadas = [];
+        const observaciones = [];
 
-        return {
-          valid: true,
-          cleanRow: {
-            numero_consecutivo: numConsecutivo,
-            documento,
-            apellidos_nombres: nombre,
-            cargo,
-            codigo,
-            grado,
-            dependencia,
-            secretaria,
-            modalidad: modalidadNorm,
-            dias_teletrabajo: diasTeletrabajo,
-            fecha_inicio: new Date().toISOString().split('T')[0],
-            duracion_texto: (modalidadNorm === 'Presencial' ? 'Permanente' : '1 año'),
-            tipo_calculo: 'Hábiles',
-            estado: 'Activa',
-          },
-        };
-      },
-      onImport: async (cleanRows) => {
-        const res = await API.bulkCreateHorarios(cleanRows);
-        App.showToast(res.message || `${res.inserted} esquemas importados exitosamente.`, 'success');
-        await loadData();
-        loadStats();
-      },
+        // Iterar sobre TODAS las hojas del documento Excel
+        for (const sheetName of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) continue;
+
+          const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          if (!rawMatrix || !rawMatrix.length) continue;
+
+          let headerRowIndex = 0;
+          for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
+            const rowVals = (rawMatrix[r] || []).map(v => String(v).toLowerCase().trim());
+            const matches = rowVals.filter(v =>
+              v.includes('nombre') || v.includes('identifica') || v.includes('cedula') ||
+              v.includes('cargo') || v.includes('dependencia') || v.includes('situaci') ||
+              v.includes('documento') || v.includes('codigo') || v.includes('grado') ||
+              v.includes('secretaria') || v.includes('teletrabajo') || v.includes('modalidad') ||
+              v === 'no.' || v === 'no' || v === 'item' || v === 'n°'
+            );
+            if (matches.length >= 2) {
+              headerRowIndex = r;
+              break;
+            }
+          }
+
+          const sheetRows = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: '' });
+          const filteredRows = (sheetRows || []).filter(row =>
+            Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
+          );
+
+          if (!filteredRows.length) continue;
+
+          hojasProcesadas.push(sheetName);
+
+          filteredRows.forEach((row, idx) => {
+            const validation = validateRow(row);
+            if (validation.valid) {
+              allCleanRows.push(validation.cleanRow);
+            } else {
+              observaciones.push({
+                hoja: sheetName,
+                fila: idx + 2,
+                error: validation.error,
+              });
+            }
+          });
+        }
+
+        if (!allCleanRows.length) {
+          throw new Error('No se encontraron filas con datos de servidores ni esquemas de horario en las hojas del archivo.');
+        }
+
+        const res = await API.bulkCreateHorarios({
+          rows: allCleanRows,
+          hojasProcesadas,
+        });
+
+        if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+
+        const { resumen = {}, errors = [] } = res;
+        const totalHojas = hojasProcesadas.length;
+
+        uploadSection.style.display = 'none';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <!-- Mensaje de Aceptación de Carga Masiva -->
+          <div class="excel-success-banner">
+            <div class="excel-success-icon-badge">
+              ✅
+            </div>
+            <h3 class="excel-success-title">
+              ¡Carga Masiva Aceptada y Procesada con Éxito!
+            </h3>
+            <p class="excel-success-desc">
+              El archivo <strong>${escHtml(selectedFile.name)}</strong> fue validado y cargado en el sistema correctamente.
+            </p>
+          </div>
+
+          <!-- Información Detallada sobre lo Realizado -->
+          <div class="excel-summary-box">
+            <div class="excel-summary-topbar">
+              <span class="excel-summary-heading">
+                <span>📊</span> Resumen de Operaciones Realizadas
+              </span>
+              <span class="badge badge--info excel-sheets-badge">
+                ${totalHojas} Hoja(s) Procesada(s)
+              </span>
+            </div>
+
+            <div class="excel-kpi-grid">
+              <div class="excel-kpi-tile excel-kpi-tile--total">
+                <span class="excel-kpi-label">Total Filas</span>
+                <span class="excel-kpi-value">${resumen.totalFilas || allCleanRows.length}</span>
+              </div>
+              <div class="excel-kpi-tile excel-kpi-tile--inserted">
+                <span class="excel-kpi-label">Nuevos Registros</span>
+                <span class="excel-kpi-value">${resumen.insertados || 0}</span>
+              </div>
+              <div class="excel-kpi-tile excel-kpi-tile--updated">
+                <span class="excel-kpi-label">Actualizados</span>
+                <span class="excel-kpi-value">${resumen.actualizados || 0}</span>
+              </div>
+              <div class="excel-kpi-tile excel-kpi-tile--provisional">
+                <span class="excel-kpi-label">Teletrabajo</span>
+                <span class="excel-kpi-value">${resumen.teletrabajo || 0}</span>
+              </div>
+              <div class="excel-kpi-tile excel-kpi-tile--vacant">
+                <span class="excel-kpi-label">Otras Modalidades</span>
+                <span class="excel-kpi-value">${resumen.otrasModalidades || 0}</span>
+              </div>
+            </div>
+
+            ${(errors.length > 0 || observaciones.length > 0) ? `
+              <div class="excel-error-log-card" style="margin-top:14px;">
+                <strong class="excel-error-log-title">Observaciones / Inconsistencias (${errors.length + observaciones.length}):</strong>
+                <ul class="excel-error-log-list">
+                  ${[...observaciones.map(o => `<li>Hoja "${o.hoja}", Fila ${o.fila}: ${escHtml(o.error)}</li>`), ...errors.map(e => `<li>${escHtml(e)}</li>`)].slice(0, 30).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        modalFooter.innerHTML = `
+          <button type="button" class="btn btn-primary" id="btn-accept-hor-import" style="min-width: 140px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:17px;height:17px;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Aceptar
+          </button>
+        `;
+
+        const acceptBtn = modalFooter.querySelector('#btn-accept-hor-import');
+        acceptBtn.addEventListener('click', async () => {
+          overlay.remove();
+          App.showToast(`Carga masiva finalizada: ${resumen.insertados || 0} creados, ${resumen.actualizados || 0} actualizados.`, 'success');
+          await loadData();
+          loadStats();
+        });
+
+      } catch (err) {
+        console.error('[HorariosModule] import error:', err);
+        App.showToast('Error al importar: ' + err.message, 'error');
+        confirmBtn.disabled = false;
+        confirmText.textContent = 'Reintentar Importación';
+        cancelBtn.disabled = false;
+      }
     });
   }
 
