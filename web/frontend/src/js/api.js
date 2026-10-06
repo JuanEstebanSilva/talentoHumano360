@@ -154,6 +154,9 @@ const API = (() => {
     deleteHorario: (id) => request(`/horarios/${id}`, { method: 'DELETE' }),
     calculateHorarioDates: (data) => request('/horarios/calculate-dates', { method: 'POST', body: JSON.stringify(data) }),
     checkHorariosExpirations: () => request('/horarios/check-expirations', { method: 'POST' }),
+    getNextHorarioConsecutivo: () => request('/horarios/next-consecutivo'),
+    updateHorarioSoporte: (id, soporte_acto) =>
+      request(`/horarios/${id}/soporte`, { method: 'PATCH', body: JSON.stringify({ soporte_acto }) }),
     bulkCreateHorarios: (rows) => request('/horarios/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
 
     // Seguridad y Salud en el Trabajo (SST)

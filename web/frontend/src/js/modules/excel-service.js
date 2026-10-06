@@ -272,9 +272,24 @@ const ExcelService = (() => {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
+          // Detectar automáticamente la fila de encabezados reales (evita confundir títulos o banners superiores)
+          const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          let headerRowIndex = 0;
+          for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
+            const rowVals = (rawMatrix[r] || []).map(v => String(v).toLowerCase().trim());
+            const matches = rowVals.filter(v =>
+              v.includes('nombre') || v.includes('identifica') || v.includes('cedula') ||
+              v.includes('cargo') || v.includes('dependencia') || v.includes('situaci') ||
+              v.includes('documento') || v.includes('codigo') || v.includes('grado') ||
+              v.includes('secretaria') || v === 'no.' || v === 'no' || v === 'item'
+            );
+            if (matches.length >= 2) {
+              headerRowIndex = r;
+              break;
+            }
+          }
 
-          parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          parsedData = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: '' });
 
           if (!parsedData || !parsedData.length) {
             alert('El archivo no contiene filas de datos o está vacío.');

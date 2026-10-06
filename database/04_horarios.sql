@@ -8,9 +8,13 @@
 -- ─── Tabla: horarios ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS horarios (
     id_horario            SERIAL PRIMARY KEY,
+    numero_consecutivo    INTEGER,
     documento             VARCHAR(60)   NOT NULL,
     apellidos_nombres     VARCHAR(280)  NOT NULL,
+    codigo                VARCHAR(50),
+    grado                 VARCHAR(50),
     dependencia           VARCHAR(280)  NOT NULL DEFAULT 'SECRETARÍA GENERAL',
+    secretaria            VARCHAR(280),
     cargo                 VARCHAR(280)  NOT NULL DEFAULT 'PROFESIONAL UNIVERSITARIO',
     modalidad             VARCHAR(60)   NOT NULL CHECK (modalidad IN ('Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible')),
     estado                VARCHAR(80)   NOT NULL DEFAULT 'Activa',
