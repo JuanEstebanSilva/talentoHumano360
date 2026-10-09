@@ -2290,162 +2290,109 @@ const EmployeesModule = (() => {
   }
 
   /**
-   * Regla 7: Para la función de descarga a Excel, el sistema debe exportarlo en dos columnas:
-   * una casilla para los "Apellidos" (ambos) y otra casilla para los "Nombres" (ambos).
-   * Se exportan la totalidad de los datos y dimensiones gestionados en la plataforma.
+   * Estructura oficial de columnas para la Plantilla de Servidores Públicos:
+   * 34 columnas exactas en mayúscula sostenida y orden oficial:
+   * 1. DEPENDENCIA, 2. DENOMINACION CARGO, 3. COD, 4. GRA, 5. PRIMER APELLIDO,
+   * 6. SEGUNDO APELLIDO, 7. NOMBRES, 8. NUMERO DE CEDULA, 9. EXPEDIDA, 10. TIPO DE SANGRE,
+   * 11. FECHA DE NACIMIENTO, 12. EDAD, 13. SEXO, 14. OTRO TIEMPO DE LA GOBERNACION, 15. INGRESO,
+   * 16. TIEMPO DE SERVICIO, 17. FECHA DE ENCARGO, 18. CLASIFICACION DE EMPLEO, 19. SITUACION,
+   * 20. FUNCIONES PAD., 21. OPEC, 22. NOVEDADES, 23. ESTUDIOS, 24. MATRICULA PROFECIONAL,
+   * 25. INSTITUCION, 26. POSTGRADO, 27. INSTITUCION POST, 28. DIPLOMADO O CAP SENA,
+   * 29. DIRECCION, 30. CIUDAD, 31. TELEFONO FIJO, 32. CELULAR, 33. CORREO PERSONAL, 34. CORREO INSTITUCIONAL
    */
   const EXCEL_COLUMNS = [
-    // ── 1. Identificación Personal ──
-    { header: 'Apellidos', key: 'apellidos', width: 24, sample: 'PEREZ RODRIGUEZ' },
-    { header: 'Primer Apellido', key: 'primerApellido', width: 20, sample: 'PEREZ' },
-    { header: 'Segundo Apellido', key: 'segundoApellido', width: 20, sample: 'RODRIGUEZ' },
-    { header: 'Nombres', key: 'nombres', width: 24, sample: 'JUAN CARLOS' },
-    { header: 'Nombre Completo', key: 'nombreCompleto', width: 32, sample: 'JUAN CARLOS PEREZ RODRIGUEZ' },
-    { header: 'Cédula / Documento', key: 'cedula', width: 18, sample: '1049601234' },
-    { header: 'Cédula Formato Visual', key: 'cedulaVisual', width: 20, sample: '1.049.601.234' },
-    { header: '¿Doc. Pendiente?', key: 'documento_pendiente', width: 16, sample: 'NO' },
-    { header: '¿Es Plaza Vacante?', key: 'es_vacante', width: 18, sample: 'NO' },
-    { header: 'Código Plaza Vacante', key: 'codigoVacante', width: 22, sample: 'PLAZA VACANTE 0001' },
-    { header: 'Sexo', key: 'sexo', width: 14, sample: 'MASCULINO' },
-    { header: 'Tipo de Sangre (RH)', key: 'tipoSangre', width: 16, sample: 'O+' },
-    { header: 'Tipo de Discapacidad', key: 'tipoDiscapacidad', width: 22, sample: 'VISUAL / NINGUNA' },
-    { header: 'Fecha de Nacimiento', key: 'fechaNacimiento', width: 18, sample: '1985-05-15' },
-    { header: 'Edad Calculada', key: 'edadCalculada', width: 26, sample: '38 años, 9 meses, 20 días' },
-    { header: 'Depto. Expedición', key: 'departamentoExpedicion', width: 20, sample: 'BOYACÁ' },
-    { header: 'Municipio Expedición', key: 'municipioExpedicion', width: 22, sample: 'TUNJA' },
-
-    // ── 2. Información Laboral e Institucional ──
-    { header: 'Estado Servidor', key: 'estadoServidor', width: 16, sample: 'Activo' },
-    { header: 'Situación Administrativa', key: 'situacion', width: 22, sample: 'ACTIVO' },
-    { header: 'Dependencia / Secretaría', key: 'dependencia', width: 34, sample: 'SECRETARÍA DE HACIENDA' },
-    { header: 'Denominación Cargo Actual', key: 'cargoActual', width: 32, sample: 'PROFESIONAL UNIVERSITARIO' },
-    { header: 'Código Cargo Actual', key: 'codigoActual', width: 18, sample: '219' },
-    { header: 'Grado Cargo Actual', key: 'gradoActual', width: 16, sample: '03' },
-    { header: 'Cargo Base / Titular', key: 'cargoBase', width: 30, sample: 'TÉCNICO OPERATIVO' },
-    { header: 'Código Cargo Base', key: 'codigoBase', width: 16, sample: '314' },
-    { header: 'Grado Cargo Base', key: 'gradoBase', width: 14, sample: '01' },
-    { header: 'Tipo de Vinculación', key: 'clasificacionEmpleo', width: 28, sample: 'CARRERA ADMINISTRATIVA' },
-    { header: 'Fecha de Ingreso', key: 'fechaIngreso', width: 18, sample: '2018-02-01' },
-    { header: 'Tiempo Servicio Cargo Actual', key: 'tiempoServicioCalculado', width: 28, sample: '6 años, 2 meses, 4 días' },
-    { header: 'Fecha de Encargo', key: 'fechaEncargo', width: 18, sample: '2021-06-15' },
-    { header: 'Otro Tiempo Gobernación', key: 'otroTiempoGobernacion', width: 26, sample: '2 años, 1 meses, 15 días' },
-    { header: 'Otro Tiempo Calculado', key: 'otroTiempoCalculado', width: 26, sample: '2 años, 1 meses, 15 días' },
-    { header: 'Detalle Periodos Previos', key: 'periodosPrevios', width: 36, sample: '2015-01-01 a 2017-06-30' },
-    { header: 'Tiempo Total en la Gobernación', key: 'tiempoTotalGobernacion', width: 32, sample: '8 años, 3 meses, 19 días' },
-    { header: 'Funciones del Cargo', key: 'funciones', width: 22, sample: '01' },
-    { header: 'Código OPEC', key: 'opec', width: 16, sample: '12345' },
-
-    // ── 3. Formación Académica y Certificaciones ──
-    { header: 'Nivel / Título Profesional', key: 'estudios', width: 30, sample: 'ADMINISTRACIÓN DE EMPRESAS' },
-    { header: 'Institución de Estudios', key: 'institucionEstudios', width: 28, sample: 'UPTC' },
-    { header: 'Matrícula Profesional', key: 'matriculaProfesional', width: 22, sample: 'TP-123456' },
-    { header: 'Postgrado / Especialización', key: 'postgrado', width: 30, sample: 'GERENCIA PÚBLICA' },
-    { header: 'Institución de Postgrado', key: 'institucionPostgrado', width: 28, sample: 'ESAP' },
-    { header: '¿Tiene Diplomado / Cap. SENA?', key: 'tieneDiplomado', width: 24, sample: 'SÍ' },
-    { header: 'Diplomado / Cap. SENA Realizada', key: 'diplomadoCapSena', width: 32, sample: 'MIPG Y CONTRATACIÓN ESTATAL' },
-
-    // ── 4. Contacto y Localización ──
-    { header: 'Teléfonos Celulares', key: 'celularesStr', width: 30, sample: '3101234567 / 3209876543' },
-    { header: 'Teléfono Fijo', key: 'telefonoFijo', width: 18, sample: '7401234' },
-    { header: 'Correo Institucional', key: 'correo', width: 30, sample: 'juan.perez@boyaca.gov.co' },
-    { header: 'Correo Personal', key: 'correoPersonal', width: 30, sample: 'juanperez@gmail.com' },
-    { header: 'Dirección de Residencia', key: 'direccion', width: 30, sample: 'CALLE 20 # 10-40' },
-    { header: 'Ciudad de Residencia', key: 'ciudad', width: 22, sample: 'TUNJA' },
-    { header: 'Novedades / Observaciones', key: 'novedades', width: 35, sample: 'SIN NOVEDAD' }
+    { header: 'DEPENDENCIA', key: 'dependencia', width: 32 },
+    { header: 'DENOMINACION CARGO', key: 'cargoActual', width: 32 },
+    { header: 'COD', key: 'codigoActual', width: 12 },
+    { header: 'GRA', key: 'gradoActual', width: 12 },
+    { header: 'PRIMER APELLIDO', key: 'primerApellido', width: 20 },
+    { header: 'SEGUNDO APELLIDO', key: 'segundoApellido', width: 20 },
+    { header: 'NOMBRES', key: 'nombres', width: 24 },
+    { header: 'NUMERO DE CEDULA', key: 'cedula', width: 20 },
+    { header: 'EXPEDIDA', key: 'expedida', width: 18 },
+    { header: 'TIPO DE SANGRE', key: 'tipoSangre', width: 16 },
+    { header: 'FECHA DE NACIMIENTO', key: 'fechaNacimiento', width: 22 },
+    { header: 'EDAD', key: 'edad', width: 14 },
+    { header: 'SEXO', key: 'sexo', width: 14 },
+    { header: 'OTRO TIEMPO DE LA GOBERNACION', key: 'otroTiempoGobernacion', width: 28 },
+    { header: 'INGRESO', key: 'fechaIngreso', width: 18 },
+    { header: 'TIEMPO DE SERVICIO', key: 'tiempoServicioCalculado', width: 24 },
+    { header: 'FECHA DE ENCARGO', key: 'fechaEncargo', width: 18 },
+    { header: 'CLASIFICACION DE EMPLEO', key: 'clasificacionEmpleo', width: 26 },
+    { header: 'SITUACION', key: 'situacion', width: 20 },
+    { header: 'FUNCIONES PAD.', key: 'funciones', width: 18 },
+    { header: 'OPEC', key: 'opec', width: 14 },
+    { header: 'NOVEDADES', key: 'novedades', width: 28 },
+    { header: 'ESTUDIOS', key: 'estudios', width: 28 },
+    { header: 'MATRICULA PROFECIONAL', key: 'matriculaProfesional', width: 24 },
+    { header: 'INSTITUCION', key: 'institucionEstudios', width: 26 },
+    { header: 'POSTGRADO', key: 'postgrado', width: 26 },
+    { header: 'INSTITUCION POST', key: 'institucionPostgrado', width: 26 },
+    { header: 'DIPLOMADO O CAP SENA', key: 'diplomadoCapSena', width: 26 },
+    { header: 'DIRECCION', key: 'direccion', width: 28 },
+    { header: 'CIUDAD', key: 'ciudad', width: 18 },
+    { header: 'TELEFONO FIJO', key: 'telefonoFijo', width: 18 },
+    { header: 'CELULAR', key: 'celular', width: 20 },
+    { header: 'CORREO PERSONAL', key: 'correoPersonal', width: 28 },
+    { header: 'CORREO INSTITUCIONAL', key: 'correo', width: 28 }
   ];
 
   async function exportExcel() {
     try {
-      App.showToast('Generando archivo Excel con todos los datos de la plataforma...', 'info');
+      App.showToast('Generando archivo Excel oficial de Servidores Públicos...', 'info');
       const res = await API.getEmployees({ q: state.q, page: 1, limit: 10000 });
       const recordsRaw = res.data || state.data;
 
-      // Mapeo exhaustivo de todos los campos de la plataforma
+      // Mapeo a las 34 columnas oficiales solicitadas
       const records = recordsRaw.map(e => {
-        let apellidos = e.apellidos;
-        let nombres = e.nombres;
-        if (!apellidos && e.nombreCompleto) {
+        let primerApellido = e.primerApellido || '';
+        let segundoApellido = e.segundoApellido || '';
+        let nombres = e.nombres || '';
+        if (!primerApellido && e.nombreCompleto) {
           const parts = e.nombreCompleto.split(' ');
-          apellidos = parts.slice(0, 2).join(' ');
-          nombres = parts.slice(2).join(' ') || parts[0];
+          primerApellido = parts[0] || '';
+          segundoApellido = parts[1] || '';
+          nombres = parts.slice(2).join(' ') || '';
         }
         const celularesStr = (Array.isArray(e.celulares) && e.celulares.length)
           ? e.celulares.join(' / ')
           : (e.celular || '—');
 
-        // Formatear tipo de discapacidad
-        let disc = e.tipoDiscapacidad ? String(e.tipoDiscapacidad).trim() : '';
-        if (!disc || disc.toLowerCase() === 'ninguna' || disc.toLowerCase() === 'ninguno') {
-          disc = 'NINGUNA';
-        } else {
-          disc = disc.toUpperCase();
-        }
-
-        // Formatear periodos de experiencia previa si existen
-        let periodosPrevios = '—';
-        if (Array.isArray(e.otroTiempoPeriodos) && e.otroTiempoPeriodos.length) {
-          periodosPrevios = e.otroTiempoPeriodos.map(p => {
-            const fIni = p.fechaInicio || p.inicio || '';
-            const fFin = p.fechaFin || p.fin || '';
-            const dif = p.tiempoCalculado || p.duracion || '';
-            return `${fIni} a ${fFin}${dif ? ' (' + dif + ')' : ''}`;
-          }).join('; ');
-        } else if (e.otroTiempoGobernacion && e.otroTiempoGobernacion !== '0 años, 0 meses, 0 días') {
-          periodosPrevios = e.otroTiempoGobernacion;
-        }
-
         return {
-          ...e,
-          apellidos: apellidos || (e.es_vacante ? 'VACANTE' : '—'),
-          primerApellido: e.primerApellido || (e.es_vacante ? 'VACANTE' : '—'),
-          segundoApellido: e.segundoApellido || (e.es_vacante ? '' : '—'),
+          dependencia: e.dependencia || '—',
+          cargoActual: e.cargoActual || e.cargo || '—',
+          codigoActual: e.codigoActual || e.codigo || '—',
+          gradoActual: e.gradoActual || e.grado || '—',
+          primerApellido: primerApellido || (e.es_vacante ? 'VACANTE' : '—'),
+          segundoApellido: segundoApellido || '',
           nombres: nombres || (e.es_vacante ? 'PLAZA VACANTE' : '—'),
-          nombreCompleto: e.nombreCompleto || '—',
           cedula: e.cedula || (e.es_vacante ? 'PLAZA VACANTE' : 'SIN CÉDULA'),
-          cedulaVisual: e.cedulaVisual || (e.es_vacante ? 'PLAZA VACANTE' : (e.cedula || '—')),
-          documento_pendiente: e.documento_pendiente ? 'SÍ' : 'NO',
-          es_vacante: e.es_vacante ? 'SÍ' : 'NO',
-          codigoVacante: e.codigoVacante || (e.es_vacante ? 'PLAZA VACANTE' : '—'),
-          tipoDiscapacidad: disc,
-          sexo: e.sexo || '—',
+          expedida: e.ciudadExpedicion || e.municipioExpedicion || e.departamentoExpedicion || '—',
           tipoSangre: e.tipoSangre || '—',
           fechaNacimiento: e.fechaNacimiento || '—',
-          edadCalculada: e.edadCalculada || 'No disponible',
-          departamentoExpedicion: e.departamentoExpedicion || '—',
-          municipioExpedicion: e.municipioExpedicion || e.ciudadExpedicion || '—',
-          estadoServidor: e.estadoServidor || 'Activo',
-          situacion: e.situacion || 'ACTIVO',
-          dependencia: e.dependencia || '—',
-          cargoActual: e.cargoActual || '—',
-          codigoActual: e.codigoActual || '—',
-          gradoActual: e.gradoActual || '—',
-          cargoBase: e.cargoBase || '—',
-          codigoBase: e.codigoBase || '—',
-          gradoBase: e.gradoBase || '—',
-          clasificacionEmpleo: e.clasificacionEmpleo || '—',
+          edad: e.edad || e.edadCalculada || '—',
+          sexo: e.sexo || '—',
+          otroTiempoGobernacion: e.otroTiempoGobernacion || '—',
           fechaIngreso: e.fechaIngreso || '—',
           tiempoServicioCalculado: e.tiempoServicioCalculado || 'No disponible',
           fechaEncargo: e.fechaEncargo || '—',
-          otroTiempoGobernacion: e.otroTiempoGobernacion || '—',
-          otroTiempoCalculado: e.otroTiempoCalculado || '0 años, 0 meses, 0 días',
-          periodosPrevios: periodosPrevios,
-          tiempoTotalGobernacion: e.tiempoTotalGobernacion || e.tiempoServicioCalculado || 'No disponible',
-          funciones: e.funciones || '—',
+          clasificacionEmpleo: e.clasificacionEmpleo || '—',
+          situacion: e.situacion || 'ACTIVO',
+          funciones: e.funciones || e.funcionesPag || '—',
           opec: e.opec || '—',
+          novedades: e.novedades || '—',
           estudios: e.estudios || '—',
-          institucionEstudios: e.institucionEstudios || '—',
           matriculaProfesional: e.matriculaProfesional || '—',
+          institucionEstudios: e.institucionEstudios || '—',
           postgrado: e.postgrado || '—',
           institucionPostgrado: e.institucionPostgrado || '—',
-          tieneDiplomado: (e.tieneDiplomado || (e.diplomadoCapSena && e.diplomadoCapSena !== 'NINGUNO')) ? 'SÍ' : 'NO',
           diplomadoCapSena: e.diplomadoCapSena || '—',
-          celularesStr,
-          telefonoFijo: e.telefonoFijo || '—',
-          correo: e.correo || '—',
-          correoPersonal: e.correoPersonal || '—',
           direccion: e.direccion || '—',
           ciudad: e.ciudad || '—',
-          novedades: e.novedades || '—'
+          telefonoFijo: e.telefonoFijo || '—',
+          celular: celularesStr,
+          correoPersonal: e.correoPersonal || '—',
+          correo: e.correo || e.correoInstitucional || '—'
         };
       });
 
@@ -2455,9 +2402,23 @@ const EmployeesModule = (() => {
         columns: EXCEL_COLUMNS,
         data: records
       });
-      App.showToast(`Se exportaron exitosamente ${records.length} servidores públicos con todos los campos de la plataforma.`, 'success');
+      App.showToast(`Se exportaron exitosamente ${records.length} servidores públicos con el formato oficial.`, 'success');
     } catch (err) {
       App.showToast('Error al exportar a Excel: ' + err.message, 'error');
+    }
+  }
+
+  function downloadTemplate() {
+    if (typeof ExcelService !== 'undefined') {
+      ExcelService.downloadTemplate({
+        filename: 'PLANTILLA_OFICIAL_SERVIDORES_PUBLICOS',
+        sheetName: 'Servidores Públicos',
+        columns: EXCEL_COLUMNS,
+        sampleRows: []
+      });
+      App.showToast('Descargando plantilla oficial de Servidores Públicos en blanco...', 'info');
+    } else {
+      App.showToast('Servicio Excel no disponible.', 'warning');
     }
   }
 
@@ -2492,6 +2453,14 @@ const EmployeesModule = (() => {
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
           <!-- Sección de Selección y Confirmación de Archivo -->
           <div id="emp-upload-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:8px 14px; border-radius:8px; border:1px solid var(--color-border); flex-wrap:wrap; gap:8px;">
+              <span style="font-size:12px; color:var(--text-muted);">¿Necesitas la plantilla oficial para diligenciar?</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="EmployeesModule.downloadTemplate()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px; font-weight:600;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                Descargar Plantilla Oficial Excel
+              </button>
+            </div>
+
             <div class="excel-dropzone" id="emp-excel-dropzone">
               <input type="file" id="emp-excel-file-input" accept=".xlsx, .xls" style="display:none;" />
               <div class="excel-dropzone-icon">
@@ -2875,6 +2844,19 @@ const EmployeesModule = (() => {
                     <small>Descargar listado filtrado (.xlsx)</small>
                   </div>
                 </button>
+                <button
+                  type="button"
+                  class="emp-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="EmployeesModule.downloadTemplate(); EmployeesModule.closeActionsDropdown();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial</strong>
+                    <small>Formato oficial en blanco (.xlsx)</small>
+                  </div>
+                </button>
                 ${Auth.canEdit() ? `
                 <button
                   type="button"
@@ -2988,6 +2970,7 @@ const EmployeesModule = (() => {
     search,
     clearSearch,
     exportExcel,
+    downloadTemplate,
     openImportModal,
     formatCedulaDots,
     switchFichaTab,

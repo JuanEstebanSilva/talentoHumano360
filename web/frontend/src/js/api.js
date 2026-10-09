@@ -63,6 +63,16 @@ const API = (() => {
       }
       return request('/employees?' + new URLSearchParams(p));
     },
+    buscarServidor: async (q, limit = 8) => {
+      const cleanQ = typeof q === 'string' ? q.trim() : '';
+      try {
+        const res = await request(`/employees/buscar?q=${encodeURIComponent(cleanQ)}&limit=${limit}`);
+        if (res && Array.isArray(res.data)) return res;
+      } catch (err) {
+        // Fallback transparente en caso de versión previa de servicio
+      }
+      return API.getEmployees({ q: cleanQ, limit });
+    },
     getEmployeeByCedula: (cedula) => {
       const clean = (typeof cedula === 'string' && /^[\d.,\s]+$/.test(cedula.trim()) && /\d/.test(cedula))
         ? cedula.trim().replace(/[.,\s]/g, '')
@@ -137,7 +147,8 @@ const API = (() => {
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
     getViaticosStats: () => request('/viaticos/stats'),
     createViatico: (data) => request('/viaticos', { method: 'POST', body: JSON.stringify(data) }),
-    bulkCreateViaticos: (rows) => request('/viaticos/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateViaticos: (payload) =>
+      request('/viaticos/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
     updateViatico: (id, data) => request(`/viaticos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateViaticoStatus: (id, estado, observaciones = '') =>
       request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
@@ -154,7 +165,11 @@ const API = (() => {
     deleteHorario: (id) => request(`/horarios/${id}`, { method: 'DELETE' }),
     calculateHorarioDates: (data) => request('/horarios/calculate-dates', { method: 'POST', body: JSON.stringify(data) }),
     checkHorariosExpirations: () => request('/horarios/check-expirations', { method: 'POST' }),
-    bulkCreateHorarios: (rows) => request('/horarios/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    getNextHorarioConsecutivo: () => request('/horarios/next-consecutivo'),
+    updateHorarioSoporte: (id, soporte_acto) =>
+      request(`/horarios/${id}/soporte`, { method: 'PATCH', body: JSON.stringify({ soporte_acto }) }),
+    bulkCreateHorarios: (payload) =>
+      request('/horarios/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
 
     // Seguridad y Salud en el Trabajo (SST)
     getSstCatalogs: () => request('/sst/catalogs'),

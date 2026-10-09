@@ -77,6 +77,126 @@ router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, r
   });
 });
 
+// ─── GET /api/employees/buscar (Búsqueda institucional ligera para formularios) ──
+// Trae ÚNICAMENTE la información estrictamente requerida (identificación y cargo institucional):
+// - Cédula / Documento
+// - Nombre completo
+// - Cargo
+// - Código del cargo
+// - Grado salarial
+// - Dependencia
+// - Secretaría
+router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) => {
+  const { q = '', cedula = '', limit = 8 } = req.query;
+  const searchLimit = Math.min(Math.max(1, parseInt(limit, 10) || 8), 25);
+
+  try {
+    const rawTerm = (q || cedula || '').trim();
+    if (!rawTerm) {
+      return res.json({ data: [] });
+    }
+
+    const cleanCedula = rawTerm.replace(/[.,\s]/g, '');
+    const digitsOnly = rawTerm.replace(/\D/g, '');
+
+    let normCedula = '';
+    if (cleanCedula !== rawTerm && cleanCedula.length > 0) {
+      normCedula = cleanCedula;
+    } else if (digitsOnly.length >= 3 && digitsOnly !== rawTerm) {
+      normCedula = digitsOnly;
+    }
+
+    const params = [`%${rawTerm}%`];
+    let whereQuery = `
+      WHERE (COALESCE(p.es_vacante, false) = false AND COALESCE(p.primer_apellido, '') != 'VACANTE')
+        AND (
+          LOWER(p.nombre_completo) LIKE LOWER($1)
+          OR p.cedula LIKE $1
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
+    `;
+
+    if (normCedula) {
+      params.push(`%${normCedula}%`);
+      whereQuery += `
+          OR p.cedula LIKE $2
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $2
+      `;
+    }
+
+    whereQuery += `)`;
+
+    params.push(searchLimit);
+    const limitParam = `$${params.length}`;
+
+    const sql = `
+      SELECT 
+        COALESCE(p.cedula, '') AS cedula,
+        COALESCE(p.nombre_completo, TRIM(CONCAT(p.primer_apellido, ' ', p.segundo_apellido, ' ', p.nombres))) AS nombre_completo,
+        COALESCE(ca.cargo, cb.cargo, 'PROFESIONAL UNIVERSITARIO') AS cargo,
+        COALESCE(ca.codigo, cb.codigo, '') AS codigo,
+        COALESCE(ca.grado, cb.grado, '') AS grado,
+        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia
+      FROM rel_principal r
+      JOIN personas p ON p.id_persona = r.id_persona
+      LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
+      LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
+      LEFT JOIN cargos cb ON cb.id_cargo = r.id_cargo_base
+      LEFT JOIN estados e ON e.id_estado = r.id_estado
+      ${whereQuery}
+      ORDER BY 
+        CASE WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo' THEN 1 ELSE 2 END,
+        CASE 
+          WHEN p.cedula = '${rawTerm.replace(/'/g, "''")}' OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = '${cleanCedula.replace(/'/g, "''")}' THEN 1 
+          ELSE 2 
+        END,
+        p.nombre_completo ASC
+      LIMIT ${limitParam}
+    `;
+
+    const result = await pool.query(sql, params);
+
+    const data = result.rows.map(row => {
+      const depUpper = (row.dependencia || '').toUpperCase().trim();
+      let sec = depUpper;
+      if (depUpper.includes('SECRETARÍA') || depUpper.includes('SECRETARIA')) {
+        sec = depUpper;
+      } else if (depUpper.includes('TALENTO HUMANO') || depUpper.includes('SISTEMAS') || depUpper.includes('SERVICIOS GENERALES')) {
+        sec = 'SECRETARÍA GENERAL';
+      } else if (depUpper.includes('GOBERNADOR') || depUpper.includes('DESPACHO')) {
+        sec = 'DESPACHO DEL GOBERNADOR';
+      } else if (depUpper.includes('JURÍDICA') || depUpper.includes('JURIDICA')) {
+        sec = 'OFICINA ASESORA JURÍDICA';
+      } else {
+        sec = depUpper || 'SECRETARÍA GENERAL';
+      }
+
+      return {
+        cedula: row.cedula,
+        documento: row.cedula,
+        nombre_completo: row.nombre_completo,
+        nombreCompleto: row.nombre_completo,
+        persona: row.nombre_completo,
+        cargo: row.cargo,
+        cargoActual: row.cargo,
+        cargo_actual: row.cargo,
+        codigo: row.codigo,
+        codigoActual: row.codigo,
+        codigo_actual: row.codigo,
+        grado: row.grado,
+        gradoActual: row.grado,
+        grado_actual: row.grado,
+        dependencia: row.dependencia,
+        secretaria: sec,
+      };
+    });
+
+    return res.json({ data, total: data.length });
+  } catch (err) {
+    console.error('[employees] buscar error:', err.message);
+    return res.status(500).json({ error: 'Error en búsqueda rápida de servidores.', details: err.message });
+  }
+});
+
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   const { q = '', page = 1, limit = 30 } = req.query;
@@ -284,6 +404,8 @@ router.get('/', auth, async (req, res) => {
           cedula: cedulaPura,
           cedulaVisual: cedulaVisual,
           nombreCompleto: clean(r.nombre_completo),
+          nombre_completo: clean(r.nombre_completo),
+          persona: clean(r.nombre_completo),
           primerApellido: esVacante ? 'VACANTE' : clean(r.primer_apellido),
           segundoApellido: esVacante ? '' : clean(r.segundo_apellido),
           apellidos: esVacante ? 'VACANTE' : (apellidosJuntos || clean(r.primer_apellido)),
@@ -297,10 +419,16 @@ router.get('/', auth, async (req, res) => {
           fechaNacimiento: esVacante ? null : r.fecha_nacimiento,
           edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
           edadAnios: esVacante ? null : (edadCalc ? edadCalc.anios : null),
-           dependencia: clean(r.dependencia),
+          dependencia: clean(r.dependencia),
           cargoActual: clean(r.cargo_actual),
+          cargo_actual: clean(r.cargo_actual),
+          cargo: clean(r.cargo_actual || r.cargo_base),
           codigoActual: clean(r.codigo_actual),
+          codigo_actual: clean(r.codigo_actual),
+          codigo: clean(r.codigo_actual || r.codigo_base),
           gradoActual: clean(r.grado_actual),
+          grado_actual: clean(r.grado_actual),
+          grado: clean(r.grado_actual || r.grado_base),
           nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           cargoBase: clean(r.cargo_base),
@@ -855,6 +983,8 @@ router.get('/:cedula', auth, async (req, res) => {
       cedula: cedulaPura,
       cedulaVisual,
       nombreCompleto: clean(r.nombre_completo),
+      nombre_completo: clean(r.nombre_completo),
+      persona: clean(r.nombre_completo),
       primerApellido: esVacante ? 'VACANTE' : clean(r.primer_apellido),
       segundoApellido: esVacante ? '' : clean(r.segundo_apellido),
       nombres: esVacante ? 'PLAZA VACANTE' : clean(r.nombres),
@@ -869,8 +999,14 @@ router.get('/:cedula', auth, async (req, res) => {
       edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
       dependencia: clean(r.dependencia),
       cargoActual: clean(r.cargo_actual),
+      cargo_actual: clean(r.cargo_actual),
+      cargo: clean(r.cargo_actual || r.cargo_base),
       codigoActual: clean(r.codigo_actual),
+      codigo_actual: clean(r.codigo_actual),
+      codigo: clean(r.codigo_actual || r.codigo_base),
       gradoActual: clean(r.grado_actual),
+      grado_actual: clean(r.grado_actual),
+      grado: clean(r.grado_actual || r.grado_base),
       nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
       nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
       cargoBase: clean(r.cargo_base),

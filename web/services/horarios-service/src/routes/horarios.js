@@ -23,6 +23,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
 const VALID_MODALIDADES = ['Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
 const VALID_ESTADOS     = ['Activa', 'Pendiente', 'En revisión', 'Finalizada', 'Rechazada', 'Caducada'];
 
+// Garantizar columnas oficiales y consecutivos en tabla horarios
+async function ensureHorariosColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS numero_consecutivo INTEGER;
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(50);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS grado VARCHAR(50);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS secretaria VARCHAR(280);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(60);
+      UPDATE horarios SET numero_consecutivo = id_horario WHERE numero_consecutivo IS NULL;
+    `);
+  } catch (err) {
+    console.warn('[horarios-service] ensureHorariosColumns aviso:', err.message);
+  }
+}
+ensureHorariosColumns();
+
 // ─── Middleware de Autenticación ─────────────────────────────────────────────
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -42,7 +59,12 @@ function canEdit(role) {
 }
 
 function upper(v) {
-  return v == null ? '' : String(v).trim().replace(/\s+/g, ' ').toUpperCase();
+  return v == null ? '' : String(v).normalize('NFC').trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+function cleanString(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).normalize('NFC').trim();
 }
 
 // ─── Calendario de Festivos de Colombia (Ley 51 de 1983 / Ley Emiliani) ──────
@@ -209,15 +231,25 @@ function parseFlexibleDuration(rawText) {
 
   const text = rawText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  if (text.includes('permanente') || text.includes('indefinid') || text.includes('sin definir')) {
+  if (
+    text.includes('permanente') ||
+    text.includes('indefinid') ||
+    text.includes('sin definir') ||
+    text.includes('no aplica') ||
+    text.includes('jornada ordinaria') ||
+    text.includes('hora') ||
+    text.includes('semana')
+  ) {
+    const dMatch = text.match(/(\d+)/);
+    const d = dMatch ? parseInt(dMatch[1], 10) : 0;
     return {
       valid: true,
       years: 0,
       months: 0,
-      days: 0,
+      days: d,
       isPermanent: true,
       totalDaysEquivalent: 0,
-      formattedText: 'Permanente',
+      formattedText: rawText.trim(),
     };
   }
 
@@ -451,23 +483,23 @@ router.get('/', auth, async (req, res) => {
     let idx = 1;
 
     if (modalidad && modalidad !== 'Todas') {
-      conditions.push(`modalidad = $${idx++}`);
+      conditions.push(`h.modalidad = $${idx++}`);
       params.push(modalidad);
     }
 
     if (estado && estado !== 'Todos') {
-      conditions.push(`LOWER(estado) = LOWER($${idx++})`);
+      conditions.push(`LOWER(h.estado) = LOWER($${idx++})`);
       params.push(estado);
     }
 
     if (dependencia && dependencia !== 'Todas') {
-      conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
+      conditions.push(`LOWER(h.dependencia) LIKE LOWER($${idx++})`);
       params.push(`%${dependencia}%`);
     }
 
     if (q) {
       conditions.push(
-        `(LOWER(apellidos_nombres) LIKE LOWER($${idx}) OR documento LIKE $${idx} OR LOWER(dependencia) LIKE LOWER($${idx}) OR LOWER(COALESCE(numero_resolucion,'')) LIKE LOWER($${idx}))`
+        `(LOWER(h.apellidos_nombres) LIKE LOWER($${idx}) OR h.documento LIKE $${idx} OR LOWER(h.dependencia) LIKE LOWER($${idx}) OR LOWER(COALESCE(h.numero_resolucion,'')) LIKE LOWER($${idx}))`
       );
       params.push(`%${q}%`);
       idx++;
@@ -475,20 +507,59 @@ router.get('/', auth, async (req, res) => {
 
     const where = conditions.join(' AND ');
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM horarios WHERE ${where}`,
+      `SELECT COUNT(*) FROM horarios h WHERE ${where}`,
       params
     );
     const total = parseInt(countResult.rows[0].count, 10);
 
+    const isAll = limit === 'all' || limit === '0' || parseInt(limit, 10) === 0 || parseInt(limit, 10) >= 10000;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const limitNum = isAll ? 100000 : Math.max(1, parseInt(limit, 10) || 20);
     const offset = (pageNum - 1) * limitNum;
+
+    const orderDir = (req.query.order && String(req.query.order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
+    let orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
+    if (req.query.sort === 'nombre') {
+      orderByClause = `ORDER BY h.apellidos_nombres ${orderDir}`;
+    } else if (req.query.sort === 'fecha') {
+      orderByClause = `ORDER BY h.fecha_inicio ${orderDir}`;
+    }
 
     params.push(limitNum, offset);
     const query = `
-      SELECT * FROM horarios
+      SELECT
+        h.*,
+        p.primer_apellido,
+        p.segundo_apellido,
+        p.nombres AS persona_nombres,
+        COALESCE(h.codigo, ca.codigo, '') AS codigo,
+        COALESCE(h.grado, ca.grado, '') AS grado,
+        COALESCE(h.secretaria, d.dependencia, h.dependencia, '') AS secretaria,
+        COALESCE(h.telefono, con.celular, con.telefono_fijo, '') AS telefono
+      FROM horarios h
+      LEFT JOIN LATERAL (
+        SELECT p.id_persona, p.primer_apellido, p.segundo_apellido, p.nombres
+        FROM personas p
+        WHERE p.cedula = h.documento
+           OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = REPLACE(REPLACE(h.documento, '.', ''), ' ', '')
+        LIMIT 1
+      ) p ON true
+      LEFT JOIN LATERAL (
+        SELECT r.id_cargo_actual, r.id_dependencia, r.id_contacto
+        FROM rel_principal r
+        WHERE r.id_persona = p.id_persona
+        LIMIT 1
+      ) r ON true
+      LEFT JOIN LATERAL (
+        SELECT con.celular, con.telefono_fijo
+        FROM contactos con
+        WHERE con.id_contacto = r.id_contacto
+        LIMIT 1
+      ) con ON true
+      LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
+      LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
       WHERE ${where}
-      ORDER BY id_horario DESC
+      ${orderByClause}
       LIMIT $${idx++} OFFSET $${idx++}
     `;
 
@@ -504,6 +575,18 @@ router.get('/', auth, async (req, res) => {
   } catch (err) {
     console.error('[horarios-service] Error en GET /:', err);
     res.status(500).json({ error: 'Error al consultar horarios: ' + err.message });
+  }
+});
+
+// ─── GET /api/horarios/next-consecutivo ───────────────────────────────────────
+router.get('/next-consecutivo', auth, async (req, res) => {
+  try {
+    const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
+    const maxVal = parseInt(maxQ.rows[0].max_val, 10) || 0;
+    const nextVal = maxVal + 1;
+    res.json({ nextConsecutivo: nextVal, maxConsecutivo: maxVal });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -564,8 +647,8 @@ router.post('/calculate-dates', auth, (req, res) => {
         valid: true,
         fechaInicio,
         fechaFin: null,
-        duracionTexto: 'Permanente',
-        duracionDias: 0,
+        duracionTexto: parseRes.formattedText,
+        duracionDias: parseRes.totalDaysEquivalent || 0,
         tipoCalculo: isBusiness ? 'Hábiles' : 'Calendario',
       });
     }
@@ -633,77 +716,58 @@ router.post('/bulk', auth, async (req, res) => {
 
   const client = await pool.connect();
   let inserted = 0;
+  let updated = 0;
   let skipped = 0;
+  let teletrabajoCount = 0;
+  let flexCount = 0;
+  let casaCount = 0;
+  let presencialCount = 0;
+  let otrasCount = 0;
   const errors = [];
 
   try {
     await client.query('BEGIN');
 
+    // Obtener consecutivos existentes para garantizar unicidad secuencial
+    const existingConsecs = await client.query('SELECT numero_consecutivo FROM horarios WHERE numero_consecutivo IS NOT NULL');
+    const usedConsecutivos = new Set(existingConsecs.rows.map(r => parseInt(r.numero_consecutivo, 10)));
+
+    const maxConsecRes = await client.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_consec FROM horarios');
+    let autoConsec = parseInt(maxConsecRes.rows[0]?.max_consec || 0, 10);
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const documento = (row.documento || row.cedula || row['Documento'] || row['Cédula'] || '').toString().trim();
-      const apellidos_nombres = (row.apellidos_nombres || row.persona || row.nombreCompleto || row['Servidor Público'] || row['Nombres y Apellidos'] || '').toString().trim();
-      const dependencia = (row.dependencia || row['Dependencia'] || 'SECRETARÍA GENERAL').toString().trim();
-      const cargo = (row.cargo || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO').toString().trim();
 
-      let modalidad = (row.modalidad || row['Modalidad'] || 'Presencial').toString().trim();
-      const matchedMod = VALID_MODALIDADES.find((m) => m.toLowerCase() === modalidad.toLowerCase());
-      modalidad = matchedMod || 'Presencial';
-
-      let estado = (row.estado || row['Estado'] || 'Activa').toString().trim();
-      const matchedEst = VALID_ESTADOS.find((e) => e.toLowerCase() === estado.toLowerCase());
-      estado = matchedEst || 'Activa';
-
-      let fecha_inicio = (row.fecha_inicio || row.fechaInicio || row['Fecha Inicio'] || row['Inicio'] || '').toString().trim();
-      if (!fecha_inicio) {
-        fecha_inicio = new Date().toISOString().split('T')[0];
-      } else if (fecha_inicio.includes('/')) {
-        const parts = fecha_inicio.split('/');
-        if (parts.length === 3) {
-          fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-      }
-
-      let duracion_texto = (
-        row.duracion_texto ||
-        row.duracion ||
-        row['Duración'] ||
-        row['Duracion'] ||
-        (modalidad === 'Presencial' ? 'Permanente' : '1 año')
-      ).toString().trim();
-      let tipo_calculo = (row.tipo_calculo || row.tipoCalculo || row['Tipo Cómputo'] || row['Tipo Calculo'] || 'Hábiles').toString().trim();
-      const isBusiness = checkIsBusiness(tipo_calculo);
-
-      let finalDuracionTexto = duracion_texto;
-      let finalDuracionDias = 0;
-      let finalFechaFin = null;
-
-      if (/^(permanente|indefinid|sin definir)/i.test(duracion_texto)) {
-        finalDuracionTexto = 'Permanente';
-        finalDuracionDias = 0;
-        finalFechaFin = null;
+      // Consecutivo (editable / autoincrementable y sin colisiones entre hojas)
+      let numConsecutivo = row.numero_consecutivo || row.consecutivo || row['No.'] || row['No'] || row['N°'] || row['Item'] || null;
+      if (numConsecutivo !== null && numConsecutivo !== undefined && String(numConsecutivo).trim() !== '') {
+        numConsecutivo = parseInt(numConsecutivo, 10);
+        if (isNaN(numConsecutivo)) numConsecutivo = null;
       } else {
-        const parseRes = parseFlexibleDuration(duracion_texto);
-        if (parseRes.valid) {
-          finalDuracionTexto = parseRes.formattedText;
-          finalDuracionDias = parseRes.totalDaysEquivalent;
-          finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
-        } else {
-          finalDuracionTexto = duracion_texto;
-          finalDuracionDias = 30;
-          finalFechaFin = computeEndDate(fecha_inicio, 30, isBusiness);
+        numConsecutivo = null;
+      }
+
+      // Si no trae consecutivo o si ese número ya fue usado (ej: Hoja2 reinicia en 1), asignar siguiente autoConsec
+      if (!numConsecutivo || usedConsecutivos.has(numConsecutivo)) {
+        autoConsec++;
+        while (usedConsecutivos.has(autoConsec)) {
+          autoConsec++;
+        }
+        numConsecutivo = autoConsec;
+        usedConsecutivos.add(numConsecutivo);
+      } else {
+        usedConsecutivos.add(numConsecutivo);
+        if (numConsecutivo > autoConsec) {
+          autoConsec = numConsecutivo;
         }
       }
 
-      const numero_resolucion = (
-        row.numero_resolucion ||
-        row.resolucion ||
-        row['Número Resolución'] ||
-        row['Resolución'] ||
-        `RES-2026-${String(Math.floor(1000 + Math.random() * 9000))}`
-      ).toString().trim();
-      const aprobado_por = (row.aprobado_por || row['Aprobado Por'] || req.user.name || 'Angela Ussa').toString().trim();
-      const observaciones = (row.observaciones || row['Observaciones'] || 'Carga Masiva Excel').toString().trim();
+      // Identificación y Nombres
+      const documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
+      let apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
+      if (!apellidos_nombres && (row['APELLIDOS'] || row['NOMBRES'] || row.apellidos || row.nombres)) {
+        apellidos_nombres = cleanString([row['APELLIDOS'] || row.apellidos, row['NOMBRES'] || row.nombres].filter(Boolean).join(' '));
+      }
 
       if (!documento || !apellidos_nombres) {
         errors.push(`Fila ${i + 1}: Cédula y Nombre son obligatorios.`);
@@ -711,52 +775,304 @@ router.post('/bulk', auth, async (req, res) => {
         continue;
       }
 
-      const ins = await client.query(
-        `INSERT INTO horarios (
-           documento, apellidos_nombres, dependencia, cargo, modalidad, estado,
-           fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
-           numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por,
-           observaciones, creado_por
-         ) VALUES (
-           $1, $2, $3, $4, $5, $6,
-           $7, $8, $9, $10, $11,
-           $12, CURRENT_DATE, CURRENT_DATE, $13,
-           $14, $15
-         ) RETURNING id_horario`,
-        [
-          documento,
-          apellidos_nombres.toUpperCase(),
-          dependencia.toUpperCase(),
-          cargo.toUpperCase(),
-          modalidad,
-          estado,
-          fecha_inicio,
-          finalFechaFin,
-          finalDuracionTexto,
-          finalDuracionDias,
-          isBusiness ? 'Hábiles' : 'Calendario',
-          numero_resolucion,
-          aprobado_por,
-          observaciones,
-          req.user.name || 'Carga Masiva',
-        ]
-      );
+      // Estructura Institucional
+      const codigo = (row.codigo || row['COD'] || row['Código'] || row['Codigo'] || row['Cod'] || '').toString().trim();
+      const grado = (row.grado || row['GRA'] || row['Grado'] || row['Gra'] || '').toString().trim();
+      const cargo = cleanString(row.cargo || row['CARGO'] || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
+      const dependencia = cleanString(row.dependencia || row['DEPENDENCIA'] || row['Dependencia'] || 'SECRETARÍA GENERAL');
+      const secretaria = cleanString(row.secretaria || row['SECRETARIA'] || row['Secretaría'] || row['Secretaria'] || dependencia);
 
-      const newId = ins.rows[0].id_horario;
-      await client.query(
-        `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-         VALUES ($1, 'Creación Masiva', $2, 'Carga masiva desde archivo Excel.', $3)`,
-        [newId, estado, req.user.name || 'Carga Masiva']
-      );
+      // Situación laboral / Modalidad
+      const rawSituacion = cleanString(row.situacion || row['SITUACION'] || row['SITUACIÓN'] || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
+      let modalidad = 'Presencial';
+      if (/teletrabaj/i.test(rawSituacion)) {
+        modalidad = 'Teletrabajo';
+      } else if (/flexib/i.test(rawSituacion)) {
+        modalidad = 'Horario flexible';
+      } else if (/casa/i.test(rawSituacion)) {
+        modalidad = 'Trabajo en casa';
+      } else if (/presenc/i.test(rawSituacion)) {
+        modalidad = 'Presencial';
+      } else if (VALID_MODALIDADES.some(m => m.toLowerCase() === rawSituacion.toLowerCase())) {
+        modalidad = VALID_MODALIDADES.find(m => m.toLowerCase() === rawSituacion.toLowerCase());
+      } else {
+        modalidad = 'Teletrabajo';
+      }
 
-      inserted++;
+      // Días / Horario específico
+      const diasRaw = cleanString(row.dias_teletrabajo || row['DIAS DE TELETRABAJO'] || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
+      let dias_teletrabajo = diasRaw;
+      let subtipo_teletrabajo = null;
+      let franja_ingreso = null;
+      let justificacion_flex = null;
+
+      if (modalidad === 'Teletrabajo') {
+        subtipo_teletrabajo = 'Suplementario (Híbrido)';
+        dias_teletrabajo = diasRaw || 'Martes, Jueves';
+      } else if (modalidad === 'Horario flexible') {
+        justificacion_flex = diasRaw || 'Esquema de horario flexible concertado';
+        franja_ingreso = diasRaw || '07:00 - 08:30';
+      }
+
+      let estado = (row.estado || row['Estado'] || 'Activa').toString().trim();
+      const matchedEst = VALID_ESTADOS.find((e) => e.toLowerCase() === estado.toLowerCase());
+      estado = matchedEst || 'Activa';
+
+      // Fecha del acto / solicitud si viene en el archivo (sin inventar fechas ficticias)
+      const rawFecha = (row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || '').toString().trim();
+      let fecha_inicio = null;
+      if (rawFecha) {
+        if (rawFecha.includes('/')) {
+          const parts = rawFecha.split('/');
+          if (parts.length === 3) {
+            fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawFecha)) {
+          fecha_inicio = rawFecha;
+        } else {
+          const months = {
+            enero: '01', febrero: '02', marzo: '03', abril: '04',
+            mayo: '05', junio: '06', julio: '07', agosto: '08',
+            septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+          };
+          const match = rawFecha.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+          if (match && months[match[2].toLowerCase()]) {
+            fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          }
+        }
+      }
+
+      // Cómputo de duración realista basado estrictamente en los datos del archivo:
+      // - Teletrabajo: contar los días de la semana autorizados (ej: martes y jueves = 2 días / semana)
+      // - Horario flexible: jornada por horas pactada (ej: 8 horas / día)
+      // - Trabajo en casa: modalidad transitoria sin fechas ni duración (No aplica)
+      // - No inventar fechas de fin ni 11 meses
+      let finalDuracionTexto = '';
+      let finalDuracionDias = 0;
+
+      if (modalidad === 'Teletrabajo') {
+        const dLower = (dias_teletrabajo || '').toLowerCase();
+        let daysCount = 0;
+        if (dLower.includes('lunes')) daysCount++;
+        if (dLower.includes('martes')) daysCount++;
+        if (dLower.includes('miercoles') || dLower.includes('miércoles')) daysCount++;
+        if (dLower.includes('jueves')) daysCount++;
+        if (dLower.includes('viernes')) daysCount++;
+        if (dLower.includes('sabado') || dLower.includes('sábado')) daysCount++;
+        if (dLower.includes('domingo')) daysCount++;
+
+        finalDuracionDias = daysCount > 0 ? daysCount : 2;
+        finalDuracionTexto = `${finalDuracionDias} días / semana`;
+      } else if (modalidad === 'Horario flexible') {
+        finalDuracionDias = 0;
+        finalDuracionTexto = '8 horas / día';
+      } else if (modalidad === 'Trabajo en casa') {
+        finalDuracionDias = 0;
+        finalDuracionTexto = 'No aplica';
+      } else {
+        finalDuracionDias = 0;
+        finalDuracionTexto = 'Jornada ordinaria';
+      }
+
+      const finalFechaFin = row.fecha_fin || null;
+      const isBusiness = true;
+
+      const rawRes = (
+        row.numero_resolucion ||
+        row.resolucion ||
+        row['Número Resolución'] ||
+        row['Resolución'] ||
+        row['No. Resolución'] ||
+        ''
+      ).toString().trim();
+      const numero_resolucion = rawRes || null;
+      const aprobado_por = cleanString(row.aprobado_por || row['Aprobado Por'] || '') || null;
+      const observaciones = cleanString(row.observaciones || row['Observaciones'] || 'Carga Masiva Excel - Alternancia');
+      const soporte_acto = row.soporte_acto || row.soporte || null;
+
+      // ──────────────────────────────────────────────────────────────────────────
+      // Carga de registros: Solo actualizar si se proporciona explícitamente id_horario.
+      // Cada fila representa una situación administrativa independiente (ej: Teletrabajo
+      // y Horario Flexible para el mismo funcionario, o autorizaciones en periodos distintos).
+      // NO pisar ni deduplicar por cédula/documento.
+      // ──────────────────────────────────────────────────────────────────────────
+      let existingRecord = null;
+
+      if (row.id_horario) {
+        const check = await client.query(
+          'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE id_horario = $1 LIMIT 1',
+          [row.id_horario]
+        );
+        if (check.rows.length) existingRecord = check.rows[0];
+      }
+
+      let finalId = null;
+
+      if (existingRecord) {
+        finalId = existingRecord.id_horario;
+        const consecToUse = existingRecord.numero_consecutivo || numConsecutivo;
+        const soporteToUse = soporte_acto || existingRecord.soporte_acto;
+
+        await client.query(
+          `UPDATE horarios SET
+             numero_consecutivo = $1,
+             apellidos_nombres  = $2,
+             codigo             = COALESCE($3, codigo),
+             grado              = COALESCE($4, grado),
+             dependencia        = $5,
+             secretaria         = COALESCE($6, secretaria),
+             cargo              = $7,
+             modalidad          = $8,
+             estado             = $9,
+             fecha_inicio       = COALESCE($10, fecha_inicio),
+             fecha_fin          = $11,
+             duracion_texto     = $12,
+             duracion_dias      = $13,
+             tipo_calculo       = $14,
+             numero_resolucion  = COALESCE($15, numero_resolucion),
+             soporte_acto       = COALESCE($16, soporte_acto),
+             subtipo_teletrabajo= $17,
+             dias_teletrabajo   = $18,
+             franja_ingreso     = COALESCE($19, franja_ingreso),
+             justificacion_flex = COALESCE($20, justificacion_flex),
+             observaciones      = $21,
+             aprobado_por       = COALESCE($22, aprobado_por),
+             actualizado_en     = NOW()
+           WHERE id_horario = $23`,
+          [
+            consecToUse,
+            apellidos_nombres.toUpperCase(),
+            codigo || null,
+            grado || null,
+            dependencia.toUpperCase(),
+            secretaria ? secretaria.toUpperCase() : null,
+            cargo.toUpperCase(),
+            modalidad,
+            estado,
+            fecha_inicio,
+            finalFechaFin,
+            finalDuracionTexto,
+            finalDuracionDias,
+            isBusiness ? 'Hábiles' : 'Calendario',
+            numero_resolucion,
+            soporteToUse,
+            subtipo_teletrabajo,
+            dias_teletrabajo || null,
+            franja_ingreso || null,
+            justificacion_flex || null,
+            observaciones,
+            aprobado_por || null,
+            finalId,
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
+           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (evitando duplicidad de cédula).', $3)`,
+          [finalId, estado, req.user.name || 'Carga Masiva']
+        );
+
+        updated++;
+      } else {
+        const ins = await client.query(
+          `INSERT INTO horarios (
+             numero_consecutivo, documento, apellidos_nombres, codigo, grado,
+             dependencia, secretaria, cargo, modalidad, estado,
+             fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
+             numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
+             subtipo_teletrabajo, dias_teletrabajo, franja_ingreso, justificacion_flex,
+             observaciones, creado_por
+           ) VALUES (
+             $1, $2, $3, $4, $5,
+             $6, $7, $8, $9, $10,
+             $11, $12, $13, $14, $15,
+             $16, $17, $18, $19, $20,
+             $21, $22, $23, $24,
+             $25, $26
+           ) RETURNING id_horario`,
+          [
+            numConsecutivo,
+            documento,
+            apellidos_nombres.toUpperCase(),
+            codigo || null,
+            grado || null,
+            dependencia.toUpperCase(),
+            secretaria ? secretaria.toUpperCase() : null,
+            cargo.toUpperCase(),
+            modalidad,
+            estado,
+            fecha_inicio,
+            finalFechaFin,
+            finalDuracionTexto,
+            finalDuracionDias,
+            isBusiness ? 'Hábiles' : 'Calendario',
+            numero_resolucion,
+            fecha_inicio || null,
+            null,
+            aprobado_por,
+            soporte_acto,
+            subtipo_teletrabajo,
+            dias_teletrabajo || null,
+            franja_ingreso || null,
+            justificacion_flex || null,
+            observaciones,
+            req.user.name || 'Carga Masiva',
+          ]
+        );
+
+        finalId = ins.rows[0].id_horario;
+        await client.query(
+          `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
+           VALUES ($1, 'Creación Masiva', $2, 'Carga masiva desde archivo Excel de teletrabajadores y alternancia.', $3)`,
+          [finalId, estado, req.user.name || 'Carga Masiva']
+        );
+
+        inserted++;
+      }
     }
+
+    const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) && req.body.hojasProcesadas.length
+      ? req.body.hojasProcesadas
+      : ['Hoja 1'];
+
+    // Consultar el estado real consolidado de la tabla horarios tras el procesamiento
+    const finalStatsRes = await client.query(`
+      SELECT 
+        COUNT(*) as total_activos,
+        COUNT(DISTINCT documento) as servidores_unicos,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%teletrabaj%') as teletrabajo,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%flexib%') as flex,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%casa%') as casa,
+        COUNT(*) FILTER (WHERE modalidad NOT ILIKE '%teletrabaj%' AND modalidad NOT ILIKE '%flexib%' AND modalidad NOT ILIKE '%casa%') as presencial
+      FROM horarios;
+    `);
+    const stats = finalStatsRes.rows[0] || {};
+
+    const totalActivos = parseInt(stats.total_activos || 0, 10);
+    const servidoresUnicos = parseInt(stats.servidores_unicos || totalActivos, 10);
+    const teletrabajoFinal = parseInt(stats.teletrabajo || 0, 10);
+    const flexFinal = parseInt(stats.flex || 0, 10);
+    const casaFinal = parseInt(stats.casa || 0, 10);
+    const presencialFinal = parseInt(stats.presencial || 0, 10);
 
     await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Se importaron ${inserted} esquemas de horario exitosamente.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      message: `Carga masiva procesada: ${inserted} nuevos servidores registrados, ${updated} actualizados sin duplicidad.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      resumen: {
+        totalFilas: inserted + updated,
+        servidoresUnicos: servidoresUnicos,
+        insertados: inserted,
+        actualizados: updated,
+        teletrabajo: teletrabajoFinal,
+        horarioFlexible: flexFinal,
+        trabajoEnCasa: casaFinal,
+        presencial: presencialFinal,
+        otrasModalidades: flexFinal + casaFinal + presencialFinal,
+      },
+      hojasProcesadas,
       inserted,
+      updated,
       skipped,
       errors,
     });
@@ -776,6 +1092,10 @@ router.post('/', auth, async (req, res) => {
   }
 
   const {
+    numero_consecutivo,
+    codigo,
+    grado,
+    secretaria,
     documento,
     apellidos_nombres,
     dependencia,
@@ -818,9 +1138,9 @@ router.post('/', auth, async (req, res) => {
     observaciones,
   } = req.body;
 
-  if (!documento || !apellidos_nombres || !modalidad || !fecha_inicio) {
+  if (!documento || !apellidos_nombres || !modalidad) {
     return res.status(400).json({
-      error: 'Documento, Nombre, Modalidad y Fecha de Inicio son obligatorios.',
+      error: 'Documento, Nombre y Modalidad son obligatorios.',
     });
   }
 
@@ -833,7 +1153,7 @@ router.post('/', auth, async (req, res) => {
   // Parsear y validar duración flexible (REQ-026)
   const isBusiness = checkIsBusiness(tipo_calculo);
   let finalDuracionTexto = duracion_texto || '';
-  let finalDuracionDias = 1;
+  let finalDuracionDias = 0;
   let finalFechaFin = fecha_fin || null;
 
   if (duracion_texto) {
@@ -843,16 +1163,15 @@ router.post('/', auth, async (req, res) => {
     }
     finalDuracionTexto = parseRes.formattedText;
     finalDuracionDias = parseRes.totalDaysEquivalent;
-    if (!finalFechaFin) {
+    if (!finalFechaFin && !parseRes.isPermanent && parseRes.totalDaysEquivalent > 0 && fecha_inicio) {
       finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
     }
-  } else if (fecha_fin) {
+  } else if (fecha_fin && fecha_inicio) {
     finalDuracionDias = computeDaysBetween(fecha_inicio, fecha_fin, isBusiness);
     finalDuracionTexto = `${finalDuracionDias} días ${isBusiness ? 'hábiles' : 'calendario'}`;
   } else if (modalidad === 'Presencial') {
-    // Para presencial permanente por defecto
-    finalDuracionDias = 365;
-    finalDuracionTexto = 'Permanente';
+    finalDuracionDias = 0;
+    finalDuracionTexto = 'Jornada ordinaria';
   }
 
   // Validación de metadatos administrativos (REQ-028)
@@ -865,8 +1184,22 @@ router.post('/', auth, async (req, res) => {
   }
 
   try {
+    const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
+    const maxConsecutivo = parseInt(maxQ.rows[0]?.max_val || 0, 10);
+    const minPermitido = maxConsecutivo + 1;
+
+    let finalConsecutivo = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
+    if (!finalConsecutivo || isNaN(finalConsecutivo)) {
+      finalConsecutivo = minPermitido;
+    } else if (finalConsecutivo < minPermitido) {
+      return res.status(400).json({
+        error: `El número consecutivo oficial (${finalConsecutivo}) no puede ser menor al siguiente consecutivo permitido (${minPermitido}). El último consecutivo registrado es ${maxConsecutivo}.`,
+      });
+    }
+
     const insertRes = await pool.query(
       `INSERT INTO horarios (
+         numero_consecutivo, codigo, grado, secretaria,
          documento, apellidos_nombres, dependencia, cargo, modalidad, estado,
          fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
          numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
@@ -875,15 +1208,20 @@ router.post('/', auth, async (req, res) => {
          franja_ingreso, franja_salida, horas_semanales, tiempo_almuerzo, justificacion_flex,
          observaciones, creado_por
        ) VALUES (
-         $1, $2, $3, $4, $5, $6,
-         $7, $8, $9, $10, $11,
-         $12, $13, $14, $15, $16,
-         $17, $18, $19, $20, $21, $22,
-         $23, $24, $25, $26,
-         $27, $28, $29, $30, $31,
-         $32, $33
+         $1, $2, $3, $4,
+         $5, $6, $7, $8, $9, $10,
+         $11, $12, $13, $14, $15,
+         $16, $17, $18, $19, $20,
+         $21, $22, $23, $24, $25, $26,
+         $27, $28, $29, $30,
+         $31, $32, $33, $34, $35,
+         $36, $37
        ) RETURNING *`,
       [
+        finalConsecutivo,
+        codigo ? String(codigo).trim() : null,
+        grado ? String(grado).trim() : null,
+        secretaria ? upper(secretaria) : null,
         upper(documento),
         upper(apellidos_nombres),
         upper(dependencia || 'SECRETARÍA GENERAL'),
@@ -898,7 +1236,7 @@ router.post('/', auth, async (req, res) => {
         numero_resolucion ? upper(numero_resolucion) : null,
         fecha_aprobacion || null,
         fecha_notificacion || null,
-        aprobado_por || 'Angela Ussa',
+        aprobado_por || null,
         soporte_acto || null,
         subtipo_teletrabajo || null,
         dias_teletrabajo || null,
@@ -971,6 +1309,12 @@ router.put('/:id', auth, async (req, res) => {
   const current = currentQ.rows[0];
 
   const {
+    documento = current.documento,
+    apellidos_nombres = current.apellidos_nombres,
+    numero_consecutivo = current.numero_consecutivo,
+    codigo = current.codigo,
+    grado = current.grado,
+    secretaria = current.secretaria,
     dependencia = current.dependencia,
     cargo = current.cargo,
     modalidad = current.modalidad,
@@ -1018,21 +1362,32 @@ router.put('/:id', auth, async (req, res) => {
       if (!parseRes.valid) return res.status(400).json({ error: parseRes.error });
       finalDuracionTexto = parseRes.formattedText;
       finalDuracionDias = parseRes.totalDaysEquivalent;
-      finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
+      if (!parseRes.isPermanent && parseRes.totalDaysEquivalent > 0 && fecha_inicio) {
+        finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
+      } else if (parseRes.isPermanent) {
+        finalFechaFin = null;
+      }
     }
 
     const updateRes = await pool.query(
       `UPDATE horarios SET
-         dependencia = $1, cargo = $2, modalidad = $3, estado = $4,
-         fecha_inicio = $5, fecha_fin = $6, duracion_texto = $7, duracion_dias = $8, tipo_calculo = $9,
-         numero_resolucion = $10, fecha_aprobacion = $11, fecha_notificacion = $12, aprobado_por = $13, soporte_acto = $14,
-         subtipo_teletrabajo = $15, dias_teletrabajo = $16, dias_presencial = $17, domicilio_laboral = $18, notificacion_arl = $19, fecha_reporte_arl = $20,
-         motivo_trabajo_casa = $21, direccion_trabajo_casa = $22, herramientas_tic = $23, prorroga = $24,
-         franja_ingreso = $25, franja_salida = $26, horas_semanales = $27, tiempo_almuerzo = $28, justificacion_flex = $29,
-         observaciones = $30, actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_horario = $31
+         numero_consecutivo = $1, codigo = $2, grado = $3, secretaria = $4,
+         dependencia = $5, cargo = $6, modalidad = $7, estado = $8,
+         fecha_inicio = $9, fecha_fin = $10, duracion_texto = $11, duracion_dias = $12, tipo_calculo = $13,
+         numero_resolucion = $14, fecha_aprobacion = $15, fecha_notificacion = $16, aprobado_por = $17, soporte_acto = $18,
+         subtipo_teletrabajo = $19, dias_teletrabajo = $20, dias_presencial = $21, domicilio_laboral = $22, notificacion_arl = $23, fecha_reporte_arl = $24,
+         motivo_trabajo_casa = $25, direccion_trabajo_casa = $26, herramientas_tic = $27, prorroga = $28,
+         franja_ingreso = $29, franja_salida = $30, horas_semanales = $31, tiempo_almuerzo = $32, justificacion_flex = $33,
+         observaciones = $34, documento = $35, apellidos_nombres = $36, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_horario = $37
        RETURNING *`,
       [
+        numero_consecutivo !== undefined && numero_consecutivo !== null && String(numero_consecutivo).trim() !== ''
+          ? parseInt(numero_consecutivo, 10)
+          : current.numero_consecutivo,
+        codigo !== undefined ? (codigo ? String(codigo).trim() : null) : current.codigo,
+        grado !== undefined ? (grado ? String(grado).trim() : null) : current.grado,
+        secretaria !== undefined ? (secretaria ? upper(secretaria) : null) : current.secretaria,
         upper(dependencia),
         upper(cargo),
         modalidad,
@@ -1063,6 +1418,8 @@ router.put('/:id', auth, async (req, res) => {
         tiempo_almuerzo,
         justificacion_flex,
         observaciones,
+        upper(documento),
+        upper(apellidos_nombres),
         id,
       ]
     );
@@ -1090,6 +1447,48 @@ router.put('/:id', auth, async (req, res) => {
   } catch (err) {
     console.error('[horarios-service] Error actualizando horario:', err);
     res.status(500).json({ error: 'Error al actualizar horario: ' + err.message });
+  }
+});
+
+// ─── PATCH /api/horarios/:id/soporte ─────────────────────────────────────────
+router.patch('/:id/soporte', auth, async (req, res) => {
+  if (!canEdit(req.user.role || req.user.rol)) {
+    return res.status(403).json({ error: 'No tienes permisos para modificar soportes.' });
+  }
+
+  const { id } = req.params;
+  const { soporte_acto } = req.body;
+
+  try {
+    const curQ = await pool.query('SELECT * FROM horarios WHERE id_horario = $1', [id]);
+    if (curQ.rows.length === 0) return res.status(404).json({ error: 'Esquema de horario no encontrado.' });
+    const current = curQ.rows[0];
+
+    const updateRes = await pool.query(
+      `UPDATE horarios SET soporte_acto = $1, actualizado_en = CURRENT_TIMESTAMP WHERE id_horario = $2 RETURNING *`,
+      [soporte_acto || null, id]
+    );
+    const updated = updateRes.rows[0];
+
+    await pool.query(
+      `INSERT INTO historial_horarios (id_horario, accion, estado_anterior, estado_nuevo, nota, actualizado_por)
+       VALUES ($1, 'Soporte Documental', $2, $3, $4, $5)`,
+      [
+        id,
+        current.estado,
+        current.estado,
+        soporte_acto ? 'Se adjuntó o actualizó el documento de reporte/autorización firmado.' : 'Se eliminó el documento de reporte adjunto.',
+        req.user.name || req.user.username || 'Admin',
+      ]
+    );
+
+    res.json({
+      message: soporte_acto ? 'Documento soporte adjuntado exitosamente.' : 'Documento soporte removido.',
+      data: updated,
+    });
+  } catch (err) {
+    console.error('[horarios-service] Error actualizando soporte:', err);
+    res.status(500).json({ error: 'Error al actualizar documento soporte: ' + err.message });
   }
 });
 

@@ -248,7 +248,7 @@ async function importarExcel(req, res, pool) {
 
         // C. Validación de la Cédula (Excel):
         // Durante la iteración, aplica .trim().toUpperCase(). Considera inválidos: null, undefined, "", "NAN", y "DESCONOCIDA".
-        const valorCedulaCrudo = rawRow['CEDULA'] ?? rawRow['CÉDULA'] ?? rawRow['DOCUMENTO'] ?? rawRow['CC'];
+        const valorCedulaCrudo = rawRow['NUMERO DE CEDULA'] ?? rawRow['NÚMERO DE CÉDULA'] ?? rawRow['NUMERO CEDULA'] ?? rawRow['CEDULA'] ?? rawRow['CÉDULA'] ?? rawRow['DOCUMENTO'] ?? rawRow['CC'];
         const evaluacion = evaluarCedula(valorCedulaCrudo, rawRow, rowNumber, sheetName);
 
         if (!evaluacion.esValida && !tieneDatosFuncionario) {
