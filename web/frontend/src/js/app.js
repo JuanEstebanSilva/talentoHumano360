@@ -77,6 +77,8 @@ const App = (() => {
     const box = document.querySelector('.modal-box');
     if (!overlay) return;
 
+    document.querySelector('.modal-header-consecutivo')?.remove();
+
     if (box) {
       box.className = 'modal-box';
       box.style.maxWidth = '';

@@ -63,6 +63,16 @@ const API = (() => {
       }
       return request('/employees?' + new URLSearchParams(p));
     },
+    buscarServidor: async (q, limit = 8) => {
+      const cleanQ = typeof q === 'string' ? q.trim() : '';
+      try {
+        const res = await request(`/employees/buscar?q=${encodeURIComponent(cleanQ)}&limit=${limit}`);
+        if (res && Array.isArray(res.data)) return res;
+      } catch (err) {
+        // Fallback transparente en caso de versión previa de servicio
+      }
+      return API.getEmployees({ q: cleanQ, limit });
+    },
     getEmployeeByCedula: (cedula) => {
       const clean = (typeof cedula === 'string' && /^[\d.,\s]+$/.test(cedula.trim()) && /\d/.test(cedula))
         ? cedula.trim().replace(/[.,\s]/g, '')

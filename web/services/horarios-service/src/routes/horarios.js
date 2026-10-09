@@ -23,6 +23,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
 const VALID_MODALIDADES = ['Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
 const VALID_ESTADOS     = ['Activa', 'Pendiente', 'En revisión', 'Finalizada', 'Rechazada', 'Caducada'];
 
+// Garantizar columnas oficiales y consecutivos en tabla horarios
+async function ensureHorariosColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS numero_consecutivo INTEGER;
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(50);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS grado VARCHAR(50);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS secretaria VARCHAR(280);
+      ALTER TABLE horarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(60);
+      UPDATE horarios SET numero_consecutivo = id_horario WHERE numero_consecutivo IS NULL;
+    `);
+  } catch (err) {
+    console.warn('[horarios-service] ensureHorariosColumns aviso:', err.message);
+  }
+}
+ensureHorariosColumns();
+
 // ─── Middleware de Autenticación ─────────────────────────────────────────────
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
@@ -214,15 +231,25 @@ function parseFlexibleDuration(rawText) {
 
   const text = rawText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  if (text.includes('permanente') || text.includes('indefinid') || text.includes('sin definir')) {
+  if (
+    text.includes('permanente') ||
+    text.includes('indefinid') ||
+    text.includes('sin definir') ||
+    text.includes('no aplica') ||
+    text.includes('jornada ordinaria') ||
+    text.includes('hora') ||
+    text.includes('semana')
+  ) {
+    const dMatch = text.match(/(\d+)/);
+    const d = dMatch ? parseInt(dMatch[1], 10) : 0;
     return {
       valid: true,
       years: 0,
       months: 0,
-      days: 0,
+      days: d,
       isPermanent: true,
       totalDaysEquivalent: 0,
-      formattedText: 'Permanente',
+      formattedText: rawText.trim(),
     };
   }
 
@@ -456,23 +483,23 @@ router.get('/', auth, async (req, res) => {
     let idx = 1;
 
     if (modalidad && modalidad !== 'Todas') {
-      conditions.push(`modalidad = $${idx++}`);
+      conditions.push(`h.modalidad = $${idx++}`);
       params.push(modalidad);
     }
 
     if (estado && estado !== 'Todos') {
-      conditions.push(`LOWER(estado) = LOWER($${idx++})`);
+      conditions.push(`LOWER(h.estado) = LOWER($${idx++})`);
       params.push(estado);
     }
 
     if (dependencia && dependencia !== 'Todas') {
-      conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
+      conditions.push(`LOWER(h.dependencia) LIKE LOWER($${idx++})`);
       params.push(`%${dependencia}%`);
     }
 
     if (q) {
       conditions.push(
-        `(LOWER(apellidos_nombres) LIKE LOWER($${idx}) OR documento LIKE $${idx} OR LOWER(dependencia) LIKE LOWER($${idx}) OR LOWER(COALESCE(numero_resolucion,'')) LIKE LOWER($${idx}))`
+        `(LOWER(h.apellidos_nombres) LIKE LOWER($${idx}) OR h.documento LIKE $${idx} OR LOWER(h.dependencia) LIKE LOWER($${idx}) OR LOWER(COALESCE(h.numero_resolucion,'')) LIKE LOWER($${idx}))`
       );
       params.push(`%${q}%`);
       idx++;
@@ -480,20 +507,59 @@ router.get('/', auth, async (req, res) => {
 
     const where = conditions.join(' AND ');
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM horarios WHERE ${where}`,
+      `SELECT COUNT(*) FROM horarios h WHERE ${where}`,
       params
     );
     const total = parseInt(countResult.rows[0].count, 10);
 
+    const isAll = limit === 'all' || limit === '0' || parseInt(limit, 10) === 0 || parseInt(limit, 10) >= 10000;
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const limitNum = isAll ? 100000 : Math.max(1, parseInt(limit, 10) || 20);
     const offset = (pageNum - 1) * limitNum;
+
+    const orderDir = (req.query.order && String(req.query.order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
+    let orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
+    if (req.query.sort === 'nombre') {
+      orderByClause = `ORDER BY h.apellidos_nombres ${orderDir}`;
+    } else if (req.query.sort === 'fecha') {
+      orderByClause = `ORDER BY h.fecha_inicio ${orderDir}`;
+    }
 
     params.push(limitNum, offset);
     const query = `
-      SELECT * FROM horarios
+      SELECT
+        h.*,
+        p.primer_apellido,
+        p.segundo_apellido,
+        p.nombres AS persona_nombres,
+        COALESCE(h.codigo, ca.codigo, '') AS codigo,
+        COALESCE(h.grado, ca.grado, '') AS grado,
+        COALESCE(h.secretaria, d.dependencia, h.dependencia, '') AS secretaria,
+        COALESCE(h.telefono, con.celular, con.telefono_fijo, '') AS telefono
+      FROM horarios h
+      LEFT JOIN LATERAL (
+        SELECT p.id_persona, p.primer_apellido, p.segundo_apellido, p.nombres
+        FROM personas p
+        WHERE p.cedula = h.documento
+           OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = REPLACE(REPLACE(h.documento, '.', ''), ' ', '')
+        LIMIT 1
+      ) p ON true
+      LEFT JOIN LATERAL (
+        SELECT r.id_cargo_actual, r.id_dependencia, r.id_contacto
+        FROM rel_principal r
+        WHERE r.id_persona = p.id_persona
+        LIMIT 1
+      ) r ON true
+      LEFT JOIN LATERAL (
+        SELECT con.celular, con.telefono_fijo
+        FROM contactos con
+        WHERE con.id_contacto = r.id_contacto
+        LIMIT 1
+      ) con ON true
+      LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
+      LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
       WHERE ${where}
-      ORDER BY COALESCE(numero_consecutivo, 999999) ASC, id_horario ASC
+      ${orderByClause}
       LIMIT $${idx++} OFFSET $${idx++}
     `;
 
@@ -515,9 +581,10 @@ router.get('/', auth, async (req, res) => {
 // ─── GET /api/horarios/next-consecutivo ───────────────────────────────────────
 router.get('/next-consecutivo', auth, async (req, res) => {
   try {
-    const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) + 1 AS next_val FROM horarios');
-    const nextVal = parseInt(maxQ.rows[0].next_val, 10) || 1;
-    res.json({ nextConsecutivo: nextVal });
+    const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
+    const maxVal = parseInt(maxQ.rows[0].max_val, 10) || 0;
+    const nextVal = maxVal + 1;
+    res.json({ nextConsecutivo: nextVal, maxConsecutivo: maxVal });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -580,8 +647,8 @@ router.post('/calculate-dates', auth, (req, res) => {
         valid: true,
         fechaInicio,
         fechaFin: null,
-        duracionTexto: 'Permanente',
-        duracionDias: 0,
+        duracionTexto: parseRes.formattedText,
+        duracionDias: parseRes.totalDaysEquivalent || 0,
         tipoCalculo: isBusiness ? 'Hábiles' : 'Calendario',
       });
     }
@@ -652,20 +719,26 @@ router.post('/bulk', auth, async (req, res) => {
   let updated = 0;
   let skipped = 0;
   let teletrabajoCount = 0;
+  let flexCount = 0;
+  let casaCount = 0;
+  let presencialCount = 0;
   let otrasCount = 0;
   const errors = [];
 
   try {
     await client.query('BEGIN');
 
-    // Obtener el consecutivo más alto actual para auto-incrementar
+    // Obtener consecutivos existentes para garantizar unicidad secuencial
+    const existingConsecs = await client.query('SELECT numero_consecutivo FROM horarios WHERE numero_consecutivo IS NOT NULL');
+    const usedConsecutivos = new Set(existingConsecs.rows.map(r => parseInt(r.numero_consecutivo, 10)));
+
     const maxConsecRes = await client.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_consec FROM horarios');
     let autoConsec = parseInt(maxConsecRes.rows[0]?.max_consec || 0, 10);
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
 
-      // Consecutivo (editable / autoincrementable)
+      // Consecutivo (editable / autoincrementable y sin colisiones entre hojas)
       let numConsecutivo = row.numero_consecutivo || row.consecutivo || row['No.'] || row['No'] || row['N°'] || row['Item'] || null;
       if (numConsecutivo !== null && numConsecutivo !== undefined && String(numConsecutivo).trim() !== '') {
         numConsecutivo = parseInt(numConsecutivo, 10);
@@ -673,16 +746,28 @@ router.post('/bulk', auth, async (req, res) => {
       } else {
         numConsecutivo = null;
       }
-      if (!numConsecutivo) {
+
+      // Si no trae consecutivo o si ese número ya fue usado (ej: Hoja2 reinicia en 1), asignar siguiente autoConsec
+      if (!numConsecutivo || usedConsecutivos.has(numConsecutivo)) {
         autoConsec++;
+        while (usedConsecutivos.has(autoConsec)) {
+          autoConsec++;
+        }
         numConsecutivo = autoConsec;
-      } else if (numConsecutivo > autoConsec) {
-        autoConsec = numConsecutivo;
+        usedConsecutivos.add(numConsecutivo);
+      } else {
+        usedConsecutivos.add(numConsecutivo);
+        if (numConsecutivo > autoConsec) {
+          autoConsec = numConsecutivo;
+        }
       }
 
       // Identificación y Nombres
-      const documento = (row.documento || row.cedula || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
-      const apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
+      const documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
+      let apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
+      if (!apellidos_nombres && (row['APELLIDOS'] || row['NOMBRES'] || row.apellidos || row.nombres)) {
+        apellidos_nombres = cleanString([row['APELLIDOS'] || row.apellidos, row['NOMBRES'] || row.nombres].filter(Boolean).join(' '));
+      }
 
       if (!documento || !apellidos_nombres) {
         errors.push(`Fila ${i + 1}: Cédula y Nombre son obligatorios.`);
@@ -691,14 +776,14 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Estructura Institucional
-      const codigo = (row.codigo || row['Código'] || row['Codigo'] || row['Cod'] || '').toString().trim();
-      const grado = (row.grado || row['Grado'] || row['Gra'] || '').toString().trim();
-      const cargo = cleanString(row.cargo || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
-      const dependencia = cleanString(row.dependencia || row['Dependencia'] || 'SECRETARÍA GENERAL');
-      const secretaria = cleanString(row.secretaria || row['Secretaría'] || row['Secretaria'] || dependencia);
+      const codigo = (row.codigo || row['COD'] || row['Código'] || row['Codigo'] || row['Cod'] || '').toString().trim();
+      const grado = (row.grado || row['GRA'] || row['Grado'] || row['Gra'] || '').toString().trim();
+      const cargo = cleanString(row.cargo || row['CARGO'] || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
+      const dependencia = cleanString(row.dependencia || row['DEPENDENCIA'] || row['Dependencia'] || 'SECRETARÍA GENERAL');
+      const secretaria = cleanString(row.secretaria || row['SECRETARIA'] || row['Secretaría'] || row['Secretaria'] || dependencia);
 
       // Situación laboral / Modalidad
-      const rawSituacion = cleanString(row.situacion || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
+      const rawSituacion = cleanString(row.situacion || row['SITUACION'] || row['SITUACIÓN'] || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
       let modalidad = 'Presencial';
       if (/teletrabaj/i.test(rawSituacion)) {
         modalidad = 'Teletrabajo';
@@ -715,7 +800,7 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Días / Horario específico
-      const diasRaw = cleanString(row.dias_teletrabajo || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
+      const diasRaw = cleanString(row.dias_teletrabajo || row['DIAS DE TELETRABAJO'] || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
       let dias_teletrabajo = diasRaw;
       let subtipo_teletrabajo = null;
       let franja_ingreso = null;
@@ -733,85 +818,100 @@ router.post('/bulk', auth, async (req, res) => {
       const matchedEst = VALID_ESTADOS.find((e) => e.toLowerCase() === estado.toLowerCase());
       estado = matchedEst || 'Activa';
 
-      let fecha_inicio = (row.fecha_inicio || row.fechaInicio || row['Fecha Inicio'] || row['Inicio'] || '').toString().trim();
-      if (!fecha_inicio) {
-        fecha_inicio = '2026-01-15';
-      } else if (fecha_inicio.includes('/')) {
-        const parts = fecha_inicio.split('/');
-        if (parts.length === 3) {
-          fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
-      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) {
-        const months = {
-          enero: '01', febrero: '02', marzo: '03', abril: '04',
-          mayo: '05', junio: '06', julio: '07', agosto: '08',
-          septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
-        };
-        const match = fecha_inicio.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
-        if (match && months[match[2].toLowerCase()]) {
-          fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+      // Fecha del acto / solicitud si viene en el archivo (sin inventar fechas ficticias)
+      const rawFecha = (row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || '').toString().trim();
+      let fecha_inicio = null;
+      if (rawFecha) {
+        if (rawFecha.includes('/')) {
+          const parts = rawFecha.split('/');
+          if (parts.length === 3) {
+            fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawFecha)) {
+          fecha_inicio = rawFecha;
         } else {
-          fecha_inicio = '2026-01-15';
+          const months = {
+            enero: '01', febrero: '02', marzo: '03', abril: '04',
+            mayo: '05', junio: '06', julio: '07', agosto: '08',
+            septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+          };
+          const match = rawFecha.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+          if (match && months[match[2].toLowerCase()]) {
+            fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          }
         }
       }
 
-      let duracion_texto = (
-        row.duracion_texto ||
-        row.duracion ||
-        row['Duración'] ||
-        row['Duracion'] ||
-        (modalidad === 'Presencial' ? 'Permanente' : '11 meses')
-      ).toString().trim();
-      let tipo_calculo = (row.tipo_calculo || row.tipoCalculo || row['Tipo Cómputo'] || row['Tipo Calculo'] || 'Hábiles').toString().trim();
-      const isBusiness = checkIsBusiness(tipo_calculo);
-
-      let finalDuracionTexto = duracion_texto;
+      // Cómputo de duración realista basado estrictamente en los datos del archivo:
+      // - Teletrabajo: contar los días de la semana autorizados (ej: martes y jueves = 2 días / semana)
+      // - Horario flexible: jornada por horas pactada (ej: 8 horas / día)
+      // - Trabajo en casa: modalidad transitoria sin fechas ni duración (No aplica)
+      // - No inventar fechas de fin ni 11 meses
+      let finalDuracionTexto = '';
       let finalDuracionDias = 0;
-      let finalFechaFin = null;
 
-      if (/^(permanente|indefinid|sin definir)/i.test(duracion_texto)) {
-        finalDuracionTexto = 'Permanente';
+      if (modalidad === 'Teletrabajo') {
+        const dLower = (dias_teletrabajo || '').toLowerCase();
+        let daysCount = 0;
+        if (dLower.includes('lunes')) daysCount++;
+        if (dLower.includes('martes')) daysCount++;
+        if (dLower.includes('miercoles') || dLower.includes('miércoles')) daysCount++;
+        if (dLower.includes('jueves')) daysCount++;
+        if (dLower.includes('viernes')) daysCount++;
+        if (dLower.includes('sabado') || dLower.includes('sábado')) daysCount++;
+        if (dLower.includes('domingo')) daysCount++;
+
+        finalDuracionDias = daysCount > 0 ? daysCount : 2;
+        finalDuracionTexto = `${finalDuracionDias} días / semana`;
+      } else if (modalidad === 'Horario flexible') {
         finalDuracionDias = 0;
-        finalFechaFin = null;
+        finalDuracionTexto = '8 horas / día';
+      } else if (modalidad === 'Trabajo en casa') {
+        finalDuracionDias = 0;
+        finalDuracionTexto = 'No aplica';
       } else {
-        const parseRes = parseFlexibleDuration(duracion_texto);
-        if (parseRes.valid) {
-          finalDuracionTexto = parseRes.formattedText;
-          finalDuracionDias = parseRes.totalDaysEquivalent;
-          finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
-        } else {
-          finalDuracionTexto = duracion_texto;
-          finalDuracionDias = 230;
-          finalFechaFin = computeEndDate(fecha_inicio, 230, isBusiness);
-        }
+        finalDuracionDias = 0;
+        finalDuracionTexto = 'Jornada ordinaria';
       }
 
-      const numero_resolucion = (
+      const finalFechaFin = row.fecha_fin || null;
+      const isBusiness = true;
+
+      const rawRes = (
         row.numero_resolucion ||
         row.resolucion ||
         row['Número Resolución'] ||
         row['Resolución'] ||
-        `RES-2026-${String(Math.floor(1000 + Math.random() * 9000))}`
+        row['No. Resolución'] ||
+        ''
       ).toString().trim();
-      const aprobado_por = cleanString(row.aprobado_por || row['Aprobado Por'] || req.user.name || 'Angela Ussa');
+      const numero_resolucion = rawRes || null;
+      const aprobado_por = cleanString(row.aprobado_por || row['Aprobado Por'] || '') || null;
       const observaciones = cleanString(row.observaciones || row['Observaciones'] || 'Carga Masiva Excel - Alternancia');
       const soporte_acto = row.soporte_acto || row.soporte || null;
 
       // ──────────────────────────────────────────────────────────────────────────
-      // Lógica UPSERT: Si ya existe un registro con la misma cédula, lo actualiza
-      // para evitar duplicados en re-importaciones, tal como en Servidores Públicos.
+      // Carga de registros: Solo actualizar si se proporciona explícitamente id_horario.
+      // Cada fila representa una situación administrativa independiente (ej: Teletrabajo
+      // y Horario Flexible para el mismo funcionario, o autorizaciones en periodos distintos).
+      // NO pisar ni deduplicar por cédula/documento.
       // ──────────────────────────────────────────────────────────────────────────
-      const existingRes = await client.query(
-        'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE documento = $1 LIMIT 1',
-        [documento]
-      );
+      let existingRecord = null;
+
+      if (row.id_horario) {
+        const check = await client.query(
+          'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE id_horario = $1 LIMIT 1',
+          [row.id_horario]
+        );
+        if (check.rows.length) existingRecord = check.rows[0];
+      }
 
       let finalId = null;
 
-      if (existingRes.rows.length > 0) {
-        finalId = existingRes.rows[0].id_horario;
-        const consecToUse = numConsecutivo || existingRes.rows[0].numero_consecutivo;
-        const soporteToUse = soporte_acto || existingRes.rows[0].soporte_acto;
+      if (existingRecord) {
+        finalId = existingRecord.id_horario;
+        const consecToUse = existingRecord.numero_consecutivo || numConsecutivo;
+        const soporteToUse = soporte_acto || existingRecord.soporte_acto;
 
         await client.query(
           `UPDATE horarios SET
@@ -824,20 +924,21 @@ router.post('/bulk', auth, async (req, res) => {
              cargo              = $7,
              modalidad          = $8,
              estado             = $9,
-             fecha_inicio       = $10,
+             fecha_inicio       = COALESCE($10, fecha_inicio),
              fecha_fin          = $11,
              duracion_texto     = $12,
              duracion_dias      = $13,
              tipo_calculo       = $14,
              numero_resolucion  = COALESCE($15, numero_resolucion),
-             soporte_acto       = $16,
+             soporte_acto       = COALESCE($16, soporte_acto),
              subtipo_teletrabajo= $17,
              dias_teletrabajo   = $18,
              franja_ingreso     = COALESCE($19, franja_ingreso),
              justificacion_flex = COALESCE($20, justificacion_flex),
              observaciones      = $21,
+             aprobado_por       = COALESCE($22, aprobado_por),
              actualizado_en     = NOW()
-           WHERE id_horario = $22`,
+           WHERE id_horario = $23`,
           [
             consecToUse,
             apellidos_nombres.toUpperCase(),
@@ -860,13 +961,14 @@ router.post('/bulk', auth, async (req, res) => {
             franja_ingreso || null,
             justificacion_flex || null,
             observaciones,
+            aprobado_por || null,
             finalId,
           ]
         );
 
         await client.query(
           `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (UPSERT).', $3)`,
+           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (evitando duplicidad de cédula).', $3)`,
           [finalId, estado, req.user.name || 'Carga Masiva']
         );
 
@@ -884,9 +986,9 @@ router.post('/bulk', auth, async (req, res) => {
              $1, $2, $3, $4, $5,
              $6, $7, $8, $9, $10,
              $11, $12, $13, $14, $15,
-             $16, CURRENT_DATE, CURRENT_DATE, $17, $18,
-             $19, $20, $21, $22,
-             $23, $24
+             $16, $17, $18, $19, $20,
+             $21, $22, $23, $24,
+             $25, $26
            ) RETURNING id_horario`,
           [
             numConsecutivo,
@@ -905,6 +1007,8 @@ router.post('/bulk', auth, async (req, res) => {
             finalDuracionDias,
             isBusiness ? 'Hábiles' : 'Calendario',
             numero_resolucion,
+            fecha_inicio || null,
+            null,
             aprobado_por,
             soporte_acto,
             subtipo_teletrabajo,
@@ -925,28 +1029,46 @@ router.post('/bulk', auth, async (req, res) => {
 
         inserted++;
       }
-
-      if (modalidad === 'Teletrabajo') {
-        teletrabajoCount++;
-      } else {
-        otrasCount++;
-      }
     }
 
     const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) && req.body.hojasProcesadas.length
       ? req.body.hojasProcesadas
       : ['Hoja 1'];
 
+    // Consultar el estado real consolidado de la tabla horarios tras el procesamiento
+    const finalStatsRes = await client.query(`
+      SELECT 
+        COUNT(*) as total_activos,
+        COUNT(DISTINCT documento) as servidores_unicos,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%teletrabaj%') as teletrabajo,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%flexib%') as flex,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%casa%') as casa,
+        COUNT(*) FILTER (WHERE modalidad NOT ILIKE '%teletrabaj%' AND modalidad NOT ILIKE '%flexib%' AND modalidad NOT ILIKE '%casa%') as presencial
+      FROM horarios;
+    `);
+    const stats = finalStatsRes.rows[0] || {};
+
+    const totalActivos = parseInt(stats.total_activos || 0, 10);
+    const servidoresUnicos = parseInt(stats.servidores_unicos || totalActivos, 10);
+    const teletrabajoFinal = parseInt(stats.teletrabajo || 0, 10);
+    const flexFinal = parseInt(stats.flex || 0, 10);
+    const casaFinal = parseInt(stats.casa || 0, 10);
+    const presencialFinal = parseInt(stats.presencial || 0, 10);
+
     await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Carga masiva procesada: ${inserted} nuevos registros creados, ${updated} actualizados.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      message: `Carga masiva procesada: ${inserted} nuevos servidores registrados, ${updated} actualizados sin duplicidad.${skipped ? ` (${skipped} omitidos)` : ''}`,
       resumen: {
         totalFilas: inserted + updated,
+        servidoresUnicos: servidoresUnicos,
         insertados: inserted,
         actualizados: updated,
-        teletrabajo: teletrabajoCount,
-        otrasModalidades: otrasCount,
+        teletrabajo: teletrabajoFinal,
+        horarioFlexible: flexFinal,
+        trabajoEnCasa: casaFinal,
+        presencial: presencialFinal,
+        otrasModalidades: flexFinal + casaFinal + presencialFinal,
       },
       hojasProcesadas,
       inserted,
@@ -1016,9 +1138,9 @@ router.post('/', auth, async (req, res) => {
     observaciones,
   } = req.body;
 
-  if (!documento || !apellidos_nombres || !modalidad || !fecha_inicio) {
+  if (!documento || !apellidos_nombres || !modalidad) {
     return res.status(400).json({
-      error: 'Documento, Nombre, Modalidad y Fecha de Inicio son obligatorios.',
+      error: 'Documento, Nombre y Modalidad son obligatorios.',
     });
   }
 
@@ -1031,7 +1153,7 @@ router.post('/', auth, async (req, res) => {
   // Parsear y validar duración flexible (REQ-026)
   const isBusiness = checkIsBusiness(tipo_calculo);
   let finalDuracionTexto = duracion_texto || '';
-  let finalDuracionDias = 1;
+  let finalDuracionDias = 0;
   let finalFechaFin = fecha_fin || null;
 
   if (duracion_texto) {
@@ -1041,16 +1163,15 @@ router.post('/', auth, async (req, res) => {
     }
     finalDuracionTexto = parseRes.formattedText;
     finalDuracionDias = parseRes.totalDaysEquivalent;
-    if (!finalFechaFin) {
+    if (!finalFechaFin && !parseRes.isPermanent && parseRes.totalDaysEquivalent > 0 && fecha_inicio) {
       finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
     }
-  } else if (fecha_fin) {
+  } else if (fecha_fin && fecha_inicio) {
     finalDuracionDias = computeDaysBetween(fecha_inicio, fecha_fin, isBusiness);
     finalDuracionTexto = `${finalDuracionDias} días ${isBusiness ? 'hábiles' : 'calendario'}`;
   } else if (modalidad === 'Presencial') {
-    // Para presencial permanente por defecto
-    finalDuracionDias = 365;
-    finalDuracionTexto = 'Permanente';
+    finalDuracionDias = 0;
+    finalDuracionTexto = 'Jornada ordinaria';
   }
 
   // Validación de metadatos administrativos (REQ-028)
@@ -1063,10 +1184,17 @@ router.post('/', auth, async (req, res) => {
   }
 
   try {
+    const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
+    const maxConsecutivo = parseInt(maxQ.rows[0]?.max_val || 0, 10);
+    const minPermitido = maxConsecutivo + 1;
+
     let finalConsecutivo = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
     if (!finalConsecutivo || isNaN(finalConsecutivo)) {
-      const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) + 1 AS next_val FROM horarios');
-      finalConsecutivo = parseInt(maxQ.rows[0].next_val, 10) || 1;
+      finalConsecutivo = minPermitido;
+    } else if (finalConsecutivo < minPermitido) {
+      return res.status(400).json({
+        error: `El número consecutivo oficial (${finalConsecutivo}) no puede ser menor al siguiente consecutivo permitido (${minPermitido}). El último consecutivo registrado es ${maxConsecutivo}.`,
+      });
     }
 
     const insertRes = await pool.query(
@@ -1108,7 +1236,7 @@ router.post('/', auth, async (req, res) => {
         numero_resolucion ? upper(numero_resolucion) : null,
         fecha_aprobacion || null,
         fecha_notificacion || null,
-        aprobado_por || 'Angela Ussa',
+        aprobado_por || null,
         soporte_acto || null,
         subtipo_teletrabajo || null,
         dias_teletrabajo || null,
@@ -1234,7 +1362,11 @@ router.put('/:id', auth, async (req, res) => {
       if (!parseRes.valid) return res.status(400).json({ error: parseRes.error });
       finalDuracionTexto = parseRes.formattedText;
       finalDuracionDias = parseRes.totalDaysEquivalent;
-      finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
+      if (!parseRes.isPermanent && parseRes.totalDaysEquivalent > 0 && fecha_inicio) {
+        finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
+      } else if (parseRes.isPermanent) {
+        finalFechaFin = null;
+      }
     }
 
     const updateRes = await pool.query(

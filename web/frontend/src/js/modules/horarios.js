@@ -14,10 +14,13 @@ const HorariosModule = (() => {
     limit: 20,
     totalPages: 1,
     filters: { q: '', modalidad: 'Todas', estado: 'Todos', dependencia: 'Todas' },
+    sort: 'consecutivo',
+    order: 'asc',
     stats: {},
   };
 
   let employeeSearchTimeout = null;
+  let currentMinConsecutivo = 1;
 
   // ─── Badges de Modalidad y Estado ──────────────────────────────────────────
   function badgeClass(estado) {
@@ -47,7 +50,7 @@ const HorariosModule = (() => {
     return `<span class="badge badge--presencial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/></svg> Presencial</span>`;
   }
 
-  // ─── Formateo de Fechas ───────────────────────────────────────────────────
+  // ─── Formateo de Fechas y Cédula ───────────────────────────────────────────
   function formatDate(dStr) {
     if (!dStr) return '<span class="text-muted">Sin definir</span>';
     try {
@@ -59,6 +62,50 @@ const HorariosModule = (() => {
     } catch {
       return dStr;
     }
+  }
+
+  function formatCedulaDots(val) {
+    if (!val) return '';
+    const clean = String(val).replace(/\D/g, '');
+    if (!clean) return String(val);
+    return clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function switchFichaTab(tabId) {
+    const container = document.querySelector('.ficha-wrapper');
+    if (!container) return;
+    container.querySelectorAll('.ficha-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    container.querySelectorAll('.ficha-tab-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.id === tabId);
+    });
+    const modalBody = document.getElementById('modal-body');
+    if (modalBody && modalBody.scrollTop > 100) {
+      modalBody.scrollTo({ top: 90, behavior: 'smooth' });
+    }
+  }
+
+  function copyFichaText(text, btnId) {
+    const btn = document.getElementById(btnId);
+    if (!navigator.clipboard) {
+      App.showToast('Copiado: ' + text, 'info');
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ ¡Copiado!';
+        btn.style.background = 'rgba(34, 197, 94, 0.45)';
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.style.background = '';
+        }, 1800);
+      }
+      App.showToast(`Copiado al portapapeles: ${text}`, 'success');
+    }).catch(() => {
+      App.showToast('Copiado: ' + text, 'info');
+    });
   }
 
   // ─── Dropdown de Opciones Secundarias (Ley de Hick & WCAG 2.1 AA) ──────────
@@ -172,8 +219,21 @@ const HorariosModule = (() => {
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <div>
-                    <strong>Exportar Esquemas a Excel</strong>
-                    <small>Descarga el listado filtrado actual en formato .xlsx</small>
+                    <strong>Descargar Datos en Excel</strong>
+                    <small>Exporta los registros (con filtros aplicados o todos los esquemas)</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.downloadTemplate();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial (En blanco)</strong>
+                    <small>Plantilla institucional vacía para diligenciar y cargar</small>
                   </div>
                 </button>
                 ${
@@ -224,7 +284,7 @@ const HorariosModule = (() => {
             </div>
             <div class="filter-group">
               <label class="filter-label">Modalidad</label>
-              <select id="filter-modalidad" class="filter-select">
+              <select id="filter-modalidad" class="filter-select" onchange="HorariosModule.applyFilters()">
                 ${MODALIDADES.map(
                   (m) =>
                     `<option value="${m}" ${
@@ -235,7 +295,7 @@ const HorariosModule = (() => {
             </div>
             <div class="filter-group">
               <label class="filter-label">Estado</label>
-              <select id="filter-estado" class="filter-select">
+              <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()">
                 ${ESTADOS.map(
                   (e) =>
                     `<option value="${e}" ${
@@ -265,15 +325,18 @@ const HorariosModule = (() => {
             <table aria-label="Registro de Horarios y Modalidades">
               <thead>
                 <tr>
-                  <th scope="col" style="width: 55px; text-align: center;">No.</th>
+                  <th scope="col" class="th-sortable" onclick="HorariosModule.toggleSortConsecutivo()" title="Clic para ordenar por consecutivo (#) ascendente / descendente" style="width: 75px; text-align: center; cursor: pointer; user-select: none;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; gap:4px; font-weight:700;">
+                      # <span id="horarios-sort-indicator" style="font-size:11px; color:var(--color-primary-light, #60a5fa); font-weight:bold;">▲</span>
+                    </span>
+                  </th>
                   <th scope="col">Servidor Público</th>
                   <th scope="col">Cargo & Clasificación</th>
                   <th scope="col">Dependencia & Secretaría</th>
                   <th scope="col">Situación & Horario</th>
                   <th scope="col">Vigencia & Duración</th>
-                  <th scope="col" style="text-align: center;">Soporte</th>
                   <th scope="col">Estado</th>
-                  <th scope="col" style="text-align:right">Acciones</th>
+                  <th scope="col" style="text-align: center; min-width: 145px; width: 155px;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="horarios-tbody" aria-busy="true" role="progressbar" aria-label="Cargando esquemas de horarios...">
@@ -335,7 +398,6 @@ const HorariosModule = (() => {
             <div class="skeleton skeleton-line" style="width:65px; height:11px;"></div>
           </div>
         </td>
-        <td style="text-align:center;"><div class="skeleton" style="width:65px; height:24px; border-radius:6px; margin:0 auto;"></div></td>
         <td><div class="skeleton skeleton-badge" style="width:75px; height:22px;"></div></td>
         <td>
           <div class="skeleton-actions-wrap">
@@ -435,6 +497,8 @@ const HorariosModule = (() => {
         modalidad: state.filters.modalidad,
         estado: state.filters.estado,
         dependencia: state.filters.dependencia,
+        sort: state.sort || 'consecutivo',
+        order: state.order || 'asc',
       };
 
       const res = await API.getHorarios(params);
@@ -444,13 +508,45 @@ const HorariosModule = (() => {
 
       renderTable();
       renderPagination();
+      updateSortIndicator();
       const countEl = document.getElementById('horarios-count');
       if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} esquemas`;
     } catch (err) {
       tbody.removeAttribute('role');
       tbody.setAttribute('aria-busy', 'false');
-      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><span class="empty-state-title">Error al cargar</span><span class="empty-state-desc">${escHtml(err.message)}</span></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><span class="empty-state-title">Error al cargar</span><span class="empty-state-desc">${escHtml(err.message)}</span></div></td></tr>`;
     }
+  }
+
+  function abbreviateDays(str) {
+    if (!str) return '';
+    return str
+      .replace(/\blunes\b/gi, 'Lun')
+      .replace(/\bmartes\b/gi, 'Mar')
+      .replace(/\bmi[eé]rcoles\b/gi, 'Mie')
+      .replace(/\bjueves\b/gi, 'Jue')
+      .replace(/\bviernes\b/gi, 'Vie')
+      .replace(/\bs[aá]bados?\b/gi, 'Sab')
+      .replace(/\bdomingos?\b/gi, 'Dom');
+  }
+
+  function renderHorarioDetalle(horarioDias) {
+    if (!horarioDias) return '';
+    const cleanRaw = String(horarioDias).trim();
+    const clean = abbreviateDays(cleanRaw);
+    // Separar si contiene varias franjas horarias (ej: "8 AM A 12 M, 1 A 5 PM." o separadas por coma antes de una hora/dígito)
+    const franjas = clean.split(/,\s*(?=\d)/).map(s => s.trim()).filter(Boolean);
+
+    if (franjas.length <= 1) {
+      return `<span class="user-table-sub font-bold" style="color:var(--color-primary-light, #60a5fa); margin-top:3px; display:inline-flex; align-items:center; gap:4px; font-size:11px;" title="${escHtml(cleanRaw)}">⏰ ${escHtml(clean)}</span>`;
+    }
+
+    return `
+      <div class="user-table-sub font-bold" style="color:var(--color-primary-light, #60a5fa); margin-top:3px; display:flex; flex-direction:column; gap:2px; font-size:11px; line-height:1.25;" title="${escHtml(cleanRaw)}">
+        <span style="display:inline-flex; align-items:center; gap:4px;">⏰ ${escHtml(franjas[0])}</span>
+        ${franjas.slice(1).map(f => `<span style="display:inline-flex; align-items:center; padding-left:18px;">${escHtml(f)}</span>`).join('')}
+      </div>
+    `;
   }
 
   function renderTable() {
@@ -460,7 +556,7 @@ const HorariosModule = (() => {
     tbody.setAttribute('aria-busy', 'false');
 
     if (state.data.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span class="empty-state-title">No hay esquemas registrados</span>
         <span class="empty-state-desc">No se encontraron esquemas de horarios con los filtros aplicados.</span>
@@ -519,41 +615,28 @@ const HorariosModule = (() => {
               <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 ${modalidadBadge(item.modalidad)}
               </div>
-              ${horarioDias ? `<span class="user-table-sub font-bold" style="color:var(--color-primary-light, #60a5fa); margin-top:3px; display:inline-flex; align-items:center; gap:4px;" title="${escHtml(horarioDias)}">⏰ ${escHtml(truncate(horarioDias, 30))}</span>` : ''}
+              ${renderHorarioDetalle(horarioDias)}
             </div>
           </td>
 
           <td>
             <div class="vigencia-cell">
-              <div class="vigencia-fechas">
-                <span>${formatDate(item.fecha_inicio)}</span>
-                <span class="fecha-arrow">→</span>
-                <span>${vigenciaFin}</span>
-              </div>
+              ${(item.fecha_inicio || item.fecha_fin) ? `
+                <div class="vigencia-fechas" style="font-size:11px; color:var(--text-secondary); margin-bottom:2px;">
+                  ${item.fecha_inicio ? `<span>${formatDate(item.fecha_inicio)}</span>` : ''}
+                  ${(item.fecha_inicio && item.fecha_fin) ? `<span class="fecha-arrow">→</span>` : ''}
+                  ${item.fecha_fin ? `<span>${formatDate(item.fecha_fin)}</span>` : ''}
+                </div>
+              ` : ''}
               <div class="duracion-row">
-                <span class="duracion-badge">${escHtml(item.duracion_texto || `${item.duracion_dias} días`)}</span>
-                ${tipoCalculoTag}
+                <span class="duracion-badge" style="font-size:11px; font-weight:700;">${escHtml(item.duracion_texto || (item.modalidad === 'Trabajo en casa' ? 'No aplica' : item.modalidad === 'Horario flexible' ? '8 horas / día' : item.modalidad === 'Teletrabajo' ? '2 días / semana' : 'Jornada ordinaria'))}</span>
               </div>
               ${item.numero_resolucion ? `
-                <div style="margin-top:3px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono, monospace);">
+                <div style="margin-top:3px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono, monospace);" title="Resolución: ${escHtml(item.numero_resolucion)}">
                   Res: <strong style="color:var(--text-secondary);">${escHtml(item.numero_resolucion)}</strong>
                 </div>
               ` : ''}
             </div>
-          </td>
-
-          <td style="text-align:center;">
-            ${tieneSoporte ? `
-              <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${item.id_horario})" title="Ver Reporte / Documento Firmado Adjunto" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:4px 8px; color:var(--color-green-bright, #22c55e); border-color:rgba(34,197,94,0.3);">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:13px;height:13px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span>Cargado</span>
-              </button>
-            ` : `
-              <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.openUploadSoporteModal(${item.id_horario})" title="Subir Hoja Firmada / Reporte Escaneado" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:4px 8px; color:var(--text-muted); opacity:0.85;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                <span>Adjuntar</span>
-              </button>
-            `}
           </td>
 
           <td>
@@ -563,13 +646,13 @@ const HorariosModule = (() => {
             </button>
           </td>
 
-          <td class="td-actions">
-            <div class="td-actions-wrap">
+          <td class="td-actions" style="text-align: center;">
+            <div class="td-actions-wrap" style="justify-content: center;">
               <button class="btn-action-view" onclick="HorariosModule.openView(${item.id_horario})" title="Ver Detalles y Trazabilidad">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte" onclick="HorariosModule.openUploadSoporteModal(${item.id_horario})" title="${tieneSoporte ? 'Ver / Reemplazar Hoja de Soporte' : 'Adjuntar Hoja de Soporte Firmada'}" style="${tieneSoporte ? 'color:var(--color-green-bright, #22c55e);' : ''}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <button class="btn-action-soporte ${tieneSoporte ? 'btn-action-soporte--has-file' : ''}" onclick="HorariosModule.openUploadSoporteModal(${item.id_horario})" title="${tieneSoporte ? 'Ver / Reemplazar Hoja de Soporte' : 'Adjuntar Hoja de Soporte Firmada'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               </button>
               ${canManage ? `
               <button class="btn-action-edit" onclick="HorariosModule.openEdit(${item.id_horario})" title="Editar Esquema">
@@ -607,88 +690,117 @@ const HorariosModule = (() => {
     const isEdit = Boolean(item);
     const title = isEdit ? 'Editar Esquema de Horario' : 'Registrar Nuevo Esquema de Horario';
 
-    const curModalidad = item?.modalidad || 'Presencial';
+    const curModalidad = item?.modalidad || 'Teletrabajo';
     const curTipoCalc  = item?.tipo_calculo || 'Hábiles';
+
+    // Parsear días iniciales si es Teletrabajo
+    const initialDaysLower = (item?.dias_teletrabajo || 'martes y jueves').toLowerCase();
+    const hasLun = initialDaysLower.includes('lun');
+    const hasMar = initialDaysLower.includes('mar');
+    const hasMie = initialDaysLower.includes('mie') || initialDaysLower.includes('mié');
+    const hasJue = initialDaysLower.includes('jue');
+    const hasVie = initialDaysLower.includes('vie');
+
+    // Determinar duración inicial sugerida según modalidad
+    let defaultDuracion = item?.duracion_texto || '';
+    if (!defaultDuracion) {
+      if (curModalidad === 'Teletrabajo') {
+        const count = [hasLun, hasMar, hasMie, hasJue, hasVie].filter(Boolean).length || 2;
+        defaultDuracion = `${count} días / semana`;
+      } else if (curModalidad === 'Horario flexible') {
+        defaultDuracion = '8 horas / día';
+      } else if (curModalidad === 'Trabajo en casa') {
+        defaultDuracion = 'No aplica';
+      } else {
+        defaultDuracion = 'Jornada ordinaria';
+      }
+    }
 
     const bodyHtml = `
       <form id="form-horario" class="form-grid" onsubmit="return false;">
-        <!-- Consecutivo, Código y Grado Institucional -->
-        <div class="form-group span-2" style="display:flex; gap:16px; align-items:center; background:var(--color-bg-secondary, rgba(255,255,255,0.03)); padding:14px 18px; border-radius:var(--radius-md); border:1px solid var(--color-border); flex-wrap:wrap;">
-          <div style="flex:1; min-width:140px;">
-            <label for="horario-consecutivo" class="form-label" style="margin-bottom:4px; font-weight:700;">No. Consecutivo Oficial</label>
-            <input type="number" id="horario-consecutivo" class="form-input font-mono font-bold" min="1" placeholder="Ej: 1" value="${item?.numero_consecutivo || ''}" style="width:100%;" />
-            <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Autoincrementable o asignado manualmente</small>
-          </div>
-          <div style="flex:1; min-width:120px;">
-            <label for="horario-codigo" class="form-label" style="margin-bottom:4px;">Código</label>
-            <input type="text" id="horario-codigo" class="form-input font-mono" placeholder="Ej: 219" value="${escHtml(item?.codigo || '')}" style="width:100%;" />
-            <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Código del cargo</small>
-          </div>
-          <div style="flex:1; min-width:120px;">
-            <label for="horario-grado" class="form-label" style="margin-bottom:4px;">Grado</label>
-            <input type="text" id="horario-grado" class="form-input font-mono" placeholder="Ej: 05" value="${escHtml(item?.grado || '')}" style="width:100%;" />
-            <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Grado salarial</small>
-          </div>
-        </div>
-
-        <!-- Sección: Servidor Público -->
+        <!-- Sección 1: Servidor Público -->
         <div class="form-group span-2">
           <div class="form-section-header">
             <div class="form-section-icon form-section-icon--blue">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
-            <div>
-              <span class="form-section-title">Servidor Público</span>
-              <span class="form-section-desc">Búsqueda y datos del funcionario institucional</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:8px; flex-wrap:wrap;">
+              <div>
+                <span class="form-section-title">Servidor Público</span>
+                <span class="form-section-desc">Identificación y cargo del funcionario institucional</span>
+              </div>
+              <div id="servidor-locked-indicator" class="badge-servidor-vinculado" style="display:none;" title="Información protegida procedente de la base de datos de servidores públicos">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Datos Institucionales Vinculados (Protegidos)
+              </div>
             </div>
           </div>
         </div>
 
         ${!isEdit ? `
         <div class="form-group span-2 autocomplete-wrapper">
-          <label for="horario-search-emp" class="form-label">Buscar Servidor en Nómina (Nombre o Cédula)</label>
-          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba para autocompletar desde el directorio de empleados..." autocomplete="off" />
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label for="horario-search-emp" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin:0;">BUSCAR SERVIDOR EN NÓMINA (NOMBRE O CÉDULA)</label>
+            <button type="button" id="btn-unlock-servidor" class="btn btn-secondary btn-sm" style="display:none; font-size:11px; padding:2px 8px; height:auto; cursor:pointer;" title="Desvincular servidor institucional y habilitar ingreso manual">
+              ✕ Desvincular / Ingreso manual
+            </button>
+          </div>
+          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba el nombre o cédula para buscar en la base de datos de servidores públicos..." autocomplete="off" />
           <div id="horario-emp-results" class="autocomplete-dropdown" style="display:none;"></div>
           <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:3px;">
-            Selecciona un funcionario para autocompletar sus datos o digítalos manualmente abajo.
+            Al seleccionar o buscar un servidor público, se cargan automáticamente todos sus datos institucionales abajo y se protegen contra edición.
           </small>
         </div>` : ''}
 
         <div class="form-group">
-          <label for="horario-documento" class="form-label required">Documento de Identidad (C.C.)</label>
-          <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de documento / Cédula" value="${escHtml(
-            item?.documento || ''
-          )}" />
-        </div>
-
-        <div class="form-group">
-          <label for="horario-nombre" class="form-label required">Nombres y Apellidos</label>
+          <label for="horario-nombre" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">NOMBRES Y APELLIDOS</label>
           <input type="text" id="horario-nombre" class="form-input font-bold" placeholder="Nombres y apellidos completos" value="${escHtml(
             item?.apellidos_nombres || ''
           )}" />
         </div>
 
         <div class="form-group">
-          <label for="horario-dependencia" class="form-label required">Dependencia</label>
+          <label for="horario-documento" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DOCUMENTO DE IDENTIDAD (C.C.)</label>
+          <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de cédula" value="${escHtml(
+            item?.documento || ''
+          )}" />
+        </div>
+
+        <div class="form-group">
+          <label for="horario-cargo" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CARGO</label>
+          <input type="text" id="horario-cargo" class="form-input" placeholder="Cargo institucional..." value="${escHtml(item?.cargo || '')}" />
+        </div>
+
+        <!-- Código y Grado Institucional (Cargados automáticamente de la BD del servidor) -->
+        <div class="form-group" style="display:flex; gap:12px;">
+          <div style="flex:1;">
+            <label for="horario-codigo" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CÓDIGO</label>
+            <input type="text" id="horario-codigo" class="form-input font-mono" placeholder="Ej: 219" value="${escHtml(item?.codigo || '')}" />
+            <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Código del cargo</small>
+          </div>
+          <div style="flex:1;">
+            <label for="horario-grado" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">GRADO</label>
+            <input type="text" id="horario-grado" class="form-input font-mono" placeholder="Ej: 05" value="${escHtml(item?.grado || '')}" />
+            <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Grado salarial</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="horario-dependencia" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DEPENDENCIA</label>
           <input type="text" id="horario-dependencia" class="form-input" placeholder="Ej: CONTROL INTERNO DE GESTION..." value="${escHtml(
             item?.dependencia || ''
           )}" />
         </div>
 
         <div class="form-group">
-          <label for="horario-secretaria" class="form-label">Secretaría</label>
-          <input type="text" id="horario-secretaria" class="form-input" placeholder="Ej: DESPACHO GOBERNADOR..." value="${escHtml(
+          <label for="horario-secretaria" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">SECRETARÍA</label>
+          <input type="text" id="horario-secretaria" class="form-input" placeholder="Ej: SECRETARÍA GENERAL..." value="${escHtml(
             item?.secretaria || ''
           )}" />
         </div>
 
-        <div class="form-group">
-          <label for="horario-cargo" class="form-label required">Cargo</label>
-          <input type="text" id="horario-cargo" class="form-input" placeholder="Cargo institucional..." value="${escHtml(item?.cargo || '')}" />
-        </div>
-
-        <div class="form-group">
-          <label for="horario-estado" class="form-label required">Estado del Esquema</label>
+        <div class="form-group span-2">
+          <label for="horario-estado" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">ESTADO DEL ESQUEMA</label>
           <select id="horario-estado" class="filter-select">
             <option value="Activa" ${item?.estado === 'Activa' ? 'selected' : ''}>Activa (En vigencia)</option>
             <option value="Pendiente" ${item?.estado === 'Pendiente' ? 'selected' : ''}>Pendiente de inicio</option>
@@ -697,21 +809,48 @@ const HorariosModule = (() => {
           </select>
         </div>
 
-        <!-- Sección: Modalidad de Trabajo -->
+        <!-- Sección 2: Situación Administrativa / Modalidad -->
         <div class="form-group span-2" style="margin-top:var(--space-2);">
           <div class="form-section-header">
             <div class="form-section-icon form-section-icon--purple">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             </div>
             <div>
-              <span class="form-section-title">Modalidad de Trabajo</span>
-              <span class="form-section-desc">Seleccione el esquema laboral acordado</span>
+              <span class="form-section-title">Situación Administrativa / Modalidad</span>
+              <span class="form-section-desc">Seleccione el esquema laboral acordado con el servidor</span>
             </div>
           </div>
         </div>
 
         <div class="form-group span-2">
           <div class="modalidad-cards-selector">
+            <label class="modalidad-card-option ${curModalidad === 'Teletrabajo' ? 'selected' : ''}">
+              <input type="radio" name="modalidad_radio" value="Teletrabajo" ${curModalidad === 'Teletrabajo' ? 'checked' : ''} />
+              <div class="mcard-icon">💻</div>
+              <div class="mcard-info">
+                <strong>Teletrabajo</strong>
+                <span>Alternancia de días en casa y oficina</span>
+              </div>
+            </label>
+
+            <label class="modalidad-card-option ${curModalidad === 'Horario flexible' ? 'selected' : ''}">
+              <input type="radio" name="modalidad_radio" value="Horario flexible" ${curModalidad === 'Horario flexible' ? 'checked' : ''} />
+              <div class="mcard-icon">⏰</div>
+              <div class="mcard-info">
+                <strong>Horario Flexible</strong>
+                <span>Franjas horarias concertadas</span>
+              </div>
+            </label>
+
+            <label class="modalidad-card-option ${curModalidad === 'Trabajo en casa' ? 'selected' : ''}">
+              <input type="radio" name="modalidad_radio" value="Trabajo en casa" ${curModalidad === 'Trabajo en casa' ? 'checked' : ''} />
+              <div class="mcard-icon">🏠</div>
+              <div class="mcard-info">
+                <strong>Trabajo en Casa</strong>
+                <span>Modalidad transitoria y excepcional</span>
+              </div>
+            </label>
+
             <label class="modalidad-card-option ${curModalidad === 'Presencial' ? 'selected' : ''}">
               <input type="radio" name="modalidad_radio" value="Presencial" ${curModalidad === 'Presencial' ? 'checked' : ''} />
               <div class="mcard-icon">🏢</div>
@@ -720,33 +859,19 @@ const HorariosModule = (() => {
                 <span>Jornada ordinaria en sede física</span>
               </div>
             </label>
+          </div>
+        </div>
 
-            <label class="modalidad-card-option ${curModalidad === 'Teletrabajo' ? 'selected' : ''}">
-              <input type="radio" name="modalidad_radio" value="Teletrabajo" ${curModalidad === 'Teletrabajo' ? 'checked' : ''} />
-              <div class="mcard-icon">💻</div>
-              <div class="mcard-info">
-                <strong>Teletrabajo</strong>
-                <span>Esquema híbrido o autónomo</span>
-              </div>
-            </label>
-
-            <label class="modalidad-card-option ${curModalidad === 'Trabajo en casa' ? 'selected' : ''}">
-              <input type="radio" name="modalidad_radio" value="Trabajo en casa" ${curModalidad === 'Trabajo en casa' ? 'checked' : ''} />
-              <div class="mcard-icon">🏠</div>
-              <div class="mcard-info">
-                <strong>Trabajo en casa</strong>
-                <span>Modalidad transitoria y excepcional</span>
-              </div>
-            </label>
-
-            <label class="modalidad-card-option ${curModalidad === 'Horario flexible' ? 'selected' : ''}">
-              <input type="radio" name="modalidad_radio" value="Horario flexible" ${curModalidad === 'Horario flexible' ? 'checked' : ''} />
-              <div class="mcard-icon">⏰</div>
-              <div class="mcard-info">
-                <strong>Horario flexible</strong>
-                <span>Franjas escalonadas de horario</span>
-              </div>
-            </label>
+        <!-- Sección 3: Configuración de Días, Horario y Duración Adaptable -->
+        <div class="form-group span-2" style="margin-top:var(--space-2);">
+          <div class="form-section-header">
+            <div class="form-section-icon form-section-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <span class="form-section-title">Esquema de Días, Horario y Duración</span>
+              <span class="form-section-desc">Detalle específico según la modalidad seleccionada</span>
+            </div>
           </div>
         </div>
 
@@ -758,40 +883,58 @@ const HorariosModule = (() => {
               <line x1="8" y1="21" x2="16" y2="21"/>
               <line x1="12" y1="17" x2="12" y2="21"/>
             </svg>
-            <span>Configuración de Teletrabajo</span>
+            <span>Días de Teletrabajo / Alternancia Semanal</span>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="form-label" style="margin-bottom:6px;">Selección de Días en Casa / Remotos (Clic para alternar):</label>
+            <div class="day-chips-group" id="teletrabajo-day-chips" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="chip-day ${hasLun ? 'active' : ''}" data-day="Lunes" data-abbr="Lun" style="padding:6px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; border:1.5px solid var(--color-border); background:var(--color-bg-secondary); color:var(--text-secondary);">Lun</button>
+              <button type="button" class="chip-day ${hasMar ? 'active' : ''}" data-day="Martes" data-abbr="Mar" style="padding:6px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; border:1.5px solid var(--color-border); background:var(--color-bg-secondary); color:var(--text-secondary);">Mar</button>
+              <button type="button" class="chip-day ${hasMie ? 'active' : ''}" data-day="Miércoles" data-abbr="Mie" style="padding:6px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; border:1.5px solid var(--color-border); background:var(--color-bg-secondary); color:var(--text-secondary);">Mié</button>
+              <button type="button" class="chip-day ${hasJue ? 'active' : ''}" data-day="Jueves" data-abbr="Jue" style="padding:6px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; border:1.5px solid var(--color-border); background:var(--color-bg-secondary); color:var(--text-secondary);">Jue</button>
+              <button type="button" class="chip-day ${hasVie ? 'active' : ''}" data-day="Viernes" data-abbr="Vie" style="padding:6px 14px; border-radius:20px; font-weight:700; font-size:12px; cursor:pointer; border:1.5px solid var(--color-border); background:var(--color-bg-secondary); color:var(--text-secondary);">Vie</button>
+            </div>
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
             <div class="form-group">
-              <label for="subtipo-teletrabajo" class="form-label required">Tipo de Teletrabajo</label>
+              <label for="dias-teletrabajo" class="form-label">Días de Teletrabajo (Texto)</label>
+              <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder="Ej: martes y jueves" value="${escHtml(item?.dias_teletrabajo || 'martes y jueves')}" />
+              <small class="field-hint" style="font-size:11px; color:var(--text-muted);">Se actualiza automáticamente al hacer clic en los días</small>
+            </div>
+            <div class="form-group">
+              <label for="subtipo-teletrabajo" class="form-label">Subtipo</label>
               <select id="subtipo-teletrabajo" class="filter-select">
-                <option value="Suplementario (Híbrido)" ${item?.subtipo_teletrabajo === 'Suplementario (Híbrido)' ? 'selected' : ''}>Suplementario (Híbrido: Días casa / oficina)</option>
+                <option value="Suplementario (Híbrido)" ${item?.subtipo_teletrabajo === 'Suplementario (Híbrido)' ? 'selected' : ''}>Suplementario (Híbrido)</option>
                 <option value="Autónomo" ${item?.subtipo_teletrabajo === 'Autónomo' ? 'selected' : ''}>Autónomo (100% Remoto)</option>
-                <option value="Móvil" ${item?.subtipo_teletrabajo === 'Móvil' ? 'selected' : ''}>Móvil (Itinerante sin sede fija)</option>
+                <option value="Móvil" ${item?.subtipo_teletrabajo === 'Móvil' ? 'selected' : ''}>Móvil (Itinerante)</option>
               </select>
             </div>
-            <div class="form-group">
-              <label for="domicilio-laboral" class="form-label required">Dirección Domicilio Laboral (ARL)</label>
-              <input type="text" id="domicilio-laboral" class="form-input" placeholder="Ej: Calle 20 # 10-45, Tunja" value="${escHtml(item?.domicilio_laboral || '')}" />
+          </div>
+        </div>
+
+        <!-- Subsección Dinámica: Horario Flexible -->
+        <div id="dynamic-section-horario-flexible" class="form-group span-2 dynamic-subform" style="display:${curModalidad === 'Horario flexible' ? 'block' : 'none'};">
+          <div class="subform-banner subform-banner--cyan">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Franjas Horarias de Jornada Concertada</span>
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="form-label" style="margin-bottom:6px;">Franjas comunes institucionales (Clic para aplicar):</label>
+            <div class="franja-quick-buttons" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm chip-franja" data-franja="8:00 AM a 12:00 M y 1:00 PM a 5:00 PM" style="font-size:11px; padding:4px 10px;">8:00 AM - 12:00 M / 1:00 PM - 5:00 PM (8h)</button>
+              <button type="button" class="btn btn-outline btn-sm chip-franja" data-franja="7:00 AM a 12:00 M y 1:30 PM a 4:30 PM" style="font-size:11px; padding:4px 10px;">7:00 AM - 12:00 M / 1:30 PM - 4:30 PM (8h)</button>
+              <button type="button" class="btn btn-outline btn-sm chip-franja" data-franja="7:30 AM a 12:30 PM y 1:30 PM a 4:30 PM" style="font-size:11px; padding:4px 10px;">7:30 AM - 12:30 PM / 1:30 PM - 4:30 PM (8h)</button>
             </div>
-            <div class="form-group">
-              <label for="dias-teletrabajo" class="form-label">Días Remotos (Casa) o Franja</label>
-              <input type="text" id="dias-teletrabajo" class="form-input" placeholder="Ej: martes y jueves" value="${escHtml(item?.dias_teletrabajo || 'martes y jueves')}" />
-            </div>
-            <div class="form-group">
-              <label for="dias-presencial" class="form-label">Días en Sede Presencial</label>
-              <input type="text" id="dias-presencial" class="form-input" placeholder="Ej: Lunes, Miércoles y Viernes" value="${escHtml(item?.dias_presencial || 'Lunes, Miércoles, Viernes')}" />
-            </div>
-            <div class="form-group" style="display:flex; align-items:center; justify-content:center;">
-              <label class="form-checkbox-label" style="margin:0;">
-                <input type="checkbox" id="notificacion-arl" ${item?.notificacion_arl ? 'checked' : ''} />
-                <span>¿Notificado formalmente ante la ARL?</span>
-              </label>
-            </div>
-            <div class="form-group">
-              <label for="fecha-reporte-arl" class="form-label">Fecha de Reporte ARL</label>
-              <input type="date" id="fecha-reporte-arl" class="form-input" value="${item?.fecha_reporte_arl ? item.fecha_reporte_arl.split('T')[0] : ''}" />
-            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="franja-ingreso" class="form-label required">Franja Horaria Concertada</label>
+            <input type="text" id="franja-ingreso" class="form-input font-bold" placeholder="Ej: 8 AM A 12 M, 1 A 5 PM" value="${escHtml(item?.franja_ingreso || item?.dias_teletrabajo || '8 AM A 12 M, 1 A 5 PM')}" />
           </div>
         </div>
 
@@ -802,205 +945,104 @@ const HorariosModule = (() => {
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span>Nota institucional: Al activar Trabajo en casa, se suspenderán temporalmente las solicitudes de vacaciones activas de este servidor.</span>
+            <span>Situación transitoria y excepcional. En los registros oficiales no tiene vigencia ni fechas fijas. Duración: No aplica.</span>
           </div>
 
-          <div class="form-group" style="margin-bottom:var(--space-3);">
-            <label for="motivo-trabajo-casa" class="form-label required">Justificación Excepcional o Transitoria</label>
-            <textarea id="motivo-trabajo-casa" class="form-textarea" rows="2" placeholder="Describa la situación de salud, calamidad o caso fortuito...">${escHtml(item?.motivo_trabajo_casa || '')}</textarea>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
-            <div class="form-group">
-              <label for="direccion-trabajo-casa" class="form-label">Lugar de Prestación del Servicio</label>
-              <input type="text" id="direccion-trabajo-casa" class="form-input" placeholder="Dirección de residencia o estadía transitoria" value="${escHtml(item?.direccion_trabajo_casa || '')}" />
-            </div>
-            <div class="form-group">
-              <label for="herramientas-tic" class="form-label">Herramientas TIC / Equipos</label>
-              <input type="text" id="herramientas-tic" class="form-input" placeholder="Ej: Portátil institucional + conectividad propia" value="${escHtml(item?.herramientas_tic || 'Equipo propio y conectividad institucional VPN')}" />
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top:var(--space-2);">
-            <label class="form-checkbox-label">
-              <input type="checkbox" id="prorroga-trabajo-casa" ${item?.prorroga ? 'checked' : ''} />
-              <span>¿Es una prórroga extraordinaria del periodo inicial?</span>
-            </label>
+          <div class="form-group">
+            <label for="motivo-trabajo-casa" class="form-label">Justificación o Motivo Transitorio (Opcional)</label>
+            <input type="text" id="motivo-trabajo-casa" class="form-input" placeholder="Ej: Situación transitoria de salud o calamidad..." value="${escHtml(item?.motivo_trabajo_casa || '')}" />
           </div>
         </div>
 
-        <!-- Subsección Dinámica: Horario Flexible -->
-        <div id="dynamic-section-horario-flexible" class="form-group span-2 dynamic-subform" style="display:${curModalidad === 'Horario flexible' ? 'block' : 'none'};">
-          <div class="subform-banner subform-banner--cyan">
+        <!-- Subsección Dinámica: Presencial -->
+        <div id="dynamic-section-presencial" class="form-group span-2 dynamic-subform" style="display:${curModalidad === 'Presencial' ? 'block' : 'none'};">
+          <div class="subform-banner" style="background:rgba(59, 130, 246, 0.12); color:#2563eb; border:1px solid rgba(59, 130, 246, 0.25);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
             </svg>
-            <span>Bandas y Franjas de Flexibilidad Horaria Concertada</span>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
-            <div class="form-group">
-              <label for="franja-ingreso" class="form-label required">Banda Horaria de Ingreso</label>
-              <input type="text" id="franja-ingreso" class="form-input" placeholder="Ej: 07:00 - 08:30" value="${escHtml(item?.franja_ingreso || '07:00 - 08:30')}" />
-            </div>
-            <div class="form-group">
-              <label for="franja-salida" class="form-label required">Banda Horaria de Salida</label>
-              <input type="text" id="franja-salida" class="form-input" placeholder="Ej: 16:30 - 18:00" value="${escHtml(item?.franja_salida || '16:30 - 18:00')}" />
-            </div>
-            <div class="form-group">
-              <label for="horas-semanales" class="form-label required">Jornada Semanal Total</label>
-              <select id="horas-semanales" class="filter-select">
-                <option value="40" ${item?.horas_semanales === 40 ? 'selected' : ''}>40 Horas semanales</option>
-                <option value="44" ${item?.horas_semanales === 44 ? 'selected' : ''}>44 Horas semanales</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="tiempo-almuerzo" class="form-label">Tiempo de Almuerzo</label>
-              <input type="text" id="tiempo-almuerzo" class="form-input" placeholder="Ej: 1 hora" value="${escHtml(item?.tiempo_almuerzo || '1 hora')}" />
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top:var(--space-2);">
-            <label for="justificacion-flex" class="form-label">Justificación o Concertación</label>
-            <input type="text" id="justificacion-flex" class="form-input" placeholder="Ej: Cuidado de menores, estudios superiores, franja 8 AM A 12 M..." value="${escHtml(item?.justificacion_flex || '')}" />
+            <span>Jornada ordinaria en sede física institucional (44 horas semanales, Lunes a Viernes).</span>
           </div>
         </div>
 
-        <!-- Sección: Vigencia y Duración -->
-        <div class="form-group span-2" style="margin-top:var(--space-2);">
-          <div class="form-section-header">
-            <div class="form-section-icon form-section-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div>
-              <span class="form-section-title">Vigencia y Duración</span>
-              <span class="form-section-desc">Vigencia temporal o permanente del esquema</span>
-            </div>
-          </div>
+        <!-- Campos de Vigencia y Duración -->
+        <div class="form-group">
+          <label for="horario-duracion-texto" class="form-label" style="font-weight:700;">Vigencia y Duración</label>
+          <input type="text" id="horario-duracion-texto" class="form-input font-bold" value="${escHtml(defaultDuracion)}" placeholder="Ej: 2 días / semana, 8 horas / día, o No aplica" />
+          <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Calculada automáticamente según la modalidad y los días seleccionados</small>
         </div>
 
         <div class="form-group">
-          <label for="horario-fecha-inicio" class="form-label required">Fecha de Inicio</label>
+          <label for="horario-fecha-inicio" class="form-label">Fecha de Solicitud / Inicio (Opcional)</label>
           <input type="date" id="horario-fecha-inicio" class="form-input" value="${
-            item?.fecha_inicio
-              ? item.fecha_inicio.split('T')[0]
-              : new Date().toISOString().split('T')[0]
+            item?.fecha_inicio ? item.fecha_inicio.split('T')[0] : ''
           }" />
+          <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Fecha del registro oficial si existe</small>
+        </div>
+
+        <div class="form-group">
+          <label for="horario-fecha-fin" class="form-label">Fecha de Finalización (Opcional)</label>
+          <input type="date" id="horario-fecha-fin" class="form-input" value="${
+            item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
+          }" />
+          <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Solo si el acto administrativo fija una fecha de término explícita</small>
         </div>
 
         <div class="form-group">
           <label class="form-label">Tipo de Cómputo</label>
-          <div class="tipo-calculo-pill-toggle">
-            <button type="button" class="pill-calc-btn ${curTipoCalc === 'Hábiles' ? 'active' : ''}" data-calc="Hábiles">
-              📅 Días Hábiles (L-V)
-            </button>
-            <button type="button" class="pill-calc-btn ${curTipoCalc === 'Calendario' ? 'active' : ''}" data-calc="Calendario">
-              🗓️ Días Calendario
-            </button>
-            <input type="hidden" id="horario-tipo-calculo" value="${curTipoCalc}" />
-          </div>
+          <select id="horario-tipo-calculo" class="filter-select">
+            <option value="Hábiles" ${curTipoCalc === 'Hábiles' ? 'selected' : ''}>Días Hábiles (L-V)</option>
+            <option value="Calendario" ${curTipoCalc === 'Calendario' ? 'selected' : ''}>Días Calendario</option>
+          </select>
         </div>
 
-        <div class="form-group span-2">
-          <div class="duration-header-row">
-            <label for="horario-duracion-texto" class="form-label">Duración del Esquema</label>
-            <span id="duration-preview-pill" class="duration-badge-pill duration-badge-pill--valid">✓ Válido</span>
-          </div>
-
-          <div class="duration-input-wrap">
-            <input type="text" id="horario-duracion-texto" class="form-input font-bold" placeholder="Ej: 6 meses, 1 año, 45 días o Permanente..." value="${escHtml(
-              item?.duracion_texto || (curModalidad === 'Presencial' ? 'Permanente' : '6 meses')
-            )}" />
-          </div>
-
-          <div class="quick-duration-chips">
-            <span class="chips-label">Atajos comunes:</span>
-            <button type="button" class="chip-duration" data-dur="15 días">15 días</button>
-            <button type="button" class="chip-duration" data-dur="1 mes">1 mes</button>
-            <button type="button" class="chip-duration" data-dur="3 meses">3 meses</button>
-            <button type="button" class="chip-duration" data-dur="6 meses">6 meses</button>
-            <button type="button" class="chip-duration" data-dur="1 año">1 año</button>
-            <button type="button" class="chip-duration" data-dur="2 años">2 años</button>
-            <button type="button" class="chip-duration" data-dur="Permanente">Permanente</button>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="horario-fecha-fin" class="form-label">Fecha de Finalización</label>
-          <input type="date" id="horario-fecha-fin" class="form-input" value="${
-            item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
-          }" />
-          <small class="field-hint" style="font-size:11px; color:var(--text-muted);">Calculada automáticamente o configurable manualmente</small>
-        </div>
-
-        <div class="form-group" style="justify-content:center;">
-          <div class="notice-retorno-box">
-            <span>ℹ️ Al culminar la vigencia, el servidor retornará automáticamente a la modalidad <strong>Presencial</strong>.</span>
-          </div>
-        </div>
-
-        <!-- Sección: Acto Administrativo -->
+        <!-- Sección 4: Acto Administrativo y Soporte Digital -->
         <div class="form-group span-2" style="margin-top:var(--space-2);">
           <div class="form-section-header">
             <div class="form-section-icon form-section-icon--amber">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <div>
-              <span class="form-section-title">Acto Administrativo</span>
-              <span class="form-section-desc">Resolución y formalización institucional</span>
+              <span class="form-section-title">Acto Administrativo y Soporte</span>
+              <span class="form-section-desc">Resolución oficial y documento soporte escaneado</span>
             </div>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="horario-resolucion" class="form-label required">Número de Resolución</label>
-          <input type="text" id="horario-resolucion" class="form-input font-mono font-bold" placeholder="Ej: RES-2026-0412" value="${escHtml(
+          <label for="horario-resolucion" class="form-label">Número de Resolución (Opcional)</label>
+          <input type="text" id="horario-resolucion" class="form-input font-mono font-bold" placeholder="Ej: 0045 de 2026" value="${escHtml(
             item?.numero_resolucion || ''
           )}" />
         </div>
 
         <div class="form-group">
-          <label for="horario-fecha-aprobacion" class="form-label">Fecha de Aprobación</label>
+          <label for="horario-fecha-aprobacion" class="form-label">Fecha del Acto / Aprobación (Opcional)</label>
           <input type="date" id="horario-fecha-aprobacion" class="form-input" value="${
-            item?.fecha_aprobacion ? item.fecha_aprobacion.split('T')[0] : ''
+            item?.fecha_aprobacion ? item.fecha_aprobacion.split('T')[0] : (item?.fecha_resolucion ? item.fecha_resolucion.split('T')[0] : '')
           }" />
         </div>
 
-        <div class="form-group">
-          <label for="horario-fecha-notificacion" class="form-label">Fecha de Notificación</label>
-          <input type="date" id="horario-fecha-notificacion" class="form-input" value="${
-            item?.fecha_notificacion ? item.fecha_notificacion.split('T')[0] : ''
-          }" />
-        </div>
-
-        <div class="form-group">
-          <label for="horario-aprobado-por" class="form-label">Aprobado / Autorizado Por</label>
-          <input type="text" id="horario-aprobado-por" class="form-input" value="${escHtml(
-            item?.aprobado_por || 'Angela Ussa'
-          )}" />
-        </div>
-
-        <!-- Sección: Soporte Documental (Hoja impresa y firmada) -->
+        <!-- Carga de Archivo Soporte (PDF o Imagen de la hoja firmada) -->
         <div class="form-group span-2">
           <label class="form-label">Cargar Hoja de Solicitud / Reporte Firmado (Documento Soporte)</label>
-          <div class="excel-dropzone" id="horario-soporte-dropzone" style="padding: 20px 16px; margin: 0; background: var(--color-bg-secondary, rgba(255,255,255,0.02)); border: 2px dashed var(--color-border); cursor: pointer;">
+          <div class="excel-dropzone" id="horario-soporte-dropzone" style="padding: 16px; margin: 0; background: var(--color-bg-secondary, rgba(255,255,255,0.02)); border: 2px dashed var(--color-border); cursor: pointer;">
             <input type="file" id="horario-soporte-file" accept=".pdf, image/*" style="display:none;" />
             <div class="excel-dropzone-icon" style="margin-bottom: 6px;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary, #3b82f6)" stroke-width="2" style="width:36px;height:36px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary, #3b82f6)" stroke-width="2" style="width:32px;height:32px;">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
             </div>
             <p class="excel-dropzone-title" style="font-size:13px; margin-bottom:2px;">Haz clic o arrastra la hoja impresa y firmada (PDF o Imagen)</p>
-            <p class="excel-dropzone-sub" style="font-size:11px;">Formatos soportados: PDF, JPG, PNG (hasta 20MB)</p>
+            <p class="excel-dropzone-sub" style="font-size:11px;">Formatos: PDF, JPG, PNG (hasta 20MB)</p>
             
             <div id="horario-soporte-preview-wrap" style="display:${item?.soporte_acto ? 'block' : 'none'}; margin-top: 10px;">
-              <div class="excel-file-preview-card" style="padding: 10px 14px; margin: 0; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
+              <div class="excel-file-preview-card" style="padding: 8px 12px; margin: 0; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3);">
                 <div class="excel-file-preview-left">
-                  <div class="excel-file-preview-icon" style="font-size:18px;">📄</div>
+                  <div class="excel-file-preview-icon" style="font-size:16px;">📄</div>
                   <div class="excel-file-preview-info">
-                    <div id="horario-soporte-preview-text" class="excel-file-preview-name" style="font-size:12px;">${item?.soporte_acto ? 'Documento firmado actualmente cargado' : ''}</div>
+                    <div id="horario-soporte-preview-text" class="excel-file-preview-name" style="font-size:12px;">${item?.soporte_acto ? 'Documento firmado cargado' : ''}</div>
                   </div>
                 </div>
                 <div style="display:flex; gap:6px;">
@@ -1027,6 +1069,7 @@ const HorariosModule = (() => {
         text: 'Cancelar',
         cls: 'btn-secondary',
         action: () => {
+          document.querySelector('.modal-header-consecutivo')?.remove();
           document.querySelector('.modal-box')?.classList.remove('modal-schedule');
           App.closeModal();
         },
@@ -1041,12 +1084,86 @@ const HorariosModule = (() => {
     App.openModal(title, bodyHtml, footerButtons);
     document.querySelector('.modal-box')?.classList.add('modal-schedule');
 
+    // Inyectar el control de Consecutivo Oficial en la cabecera del modal (al lado del botón de cerrar)
+    const modalHeader = document.querySelector('.modal-header');
+    const modalCloseBtn = document.getElementById('modal-close');
+    if (modalHeader && modalCloseBtn) {
+      modalHeader.querySelector('.modal-header-consecutivo')?.remove();
+
+      if (!isEdit) {
+        let maxFound = 0;
+        if (Array.isArray(state.data) && state.data.length > 0) {
+          state.data.forEach((d) => {
+            const val = parseInt(d.numero_consecutivo, 10);
+            if (!isNaN(val) && val > maxFound) maxFound = val;
+          });
+        }
+        if (typeof state.total === 'number' && state.total > maxFound) {
+          maxFound = state.total;
+        }
+        currentMinConsecutivo = maxFound + 1;
+      }
+
+      let consecutivoVal = item?.numero_consecutivo || '';
+      if (!consecutivoVal && !isEdit) {
+        consecutivoVal = currentMinConsecutivo;
+      }
+
+      const consecutivoWrap = document.createElement('div');
+      consecutivoWrap.className = 'modal-header-consecutivo';
+      consecutivoWrap.innerHTML = `
+        <label for="horario-consecutivo" title="${!isEdit ? `Mínimo consecutivo permitido: #${currentMinConsecutivo}` : ''}">
+          NO. CONSECUTIVO OFICIAL ${!isEdit ? `<span id="lbl-min-consecutivo" style="font-size:10px; color:var(--text-muted); font-weight:normal;">(Mín. #${currentMinConsecutivo})</span>` : ''}
+        </label>
+        <input
+          type="number"
+          id="horario-consecutivo"
+          class="form-input font-mono font-bold"
+          min="${!isEdit ? currentMinConsecutivo : 1}"
+          placeholder="Ej: ${!isEdit ? currentMinConsecutivo : 1}"
+          value="${consecutivoVal}"
+          title="${!isEdit ? `El consecutivo oficial no puede ser menor a ${currentMinConsecutivo}` : ''}"
+        />
+      `;
+      modalHeader.insertBefore(consecutivoWrap, modalCloseBtn);
+
+      // Si es un nuevo registro, consultar siempre a la API el consecutivo oficial exacto de la BD
+      if (!isEdit) {
+        API.getNextHorarioConsecutivo()
+          .then((res) => {
+            if (res && res.nextConsecutivo != null) {
+              const apiNext = parseInt(res.nextConsecutivo, 10);
+              if (!isNaN(apiNext) && apiNext > 0) {
+                currentMinConsecutivo = apiNext;
+                const inp = document.getElementById('horario-consecutivo');
+                if (inp) {
+                  inp.min = currentMinConsecutivo;
+                  inp.placeholder = `Ej: ${currentMinConsecutivo}`;
+                  const curVal = parseInt(inp.value, 10);
+                  if (isNaN(curVal) || curVal < currentMinConsecutivo) {
+                    inp.value = currentMinConsecutivo;
+                  }
+                  inp.setAttribute('title', `El consecutivo oficial no puede ser menor a ${currentMinConsecutivo}`);
+                }
+                const lblMin = document.getElementById('lbl-min-consecutivo');
+                if (lblMin) {
+                  lblMin.textContent = `(Mín. #${currentMinConsecutivo})`;
+                }
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
     // Conectar eventos dinámicos del formulario
     bindModalFormEvents(item);
   }
 
-  // ─── Lógica Dinámica del Formulario (Autocomplete y Fechas) ─────────────────
+  // ─── Lógica Dinámica del Formulario (Autocomplete y Días) ─────────────────
   function bindModalFormEvents(item) {
+    const isEdit = Boolean(item);
+
     // 1. Selector de Modalidad dinámico
     const modalidadRadios = document.querySelectorAll('input[name="modalidad_radio"]');
     modalidadRadios.forEach((radio) => {
@@ -1056,67 +1173,221 @@ const HorariosModule = (() => {
 
         const val = radio.value;
         const secTele = document.getElementById('dynamic-section-teletrabajo');
-        const secCasa = document.getElementById('dynamic-section-trabajo-casa');
         const secFlex = document.getElementById('dynamic-section-horario-flexible');
+        const secCasa = document.getElementById('dynamic-section-trabajo-casa');
+        const secPres = document.getElementById('dynamic-section-presencial');
 
         if (secTele) secTele.style.display = val === 'Teletrabajo' ? 'block' : 'none';
-        if (secCasa) secCasa.style.display = val === 'Trabajo en casa' ? 'block' : 'none';
         if (secFlex) secFlex.style.display = val === 'Horario flexible' ? 'block' : 'none';
+        if (secCasa) secCasa.style.display = val === 'Trabajo en casa' ? 'block' : 'none';
+        if (secPres) secPres.style.display = val === 'Presencial' ? 'block' : 'none';
 
-        const durInput = document.getElementById('horario-duracion-texto');
-        if (val === 'Presencial' && (!durInput.value || durInput.value === '6 meses' || durInput.value === '1 año')) {
-          durInput.value = 'Permanente';
-        } else if (val !== 'Presencial' && durInput.value === 'Permanente') {
-          durInput.value = '6 meses';
-        }
-
-        triggerLiveDateCalculation();
-      });
-    });
-
-    // 2. Selector de Días Hábiles vs Calendario
-    const pillCalcButtons = document.querySelectorAll('.pill-calc-btn');
-    pillCalcButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        pillCalcButtons.forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        const calcVal = btn.getAttribute('data-calc');
-        const inputHidden = document.getElementById('horario-tipo-calculo');
-        if (inputHidden) inputHidden.value = calcVal;
-        triggerLiveDateCalculation();
-      });
-    });
-
-    // 3. Chips de acceso rápido de duración
-    const chips = document.querySelectorAll('.chip-duration');
-    chips.forEach((chip) => {
-      chip.addEventListener('click', () => {
         const durInput = document.getElementById('horario-duracion-texto');
         if (durInput) {
-          durInput.value = chip.getAttribute('data-dur');
-          triggerLiveDateCalculation();
+          if (val === 'Teletrabajo') {
+            const activeDays = Array.from(document.querySelectorAll('#teletrabajo-day-chips .chip-day.active'));
+            durInput.value = `${activeDays.length || 2} días / semana`;
+          } else if (val === 'Horario flexible') {
+            durInput.value = '8 horas / día';
+          } else if (val === 'Trabajo en casa') {
+            durInput.value = 'No aplica';
+          } else if (val === 'Presencial') {
+            durInput.value = 'Jornada ordinaria';
+          }
         }
       });
     });
 
-    // 4. Input flexible de duración
-    const durInput = document.getElementById('horario-duracion-texto');
-    durInput?.addEventListener('input', () => {
-      triggerLiveDateCalculation();
+    // 2. Chips interactivos de días para Teletrabajo
+    const dayChips = document.querySelectorAll('#teletrabajo-day-chips .chip-day');
+    dayChips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('active');
+        if (chip.classList.contains('active')) {
+          chip.style.background = 'var(--color-primary, #287522)';
+          chip.style.borderColor = 'var(--color-primary, #287522)';
+          chip.style.color = '#ffffff';
+        } else {
+          chip.style.background = 'var(--color-bg-secondary)';
+          chip.style.borderColor = 'var(--color-border)';
+          chip.style.color = 'var(--text-secondary)';
+        }
+
+        const activeChips = Array.from(document.querySelectorAll('#teletrabajo-day-chips .chip-day.active'));
+        const activeNames = activeChips.map((c) => c.getAttribute('data-day'));
+
+        let daysText = '';
+        if (activeNames.length === 0) {
+          daysText = '';
+        } else if (activeNames.length === 1) {
+          daysText = activeNames[0];
+        } else if (activeNames.length === 2) {
+          daysText = `${activeNames[0]} y ${activeNames[1]}`;
+        } else {
+          daysText = `${activeNames.slice(0, -1).join(', ')} y ${activeNames[activeNames.length - 1]}`;
+        }
+
+        const diasInput = document.getElementById('dias-teletrabajo');
+        if (diasInput) diasInput.value = daysText;
+
+        const durInput = document.getElementById('horario-duracion-texto');
+        if (durInput) {
+          durInput.value = activeNames.length > 0 ? `${activeNames.length} días / semana` : '2 días / semana';
+        }
+      });
+
+      // Estilo inicial
+      if (chip.classList.contains('active')) {
+        chip.style.background = 'var(--color-primary, #287522)';
+        chip.style.borderColor = 'var(--color-primary, #287522)';
+        chip.style.color = '#ffffff';
+      }
     });
 
-    const startDateInput = document.getElementById('horario-fecha-inicio');
-    startDateInput?.addEventListener('change', () => {
-      triggerLiveDateCalculation();
+    // 3. Botones de franja rápida para Horario Flexible
+    const franjaButtons = document.querySelectorAll('.chip-franja');
+    franjaButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const franjaVal = btn.getAttribute('data-franja');
+        const franjaInput = document.getElementById('franja-ingreso');
+        if (franjaInput && franjaVal) franjaInput.value = franjaVal;
+
+        const durInput = document.getElementById('horario-duracion-texto');
+        if (durInput) durInput.value = '8 horas / día';
+      });
     });
 
-    // 5. Autocomplete de servidores públicos
+    // 4. Autocomplete y carga de datos de servidores públicos institucional
+    // Trae apenas la información estrictamente necesaria de la BD:
+    // Cédula, Nombres y Apellidos, Código, Grado, Dependencia, Secretaría y Cargo
     const empSearchInput = document.getElementById('horario-search-emp');
     const empResultsDiv = document.getElementById('horario-emp-results');
+    const docInputEl = document.getElementById('horario-documento');
+    const btnUnlockServidor = document.getElementById('btn-unlock-servidor');
+    let docLookupTimeout = null;
+    let isManualServidorMode = false;
 
+    const serverFieldIds = [
+      'horario-nombre',
+      'horario-documento',
+      'horario-cargo',
+      'horario-codigo',
+      'horario-grado',
+      'horario-dependencia',
+      'horario-secretaria'
+    ];
+
+    const setServerFieldsLock = (locked) => {
+      // En modo edición no se bloquea, se dejan editables como solicitó el usuario
+      if (isEdit) return;
+
+      serverFieldIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.readOnly = locked;
+        if (locked) {
+          el.setAttribute('readonly', 'readonly');
+          el.classList.add('input-locked-servidor');
+          el.setAttribute('title', 'Dato institucional vinculado desde la base de datos (bloqueado contra modificación o borrado)');
+        } else {
+          el.removeAttribute('readonly');
+          el.classList.remove('input-locked-servidor');
+          el.removeAttribute('title');
+        }
+      });
+
+      const indicator = document.getElementById('servidor-locked-indicator');
+      if (indicator) indicator.style.display = locked ? 'inline-flex' : 'none';
+      if (btnUnlockServidor) btnUnlockServidor.style.display = locked ? 'inline-flex' : 'none';
+    };
+
+    // Bloqueo estricto por teclado en los campos de servidor cuando están protegidos
+    serverFieldIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('keydown', (e) => {
+          if (!isEdit && el.readOnly) {
+            // Permitir navegación y copiado
+            if (['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || (e.ctrlKey && ['c', 'C', 'a', 'A'].includes(e.key))) {
+              return;
+            }
+            e.preventDefault();
+            App.showToast('Este campo está protegido por provenir de la base de datos institucional. Si requiere modificarlo, use el botón "✕ Desvincular / Ingreso manual".', 'warning');
+          }
+        });
+      }
+    });
+
+    btnUnlockServidor?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isManualServidorMode = true;
+      setServerFieldsLock(false);
+      if (empSearchInput) empSearchInput.value = '';
+      App.showToast('Campos habilitados para ingreso manual.', 'info');
+    });
+
+    const populateServidorFields = (emp, notify = true) => {
+      if (!emp) return;
+      isManualServidorMode = false;
+      const doc = (emp.cedula || emp.documento || '').toString().trim();
+      const name = (emp.nombre_completo || emp.nombreCompleto || emp.persona || '').toString().trim();
+      const cargo = (emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || '').toString().trim();
+      const codigo = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+      const grado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+      const dept = (emp.dependencia || '').toString().trim();
+      const sec = (emp.secretaria || '').toString().trim();
+
+      const docEl = document.getElementById('horario-documento');
+      const nameEl = document.getElementById('horario-nombre');
+      const codigoEl = document.getElementById('horario-codigo');
+      const gradoEl = document.getElementById('horario-grado');
+      const cargoEl = document.getElementById('horario-cargo');
+      const deptEl = document.getElementById('horario-dependencia');
+      const secEl = document.getElementById('horario-secretaria');
+
+      if (docEl && doc) docEl.value = doc;
+      if (nameEl && name) nameEl.value = name;
+      if (codigoEl) codigoEl.value = codigo || '';
+      if (gradoEl) gradoEl.value = grado || '';
+      if (cargoEl) cargoEl.value = cargo || '';
+      if (deptEl) deptEl.value = dept || '';
+      if (secEl) secEl.value = sec || '';
+
+      if (empSearchInput && name && doc) {
+        empSearchInput.value = `${name} (C.C. ${doc})`;
+      }
+
+      // Bloquear los 7 campos para evitar eliminación o alteración de datos institucionales
+      setServerFieldsLock(true);
+
+      // Animación azul visible y estilizada en los campos autocompletados
+      [docEl, nameEl, codigoEl, gradoEl, cargoEl, deptEl, secEl].forEach((el) => {
+        if (el) {
+          el.classList.add('input-flash-blue');
+          setTimeout(() => {
+            el.classList.remove('input-flash-blue');
+          }, 1500);
+        }
+      });
+
+      if (notify && typeof App !== 'undefined' && App.showToast) {
+        App.showToast(`Servidor institucional cargado: ${name}`, 'success');
+      }
+    };
+
+    // Búsqueda en tiempo real desde el campo "Buscar Servidor en Nómina (Nombre o Cédula)"
     empSearchInput?.addEventListener('input', (e) => {
       const q = e.target.value.trim();
       clearTimeout(employeeSearchTimeout);
+
+      if (!q) {
+        // Si el usuario vació el buscador, desbloquear los campos para ingreso manual
+        isManualServidorMode = true;
+        setServerFieldsLock(false);
+        if (empResultsDiv) empResultsDiv.style.display = 'none';
+        return;
+      }
 
       if (q.length < 2) {
         if (empResultsDiv) empResultsDiv.style.display = 'none';
@@ -1125,39 +1396,47 @@ const HorariosModule = (() => {
 
       employeeSearchTimeout = setTimeout(async () => {
         try {
-          const res = await API.getEmployees({ q, limit: 6 });
+          const res = await (API.buscarServidor ? API.buscarServidor(q, 8) : API.getEmployees({ q, limit: 8 }));
           const list = res.data || [];
           if (list.length === 0) {
-            empResultsDiv.innerHTML = `<div class="autocomplete-item text-muted">No se encontraron funcionarios</div>`;
+            empResultsDiv.innerHTML = `<div class="autocomplete-item text-muted" style="padding:10px 14px; font-size:12px;">No se encontraron funcionarios con ese criterio</div>`;
           } else {
             empResultsDiv.innerHTML = list
-              .map(
-                (emp) => `
-              <div class="autocomplete-item" data-doc="${escHtml(emp.cedula || emp.documento)}" data-name="${escHtml(
-                  emp.nombre_completo || emp.persona
-                )}" data-dept="${escHtml(emp.dependencia || '')}" data-cargo="${escHtml(emp.cargo || '')}">
-                <strong>${escHtml(emp.nombre_completo || emp.persona)}</strong>
-                <small class="text-muted">C.C. ${escHtml(emp.cedula || emp.documento)} — ${escHtml(
-                  emp.cargo || 'Funcionario'
-                )}</small>
-              </div>
-            `
-              )
+              .map((emp, idx) => {
+                const empDoc = emp.cedula || emp.documento || '';
+                const empName = emp.nombre_completo || emp.nombreCompleto || emp.persona || 'Servidor Público';
+                const empCargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo institucional';
+                const empCodigo = emp.codigo || emp.codigoActual || emp.codigo_actual || '';
+                const empGrado = emp.grado || emp.gradoActual || emp.grado_actual || '';
+                const empDept = emp.dependencia || 'Sin dependencia';
+
+                return `
+                  <div class="autocomplete-item" data-idx="${idx}" style="padding:10px 14px; border-bottom:1px solid rgba(0,0,0,0.05); cursor:pointer;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                      <strong style="color:var(--color-primary, #2563eb); font-size:13px;">${escHtml(empName)}</strong>
+                      <span class="badge" style="font-size:11px; font-family:monospace; background:rgba(37,99,235,0.1); color:#2563eb; padding:2px 6px; border-radius:4px;">C.C. ${escHtml(empDoc)}</span>
+                    </div>
+                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;">
+                      <span><strong>Cargo:</strong> ${escHtml(empCargo)}</span>
+                      ${empCodigo || empGrado ? `<span>(Cód: <strong>${escHtml(empCodigo || '—')}</strong>, Grado: <strong>${escHtml(empGrado || '—')}</strong>)</span>` : ''}
+                      <span>· ${escHtml(empDept)}</span>
+                    </div>
+                  </div>
+                `;
+              })
               .join('');
 
             empResultsDiv.querySelectorAll('.autocomplete-item').forEach((itemEl) => {
-              itemEl.addEventListener('click', () => {
-                const doc = itemEl.getAttribute('data-doc');
-                const name = itemEl.getAttribute('data-name');
-                const dept = itemEl.getAttribute('data-dept');
-                const cargo = itemEl.getAttribute('data-cargo');
-
-                document.getElementById('horario-documento').value = doc;
-                document.getElementById('horario-nombre').value = name;
-                document.getElementById('horario-dependencia').value = dept || 'SECRETARÍA GENERAL';
-                document.getElementById('horario-cargo').value = cargo || 'PROFESIONAL UNIVERSITARIO';
-                empSearchInput.value = `${name} (C.C. ${doc})`;
+              itemEl.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const idx = parseInt(itemEl.getAttribute('data-idx'), 10);
+                const selectedEmp = list[idx];
+                if (selectedEmp) {
+                  populateServidorFields(selectedEmp, true);
+                }
                 empResultsDiv.style.display = 'none';
+                empResultsDiv.innerHTML = '';
               });
             });
           }
@@ -1168,13 +1447,44 @@ const HorariosModule = (() => {
       }, 250);
     });
 
+    // Búsqueda directa al escribir la Cédula en "Documento de Identidad (C.C.)" (si está en modo manual)
+    const lookupServidorByCedula = async (rawDoc) => {
+      if (isManualServidorMode || isEdit) return;
+      if (!rawDoc) return;
+      const cleanDoc = rawDoc.trim().replace(/[.,\s]/g, '');
+      if (cleanDoc.length < 4) return;
+
+      try {
+        const res = await (API.buscarServidor ? API.buscarServidor(cleanDoc, 1) : API.getEmployees({ q: cleanDoc, limit: 1 }));
+        const match = res?.data?.[0];
+        if (match) {
+          const matchDoc = (match.cedula || match.documento || '').toString().replace(/[.,\s]/g, '');
+          if (matchDoc === cleanDoc) {
+            populateServidorFields(match, true);
+          }
+        }
+      } catch (err) {
+        console.warn('Error consulta servidor por cédula:', err);
+      }
+    };
+
+    docInputEl?.addEventListener('change', (e) => lookupServidorByCedula(e.target.value));
+    docInputEl?.addEventListener('blur', (e) => lookupServidorByCedula(e.target.value));
+    docInputEl?.addEventListener('input', (e) => {
+      clearTimeout(docLookupTimeout);
+      const val = e.target.value.trim().replace(/[.,\s]/g, '');
+      if (val.length >= 6) {
+        docLookupTimeout = setTimeout(() => lookupServidorByCedula(val), 600);
+      }
+    });
+
     document.addEventListener('click', (ev) => {
       if (!empSearchInput?.contains(ev.target) && !empResultsDiv?.contains(ev.target)) {
         if (empResultsDiv) empResultsDiv.style.display = 'none';
       }
     });
 
-    // 6. Carga de archivo de soporte / reporte firmado
+    // 5. Carga de archivo de soporte / reporte firmado
     const soporteDropzone = document.getElementById('horario-soporte-dropzone');
     const soporteFileInput = document.getElementById('horario-soporte-file');
     const soporteValInput = document.getElementById('horario-soporte-val');
@@ -1225,66 +1535,75 @@ const HorariosModule = (() => {
       App.showToast('Documento soporte removido.', 'info');
     });
 
-    // 7. Auto-asignar consecutivo sugerido al crear
-    if (!item) {
-      API.getNextHorarioConsecutivo?.().then((res) => {
-        const cInput = document.getElementById('horario-consecutivo');
-        if (cInput && !cInput.value && res?.nextConsecutivo) {
-          cInput.value = res.nextConsecutivo;
+    // 6. Restricción estricta de Consecutivo Oficial al crear: no dejar disminuir del último que está
+    const consecutivoInput = document.getElementById('horario-consecutivo');
+    if (consecutivoInput && !isEdit) {
+      consecutivoInput.min = currentMinConsecutivo;
+
+      const enforceConsecutivo = () => {
+        if (isEdit) return;
+        const v = parseInt(consecutivoInput.value, 10);
+        if (isNaN(v) || v < currentMinConsecutivo) {
+          App.showToast(`El número consecutivo oficial no puede ser menor a #${currentMinConsecutivo} (último registrado: #${currentMinConsecutivo - 1}). Se restableció automáticamente.`, 'warning');
+          consecutivoInput.value = currentMinConsecutivo;
         }
-      }).catch(() => {});
+        consecutivoInput.style.borderColor = '';
+        consecutivoInput.style.boxShadow = '';
+        const lblMin = document.getElementById('lbl-min-consecutivo');
+        if (lblMin) {
+          lblMin.style.color = 'var(--text-muted)';
+          lblMin.style.fontWeight = 'normal';
+        }
+      };
+
+      consecutivoInput.addEventListener('keydown', (e) => {
+        if (isEdit) return;
+        if (e.key === 'ArrowDown') {
+          const v = parseInt(consecutivoInput.value, 10);
+          if (isNaN(v) || v <= currentMinConsecutivo) {
+            e.preventDefault();
+            consecutivoInput.value = currentMinConsecutivo;
+            App.showToast(`El consecutivo oficial no puede ser menor a #${currentMinConsecutivo}.`, 'warning');
+          }
+        }
+      });
+
+      consecutivoInput.addEventListener('input', () => {
+        if (isEdit) return;
+        const raw = consecutivoInput.value.trim();
+        if (!raw) return;
+        const v = parseInt(raw, 10);
+        const lblMin = document.getElementById('lbl-min-consecutivo');
+        if (!isNaN(v) && v < currentMinConsecutivo) {
+          consecutivoInput.style.borderColor = '#ef4444';
+          consecutivoInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.25)';
+          if (lblMin) {
+            lblMin.style.color = '#ef4444';
+            lblMin.style.fontWeight = 'bold';
+          }
+          if (String(raw).length >= String(currentMinConsecutivo).length) {
+            App.showToast(`El número consecutivo oficial no puede ser menor a #${currentMinConsecutivo}.`, 'warning');
+            consecutivoInput.value = currentMinConsecutivo;
+            consecutivoInput.style.borderColor = '';
+            consecutivoInput.style.boxShadow = '';
+            if (lblMin) {
+              lblMin.style.color = 'var(--text-muted)';
+              lblMin.style.fontWeight = 'normal';
+            }
+          }
+        } else {
+          consecutivoInput.style.borderColor = '';
+          consecutivoInput.style.boxShadow = '';
+          if (lblMin) {
+            lblMin.style.color = 'var(--text-muted)';
+            lblMin.style.fontWeight = 'normal';
+          }
+        }
+      });
+
+      consecutivoInput.addEventListener('change', enforceConsecutivo);
+      consecutivoInput.addEventListener('blur', enforceConsecutivo);
     }
-
-    // Ejecutar cálculo inicial
-    triggerLiveDateCalculation();
-  }
-
-  // ─── Recálculo en Vivo de Fechas y Validación ──────────────────────────────
-  let calcDebounce = null;
-  function triggerLiveDateCalculation() {
-    clearTimeout(calcDebounce);
-    calcDebounce = setTimeout(async () => {
-      const fechaInicio = document.getElementById('horario-fecha-inicio')?.value;
-      const duracionTexto = document.getElementById('horario-duracion-texto')?.value?.trim();
-      const tipoCalculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
-      const pill = document.getElementById('duration-preview-pill');
-      const finInput = document.getElementById('horario-fecha-fin');
-
-      if (!fechaInicio) return;
-
-      const dLower = (duracionTexto || '').toLowerCase();
-      if (!duracionTexto || dLower.includes('permanente') || dLower.includes('indefinid') || dLower.includes('sin definir')) {
-        if (pill) {
-          pill.className = 'duration-badge-pill duration-badge-pill--valid';
-          pill.textContent = '✓ Vigencia permanente';
-        }
-        if (finInput && (!finInput.value || dLower.includes('permanente'))) finInput.value = '';
-        return;
-      }
-
-      try {
-        const res = await API.calculateHorarioDates({
-          fechaInicio,
-          duracionTexto,
-          tipoCalculo,
-        });
-
-        if (res.valid) {
-          if (pill) {
-            pill.className = 'duration-badge-pill duration-badge-pill--valid';
-            pill.textContent = res.duracionDias > 0 ? `✓ ${res.duracionTexto} (${res.duracionDias} días)` : `✓ ${res.duracionTexto}`;
-          }
-          if (finInput && res.fechaFin) {
-            finInput.value = res.fechaFin;
-          }
-        }
-      } catch (err) {
-        if (pill) {
-          pill.className = 'duration-badge-pill duration-badge-pill--error';
-          pill.textContent = `ℹ️ Ej: 6 meses, 1 año o 45 días`;
-        }
-      }
-    }, 200);
   }
 
   // ─── Envío del Formulario (Creación o Edición) ─────────────────────────────
@@ -1298,36 +1617,41 @@ const HorariosModule = (() => {
     const apellidos_nombres = document.getElementById('horario-nombre')?.value?.trim();
     const dependencia = document.getElementById('horario-dependencia')?.value?.trim();
     const cargo = document.getElementById('horario-cargo')?.value?.trim();
-    const estado = document.getElementById('horario-estado')?.value;
+    const estado = document.getElementById('horario-estado')?.value || 'Activa';
 
     const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
     const modalidad = modalidadRadio ? modalidadRadio.value : 'Presencial';
 
-    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value;
-    const fecha_fin = document.getElementById('horario-fecha-fin')?.value;
-    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim();
+    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value || null;
+    const fecha_fin = document.getElementById('horario-fecha-fin')?.value || null;
+    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || 
+      (modalidad === 'Teletrabajo' ? '2 días / semana' : modalidad === 'Horario flexible' ? '8 horas / día' : modalidad === 'Trabajo en casa' ? 'No aplica' : 'Jornada ordinaria');
     const tipo_calculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
 
-    // Acto administrativo
-    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim();
-    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value;
-    const fecha_notificacion = document.getElementById('horario-fecha-notificacion')?.value;
-    const aprobado_por = document.getElementById('horario-aprobado-por')?.value?.trim();
-    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim();
-    const observaciones = document.getElementById('horario-observaciones')?.value?.trim();
+    // Acto administrativo (opcional, no inventar datos)
+    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim() || null;
+    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value || null;
+    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
+    const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
 
-    // Validaciones básicas
+    // Validaciones
     if (!documento || !apellidos_nombres) {
-      App.showToast('Debes seleccionar un funcionario válido.', 'warning');
+      App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
       return;
     }
-    if (!fecha_inicio) {
-      App.showToast('La fecha de inicio es requerida.', 'warning');
-      return;
-    }
-    if (!numero_resolucion) {
-      App.showToast('El Número de Resolución es obligatorio.', 'warning');
-      return;
+
+    // Validación de número consecutivo para nuevos registros (no dejar disminuir del último que está)
+    if (!existingId) {
+      const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
+      if (!cVal || cVal < currentMinConsecutivo) {
+        App.showToast(`El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`, 'error');
+        const cInp = document.getElementById('horario-consecutivo');
+        if (cInp) {
+          cInp.value = currentMinConsecutivo;
+          cInp.focus();
+        }
+        return;
+      }
     }
 
     const payload = {
@@ -1337,41 +1661,29 @@ const HorariosModule = (() => {
       secretaria: secretaria || null,
       documento,
       apellidos_nombres,
-      dependencia,
-      cargo,
+      dependencia: dependencia || 'SECRETARÍA GENERAL',
+      cargo: cargo || 'PROFESIONAL UNIVERSITARIO',
       estado,
       modalidad,
       fecha_inicio,
-      fecha_fin: fecha_fin || null,
-      duracion_texto: duracion_texto || (modalidad === 'Presencial' ? 'Permanente' : '6 meses'),
+      fecha_fin,
+      duracion_texto,
       tipo_calculo,
       numero_resolucion,
-      fecha_aprobacion: fecha_aprobacion || null,
-      fecha_notificacion: fecha_notificacion || null,
-      aprobado_por: aprobado_por || 'Angela Ussa',
-      soporte_acto: soporte_acto || null,
+      fecha_aprobacion,
+      aprobado_por: null,
+      soporte_acto,
       observaciones,
     };
 
-    // Campos dinámicos según modalidad
+    // Campos según modalidad
     if (modalidad === 'Teletrabajo') {
-      payload.subtipo_teletrabajo = document.getElementById('subtipo-teletrabajo')?.value;
-      payload.domicilio_laboral = document.getElementById('domicilio-laboral')?.value?.trim();
-      payload.dias_teletrabajo = document.getElementById('dias-teletrabajo')?.value?.trim();
-      payload.dias_presencial = document.getElementById('dias-presencial')?.value?.trim();
-      payload.notificacion_arl = document.getElementById('notificacion-arl')?.checked;
-      payload.fecha_reporte_arl = document.getElementById('fecha-reporte-arl')?.value || null;
-    } else if (modalidad === 'Trabajo en casa') {
-      payload.motivo_trabajo_casa = document.getElementById('motivo-trabajo-casa')?.value?.trim();
-      payload.direccion_trabajo_casa = document.getElementById('direccion-trabajo-casa')?.value?.trim();
-      payload.herramientas_tic = document.getElementById('herramientas-tic')?.value?.trim();
-      payload.prorroga = document.getElementById('prorroga-trabajo-casa')?.checked;
+      payload.subtipo_teletrabajo = document.getElementById('subtipo-teletrabajo')?.value || 'Suplementario (Híbrido)';
+      payload.dias_teletrabajo = document.getElementById('dias-teletrabajo')?.value?.trim() || 'martes y jueves';
     } else if (modalidad === 'Horario flexible') {
-      payload.franja_ingreso = document.getElementById('franja-ingreso')?.value?.trim();
-      payload.franja_salida = document.getElementById('franja-salida')?.value?.trim();
-      payload.horas_semanales = parseInt(document.getElementById('horas-semanales')?.value, 10) || 40;
-      payload.tiempo_almuerzo = document.getElementById('tiempo-almuerzo')?.value?.trim();
-      payload.justificacion_flex = document.getElementById('justificacion-flex')?.value?.trim();
+      payload.franja_ingreso = document.getElementById('franja-ingreso')?.value?.trim() || '8 AM A 12 M, 1 A 5 PM';
+    } else if (modalidad === 'Trabajo en casa') {
+      payload.motivo_trabajo_casa = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
     }
 
     try {
@@ -1379,17 +1691,11 @@ const HorariosModule = (() => {
         await API.updateHorario(existingId, payload);
         App.showToast('Esquema de horario actualizado correctamente.', 'success');
       } else {
-        const res = await API.createHorario(payload);
-        if (res.pausedVacationsCount > 0) {
-          App.showToast(
-            'Esquema registrado. Se pausó preventivamente la solicitud de vacaciones en curso.',
-            'info'
-          );
-        } else {
-          App.showToast('Esquema de horario creado exitosamente.', 'success');
-        }
+        await API.createHorario(payload);
+        App.showToast('Esquema de horario registrado exitosamente.', 'success');
       }
 
+      document.querySelector('.modal-header-consecutivo')?.remove();
       document.querySelector('.modal-box')?.classList.remove('modal-schedule');
       App.closeModal();
       await loadData();
@@ -1474,249 +1780,496 @@ const HorariosModule = (() => {
   }
 
   async function openDetailModal(id) {
-    App.openModal('Detalle de Esquema de Horario', renderDetailModalSkeleton(), [
+    App.openModal('Ficha Integral del Esquema de Horario', renderDetailModalSkeleton(), [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
-    ]);
+    ], 'modal-ficha modal-lg');
+
+    const box = document.querySelector('.modal-box');
+    if (box) {
+      box.classList.add('modal-ficha', 'modal-lg');
+      box.style.maxWidth = '900px';
+      box.style.width = '92vw';
+    }
 
     try {
       const res = await API.getHorarioById(id);
       const h = res.horario;
-      const hist = res.historial || [];
+      if (!h) {
+        App.showToast('No se encontró el esquema solicitado.', 'error');
+        App.closeModal();
+        return;
+      }
+
+      const cleanNombre = (h.apellidos_nombres || '').trim();
+      const nameParts = cleanNombre.split(/\s+/).filter(Boolean);
+      let cleanApellidos = '';
+      let cleanNombres = '';
+      if (nameParts.length >= 2) {
+        cleanApellidos = nameParts.slice(0, 2).join(' ');
+        cleanNombres = nameParts.slice(2).join(' ') || nameParts[1];
+      } else {
+        cleanNombres = cleanNombre;
+      }
+      const initials = nameParts.length >= 2
+        ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+        : (cleanNombre.slice(0, 2).toUpperCase() || 'SP');
+      const isActivo = !h.estado || h.estado.toLowerCase().includes('activ');
+      const formattedCc = formatCedulaDots(h.documento);
+      const consecutivo = h.numero_consecutivo != null ? h.numero_consecutivo : h.id_horario;
+      const modalidadStr = (h.modalidad || 'Teletrabajo').trim();
+      const isTeletrabajo = modalidadStr.toLowerCase().includes('teletrabajo');
+      const isFlexible = modalidadStr.toLowerCase().includes('flexible');
+      const isCasa = modalidadStr.toLowerCase().includes('casa');
 
       const bodyHtml = `
-        <div class="horario-detail-modal">
-          <!-- Cabecera de Funcionario -->
-          <div class="detail-header-card glass">
-            <div class="employee-avatar avatar-char avatar--lg">${(h.apellidos_nombres || 'F')[0]}</div>
-            <div class="detail-header-info">
-              <h3>
-                ${escHtml(h.apellidos_nombres)}
-                <span class="font-mono text-muted" style="font-size:13px; font-weight:normal; margin-left:6px;">(#${h.numero_consecutivo || h.id_horario})</span>
-              </h3>
-              <p>
-                <strong>C.C.:</strong> ${escHtml(h.documento)} &nbsp;|&nbsp;
-                <strong>Dependencia:</strong> ${escHtml(h.dependencia)}
-                ${h.secretaria ? ` &nbsp;|&nbsp; <strong>Secretaría:</strong> ${escHtml(h.secretaria)}` : ''}
-              </p>
-              <p>
-                <strong>Cargo:</strong> ${escHtml(h.cargo)}
-                ${h.codigo ? ` &bull; <strong>Cód:</strong> ${escHtml(h.codigo)}` : ''}
-                ${h.grado ? ` &bull; <strong>Grd:</strong> ${escHtml(h.grado)}` : ''}
-              </p>
-            </div>
-            <div class="detail-header-badges">
-              ${modalidadBadge(h.modalidad)}
-              ${estadoBadge(h.estado)}
-            </div>
-          </div>
-
-          <!-- Metadata Administrativa -->
-          <div class="detail-section">
-            <h4 class="detail-section-title">Acto Administrativo, Notificación y Soporte</h4>
-            <div class="detail-grid detail-grid--3col">
-              <div class="detail-item">
-                <span class="detail-label">Número de Resolución</span>
-                <span class="detail-val font-mono font-bold">${escHtml(h.numero_resolucion || 'S/N')}</span>
+        <div class="ficha-wrapper">
+          <!-- ─── Hero Profile Header ─── -->
+          <div class="ficha-hero">
+            <div class="ficha-hero-inner">
+              <div class="ficha-avatar-box">
+                <div class="ficha-avatar">${escHtml(initials)}</div>
+                <div class="ficha-avatar-badge ${isActivo ? '' : 'inactivo'}" title="${isActivo ? 'Esquema Activo' : 'Esquema ' + escHtml(h.estado)}"></div>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Fecha de Aprobación</span>
-                <span class="detail-val">${formatDate(h.fecha_aprobacion)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Fecha de Notificación</span>
-                <span class="detail-val">${formatDate(h.fecha_notificacion)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Autorizado Por</span>
-                <span class="detail-val">${escHtml(h.aprobado_por || 'Angela Ussa')}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Soporte Documental Firmado</span>
-                <span class="detail-val">
-                  ${h.soporte_acto ? `
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 8px; color:var(--color-green-bright, #22c55e);">
-                      📄 Ver Hoja Firmada
-                    </button>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 8px; margin-left:4px;">
-                      Cambiar
-                    </button>
-                  ` : `
-                    <button type="button" class="btn btn-primary btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 8px;">
-                      📎 Cargar Hoja Firmada
-                    </button>
-                  `}
-                </span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Tipo de Cómputo</span>
-                <span class="detail-val">${escHtml(h.tipo_calculo)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Vigencia & Duración -->
-          <div class="detail-section">
-            <h4 class="detail-section-title">Vigencia y Duración</h4>
-            <div class="detail-grid detail-grid--3col">
-              <div class="detail-item">
-                <span class="detail-label">Fecha de Inicio</span>
-                <span class="detail-val">${formatDate(h.fecha_inicio)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Fecha de Finalización</span>
-                <span class="detail-val">${formatDate(h.fecha_fin)}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Duración Registrada</span>
-                <span class="detail-val font-bold text-accent">${escHtml(h.duracion_texto || `${h.duracion_dias} días`)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Detalles Específicos de Modalidad -->
-          ${renderModalidadSpecificDetails(h)}
-
-          <!-- Trazabilidad / Historial de Auditoría -->
-          <div class="detail-section">
-            <h4 class="detail-section-title">Trazabilidad de Cambios y Reglas Automáticas</h4>
-            ${
-              hist.length === 0
-                ? `<p class="text-muted">Sin registros de cambios en el historial.</p>`
-                : `
-              <div class="history-timeline">
-                ${hist
-                  .map(
-                    (entry) => `
-                  <div class="history-timeline-item">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-content">
-                      <div class="timeline-header">
-                        <strong>${escHtml(entry.accion)}</strong>
-                        <span class="text-muted">${formatDate(entry.fecha_actualizacion)}</span>
-                      </div>
-                      <p class="timeline-note">${escHtml(entry.nota || 'Actualización de registro')}</p>
-                      <small class="text-muted">Por: ${escHtml(entry.actualizado_por || 'Sistema')}</small>
-                    </div>
+              <div class="ficha-hero-info">
+                <h3 class="ficha-hero-name">${escHtml(cleanNombre)}</h3>
+                <div class="ficha-hero-sub">
+                  <span>Apellidos: <strong>${escHtml(cleanApellidos || cleanNombre)}</strong></span>
+                  <span>•</span>
+                  <span>Nombres: <strong>${escHtml(cleanNombres || cleanNombre)}</strong></span>
+                </div>
+                <div class="ficha-hero-pills">
+                  <div class="ficha-hero-pill">
+                    <span>🪪 C.C. <strong>${escHtml(formattedCc)}</strong></span>
+                    ${h.documento ? `
+                      <button class="ficha-copy-btn" id="btn-copy-ficha-cc" onclick="HorariosModule.copyFichaText('${escHtml(h.documento)}', 'btn-copy-ficha-cc')" title="Copiar cédula">
+                        <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copiar
+                      </button>
+                    ` : ''}
                   </div>
-                `
-                  )
-                  .join('')}
+                  <span class="ficha-hero-pill ${isActivo ? 'pill--emerald' : ''}">
+                    ${isActivo ? '🟢 Activo' : '⚪ ' + escHtml(h.estado)}
+                  </span>
+                  <span class="ficha-hero-pill">
+                    💼 ${escHtml(h.cargo || 'Funcionario')}
+                  </span>
+                  <span class="ficha-hero-pill">
+                    🏢 ${escHtml(h.dependencia || 'Gobernación de Boyacá')}
+                  </span>
+                </div>
               </div>
-            `
-            }
+              <div class="ficha-hero-logo-wrap" title="Gobernación de Boyacá">
+                <img src="imgs/logoCondor.png" alt="Cóndor — Boyacá" class="ficha-hero-condor logo-light-theme" />
+                <img src="imgs/logoCondorBlanco.png" alt="Cóndor — Boyacá" class="ficha-hero-condor logo-dark-theme" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── Tabs Navigation ─── -->
+          <div class="ficha-tabs">
+            <button class="ficha-tab-btn active" data-tab="ficha-esquema" onclick="HorariosModule.switchFichaTab('ficha-esquema')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              Esquema & Horario
+            </button>
+            <button class="ficha-tab-btn" data-tab="ficha-acto" onclick="HorariosModule.switchFichaTab('ficha-acto')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Acto Administrativo & Vigencia
+            </button>
+            <button class="ficha-tab-btn" data-tab="ficha-servidor" onclick="HorariosModule.switchFichaTab('ficha-servidor')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Servidor & Ubicación
+            </button>
+          </div>
+
+          <!-- ─── Tab 1: Esquema & Horario ─── -->
+          <div class="ficha-tab-pane active" id="ficha-esquema">
+            <div class="ficha-grid">
+              <div class="ficha-card ficha-card--gold">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">💼</div>
+                  <span class="ficha-card-label">Modalidad / Situación Administrativa</span>
+                </div>
+                <div class="ficha-card-val" style="font-size:1.15rem; color:var(--color-gold, #d97706); font-weight:800;">
+                  ${escHtml(modalidadStr)}
+                </div>
+                <div class="ficha-card-sub">Modalidad laboral autorizada institucionalmente</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🗓️</div>
+                  <span class="ficha-card-label">Horario Asignado / Días de Alternancia</span>
+                </div>
+                <div class="ficha-card-val" style="font-weight:700;">
+                  ${escHtml(h.dias_teletrabajo || h.franja_ingreso || 'Jornada Ordinaria')}
+                </div>
+                <div class="ficha-card-sub">Días autorizados o franja horaria aplicable</div>
+              </div>
+
+              <!-- Stat Destacado: Duración y Cómputo -->
+              <div class="ficha-card ficha-card--featured ficha-grid--full">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">⏳</div>
+                  <span class="ficha-card-label" style="color:var(--color-navy);">Duración Autorizada y Tipo de Cómputo</span>
+                </div>
+                <div class="ficha-card-val" style="font-size:1.25rem; font-weight:800; color:var(--color-success);">
+                  ${escHtml(h.duracion_texto || (h.duracion_dias ? `${h.duracion_dias} días autorizados` : 'Vigencia Indefinida'))}
+                </div>
+                <div class="ficha-card-sub" style="color:var(--color-info);">
+                  Cómputo en días <strong>${escHtml(h.tipo_calculo || 'Hábiles')}</strong> según marco regulatorio de la Gobernación de Boyacá
+                </div>
+              </div>
+
+              ${isTeletrabajo ? `
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">🏠</div>
+                    <span class="ficha-card-label">Subtipo de Teletrabajo</span>
+                  </div>
+                  <div class="ficha-card-val font-bold">
+                    ${escHtml(h.subtipo_teletrabajo || 'Suplementario')}
+                  </div>
+                  <div class="ficha-card-sub">Alternancia en casa y sede física</div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">🏢</div>
+                    <span class="ficha-card-label">Días Presenciales / En Casa</span>
+                  </div>
+                  <div class="ficha-card-val">
+                    Casa: <strong>${escHtml(h.dias_teletrabajo || '2')}</strong> &bull; Presencial: <strong>${escHtml(h.dias_presencial || '3')}</strong>
+                  </div>
+                  <div class="ficha-card-sub">Distribución semanal de jornada</div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">🛡️</div>
+                    <span class="ficha-card-label">Reporte y Cobertura Positiva ARL</span>
+                  </div>
+                  <div class="ficha-card-val">
+                    ${h.notificacion_arl
+                      ? '<span class="badge badge--success" style="font-size:12px; font-weight:700;">✓ Notificado formalmente a ARL</span>'
+                      : '<span class="badge badge--revision" style="font-size:12px; font-weight:700;">⏳ Trámite ante ARL pendiente</span>'
+                    }
+                  </div>
+                  <div class="ficha-card-sub">
+                    ${h.fecha_reporte_arl ? `Radicado formal: ${formatDate(h.fecha_reporte_arl)}` : 'Cobertura de riesgos laborales en domicilio'}
+                  </div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">📍</div>
+                    <span class="ficha-card-label">Domicilio Laboral Autorizado</span>
+                  </div>
+                  <div class="ficha-card-val" style="font-size:0.95rem;">
+                    ${escHtml(h.domicilio_laboral || 'Tunja, Boyacá')}
+                  </div>
+                  <div class="ficha-card-sub">Puesto de trabajo en casa registrado para ARL</div>
+                </div>
+              ` : ''}
+
+              ${isFlexible ? `
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">⏰</div>
+                    <span class="ficha-card-label">Franja Horaria de Entrada</span>
+                  </div>
+                  <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary);">
+                    ${escHtml(h.franja_ingreso || '07:00 AM - 08:30 AM')}
+                  </div>
+                  <div class="ficha-card-sub">Ingreso escalonado acordado</div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">⏱️</div>
+                    <span class="ficha-card-label">Franja Horaria de Salida</span>
+                  </div>
+                  <div class="ficha-card-val font-mono" style="font-size:1.1rem;">
+                    ${escHtml(h.franja_salida || '04:30 PM - 06:00 PM')}
+                  </div>
+                  <div class="ficha-card-sub">Cumplimiento de 8 horas laborales diarias</div>
+                </div>
+
+                <div class="ficha-card ficha-grid--full">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">📌</div>
+                    <span class="ficha-card-label">Criterio o Justificación de Flexibilidad</span>
+                  </div>
+                  <div class="ficha-card-val" style="font-size:0.95rem; font-weight:500;">
+                    ${escHtml(h.justificacion_flex || h.observaciones || 'Cuidado de hijos / familiares o estudios')}
+                  </div>
+                  <div class="ficha-card-sub">Concertación laboral bajo lineamientos institucionales</div>
+                </div>
+              ` : ''}
+
+              ${isCasa ? `
+                <div class="ficha-card ficha-grid--full">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">📑</div>
+                    <span class="ficha-card-label">Motivo Excepcional (Ley 2088 de 2021)</span>
+                  </div>
+                  <div class="ficha-card-val" style="font-size:0.95rem;">
+                    ${escHtml(h.motivo_trabajo_casa || 'Situación ocasional, excepcional o especial debidamente sustentada')}
+                  </div>
+                  <div class="ficha-card-sub">Habilitación temporal de trabajo en casa</div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">📍</div>
+                    <span class="ficha-card-label">Lugar de Prestación del Servicio</span>
+                  </div>
+                  <div class="ficha-card-val">
+                    ${escHtml(h.direccion_trabajo_casa || 'Domicilio habitual del servidor')}
+                  </div>
+                  <div class="ficha-card-sub">Ubicación reportada</div>
+                </div>
+
+                <div class="ficha-card">
+                  <div class="ficha-card-top">
+                    <div class="ficha-card-icon">💻</div>
+                    <span class="ficha-card-label">Herramientas y Conectividad TIC</span>
+                  </div>
+                  <div class="ficha-card-val">
+                    ${escHtml(h.herramientas_tic || 'Equipos y TIC suministrados / propios')}
+                  </div>
+                  <div class="ficha-card-sub">Condiciones tecnológicas para desempeño</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- ─── Tab 2: Acto Administrativo & Vigencia ─── -->
+          <div class="ficha-tab-pane" id="ficha-acto">
+            <div class="ficha-grid">
+              <div class="ficha-card ficha-grid--full ficha-card--gold">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📜</div>
+                  <span class="ficha-card-label">Acto Administrativo / Resolución</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="font-size:1.25rem; font-weight:800; color:var(--text-primary);">
+                  ${escHtml(h.numero_resolucion || 'Sin Resolución Registrada')}
+                </div>
+                <div class="ficha-card-sub">Acto administrativo oficial que formaliza la situación laboral</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">✍️</div>
+                  <span class="ficha-card-label">Autorización / Trámite</span>
+                </div>
+                <div class="ficha-card-val" style="font-weight:700;">
+                  ${escHtml(h.aprobado_por || 'Dirección de Gestión de Talento Humano')}
+                </div>
+                <div class="ficha-card-sub">Trámite Institucional Oficial</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📅</div>
+                  <span class="ficha-card-label">Fecha de Expedición / Aprobación</span>
+                </div>
+                <div class="ficha-card-val font-mono">
+                  ${formatDate(h.fecha_aprobacion || h.fecha_resolucion)}
+                </div>
+                <div class="ficha-card-sub">Firma del acto administrativo</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📨</div>
+                  <span class="ficha-card-label">Fecha de Notificación al Servidor</span>
+                </div>
+                <div class="ficha-card-val font-mono">
+                  ${formatDate(h.fecha_notificacion)}
+                </div>
+                <div class="ficha-card-sub">Comunicación oficial al funcionario</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🟢</div>
+                  <span class="ficha-card-label">Fecha Inicio de Vigencia</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="color:var(--color-success); font-weight:700; font-size:1.05rem;">
+                  ${formatDate(h.fecha_inicio)}
+                </div>
+                <div class="ficha-card-sub">Comienzo de efectos de la situación</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🔴</div>
+                  <span class="ficha-card-label">Fecha Final de Vigencia</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="font-weight:700; font-size:1.05rem;">
+                  ${h.fecha_fin ? formatDate(h.fecha_fin) : '<span style="color:var(--text-muted);">Indefinida / Sin fecha fin</span>'}
+                </div>
+                <div class="ficha-card-sub">${h.fecha_fin ? 'Culminación del período autorizado' : 'Vigencia continuada'}</div>
+              </div>
+
+              <!-- Soporte Documental Digitalizado -->
+              <div class="ficha-card ficha-grid--full ficha-card--featured" style="padding:16px 18px;">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📎</div>
+                  <span class="ficha-card-label" style="color:var(--color-navy);">Soporte Documental Escaneado / Digitalizado</span>
+                </div>
+                <div style="margin-top:8px;">
+                  ${h.soporte_acto ? `
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                      <span style="color:var(--color-success); font-weight:700; display:inline-flex; align-items:center; gap:6px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
+                        Hoja de Resolución Firmada Adjunta al Esquema
+                      </span>
+                      <div style="display:inline-flex; gap:8px;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="font-weight:700;">
+                          📄 Ver Documento
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})">
+                          Reemplazar Archivo
+                        </button>
+                      </div>
+                    </div>
+                  ` : `
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                      <span style="color:var(--text-muted); font-size:13px;">No cuenta con soporte digitalizado adjunto actualmente.</span>
+                      <button type="button" class="btn btn-primary btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})" style="font-weight:700;">
+                        📎 Adjuntar Resolución Firmada
+                      </button>
+                    </div>
+                  `}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ─── Tab 3: Servidor & Ubicación ─── -->
+          <div class="ficha-tab-pane" id="ficha-servidor">
+            <div class="ficha-grid">
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🪪</div>
+                  <span class="ficha-card-label">Cédula de Ciudadanía</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary); font-weight:700;">
+                  C.C. ${escHtml(formattedCc)}
+                </div>
+                <div class="ficha-card-sub">Identificación institucional del servidor</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🔢</div>
+                  <span class="ficha-card-label">Número Consecutivo</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="font-size:1.1rem; font-weight:800;">
+                  # ${consecutivo}
+                </div>
+                <div class="ficha-card-sub">Consecutivo en la relación administrativa</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">💼</div>
+                  <span class="ficha-card-label">Denominación del Cargo</span>
+                </div>
+                <div class="ficha-card-val" style="color:var(--color-gold, #d97706); font-weight:700;">
+                  ${escHtml(h.cargo || 'No registrado')}
+                </div>
+                <div class="ficha-card-sub">Cargo que desempeña en la entidad</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🏷️</div>
+                  <span class="ficha-card-label">Código y Grado</span>
+                </div>
+                <div class="ficha-card-val font-mono">
+                  Cód. <strong>${escHtml(h.codigo || 'N/A')}</strong> &bull; Grado <strong>${escHtml(h.grado || 'N/A')}</strong>
+                </div>
+                <div class="ficha-card-sub">Escala y nivel jerárquico</div>
+              </div>
+
+              <div class="ficha-card ficha-grid--full ficha-card--gold">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🏢</div>
+                  <span class="ficha-card-label">Dependencia Institucional</span>
+                </div>
+                <div class="ficha-card-val" style="font-size:1.1rem; color:var(--text-primary); font-weight:700;">
+                  ${escHtml(h.dependencia || 'No registrada')}
+                </div>
+                <div class="ficha-card-sub">Área orgánica asignada en la Gobernación de Boyacá</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">🏛️</div>
+                  <span class="ficha-card-label">Secretaría</span>
+                </div>
+                <div class="ficha-card-val" style="font-weight:700;">
+                  ${escHtml(h.secretaria || h.dependencia || 'Gobernación de Boyacá')}
+                </div>
+                <div class="ficha-card-sub">Sector administrativo</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📌</div>
+                  <span class="ficha-card-label">Estado del Esquema</span>
+                </div>
+                <div class="ficha-card-val">
+                  ${estadoBadge(h.estado)}
+                </div>
+                <div class="ficha-card-sub">Condición operativa en el sistema</div>
+              </div>
+
+              <div class="ficha-card ficha-grid--full">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📝</div>
+                  <span class="ficha-card-label">Observaciones Administrativas</span>
+                </div>
+                <div class="ficha-card-val" style="font-weight:500; font-size:0.92rem; color:var(--text-secondary);">
+                  ${escHtml(h.observaciones || 'Sin observaciones registradas a la fecha')}
+                </div>
+                <div class="ficha-card-sub">Notas de registro o trazabilidad interna</div>
+              </div>
+            </div>
           </div>
         </div>
       `;
 
-      App.openModal('Detalle de Esquema de Horario', bodyHtml, [
+      const actions = [
         { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
-      ]);
+      ];
+      if (Auth.canEdit()) {
+        actions.push({
+          text: 'Editar Servidor',
+          cls: 'btn-gold',
+          action: () => {
+            App.closeModal();
+            openEdit(h.id_horario);
+          }
+        });
+      }
+
+      App.openModal('Ficha Integral del Esquema de Horario', bodyHtml, actions, 'modal-ficha modal-lg');
+      const box2 = document.querySelector('.modal-box');
+      if (box2) {
+        box2.classList.add('modal-ficha', 'modal-lg');
+        box2.style.maxWidth = '900px';
+        box2.style.width = '92vw';
+      }
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody) {
+        modalBody.scrollTop = 0;
+      }
     } catch (err) {
       App.showToast('Error cargando detalle: ' + err.message, 'error');
     }
-  }
-
-  function renderModalidadSpecificDetails(h) {
-    if (h.modalidad === 'Teletrabajo') {
-      return `
-        <div class="detail-section">
-          <h4 class="detail-section-title">Condiciones de Teletrabajo</h4>
-          <div class="detail-grid detail-grid--2col">
-            <div class="detail-item">
-              <span class="detail-label">Subtipo</span>
-              <span class="detail-val">${escHtml(h.subtipo_teletrabajo || 'Suplementario')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Domicilio Laboral (ARL)</span>
-              <span class="detail-val">${escHtml(h.domicilio_laboral || 'No registrado')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Días en Casa</span>
-              <span class="detail-val">${escHtml(h.dias_teletrabajo || 'N/A')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Días Presenciales</span>
-              <span class="detail-val">${escHtml(h.dias_presencial || 'N/A')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Reporte a ARL</span>
-              <span class="detail-val">${h.notificacion_arl ? '✓ Notificado formalmente' : 'Pendiente de reporte'}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Fecha Reporte ARL</span>
-              <span class="detail-val">${formatDate(h.fecha_reporte_arl)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    if (h.modalidad === 'Trabajo en casa') {
-      return `
-        <div class="detail-section">
-          <h4 class="detail-section-title">Condiciones de Trabajo en Casa (Ley 2088 de 2021)</h4>
-          <div class="detail-grid detail-grid--2col">
-            <div class="detail-item detail-item--full">
-              <span class="detail-label">Justificación Excepcional</span>
-              <span class="detail-val">${escHtml(h.motivo_trabajo_casa || 'Sin justificación registrada')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Lugar de Prestación</span>
-              <span class="detail-val">${escHtml(h.direccion_trabajo_casa || 'Domicilio')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Equipos / TIC</span>
-              <span class="detail-val">${escHtml(h.herramientas_tic || 'Suministrados')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Condición de Prórroga</span>
-              <span class="detail-val">${h.prorroga ? 'Sí (Prórroga extraordinaria)' : 'Periodo inicial'}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Efecto en Vacaciones</span>
-              <span class="detail-val text-amber font-bold">Pausa automática activa</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    if (h.modalidad === 'Horario flexible') {
-      return `
-        <div class="detail-section">
-          <h4 class="detail-section-title">Bandas Horarias y Flexibilidad Concertada</h4>
-          <div class="detail-grid detail-grid--2col">
-            <div class="detail-item">
-              <span class="detail-label">Franja de Ingreso</span>
-              <span class="detail-val font-mono">${escHtml(h.franja_ingreso || '07:00 - 08:30')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Franja de Salida</span>
-              <span class="detail-val font-mono">${escHtml(h.franja_salida || '16:30 - 18:00')}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Jornada Semanal</span>
-              <span class="detail-val">${h.horas_semanales || 40} Horas</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Tiempo de Almuerzo</span>
-              <span class="detail-val">${escHtml(h.tiempo_almuerzo || '1 hora')}</span>
-            </div>
-            <div class="detail-item detail-item--full">
-              <span class="detail-label">Justificación</span>
-              <span class="detail-val">${escHtml(h.justificacion_flex || 'Concertación laboral')}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="detail-section">
-        <h4 class="detail-section-title">Jornada Presencial Ordinaria</h4>
-        <p class="text-muted">Jornada institucional ordinaria en las instalaciones de la Gobernación de Boyacá de 8:00 a.m. a 12:00 m. y de 2:00 p.m. a 6:00 p.m.</p>
-      </div>
-    `;
   }
 
   // ─── Modal de Cambio Rápido de Estado (1 Clic) ──────────────────────────────
@@ -1832,7 +2385,16 @@ const HorariosModule = (() => {
   }
 
   // ─── Funciones Públicas de Gestión y Filtros ───────────────────────────────
-  function openCreate() {
+  async function openCreate() {
+    try {
+      const res = await API.getNextHorarioConsecutivo();
+      if (res && res.nextConsecutivo != null) {
+        const apiNext = parseInt(res.nextConsecutivo, 10);
+        if (!isNaN(apiNext) && apiNext > 0) {
+          currentMinConsecutivo = apiNext;
+        }
+      }
+    } catch (_) {}
     openScheduleModal();
   }
 
@@ -2213,6 +2775,14 @@ const HorariosModule = (() => {
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
           <!-- Sección de Selección y Confirmación de Archivo -->
           <div id="hor-upload-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:8px 14px; border-radius:8px; border:1px solid var(--color-border); flex-wrap:wrap; gap:8px;">
+              <span style="font-size:12px; color:var(--text-muted);">¿Necesitas la plantilla oficial para diligenciar?</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.downloadTemplate()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px; font-weight:600;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                Descargar Plantilla Oficial Excel
+              </button>
+            </div>
+
             <div class="excel-dropzone" id="hor-excel-dropzone">
               <input type="file" id="hor-excel-file-input" accept=".xlsx, .xls" style="display:none;" />
               <div class="excel-dropzone-icon">
@@ -2354,18 +2924,32 @@ const HorariosModule = (() => {
 
     function validateRow(row) {
       const getVal = (...keys) => {
+        // 1. Coincidencia exacta directa
         for (const k of keys) {
           if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
             return String(row[k]).normalize('NFC').trim();
           }
         }
+        // 2. Coincidencia exacta normalizada (sin tildes, mayúsculas ni espacios)
         const rowKeys = Object.keys(row);
         for (const k of keys) {
           const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
           if (!cleanK) continue;
           const foundKey = rowKeys.find(rk => {
             const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-            return cleanRK === cleanK || cleanRK.includes(cleanK) || cleanK.includes(cleanRK);
+            return cleanRK === cleanK;
+          });
+          if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+            return String(row[foundKey]).normalize('NFC').trim();
+          }
+        }
+        // 3. Coincidencia por prefijo seguro (mínimo 4 caracteres para evitar colisiones)
+        for (const k of keys) {
+          const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+          if (!cleanK || cleanK.length < 4) continue;
+          const foundKey = rowKeys.find(rk => {
+            const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            return cleanRK.startsWith(cleanK);
           });
           if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
             return String(row[foundKey]).normalize('NFC').trim();
@@ -2374,21 +2958,27 @@ const HorariosModule = (() => {
         return '';
       };
 
-      const consecutivoRaw = getVal('No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
-      const documento = getVal('De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
-      const nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Nombre', 'Nombres', 'Funcionario', 'apellidos_nombres');
-      const cargo = getVal('Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
-      const codigo = getVal('Código', 'Codigo', 'codigo');
-      const grado = getVal('Grado', 'grado');
-      const dependencia = getVal('Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
-      const secretaria = getVal('Secretaría', 'Secretaria', 'secretaria') || dependencia;
-      const situacion = getVal('Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
-      const diasTeletrabajo = getVal('Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
-      const resolucion = getVal('Resolución', 'Resolucion', 'Res.', 'Res', 'numero_resolucion');
-      const fechaRaw = getVal('fecha', 'Fecha', 'Fecha Inicio', 'fecha_inicio');
+      const consecutivoRaw = getVal('NO', 'No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
+      const documento = getVal('NO DE CEDULA', 'No. De Cedula', 'Nro. De Identificación', 'De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
+      const nombresVal = getVal('NOMBRES', 'Nombre', 'nombres');
+      const apellidosVal = getVal('APELLIDOS', 'Apellido', 'apellidos');
+      let nombre = [apellidosVal, nombresVal].filter(Boolean).join(' ').trim();
+      if (!nombre) {
+        nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Funcionario', 'apellidos_nombres');
+      }
+      const cargo = getVal('CARGO', 'Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
+      const codigo = getVal('COD', 'Código', 'Codigo', 'codigo');
+      const grado = getVal('GRA', 'Grado', 'grado');
+      const dependencia = getVal('DEPENDENCIA', 'Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
+      const secretaria = getVal('SECRETARIA', 'Secretaría', 'Secretaria', 'secretaria') || dependencia;
+      const situacion = getVal('SITUACION', 'Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
+      const diasTeletrabajo = getVal('DIAS DE TELETRABAJO', 'Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
+      const resolucion = getVal('RESOLUCION', 'Resolución', 'Resolucion', 'No. Resolución', 'No. Resolucion', 'numero_resolucion');
+      const fechaRaw = getVal('FECHA', 'fecha', 'Fecha', 'Fecha Inicio', 'fecha_inicio');
+      const telefono = getVal('TELEFONO', 'Teléfono', 'Telefono', 'tel.', 'celular');
 
       if (!documento || !nombre) {
-        return { valid: false, error: 'Documento y Nombres y Apellidos son obligatorios.' };
+        return { valid: false, error: 'Documento (No de cédula) y Nombre son obligatorios.' };
       }
 
       let modalidadNorm = situacion;
@@ -2572,25 +3162,33 @@ const HorariosModule = (() => {
 
             <div class="excel-kpi-grid">
               <div class="excel-kpi-tile excel-kpi-tile--total">
-                <span class="excel-kpi-label">Total Filas</span>
+                <span class="excel-kpi-label">Total Filas Archivo</span>
                 <span class="excel-kpi-value">${resumen.totalFilas || allCleanRows.length}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--inserted">
-                <span class="excel-kpi-label">Nuevos Registros</span>
-                <span class="excel-kpi-value">${resumen.insertados || 0}</span>
+                <span class="excel-kpi-label">Servidores Únicos</span>
+                <span class="excel-kpi-value">${resumen.servidoresUnicos || resumen.insertados || 0}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--updated">
-                <span class="excel-kpi-label">Actualizados</span>
+                <span class="excel-kpi-label">Actualizaciones</span>
                 <span class="excel-kpi-value">${resumen.actualizados || 0}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--provisional">
                 <span class="excel-kpi-label">Teletrabajo</span>
                 <span class="excel-kpi-value">${resumen.teletrabajo || 0}</span>
               </div>
-              <div class="excel-kpi-tile excel-kpi-tile--vacant">
-                <span class="excel-kpi-label">Otras Modalidades</span>
-                <span class="excel-kpi-value">${resumen.otrasModalidades || 0}</span>
+              <div class="excel-kpi-tile excel-kpi-tile--updated">
+                <span class="excel-kpi-label">Horario Flexible</span>
+                <span class="excel-kpi-value">${resumen.horarioFlexible || 0}</span>
               </div>
+              <div class="excel-kpi-tile excel-kpi-tile--vacant">
+                <span class="excel-kpi-label">Trabajo en Casa / Otras</span>
+                <span class="excel-kpi-value">${(resumen.trabajoEnCasa || 0) + (resumen.presencial || 0)}</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 14px; padding: 10px 14px; background: rgba(16,185,129,0.08); border-left: 4px solid var(--color-green-accent); border-radius: 6px; font-size: 12.5px; color: var(--color-text-primary); line-height: 1.5;">
+              <strong style="color: var(--color-green-dark);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>Control de no duplicidad activo:</strong> Cada servidor público conserva un único esquema vigente en el sistema. Las filas coincidentes entre hojas actualizaron la información del servidor (resolución, prórroga y vigencia) sin duplicar registros.
             </div>
 
             ${(errors.length > 0 || observaciones.length > 0) ? `
@@ -2631,27 +3229,236 @@ const HorariosModule = (() => {
     });
   }
 
-  function exportExcel() {
+  /**
+   * Estructura oficial de columnas para la Plantilla de Horarios y Modalidades:
+   * 14 columnas exactas en mayúscula sostenida y orden oficial:
+   * 1. NO, 2. NOMBRES, 3. APELLIDOS, 4. NO DE CEDULA, 5. CARGO, 6. COD, 7. GRA,
+   * 8. DEPENDENCIA, 9. SECRETARIA, 10. SITUACION, 11. DIAS DE TELETRABAJO,
+   * 12. RESOLUCION, 13. FECHA, 14. TELEFONO
+   */
+  const HORARIOS_EXCEL_COLUMNS = [
+    { header: 'NO', key: 'numero_consecutivo', width: 8, sample: '1' },
+    { header: 'NOMBRES', key: 'nombres', width: 24, sample: 'KAREN MILENA' },
+    { header: 'APELLIDOS', key: 'apellidos', width: 24, sample: 'ABRIL LOPEZ' },
+    { header: 'NO DE CEDULA', key: 'documento', width: 20, sample: '1057577168' },
+    { header: 'CARGO', key: 'cargo', width: 28, sample: 'ASESOR' },
+    { header: 'COD', key: 'codigo', width: 10, sample: '105' },
+    { header: 'GRA', key: 'grado', width: 10, sample: '01' },
+    { header: 'DEPENDENCIA', key: 'dependencia', width: 32, sample: 'DESPACHO DEL GOBERNADOR' },
+    { header: 'SECRETARIA', key: 'secretaria', width: 28, sample: 'SECRETARÍA GENERAL' },
+    { header: 'SITUACION', key: 'modalidad', width: 20, sample: 'Teletrabajo' },
+    { header: 'DIAS DE TELETRABAJO', key: 'dias_teletrabajo', width: 28, sample: 'martes y jueves' },
+    { header: 'RESOLUCION', key: 'numero_resolucion', width: 20, sample: '0045 de 2026' },
+    { header: 'FECHA', key: 'fecha_inicio', width: 16, sample: '2026-02-01' },
+    { header: 'TELEFONO', key: 'telefono', width: 18, sample: '3101234567' }
+  ];
+
+  function downloadTemplate() {
     if (typeof ExcelService !== 'undefined') {
-      const exportData = state.data.map((item, idx) => ({
-        'No.': item.numero_consecutivo != null ? item.numero_consecutivo : (idx + 1),
-        'Nombres y Apellidos': item.apellidos_nombres,
-        'De Identificación': item.documento,
-        'Cargo': item.cargo,
-        'Código': item.codigo || '',
-        'Grado': item.grado || '',
-        'Dependencia': item.dependencia,
-        'Secretaría': item.secretaria || '',
-        'Situación': item.modalidad,
-        'Resolución': item.numero_resolucion || '',
-        'Fecha Inicio': item.fecha_inicio || '',
-        'Dias Teletrabajo': item.dias_teletrabajo || item.franja_ingreso || '',
-        'Estado': item.estado,
-        'Soporte Adjunto': item.soporte_acto ? 'Sí' : 'No',
-      }));
-      ExcelService.exportToExcel(exportData, 'LISTADO_TELETRABAJADORES_MODALIDAD_ALTERNANCIA');
+      ExcelService.downloadTemplate({
+        filename: 'PLANTILLA_OFICIAL_HORARIOS_Y_MODALIDADES',
+        sheetName: 'Situación Administrativa',
+        columns: HORARIOS_EXCEL_COLUMNS,
+        sampleRows: []
+      });
+      App.showToast('Descargando plantilla oficial de Horarios y Modalidades en blanco...', 'info');
     } else {
       App.showToast('Servicio Excel no disponible.', 'warning');
+    }
+  }
+
+  function toggleSortConsecutivo() {
+    if (state.sort === 'consecutivo') {
+      state.order = state.order === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sort = 'consecutivo';
+      state.order = 'asc';
+    }
+    state.page = 1;
+    updateSortIndicator();
+    loadData();
+    if (typeof App !== 'undefined' && App.showToast) {
+      App.showToast(`Ordenado por consecutivo ${state.order === 'asc' ? 'ascendente (1 → 9)' : 'descendente (9 → 1)'}.`, 'info');
+    }
+  }
+
+  function updateSortIndicator() {
+    const el = document.getElementById('horarios-sort-indicator');
+    if (!el) return;
+    if (state.sort === 'consecutivo') {
+      el.textContent = state.order === 'asc' ? '▲' : '▼';
+      el.style.opacity = '1';
+    } else {
+      el.textContent = '⇅';
+      el.style.opacity = '0.5';
+    }
+  }
+
+  async function exportExcel() {
+    if (typeof ExcelService === 'undefined') {
+      App.showToast('Servicio Excel no disponible. Recargue la página.', 'warning');
+      return;
+    }
+
+    try {
+      // 1. Sincronizar filtros actuales desde el DOM o state.filters
+      const searchEl = document.getElementById('horarios-search');
+      const modEl = document.getElementById('filter-modalidad');
+      const estEl = document.getElementById('filter-estado');
+
+      const filterQ = searchEl ? searchEl.value.trim() : (state.filters.q || '');
+      const filterMod = modEl ? modEl.value : (state.filters.modalidad || 'Todas');
+      const filterEst = estEl ? estEl.value : (state.filters.estado || 'Todos');
+      const filterDep = state.filters.dependencia || 'Todas';
+
+      state.filters.q = filterQ;
+      state.filters.modalidad = filterMod;
+      state.filters.estado = filterEst;
+      state.filters.dependencia = filterDep;
+
+      const hasActiveFilters = Boolean(
+        filterQ ||
+        (filterMod && filterMod !== 'Todas') ||
+        (filterEst && filterEst !== 'Todos') ||
+        (filterDep && filterDep !== 'Todas')
+      );
+
+      App.showToast(
+        hasActiveFilters
+          ? 'Consultando registros filtrados para exportar a Excel...'
+          : 'Consultando la totalidad de esquemas de horarios para exportar a Excel...',
+        'info'
+      );
+
+      // 2. Consultar registros con límite alto para abarcar todos los coincidentes
+      const res = await API.getHorarios({
+        page: 1,
+        limit: 100000,
+        q: filterQ,
+        modalidad: filterMod,
+        estado: filterEst,
+        dependencia: filterDep,
+        sort: state.sort || 'consecutivo',
+        order: state.order || 'asc',
+      });
+
+      const records = (res && res.data && Array.isArray(res.data) && res.data.length)
+        ? res.data
+        : (Array.isArray(state.data) && state.data.length ? state.data : []);
+
+      if (!records || !records.length) {
+        App.showToast('No hay registros de horarios disponibles para exportar con los filtros seleccionados.', 'warning');
+        return;
+      }
+
+      // 3. Mapear datos a la estructura oficial requerida
+      const exportData = records.map((item, idx) => {
+        let nombres = item.persona_nombres || item.nombres || '';
+        let apellidos = '';
+
+        if (item.primer_apellido || item.segundo_apellido) {
+          apellidos = [item.primer_apellido, item.segundo_apellido].filter(Boolean).join(' ').trim();
+        } else if (item.apellidos) {
+          apellidos = String(item.apellidos).trim();
+        }
+
+        if (!apellidos && !nombres && item.apellidos_nombres) {
+          const parts = item.apellidos_nombres.trim().split(/\s+/);
+          if (parts.length >= 3) {
+            apellidos = parts.slice(0, 2).join(' ');
+            nombres = parts.slice(2).join(' ');
+          } else if (parts.length === 2) {
+            apellidos = parts[0];
+            nombres = parts[1];
+          } else {
+            apellidos = parts[0] || '';
+            nombres = '';
+          }
+        }
+
+        const numConsec = (item.numero_consecutivo != null && item.numero_consecutivo !== '')
+          ? item.numero_consecutivo
+          : (idx + 1);
+
+        let fechaFormatted = '';
+        if (item.fecha_inicio) {
+          try {
+            if (item.fecha_inicio instanceof Date) {
+              fechaFormatted = item.fecha_inicio.toISOString().split('T')[0];
+            } else {
+              const rawDate = String(item.fecha_inicio).split('T')[0];
+              const p = rawDate.split('-');
+              fechaFormatted = p.length === 3 ? `${p[0]}-${p[1]}-${p[2]}` : rawDate;
+            }
+          } catch {
+            fechaFormatted = String(item.fecha_inicio || '');
+          }
+        }
+
+        const tel = item.telefono || item.celular || item.telefono_fijo || '';
+        const cargoStr = item.cargo || '';
+        const codigoStr = item.codigo || '';
+        const gradoStr = item.grado || '';
+        const depStr = item.dependencia || '';
+        const secStr = item.secretaria || depStr || '';
+        const modStr = item.modalidad || '';
+        const diasStr = item.dias_teletrabajo || item.franja_ingreso || '';
+        const resolStr = item.numero_resolucion || '';
+
+        return {
+          // Llaves correspondientes a HORARIOS_EXCEL_COLUMNS.key
+          numero_consecutivo: numConsec,
+          nombres: nombres || item.apellidos_nombres || '',
+          apellidos: apellidos || '',
+          documento: item.documento || '',
+          cargo: cargoStr,
+          codigo: codigoStr,
+          grado: gradoStr,
+          dependencia: depStr,
+          secretaria: secStr,
+          modalidad: modStr,
+          dias_teletrabajo: diasStr,
+          numero_resolucion: resolStr,
+          fecha_inicio: fechaFormatted,
+          telefono: tel,
+
+          // Llaves directas por encabezado oficial para compatibilidad total
+          'NO': numConsec,
+          'NOMBRES': nombres || item.apellidos_nombres || '',
+          'APELLIDOS': apellidos || '',
+          'NO DE CEDULA': item.documento || '',
+          'CARGO': cargoStr,
+          'COD': codigoStr,
+          'GRA': gradoStr,
+          'DEPENDENCIA': depStr,
+          'SECRETARIA': secStr,
+          'SITUACION': modStr,
+          'DIAS DE TELETRABAJO': diasStr,
+          'RESOLUCION': resolStr,
+          'FECHA': fechaFormatted,
+          'TELEFONO': tel
+        };
+      });
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = hasActiveFilters
+        ? `Talento360_Horarios_Filtrados_${dateStr}`
+        : `Talento360_Horarios_Oficial_${dateStr}`;
+
+      ExcelService.exportToExcel({
+        filename: filename,
+        sheetName: 'Situación Administrativa',
+        columns: HORARIOS_EXCEL_COLUMNS,
+        data: exportData
+      });
+
+      const descFiltro = hasActiveFilters
+        ? `con los filtros seleccionados`
+        : `(totalidad del sistema)`;
+      App.showToast(`Se exportaron exitosamente ${exportData.length} registros a Excel ${descFiltro}.`, 'success');
+    } catch (err) {
+      console.error('[HorariosModule] exportExcel error:', err);
+      App.showToast('Error al exportar registros: ' + err.message, 'error');
     }
   }
 
@@ -2668,11 +3475,15 @@ const HorariosModule = (() => {
     goPage,
     checkExpirations,
     exportExcel,
+    downloadTemplate,
+    toggleSortConsecutivo,
     openImportModal,
     viewSoporte,
     openUploadSoporteModal,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown,
+    switchFichaTab,
+    copyFichaText,
   };
 })();

@@ -805,6 +805,37 @@ body {
 .btn-lg { padding: 12px 24px !important; font-size: var(--text-lg) !important; }
 .btn-full { width: 100%; }
 
+.btn-outline {
+  background: rgba(241, 245, 249, 0.7) !important;
+  color: var(--text-secondary, #475569) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all var(--transition-base) !important;
+  cursor: pointer;
+}
+.btn-outline:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.btn-soporte-adjuntar {
+  background: rgba(241, 245, 249, 0.8) !important;
+  color: #475569 !important;
+  border: 1px dashed #cbd5e1 !important;
+  border-radius: 9999px !important;
+  box-shadow: inset 0 1px 1px #ffffff, 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  cursor: pointer;
+  transition: all 0.2s ease !important;
+}
+.btn-soporte-adjuntar:hover {
+  background: #e2e8f0 !important;
+  border-color: #0284c7 !important;
+  color: #0284c7 !important;
+  transform: translateY(-1px);
+}
+
 /* Table Actions Container */
 .td-actions {
   display: table-cell !important;
@@ -817,6 +848,24 @@ body {
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.th-sortable {
+  cursor: pointer !important;
+  transition: color var(--transition-base), background-color var(--transition-base);
+}
+.th-sortable:hover {
+  color: var(--color-primary-light, #60a5fa) !important;
+  background: rgba(96, 165, 250, 0.08) !important;
+}
+
+#horarios-tbody .td-actions,
+.td-actions--center {
+  text-align: center !important;
+}
+#horarios-tbody .td-actions-wrap,
+.td-actions--center .td-actions-wrap {
+  justify-content: center !important;
 }
 
 /* Action Icon Buttons: Circular 34px Liquid Gems */
@@ -913,12 +962,16 @@ body {
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85), 0 6px 18px rgba(255, 69, 58, 0.65) !important;
 }
 
-/* 4. VER SOPORTE (Attachment) — Liquid Purple */
+/* 4. VER SOPORTE (Attachment) — Liquid Purple High Contrast Gem */
 .btn-action-soporte {
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.28) 0%, rgba(126, 34, 206, 0.48) 100%) !important;
-  border: 1px solid rgba(192, 132, 252, 0.5) !important;
-  color: #c084fc !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 2px 8px rgba(168, 85, 247, 0.25) !important;
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.22) 0%, rgba(147, 51, 234, 0.40) 100%) !important;
+  border: 1px solid rgba(168, 85, 247, 0.6) !important;
+  color: #581c87 !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(168, 85, 247, 0.25) !important;
+}
+.btn-action-soporte svg {
+  stroke: #581c87 !important;
+  stroke-width: 2.3 !important;
 }
 .btn-action-soporte:hover {
   transform: translateY(-2px) scale(1.06) !important;
@@ -926,6 +979,25 @@ body {
   border-color: rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), 0 6px 16px rgba(168, 85, 247, 0.5) !important;
+}
+.btn-action-soporte:hover svg {
+  stroke: #ffffff !important;
+}
+
+/* Indicador cuando ya tiene soporte cargado */
+.btn-action-soporte.btn-action-soporte--has-file {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.25) 0%, rgba(22, 163, 74, 0.45) 100%) !important;
+  border: 1px solid rgba(34, 197, 94, 0.6) !important;
+  color: #15803d !important;
+}
+.btn-action-soporte.btn-action-soporte--has-file svg {
+  stroke: #15803d !important;
+}
+.btn-action-soporte.btn-action-soporte--has-file:hover {
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%) !important;
+}
+.btn-action-soporte.btn-action-soporte--has-file:hover svg {
+  stroke: #ffffff !important;
 }
 
 /* Responsive: adapt diagonal and panels for medium screens / zoom */
@@ -2124,6 +2196,111 @@ body {
   max-width: 720px;
 }
 
+.modal-header-consecutivo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+  margin-right: 14px;
+}
+
+.modal-header-consecutivo label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.1;
+  user-select: none;
+}
+
+.modal-header-consecutivo input {
+  width: 115px;
+  height: 38px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all var(--transition-fast);
+}
+
+.modal-header-consecutivo input:focus {
+  border-color: var(--color-primary, #287522);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(40, 117, 34, 0.15);
+}
+
+[data-theme="dark"] .modal-header-consecutivo label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .modal-header-consecutivo input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .modal-header-consecutivo input:focus {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
+}
+
+/* Campos bloqueados al cargar servidor institucional */
+.input-locked-servidor {
+  background-color: var(--color-bg-secondary, #f8fafc) !important;
+  color: var(--text-primary, #1e293b) !important;
+  cursor: not-allowed !important;
+  border-color: #cbd5e1 !important;
+  user-select: all;
+}
+
+.input-locked-servidor:focus {
+  outline: none !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .input-locked-servidor {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+/* Animación de confirmación azul al autocompletar */
+.input-flash-blue {
+  background-color: rgba(37, 99, 235, 0.16) !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.3) !important;
+  transition: all 0.35s ease !important;
+}
+
+.badge-servidor-vinculado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .badge-servidor-vinculado {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
 .modal-footer {
   padding: var(--space-4) var(--space-6);
   border-top: 1px solid #e2e8f0;
@@ -2762,6 +2939,62 @@ body {
   background: var(--color-red) !important;
   color: #ffffff !important;
   border-color: var(--color-red) !important;
+}
+
+/* Modo oscuro: botones outline y soporte adjuntar (sin fondo blanco) */
+[data-theme="dark"] .btn-outline {
+  background: rgba(30, 41, 59, 0.75) !important;
+  color: #cbd5e1 !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+[data-theme="dark"] .btn-outline:hover {
+  background: rgba(51, 65, 85, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.6) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-soporte-adjuntar {
+  background: rgba(30, 41, 59, 0.8) !important;
+  color: #cbd5e1 !important;
+  border: 1px dashed rgba(148, 163, 184, 0.4) !important;
+  border-radius: 9999px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+[data-theme="dark"] .btn-soporte-adjuntar:hover {
+  background: rgba(51, 65, 85, 0.95) !important;
+  border-color: rgba(96, 165, 250, 0.7) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Modo oscuro: botón de acción soporte (clip) con contraste nítido y visible */
+[data-theme="dark"] .btn-action-soporte {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(126, 34, 206, 0.65) 100%) !important;
+  border: 1px solid rgba(192, 132, 252, 0.65) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 2px 10px rgba(147, 51, 234, 0.45) !important;
+}
+[data-theme="dark"] .btn-action-soporte svg {
+  stroke: #ffffff !important;
+  stroke-width: 2.3 !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+[data-theme="dark"] .btn-action-soporte:hover {
+  background: linear-gradient(180deg, #c084fc 0%, #9333ea 100%) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 6px 18px rgba(168, 85, 247, 0.65) !important;
+}
+[data-theme="dark"] .btn-action-soporte:hover svg {
+  stroke: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-action-soporte.btn-action-soporte--has-file {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.35) 0%, rgba(21, 128, 61, 0.65) 100%) !important;
+  border-color: rgba(74, 222, 128, 0.65) !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .btn-action-soporte.btn-action-soporte--has-file svg {
+  stroke: #86efac !important;
 }
 
 /* ─── Cards & Panels in Dark Mode ───────────────────────────────────────── */

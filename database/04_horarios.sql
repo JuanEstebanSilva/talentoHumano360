@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS horarios (
     dependencia           VARCHAR(280)  NOT NULL DEFAULT 'SECRETARÍA GENERAL',
     secretaria            VARCHAR(280),
     cargo                 VARCHAR(280)  NOT NULL DEFAULT 'PROFESIONAL UNIVERSITARIO',
+    telefono              VARCHAR(60),
     modalidad             VARCHAR(60)   NOT NULL CHECK (modalidad IN ('Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible')),
     estado                VARCHAR(80)   NOT NULL DEFAULT 'Activa',
     
@@ -82,3 +83,9 @@ CREATE INDEX IF NOT EXISTS idx_hist_horarios_id ON historial_horarios(id_horario
 
 -- Tablas transaccionales de horarios e historial_horarios inician vacías para producción.
 
+-- Garantizar columnas en caso de que la tabla ya existiera previamente
+ALTER TABLE horarios ADD COLUMN IF NOT EXISTS numero_consecutivo INTEGER;
+ALTER TABLE horarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(50);
+ALTER TABLE horarios ADD COLUMN IF NOT EXISTS grado VARCHAR(50);
+ALTER TABLE horarios ADD COLUMN IF NOT EXISTS secretaria VARCHAR(280);
+ALTER TABLE horarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(60);

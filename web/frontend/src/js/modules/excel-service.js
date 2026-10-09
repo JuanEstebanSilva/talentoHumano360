@@ -9,57 +9,196 @@ const ExcelService = (() => {
    * Exporta una lista de datos a un archivo Excel (.xlsx) conservando estructura,
    * formatos de fecha, moneda y anchos de columna adaptativos.
    */
-  function exportToExcel({ filename = 'Talento360_Export', sheetName = 'Datos', columns = [], data = [] }) {
+  function exportToExcel(options = {}, legacyFilename = 'Talento360_Export') {
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel (SheetJS) aún no se ha cargado. Por favor recarga la página.');
       return;
     }
 
+    // Compatibilidad si se llama con (dataArray, filename)
+    let filename = 'Talento360_Export';
+    let sheetName = 'Datos';
+    let columns = [];
+    let data = [];
+
+    if (Array.isArray(options)) {
+      data = options;
+      filename = legacyFilename || 'Talento360_Export';
+    } else if (options && typeof options === 'object') {
+      filename = options.filename || 'Talento360_Export';
+      sheetName = options.sheetName || 'Datos';
+      columns = options.columns || [];
+      data = options.data || [];
+    }
+
     if (!data || !data.length) {
       if (typeof Fx !== 'undefined' && Fx.play) Fx.play('toggle');
-      alert('No hay registros disponibles para exportar con los filtros seleccionados.');
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('No hay registros disponibles para exportar con los filtros seleccionados.', 'warning');
+      } else {
+        alert('No hay registros disponibles para exportar con los filtros seleccionados.');
+      }
       return;
     }
 
-    // Transformar registros según las columnas
-    const rows = data.map((item, idx) => {
-      const row = {};
-      columns.forEach(col => {
-        let val = item[col.key];
-        if (col.format && typeof col.format === 'function') {
-          val = col.format(val, item, idx);
-        } else if (val == null) {
-          val = '';
-        }
-        row[col.header] = val;
+    // Transformar registros según las columnas o tomar directamente las llaves
+    let rows;
+    let colWidths;
+    if (columns && columns.length > 0) {
+      rows = data.map((item, idx) => {
+        const row = {};
+        columns.forEach(col => {
+          let val = item[col.key];
+          if (val === undefined && item[col.header] !== undefined) {
+            val = item[col.header];
+          }
+          if (col.format && typeof col.format === 'function') {
+            val = col.format(val, item, idx);
+          } else if (val == null) {
+            val = '';
+          }
+          row[col.header] = val;
+        });
+        return row;
       });
-      return row;
-    });
+
+      colWidths = columns.map(col => {
+        let maxLen = (col.header || '').length;
+        rows.forEach(r => {
+          const valStr = String(r[col.header] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        });
+        return { wch: Math.max(col.width || 12, maxLen + 3) };
+      });
+    } else {
+      rows = data;
+      const allKeys = Object.keys(rows[0] || {});
+      colWidths = allKeys.map(k => {
+        let maxLen = k.length;
+        rows.forEach(r => {
+          const valStr = String(r[k] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        });
+        return { wch: Math.max(12, maxLen + 3) };
+      });
+    }
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-
-    // Calcular ancho de columnas adaptativo
-    const colWidths = columns.map(col => {
-      let maxLen = (col.header || '').length;
-      rows.forEach(r => {
-        const valStr = String(r[col.header] || '');
-        if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
-      });
-      return { wch: Math.max(col.width || 12, maxLen + 3) };
-    });
     ws['!cols'] = colWidths;
+    ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
 
-    const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(wb, fullFilename);
+    const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}`;
+    saveWorkbookWithHeaderStyle(wb, fullFilename);
 
     if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
   }
 
   /**
+   * Guarda un archivo Excel aplicando estilos profesionales a la fila de encabezados:
+   * altura de 41 píxeles (30.75 pt), texto en negrita y centrado vertical y horizontal.
+   */
+  function saveWorkbookWithHeaderStyle(wb, filename) {
+    try {
+      if (typeof XLSX.CFB !== 'undefined' && XLSX.CFB.read && XLSX.CFB.write && XLSX.CFB.find) {
+        const bin = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+        const cfb = XLSX.CFB.read(bin, { type: 'binary' });
+
+        // 1. Modificar xl/styles.xml para asegurar fuente negrita y centrado
+        const stylesEntry = XLSX.CFB.find(cfb, 'Root Entry/xl/styles.xml');
+        if (stylesEntry && stylesEntry.content) {
+          let stylesXml = typeof stylesEntry.content === 'string'
+            ? stylesEntry.content
+            : (typeof TextDecoder !== 'undefined'
+                ? new TextDecoder('utf-8').decode(stylesEntry.content)
+                : String.fromCharCode.apply(null, stylesEntry.content));
+
+          if (stylesXml.includes('<fonts count="1">')) {
+            stylesXml = stylesXml.replace(
+              '<fonts count="1"><font><sz val="12"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font></fonts>',
+              '<fonts count="2"><font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font><font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font></fonts>'
+            );
+          } else if (!stylesXml.includes('<b/>')) {
+            stylesXml = stylesXml.replace('</fonts>', '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font></fonts>');
+            stylesXml = stylesXml.replace(/<fonts count="(\d+)">/, (m, c) => `<fonts count="${parseInt(c, 10) + 1}">`);
+          }
+
+          if (stylesXml.includes('<cellXfs count="1">')) {
+            stylesXml = stylesXml.replace(
+              '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>',
+              '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs>'
+            );
+          } else if (!stylesXml.includes('applyAlignment="1"')) {
+            stylesXml = stylesXml.replace('</cellXfs>', '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf></cellXfs>');
+            stylesXml = stylesXml.replace(/<cellXfs count="(\d+)">/, (m, c) => `<cellXfs count="${parseInt(c, 10) + 1}">`);
+          }
+
+          stylesEntry.content = typeof TextEncoder !== 'undefined'
+            ? new TextEncoder().encode(stylesXml)
+            : stylesXml;
+        }
+
+        // 2. Modificar xl/worksheets/sheet1.xml para aplicar estilo s="1" y altura 41px (30.75pt) a la fila 1
+        const sheetEntry = XLSX.CFB.find(cfb, 'Root Entry/xl/worksheets/sheet1.xml');
+        if (sheetEntry && sheetEntry.content) {
+          let sheetXml = typeof sheetEntry.content === 'string'
+            ? sheetEntry.content
+            : (typeof TextDecoder !== 'undefined'
+                ? new TextDecoder('utf-8').decode(sheetEntry.content)
+                : String.fromCharCode.apply(null, sheetEntry.content));
+
+          // Asegurar que la fila 1 de títulos tenga exactamente 41 píxeles de alto en Excel (30.75 pt)
+          if (sheetXml.includes('<row r="1"')) {
+            if (sheetXml.includes('ht="')) {
+              sheetXml = sheetXml.replace(/(<row r="1"[^>]*\bht=")[^"]+(")/, '$130.75$2');
+            } else {
+              sheetXml = sheetXml.replace(/(<row r="1")(?=[ >])/, '$1 ht="30.75" customHeight="1"');
+            }
+          }
+
+          sheetXml = sheetXml.replace(/(<c r="[A-Z]+1")(\s*\/?>|\s+[^>]*>)/g, (match, prefix, suffix) => {
+            if (prefix.includes(' s="') || suffix.includes(' s="')) return match;
+            return `${prefix} s="1"${suffix}`;
+          });
+
+          sheetEntry.content = typeof TextEncoder !== 'undefined'
+            ? new TextEncoder().encode(sheetXml)
+            : sheetXml;
+        }
+
+        const finalBin = XLSX.CFB.write(cfb, { fileType: 'zip', type: 'binary' });
+
+        if (typeof Blob !== 'undefined' && typeof document !== 'undefined') {
+          const buf = new ArrayBuffer(finalBin.length);
+          const view = new Uint8Array(buf);
+          for (let i = 0; i < finalBin.length; i++) view[i] = finalBin.charCodeAt(i) & 0xFF;
+          const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = `${filename}.xlsx`;
+          a.href = url;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[ExcelService] Estilizado avanzado no disponible, usando fallback estándar:', err);
+    }
+
+    // Fallback estándar
+    XLSX.writeFile(wb, `${filename}.xlsx`);
+  }
+
+  /**
    * Genera y descarga una plantilla oficial de Excel con ejemplos y cabeceras exactas.
+   * Aplica: fila 1 con altura de 41 píxeles (30.75 pt), texto en mayúscula sostenida,
+   * negrita y centrado (horizontal y vertical), y autofiltro de tabla.
    */
   function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [] }) {
     if (typeof XLSX === 'undefined') {
@@ -67,23 +206,62 @@ const ExcelService = (() => {
       return;
     }
 
-    const rows = sampleRows.length ? sampleRows : [
-      columns.reduce((acc, col) => {
-        acc[col.header] = col.sample || '';
-        return acc;
-      }, {})
-    ];
+    // Cabeceras en mayúscula sostenida
+    const headers = columns.map(col => String(col.header || col.key || '').toUpperCase());
+
+    // Fila 1 de encabezados (una sola fila)
+    const aoa = [headers];
+
+    if (sampleRows && sampleRows.length > 0) {
+      sampleRows.forEach(row => {
+        if (Array.isArray(row)) {
+          aoa.push(row);
+        } else if (typeof row === 'object') {
+          aoa.push(columns.map(col => row[col.header] ?? row[col.key] ?? ''));
+        }
+      });
+    }
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // Altura de la fila de títulos fijada exactamente a 41 píxeles (30.75 pt)
+    ws['!rows'] = [
+      { hpt: 30.75, customHeight: true }
+    ];
+
+    // Formato de tabla: autofiltro activo en la fila de títulos
+    const lastRowIdx = Math.max(0, aoa.length - 1);
+    const tableRange = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: lastRowIdx, c: headers.length - 1 }
+    });
+    ws['!autofilter'] = { ref: tableRange };
+
+    // Estilos de celda para motores compatibles
+    const headerStyle = {
+      font: { bold: true, sz: 11, name: 'Calibri' },
+      alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+      border: {
+        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        bottom: { style: 'medium', color: { rgb: '334155' } },
+        left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+      }
+    };
+
+    for (let c = 0; c < headers.length; c++) {
+      const c0 = XLSX.utils.encode_cell({ r: 0, c });
+      if (ws[c0]) ws[c0].s = headerStyle;
+    }
 
     const colWidths = columns.map(col => ({
-      wch: Math.max((col.header || '').length + 4, col.width || 15)
+      wch: Math.max((col.header || '').length + 4, col.width || 18)
     }));
     ws['!cols'] = colWidths;
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
-    XLSX.writeFile(wb, `${filename}.xlsx`);
+    saveWorkbookWithHeaderStyle(wb, filename);
 
     if (typeof Fx !== 'undefined' && Fx.play) Fx.play('toggle');
   }
