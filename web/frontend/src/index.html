@@ -299,8 +299,8 @@
                 </button>
               </li>
               <li>
-                <button class="nav-item nav-subitem" data-module="admin-requests" data-tipo="Incapacidad"
-                  id="nav-incapacidades">
+                <button class="nav-item nav-subitem" data-module="incapacidades" id="nav-incapacidades-legacy" style="display:none" hidden>
+                  data-legacy-sub="incapacidades">
                   <svg class="nav-icon nav-icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" aria-hidden="true">
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -320,6 +320,14 @@
                 </button>
               </li>
             </ul>
+          </li>
+          <li>
+            <button class="nav-item" data-module="incapacidades" id="nav-incapacidades" title="Incapacidades" data-tooltip="Incapacidades">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+              <span class="nav-label">Incapacidades</span>
+            </button>
           </li>
           <li>
             <button class="nav-item" data-module="viaticos" id="nav-viaticos" title="Viáticos" data-tooltip="Viáticos">
@@ -564,18 +572,19 @@
   <script src="js/modules/settings.js?v=20260902_11"></script>
   <script src="js/fx.js?v=20260929_fix404_final"></script>
   <script src="js/auth.js?v=20260904_liquid7"></script>
-  <script src="js/api.js?v=20260916_searchdots"></script>
+  <script src="js/api.js?v=20261020_3"></script>
   <script src="js/modules/excel-service.js?v=20260904_liquid7"></script>
   <script src="js/modules/dashboard.js?v=20260911_pdf2"></script>
   <script src="js/modules/employees.js?v=20260916_tipo_vinculacion"></script>
   <script src="js/modules/requests.js?v=20260904_liquid7"></script>
-  <script src="js/modules/admin-requests.js?v=20260905_ui8"></script>
+  <script src="js/modules/admin-requests.js?v=20261020_3"></script>
+  <script src="js/modules/incapacidades.js?v=20261020_4"></script>
   <script src="js/modules/viaticos.js?v=20260905_ui8"></script>
   <script src="js/modules/horarios.js?v=20260906_1"></script>
   <script src="js/modules/sst.js?v=20260924_1"></script>
-  <script src="js/modules/error404.js?v=20260929_fix404_final"></script>
+  <script src="js/modules/error404.js?v=20261020_2"></script>
   <script src="js/modules/legal.js?v=20260301"></script>
-  <script src="js/app.js?v=20260929_fix404_final"></script>
+  <script src="js/app.js?v=20261020_2"></script>
 </body>
 
 </html>

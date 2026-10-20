@@ -138,6 +138,19 @@ const API = (() => {
     reenviarNotificacionAdminRequest: (id) =>
       request(`/admin-requests/${id}/reenviar-notificacion`, { method: 'POST' }),
 
+    // Incapacidades (Formato 9. INCAPACIDADES SST — E-DO-ST-F-002 Versión 2)
+    getIncapacidades: (params = {}) => request('/admin-requests/incapacidades?' + new URLSearchParams(params)),
+    getIncapacidadesStats: () => request('/admin-requests/incapacidades/stats'),
+    getIncapacidadesCatalogs: () => request('/admin-requests/incapacidades/catalogs'),
+    createIncapacidad: (data) => request('/admin-requests/incapacidades', { method: 'POST', body: JSON.stringify(data) }),
+    bulkCreateIncapacidades: (rows) => request('/admin-requests/incapacidades/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    updateIncapacidad: (id, data) => request(`/admin-requests/incapacidades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateIncapacidadStatus: (id, estado, observaciones = '') =>
+      request(`/admin-requests/incapacidades/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
+    deleteIncapacidad: (id) => request(`/admin-requests/incapacidades/${id}`, { method: 'DELETE' }),
+    getIncapacidadSoportes: (id) => request(`/admin-requests/incapacidades/${id}/soportes`),
+    getIncapacidadSoporteUrl: (id, sid) => `${BASE}/admin-requests/incapacidades/${id}/soportes/${sid}`,
+
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
     getViaticosStats: () => request('/viaticos/stats'),

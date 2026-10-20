@@ -1,0 +1,186 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   catalogs/incapacidades.js — Catálogos oficiales del Módulo de Incapacidades SST
+   Fuente: «9. INCAPACIDADES SST - SEPTIEMBRE 2026.xlsx» (Formato E-DO-ST-F-002 V.2
+   Ausentismo Laboral — Hoja 2: Dependencias, Sedes de Trabajo y Causa o Motivo)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Columna A de Hoja 2: DEPENDENCIA DONDE TRABAJA (79 dependencias oficiales)
+const DEPENDENCIAS = [
+  "DES - Despacho del gobernador",
+  "DES - Oficina Asesora de Control Interno de Gestión",
+  "DES - Oficina Asesora de Control Interno Disciplinario",
+  "DES - Unidad Administrativa de Comunicaciones y Protocolo",
+  "DES - UCOM - Subdirección de Radio y Televisión",
+  "DES - Unidad Administrativa de Relaciones Nacionales Internacionales",
+  "DES - Unidad Administrativa Especial de Asesoría y Defensa Jurídica del Departamento",
+  "DES - Unidad Administrativa para la Gestión del Riesgo y del Desastre",
+  "SAGR - SECRETARIA DE AGRICULTURA (Despacho)",
+  "SAGR - Dirección de Desarrollo Rural Integral",
+  "SAGR - Dirección de Productividad Agropecuaria",
+  "SAGR - Dirección de Bienestar Campesino",
+  "SAMB - SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE (Despacho)",
+  "SAMB - Dirección de Gestión del Recurso Hídrico y Saneamiento Básico",
+  "SCON - SECRETARIA DE CONTRATACION (Despacho)",
+  "SCON - Dirección Administrativa Contractual",
+  "SCON - Dirección de Procesos de Selección",
+  "SCUP - SECRETARIA DE CULTURA Y PATRIMONIO (Despacho)",
+  "SDEM - SECRETARIA DE DESARROLLO EMPRESARIAL (Despacho)",
+  "SDEM - Dirección de Desarrollo Empresarial",
+  "SDEM - Dirección de Inversión y Comercio",
+  "SEDU - SECRETARIA DE EDUCACIÓN (Despacho)",
+  "*SEDU - INSTITUCIÓN EDUCATIVA DEL DEPARTAMENTO",
+  "SEDU - Oficina Asesora para la Gestión Estratégica del Sector Educación",
+  "SEDU - Oficina Asesora y Defensa Jurídica del Sector Educación",
+  "SEDU - Dirección Técnico Pedagógica",
+  "SEDU - DTP - Programa de Adultos y Jóvenes en Extra Edad",
+  "SEDU - DTP - Programa del Plan Alimentario Escolar",
+  "SEDU - DTP - Subdirección de Calidad Educativa",
+  "SEDU - DTP - Subdirección de Cobertura y Ruralidad",
+  "SEDU - DTP - Subdirección de Inspección de Vigilancia",
+  "SEDU - DTP - Subdirección de Núcleos Educativos",
+  "SEDU - Dirección Administrativa Financiera",
+  "SEDU - DAF - Subdirección de Talento Humano",
+  "SGEN - SECRETARIA GENERAL (Despacho)",
+  "SGEN - Dirección General de Talento Humano",
+  "SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo",
+  "SGEN - Dirección de Servicios Administrativos y Logísticos",
+  "SGEN - DSA - Subdirección de Atención al Ciudadano",
+  "SGEN - DSA - Subdirección de Gestión Documental",
+  "SGOB - SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL (Despacho)",
+  "SGOB - Dirección de Dialogo Social y Convivencia",
+  "SGOB - Dirección de Participación y Acción Comunal",
+  "SGOB -Dirección de Juventud",
+  "SHAC - SECRETARIA DE HACIENDA (Despacho)",
+  "SHAC - Dirección Financiera Y Fiscal",
+  "SHAC - DFF - Subdirección de Cobro Coactivo",
+  "SHAC - DFF - Subdirección Central de Cuentas",
+  "SHAC - DFF - Subdirección de Contabilidad",
+  "SHAC - DFF - Subdirección de Presupuesto",
+  "SHAC - Dirección Departamental de Pasivos Pensionales",
+  "SHAC - DPP - Subdirección Administrativa de Pasivos Pensionales",
+  "SHAC - DPP - Subdirección Jurídica de Pasivos Pensionales",
+  "SHAC - Dirección de Recaudo y Fiscalización",
+  "SHAC - Tesorería General",
+  "SINF - SECRETARIA DE INFRAESTRUCTURA PUBLICA (Despacho)",
+  "SINF - Dirección de Desarrollo de la Infraestructura Vial",
+  "SINF - Dirección de Vivienda Edificaciones y Obra Publica",
+  "SINF - Dirección Técnica de Estudios y Diseños",
+  "SINS - SECRETARIA DE INTEGRACIÓN SOCIAL (Despacho)",
+  "SINS - Dirección de Familia, Infancia, Adolescencia y Adulto Mayor",
+  "SINS - Dirección de la Mujer e Inclusión Social",
+  "SMIN - SECRETARIA DE MINAS Y ENERGIA (Despacho)",
+  "SPLA - SECRETARIA DE PLANEACIÓN (Despacho)",
+  "SPLA - Dirección de Inversión Publica del Departamento",
+  "SPLA - Dirección de Seguimiento y Planeación Territorial",
+  "SPLA - Dirección Geográfica y de Gestión Territorial",
+  "SPLA - Oficina Asesora de Planeación y Métodos de Gestión",
+  "SSAL - SECRETARIA DE SALUD (Despacho)",
+  "SSAL - Dirección de Aseguramiento en Salud",
+  "SSAL - Dirección de Prestación de Servicios de Salud",
+  "SSAL - Dirección de Promoción y Prevención en Salud",
+  "SSAL - DPP - Subdirección de Promoción Social en Salud",
+  "SSAL - Oficina Asesora de Defensa Jurídica del Sector Salud",
+  "SSAL - Oficina Asesora para la Gestión Estratégica del Sector Salud",
+  "STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)",
+  "STIC - Dirección de Apropiación de TIC",
+  "STIC - Dirección de Sistemas de Información",
+  "STUR - SECRETARIA DE TURISMO (Despacho)"
+];
+
+// Columna B de Hoja 2: SEDE DE TRABAJO (38 sedes oficiales)
+const SEDES = [
+  "ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.",
+  "ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.",
+  "AUDITORIO JOSE MOSSER Y OFICINAS.",
+  "BIBLIOTECA DEPARTAMENTAL \"EDUARDO TORRES QUINTERO\"ARCHIVO COBRO COACTIVO.",
+  "BIBLIOTECA PEDRO PASCACIO MARTÍNEZ. (CASA JUAN DE CASTELLANOS)",
+  "BODEGA TALLERES DE OBRAS PÚBLICAS DEL DEPARTAMENTO DE BOYACÁ.",
+  "BODEGA VECTORES",
+  "CASA DE BOYACÁ EN BOGOTÁ.",
+  "CASA DE LA TORRE",
+  "CASA PRIVADA DEL SEÑOR GOBERNADOR.",
+  "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 203 B INTERIOR.",
+  "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 209 B INTERIOR",
+  "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 206 B INTERIOR.",
+  "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 207 B INTERIOR.",
+  "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 208 B INTERIOR",
+  "EDIFICIO CENTRO EXPERIMENTAL PILOTO - CEP.",
+  "EDIFICIO LOTERÍA DE BOYACÁ",
+  "EDIFICIO LOTERÍA DE BOYACÁ PISO 4",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 8° OFICINA 805",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1002",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1003",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1004",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1006",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1007",
+  "EDIFICIO LOTERÍA DE BOYACÁ - PISO 11°",
+  "ESCUELA DE ARTES.",
+  "FONDO TERRITORIAL DE PENSIONES DE BOYACÁ.",
+  "JARDÍN BOTÁNICO.",
+  "LABORATORIO DEPARTAMENTAL DE SALUD PÚBLICA.",
+  "MONUMENTO HISTÓRICO DEL PUENTE DE BOYACÁ.",
+  "OFICINAS DEL CDGRD.",
+  "PALACIO DE SERVICIOS CULTURALES",
+  "PARQUEADERO DEL DEPARTAMENTO.",
+  "SECRETARIA DE EDUCACION DE BOYACÁ.",
+  "SECRETARÍA DE SALUD DE BOYACÁ - CRISDI",
+  "SECRETARÍA DE SALUD DEL DEPARTAMENTO DE BOYACÁ.",
+  "VIVE DIGITAL Y VIVE LAB.",
+  "EDIFICIO INTELIGENTE - BICENTENARIO"
+];
+
+// Columna C de Hoja 2: CAUSA O MOTIVO (15 causas oficiales)
+const CAUSAS_MOTIVOS = [
+  "Enfermedad general",
+  "Enfermedad laboral",
+  "Accidente de trabajo",
+  "Licencia de maternidad",
+  "Licencia de maternidad parto múltiple",
+  "Licencia de maternidad nacimiento prematuro",
+  "Licencia de maternidad hijos con discapacidad",
+  "Licencia de paternidad",
+  "Licencia de calamidad",
+  "Licencia de luto",
+  "Permiso de estudio",
+  "Suspensiónes",
+  "Permiso por horas día",
+  "Ausencias no remuneradas",
+  "Otros permisos remunerados"
+];
+
+// EPS / ARL / Aseguradoras registradas en los formatos de incapacidades de la Gobernación
+const EPS_LIST = [
+  "SANITAS",
+  "NUEVA EPS",
+  "SURA",
+  "SALUD TOTAL",
+  "FAMISANAR",
+  "COMPENSAR",
+  "COOSALUD",
+  "CAJACOPI",
+  "POSITIVA",
+  "ADRES",
+  "ALIANSALUD",
+  "CAPITAL SALUD",
+  "ASMET SALUD",
+  "MEDIMÁS",
+  "OTRA"
+];
+
+const PRORROGA_OPTS = ["NO", "SI"];
+
+const SOPORTES = {
+  maxArchivos: 5,
+  maxBytes: 5 * 1024 * 1024,
+  tipos: ["application/pdf", "image/jpeg", "image/png"]
+};
+
+module.exports = {
+  DEPENDENCIAS,
+  SEDES,
+  CAUSAS_MOTIVOS,
+  EPS_LIST,
+  PRORROGA_OPTS,
+  SOPORTES
+};
+

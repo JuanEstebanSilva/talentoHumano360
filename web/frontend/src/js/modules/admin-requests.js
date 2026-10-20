@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const AdminRequestsModule = (() => {
-  const TIPOS = { permisos: 'Permiso Laboral', incapacidades: 'Incapacidad', licencias: 'Licencia' };
+  const TIPOS = { permisos: 'Permiso Laboral', licencias: 'Licencia' };
   const ESTADOS = ['Todos', 'Pendiente', 'En revisión', 'Aprobada', 'Finalizada', 'Rechazada'];
 
   let state = { tipo: 'Permiso Laboral', data: [], total: 0, page: 1, totalPages: 1, filters: {} };
@@ -1850,7 +1850,7 @@ const AdminRequestsModule = (() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Permisos Laborales
           </button>
-          <button class="tab-btn ${tipoLabel==='Incapacidad'?'active':''}" onclick="AdminRequestsModule.setTipo('Incapacidad',this)">
+          <button class="tab-btn" style="display:none" hidden onclick="App.navigate('incapacidades')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Incapacidades
           </button>

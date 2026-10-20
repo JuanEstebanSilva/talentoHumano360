@@ -175,6 +175,9 @@ async function insertSoportes(client, idSolicitud, soportes, username) {
 }
 
 
+// Sub-router del Módulo Independiente de Incapacidades SST (también montado en /api/incapacidades)
+router.use('/incapacidades', require('./incapacidades'));
+
 // ─── GET /api/admin-requests/catalogs/permisos ────────────────────────────────
 // Catálogos y reglas del formulario de Permisos Laborales (sectoriales, cargos, motivos…)
 router.get('/catalogs/permisos', auth, (_req, res) => {
@@ -198,6 +201,7 @@ router.get('/', auth, async (req, res) => {
     let idx = 1;
 
     if (tipo)       { conditions.push(`tipo = $${idx++}`); params.push(tipo); }
+    else            { conditions.push(`tipo IN ('Permiso Laboral', 'Licencia')`); }
     if (estado && estado !== 'Todos') { conditions.push(`estado = $${idx++}`); params.push(normalizeStatus(estado)); }
     if (departamento && departamento !== 'Todas') {
       conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`); params.push(`%${departamento}%`);

@@ -86,7 +86,7 @@ const Error404Module = (() => {
         const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
         const [mod] = currentHash.split('?');
         const validRoutes = [
-          'dashboard', 'employees', 'requests', 'admin-requests',
+          'dashboard', 'employees', 'requests', 'admin-requests', 'incapacidades',
           'viaticos', 'horarios', 'sst', 'settings',
           'privacidad', 'terminos', 'accesibilidad'
         ];

@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS solicitudes_admin (
     notificacion_estado  VARCHAR(20) DEFAULT 'pendiente',
     notificacion_detalle VARCHAR(500),
     notificacion_fecha   TIMESTAMP,
+    -- Campos extendidos Formato 9. INCAPACIDADES SST (E-DO-ST-F-002 Versión 2)
+    fecha_radicacion     VARCHAR(80),
+    sede                 VARCHAR(200),
+    eps                  VARCHAR(120),
+    prorroga             VARCHAR(10) DEFAULT 'NO',
+    causa_motivo         VARCHAR(200),
+    codigo_cie10         VARCHAR(80),
+    salario              NUMERIC(15,2) DEFAULT 0,
+    descuento            NUMERIC(15,2) DEFAULT 0,
+    acto_administrativo  VARCHAR(150),
     creado_en         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
