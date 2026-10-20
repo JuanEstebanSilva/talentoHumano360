@@ -46,6 +46,10 @@ const AdminRequestsModule = (() => {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   }
 
+  function cleanName(str) {
+    return String(str || '').replace(/^\d+(\.\d+)*\s*/, '').trim();
+  }
+
   // ─── Calendario Colombiano (Cálculo de Días Hábiles y Festivos) ───────────────
   const DAY_MS = 24 * 60 * 60 * 1000;
   function utc(y, m, d) { return new Date(Date.UTC(y, m - 1, d)); }
@@ -265,7 +269,7 @@ const AdminRequestsModule = (() => {
             <span class="user-table-cc font-mono">${r.documento ? `C.C. ${escHtml(r.documento)}` : '—'}</span>
           </div>
         </td>
-        <td title="${escHtml(r.dependencia)}">${escHtml(truncate(r.dependencia, 26) || '—')}</td>
+        <td title="${escHtml(cleanName(r.dependencia))}">${escHtml(truncate(cleanName(r.dependencia), 26) || '—')}</td>
         <td><span class="badge ${tipoBadge(r.tipo)}">${escHtml(r.tipo)}</span></td>
         <td>${escHtml(r.fechaInicio || '—')}</td>
         <td>
@@ -325,7 +329,6 @@ const AdminRequestsModule = (() => {
     const curModalidad = r.modalidad || 'dia';
     const curJornada = r.jornada || 'Todo el día';
     const curMotivoCat = r.motivoCategoria || 'DILIGENCIA_PERSONAL';
-    const curMotivoInc = r.motivoIncentivo || '';
 
     // Sectoriales
     const sectorialOptions = cat.sectoriales.map(s => {
@@ -359,10 +362,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 1. SERVIDOR PÚBLICO -->
+        <!-- INFORMACIÓN DEL SERVIDOR PÚBLICO -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">1</span>
             <span class="permiso-section-title">Información del Servidor Público</span>
           </div>
 
@@ -385,6 +387,17 @@ const AdminRequestsModule = (() => {
               <input id="af-perm-persona" class="form-input" placeholder="APELLIDOS Y NOMBRES COMPLETOS" value="${escHtml(r.persona || '')}" required />
             </div>
 
+            <!-- Código y Grado del Servidor -->
+            <div class="form-group">
+              <label class="form-label">Código del Cargo / Servidor</label>
+              <input id="af-perm-codigo" class="form-input font-mono" placeholder="Ej: 219" value="${escHtml(r.codigo || '')}" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Grado del Servidor</label>
+              <input id="af-perm-grado" class="form-input font-mono" placeholder="Ej: 01" value="${escHtml(r.grado || '')}" />
+            </div>
+
             <div class="form-group span-2">
               <label class="form-label">Correo Institucional del Servidor *</label>
               <input id="af-perm-email" type="email" class="form-input" placeholder="ejemplo@boyaca.gov.co" value="${escHtml(r.correoSolicitante || '')}" required />
@@ -393,10 +406,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 2. UBICACIÓN ADMINISTRATIVA Y CARGO -->
+        <!-- UBICACIÓN ADMINISTRATIVA Y CARGO -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">2</span>
             <span class="permiso-section-title">Ubicación Administrativa y Cargo</span>
           </div>
 
@@ -433,10 +445,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 3. MODALIDAD Y TIEMPO SOLICITADO -->
+        <!-- MODALIDAD Y TIEMPO SOLICITADO -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">3</span>
             <span class="permiso-section-title">Modalidad y Duración del Permiso</span>
           </div>
 
@@ -538,10 +549,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 4. MOTIVO / JUSTIFICACIÓN -->
+        <!-- MOTIVO / JUSTIFICACIÓN -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">4</span>
             <span class="permiso-section-title">Motivo o Justificación</span>
           </div>
 
@@ -576,10 +586,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 5. APROBACIÓN Y NOTIFICACIÓN AL JEFE INMEDIATO -->
+        <!-- NOTIFICACIÓN AL JEFE INMEDIATO -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">5</span>
             <span class="permiso-section-title">Notificación al Jefe Inmediato</span>
           </div>
 
@@ -599,10 +608,9 @@ const AdminRequestsModule = (() => {
           </div>
         </div>
 
-        <!-- 6. SOPORTES Y ANEXOS -->
+        <!-- SOPORTES Y ANEXOS -->
         <div class="permiso-section">
           <div class="permiso-section-header">
-            <span class="permiso-section-badge">6</span>
             <span class="permiso-section-title">Soportes y Anexos (PDF, JPG, PNG)</span>
           </div>
 
@@ -628,9 +636,8 @@ const AdminRequestsModule = (() => {
     currentModalidad = r.modalidad || 'dia';
 
     await ensureCatalogs();
-    const cat = permisosCatalogs;
 
-    // Poblar Dependencias de la sectorial inicial
+    // Poblar Dependencias de la sectorial inicial (limpiando números)
     const curSectorial = r.sectorial || '';
     populateDependencias(curSectorial, r.dependencia);
 
@@ -668,13 +675,16 @@ const AdminRequestsModule = (() => {
 
     const sec = cat.sectoriales.find(s => s.nombre === sectorialNombre);
     if (!sec || !sec.dependencias || !sec.dependencias.length) {
-      selEl.innerHTML = `<option value="${escHtml(sectorialNombre || '')}">${escHtml(sectorialNombre || '-- Sin dependencias registradas --')}</option>`;
+      selEl.innerHTML = `<option value="${escHtml(cleanName(sectorialNombre || ''))}">${escHtml(cleanName(sectorialNombre) || '-- Sin dependencias registradas --')}</option>`;
       return;
     }
 
+    const cleanSelected = cleanName(selectedVal);
+
     selEl.innerHTML = sec.dependencias.map(d => {
-      const isSel = (d === selectedVal || sec.dependencias.length === 1) ? 'selected' : '';
-      return `<option value="${escHtml(d)}" ${isSel}>${escHtml(d)}</option>`;
+      const cleaned = cleanName(d);
+      const isSel = (cleaned === cleanSelected || sec.dependencias.length === 1) ? 'selected' : '';
+      return `<option value="${escHtml(cleaned)}" ${isSel}>${escHtml(cleaned)}</option>`;
     }).join('');
   }
 
@@ -737,7 +747,7 @@ const AdminRequestsModule = (() => {
     banner.style.display = 'block';
     let extra = '';
     if (op.reglas.soporteObligatorio) {
-      extra += ' <strong>(Soporte documental obligatorio en Sección 6)</strong>.';
+      extra += ' <strong>(Soporte documental obligatorio en sección de soportes)</strong>.';
     }
     if (op.reglas.diasExactos) {
       extra += ` <strong>Duración exacta fijada por norma: ${op.reglas.diasExactos} días hábiles</strong>.`;
@@ -921,15 +931,17 @@ const AdminRequestsModule = (() => {
           dropdown.innerHTML = emps.map(emp => {
             const nom = emp.apellidos_nombres || emp.persona || emp.nombreCompleto || `${emp.primer_apellido || ''} ${emp.primer_nombre || ''}`.trim();
             const doc = emp.documento || emp.cedula || '';
-            const dep = emp.dependencia || '';
+            const dep = cleanName(emp.dependencia || '');
             const car = emp.cargo || '';
             const email = emp.email || emp.correo || emp.correoInstitucional || '';
-            const empJson = escHtml(JSON.stringify({ nom, doc, dep, car, email }));
+            const codigo = emp.codigoActual || emp.codigoBase || emp.codigo || '';
+            const grado = emp.gradoActual || emp.gradoBase || emp.grado || '';
+            const empJson = escHtml(JSON.stringify({ nom, doc, dep, car, email, codigo, grado }));
             return `
               <div class="autocomplete-item" onclick="AdminRequestsModule.selectEmployee(${empJson})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--color-border,#e2e8f0);">
                 <div class="autocomplete-item-name" style="font-weight:700;font-size:0.88rem;color:var(--text-primary);">${escHtml(nom)}</div>
                 <div class="autocomplete-item-meta" style="font-size:0.75rem;color:var(--text-muted);">
-                  C.C. ${escHtml(doc)} · ${escHtml(dep || 'Sin dep.')} · ${escHtml(car || 'Sin cargo')}
+                  C.C. ${escHtml(doc)} ${codigo ? `· Cód. ${escHtml(codigo)}` : ''} ${grado ? `· Grado ${escHtml(grado)}` : ''} · ${escHtml(dep || 'Sin dep.')} · ${escHtml(car || 'Sin cargo')}
                 </div>
               </div>
             `;
@@ -953,6 +965,8 @@ const AdminRequestsModule = (() => {
     const docInput = document.getElementById('af-perm-doc');
     const nomInput = document.getElementById('af-perm-persona');
     const emailInput = document.getElementById('af-perm-email');
+    const codInput = document.getElementById('af-perm-codigo');
+    const gradoInput = document.getElementById('af-perm-grado');
     const dropdown = document.getElementById('af-perm-autocomplete');
 
     if (dropdown) dropdown.style.display = 'none';
@@ -960,11 +974,13 @@ const AdminRequestsModule = (() => {
     if (docInput) docInput.value = emp.doc || '';
     if (nomInput) nomInput.value = emp.nom || '';
     if (emailInput && emp.email) emailInput.value = emp.email;
+    if (codInput) codInput.value = emp.codigo || '';
+    if (gradoInput) gradoInput.value = emp.grado || '';
 
     // Auto-detección de Sectorial y Dependencia
     const cat = permisosCatalogs;
     if (cat && cat.sectoriales && emp.dep) {
-      const depUpper = emp.dep.toUpperCase();
+      const depUpper = cleanName(emp.dep).toUpperCase();
       let matchedSec = null;
       let matchedDep = null;
 
@@ -973,9 +989,10 @@ const AdminRequestsModule = (() => {
           matchedSec = s.nombre;
         }
         for (const d of (s.dependencias || [])) {
-          if (depUpper.includes(d.toUpperCase()) || d.toUpperCase().includes(depUpper)) {
+          const dClean = cleanName(d).toUpperCase();
+          if (depUpper.includes(dClean) || dClean.includes(depUpper)) {
             matchedSec = s.nombre;
-            matchedDep = d;
+            matchedDep = cleanName(d);
             break;
           }
         }
@@ -1156,9 +1173,11 @@ const AdminRequestsModule = (() => {
   function readPermisoForm() {
     const persona = document.getElementById('af-perm-persona')?.value.trim();
     const documento = document.getElementById('af-perm-doc')?.value.trim();
+    const codigo = document.getElementById('af-perm-codigo')?.value.trim() || '';
+    const grado = document.getElementById('af-perm-grado')?.value.trim() || '';
     const correoSolicitante = document.getElementById('af-perm-email')?.value.trim();
     const sectorial = document.getElementById('af-perm-sectorial')?.value.trim();
-    const dependencia = document.getElementById('af-perm-dep')?.value.trim();
+    const dependencia = cleanName(document.getElementById('af-perm-dep')?.value.trim());
     const nivel = document.getElementById('af-perm-nivel')?.value.trim();
     const cargo = document.getElementById('af-perm-cargo')?.value.trim();
     const motivoCat = document.getElementById('af-perm-motivo-cat')?.value.trim();
@@ -1205,7 +1224,7 @@ const AdminRequestsModule = (() => {
 
     const payload = {
       tipo: 'Permiso Laboral',
-      persona, documento, correoSolicitante,
+      persona, documento, codigo, grado, correoSolicitante,
       sectorial, dependencia, nivel, cargo,
       modalidad: currentModalidad, jornada,
       fechaInicio, fechaFin,
@@ -1330,7 +1349,7 @@ const AdminRequestsModule = (() => {
           <span style="color:var(--text-muted);font-size:0.75rem;">(${formatBytes(s.tamano_bytes)})</span>
         </div>
         <a href="${API.getAdminRequestSoporteUrl(r.id, s.id_soporte)}" target="_blank" download="${escHtml(s.nombre_archivo)}" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Descargar
         </a>
       </div>
@@ -1365,13 +1384,23 @@ const AdminRequestsModule = (() => {
           </div>
 
           <div class="detail-item">
+            <span class="detail-label">Código del Servidor</span>
+            <span class="detail-value font-mono">${escHtml(r.codigo || '—')}</span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Grado del Servidor</span>
+            <span class="detail-value font-mono">${escHtml(r.grado || '—')}</span>
+          </div>
+
+          <div class="detail-item">
             <span class="detail-label">Correo Institucional</span>
             <span class="detail-value">${escHtml(r.correoSolicitante || '—')}</span>
           </div>
 
           <div class="detail-item detail-grid--full">
             <span class="detail-label">Sectorial / Dependencia</span>
-            <span class="detail-value">${escHtml(r.sectorial || '')} ${r.dependencia ? `— ${escHtml(r.dependencia)}` : ''}</span>
+            <span class="detail-value">${escHtml(r.sectorial || '')} ${r.dependencia ? `— ${escHtml(cleanName(r.dependencia))}` : ''}</span>
           </div>
 
           <div class="detail-item">
@@ -1557,7 +1586,7 @@ const AdminRequestsModule = (() => {
           </div>
           <div class="detail-item detail-grid--full">
             <span class="detail-label">Dependencia</span>
-            <span class="detail-value">${escHtml(r.dependencia || '—')}</span>
+            <span class="detail-value">${escHtml(cleanName(r.dependencia) || '—')}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Tipo de Trámite</span>
@@ -1639,7 +1668,7 @@ const AdminRequestsModule = (() => {
       tipo: document.getElementById('af-tipo')?.value,
       persona: nombre,
       documento: document.getElementById('af-doc')?.value.trim(),
-      dependencia: document.getElementById('af-dep')?.value.trim(),
+      dependencia: cleanName(document.getElementById('af-dep')?.value.trim()),
       cargo: document.getElementById('af-cargo')?.value.trim(),
       fechaInicio: document.getElementById('af-fi')?.value.trim(),
       fechaFin: document.getElementById('af-ff')?.value.trim(),
@@ -1981,8 +2010,10 @@ const AdminRequestsModule = (() => {
     { header: 'Tipo', key: 'tipo', width: 18, sample: 'Permiso Laboral' },
     { header: 'Cédula', key: 'documento', width: 15, sample: '1049601234' },
     { header: 'Servidor Público', key: 'persona', width: 32, sample: 'GARCIA MARTINEZ LUIS FERNANDO' },
+    { header: 'Código', key: 'codigo', width: 12, sample: '219' },
+    { header: 'Grado', key: 'grado', width: 10, sample: '01' },
     { header: 'Sectorial', key: 'sectorial', width: 28, sample: 'SECRETARIA DE HACIENDA' },
-    { header: 'Dependencia', key: 'dependencia', width: 30, sample: '3.1 DIRECCION FINANCIERA Y FISCAL' },
+    { header: 'Dependencia', key: 'dependencia', width: 30, sample: 'DIRECCION FINANCIERA Y FISCAL' },
     { header: 'Cargo', key: 'cargo', width: 26, sample: 'PROFESIONAL UNIVERSITARIO' },
     { header: 'Fecha Inicio', key: 'fechaInicio', width: 16, sample: '15/05/2026' },
     { header: 'Fecha Fin', key: 'fechaFin', width: 16, sample: '15/05/2026' },
@@ -2020,6 +2051,8 @@ const AdminRequestsModule = (() => {
           'Tipo': state.tipo || 'Permiso Laboral',
           'Cédula': '1049612345',
           'Servidor Público': 'GOMEZ PEREZ ANDREA PAOLA',
+          'Código': '219',
+          'Grado': '02',
           'Dependencia': 'SECRETARÍA DE EDUCACIÓN',
           'Cargo': 'AUXILIAR ADMINISTRATIVO',
           'Fecha Inicio': '01/06/2026',
@@ -2033,7 +2066,7 @@ const AdminRequestsModule = (() => {
       validateRow: (row) => {
         const documento = (row['Cédula'] || row.documento || row.cedula || row['Documento'] || '').toString().trim();
         const persona = (row['Servidor Público'] || row.persona || row.nombreCompleto || row['Nombre Completo'] || '').toString().trim();
-        const dependencia = (row['Dependencia'] || row.dependencia || '').toString().trim();
+        const dependencia = cleanName((row['Dependencia'] || row.dependencia || '').toString().trim());
         if (!documento || !persona || !dependencia) {
           return { valid: false, error: 'Cédula, Servidor y Dependencia son requeridos.' };
         }
@@ -2042,6 +2075,8 @@ const AdminRequestsModule = (() => {
           cleanRow: {
             tipo: (row['Tipo'] || row.tipo || state.tipo || 'Permiso Laboral').toString().trim(),
             documento, persona, dependencia,
+            codigo: (row['Código'] || row.codigo || '').toString().trim(),
+            grado: (row['Grado'] || row.grado || '').toString().trim(),
             cargo: (row['Cargo'] || row.cargo || '').toString().trim(),
             fechaInicio: (row['Fecha Inicio'] || row.fechaInicio || '').toString().trim(),
             fechaFin: (row['Fecha Fin'] || row.fechaFin || '').toString().trim(),

@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS solicitudes_admin (
     nota_gestion      VARCHAR(500),
     -- Campos extendidos Formulario Permisos Laborales (CamposFormulario.xlsx)
     correo_solicitante   VARCHAR(200),
+    codigo               VARCHAR(80),
+    grado                VARCHAR(80),
     sectorial            VARCHAR(200),
     nivel                VARCHAR(80),
     modalidad            VARCHAR(20),

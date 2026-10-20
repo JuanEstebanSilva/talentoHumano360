@@ -62,6 +62,8 @@ const { notifyPermiso } = require('../utils/mailer');
 const SCHEMA_SQL = `
   ALTER TABLE solicitudes_admin
     ADD COLUMN IF NOT EXISTS correo_solicitante   VARCHAR(200),
+    ADD COLUMN IF NOT EXISTS codigo               VARCHAR(80),
+    ADD COLUMN IF NOT EXISTS grado                VARCHAR(80),
     ADD COLUMN IF NOT EXISTS sectorial            VARCHAR(200),
     ADD COLUMN IF NOT EXISTS nivel                VARCHAR(80),
     ADD COLUMN IF NOT EXISTS modalidad            VARCHAR(20),
@@ -123,7 +125,7 @@ function mapRow(r) {
     fechaSolicitud: r.fecha_solicitud, aprobadoPor: r.aprobado_por,
     notaGestion: r.nota_gestion,
     // Formulario de permisos laborales
-    correoSolicitante: r.correo_solicitante, sectorial: r.sectorial, nivel: r.nivel,
+    correoSolicitante: r.correo_solicitante, codigo: r.codigo || "", grado: r.grado || "", sectorial: r.sectorial, nivel: r.nivel,
     modalidad: r.modalidad, jornada: r.jornada,
     horaEntrada: r.hora_entrada, horaSalida: r.hora_salida,
     horasSolicitadas: r.horas_solicitadas == null ? null : Number(r.horas_solicitadas),
@@ -255,15 +257,15 @@ async function createPermiso(req, res) {
     const r = await client.query(
       `INSERT INTO solicitudes_admin(tipo,dependencia,apellidos_nombres,documento,cargo,fecha_inicio,fecha_fin,
          dias_solicitados,motivo,estado,observaciones,fecha_solicitud,nota_gestion,
-         correo_solicitante,sectorial,nivel,modalidad,jornada,hora_entrada,hora_salida,horas_solicitadas,
+         correo_solicitante,codigo,grado,sectorial,nivel,modalidad,jornada,hora_entrada,hora_salida,horas_solicitadas,
          motivo_categoria,motivo_incentivo,jefe_nombre,jefe_correo,registrado_por,notificacion_estado)
        VALUES('Permiso Laboral',$1,$2,$3,$4,$5,$6,$7,$8,'Pendiente',$9,$10,$11,
-              $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'pendiente')
+              $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,'pendiente')
        RETURNING id_solicitud`,
       [d.dependencia, d.persona, d.documento, d.cargo, d.fechaInicio, d.fechaFin,
        d.dias, d.motivoLabel, d.observaciones, todayDMY(),
        d.advertencias.length ? `Alerta: ${d.advertencias.join(' ')}`.slice(0, 480) : '',
-       d.correoSolicitante, d.sectorial, d.nivel, d.modalidad, d.jornada, d.horaEntrada, d.horaSalida, d.horasSolicitadas,
+       d.correoSolicitante, d.codigo, d.grado, d.sectorial, d.nivel, d.modalidad, d.jornada, d.horaEntrada, d.horaSalida, d.horasSolicitadas,
        d.motivoCategoria, d.motivoIncentivo, d.jefeNombre, d.jefeCorreo, username]);
     newId = r.rows[0].id_solicitud;
     await insertSoportes(client, newId, d.soportes, username);
@@ -437,13 +439,13 @@ async function updatePermiso(req, res, id) {
     await client.query(
       `UPDATE solicitudes_admin SET dependencia=$1,apellidos_nombres=$2,documento=$3,cargo=$4,fecha_inicio=$5,fecha_fin=$6,
          dias_solicitados=$7,motivo=$8,estado=$9,observaciones=$10,nota_gestion=$11,aprobado_por=$12,
-         correo_solicitante=$13,sectorial=$14,nivel=$15,modalidad=$16,jornada=$17,hora_entrada=$18,hora_salida=$19,
-         horas_solicitadas=$20,motivo_categoria=$21,motivo_incentivo=$22,jefe_nombre=$23,jefe_correo=$24
-       WHERE id_solicitud=$25`,
+         correo_solicitante=$13,codigo=$14,grado=$15,sectorial=$16,nivel=$17,modalidad=$18,jornada=$19,hora_entrada=$20,hora_salida=$21,
+         horas_solicitadas=$22,motivo_categoria=$23,motivo_incentivo=$24,jefe_nombre=$25,jefe_correo=$26
+       WHERE id_solicitud=$27`,
       [d.dependencia, d.persona, d.documento, d.cargo, d.fechaInicio, d.fechaFin,
        d.dias, d.motivoLabel, estado, d.observaciones,
        String(req.body.notaGestion || '').trim().slice(0, 480), String(req.body.aprobadoPor || '').trim().slice(0, 150),
-       d.correoSolicitante, d.sectorial, d.nivel, d.modalidad, d.jornada, d.horaEntrada, d.horaSalida,
+       d.correoSolicitante, d.codigo, d.grado, d.sectorial, d.nivel, d.modalidad, d.jornada, d.horaEntrada, d.horaSalida,
        d.horasSolicitadas, d.motivoCategoria, d.motivoIncentivo, d.jefeNombre, d.jefeCorreo, id]);
     if (aEliminar.length)
       await client.query('DELETE FROM solicitudes_admin_soportes WHERE id_solicitud=$1 AND id_soporte = ANY($2::int[])', [id, aEliminar]);

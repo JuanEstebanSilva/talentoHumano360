@@ -82,14 +82,19 @@ async function validatePermiso(body, { pool, excludeId = 0, keptSoportes = 0 }) 
   const eSol = emailError(body.correoSolicitante, 'correo del servidor público');
   if (eSol) return fail('correoSolicitante', eSol);
   const correoSolicitante = clean(body.correoSolicitante).toLowerCase();
+  const codigo = clean(body.codigo || '').slice(0, 80);
+  const grado = clean(body.grado || '').slice(0, 80);
 
   // 2. Sectorial → Dependencia / Nivel → Cargo
   const sectorial = clean(body.sectorial);
   const sec = cat.SECTORIALES.find(s => s.nombre === sectorial);
   if (!sec) return fail('sectorial', 'Seleccione una sectorial válida.');
-  const dependencia = clean(body.dependencia);
-  if (!sec.dependencias.includes(dependencia))
+  const rawDep = clean(body.dependencia);
+  const depClean = rawDep.replace(/^\d+(\.\d+)*\s*/, '').toUpperCase();
+  const matchedDep = sec.dependencias.find(d => d.replace(/^\d+(\.\d+)*\s*/, '').toUpperCase() === depClean) || (sec.dependencias.includes(rawDep) ? rawDep : null);
+  if (!matchedDep)
     return fail('dependencia', 'La dependencia no corresponde a la sectorial seleccionada.');
+  const dependencia = matchedDep;
   const nivel = clean(body.nivel);
   const niv = cat.NIVELES.find(n => n.nombre === nivel);
   if (!niv) return fail('nivel', 'Seleccione un nivel válido.');
@@ -218,7 +223,7 @@ async function validatePermiso(body, { pool, excludeId = 0, keptSoportes = 0 }) 
   const fechaInicio = cal.formatDMY(fi), fechaFin = cal.formatDMY(ff);
   return {
     data: {
-      persona, documento, correoSolicitante, sectorial, dependencia, nivel, cargo,
+      persona, documento, correoSolicitante, codigo, grado, sectorial, dependencia, nivel, cargo,
       modalidad, jornada: jornada.label, horaSalida, horaEntrada, horasSolicitadas,
       fechaInicio, fechaFin, dias,
       motivoCategoria: motivo.id, motivoIncentivo: incentivo ? incentivo.id : null,
