@@ -132,6 +132,11 @@ const API = (() => {
     updateAdminRequestStatus: (id, estado, notaGestion = '') =>
       request(`/admin-requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, notaGestion }) }),
     deleteAdminRequest: (id) => request(`/admin-requests/${id}`, { method: 'DELETE' }),
+    getPermisosCatalogs: () => request('/admin-requests/catalogs/permisos'),
+    getAdminRequestSoportes: (id) => request(`/admin-requests/${id}/soportes`),
+    getAdminRequestSoporteUrl: (id, sid) => `${BASE}/admin-requests/${id}/soportes/${sid}`,
+    reenviarNotificacionAdminRequest: (id) =>
+      request(`/admin-requests/${id}/reenviar-notificacion`, { method: 'POST' }),
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),

@@ -5891,3 +5891,150 @@ body.error-404-active #login-screen {
     width: 100%;
   }
 }
+
+
+/* ===========================================================================
+   FORMULARIO OFICIAL DE PERMISOS LABORALES (Talento 360)
+   =========================================================================== */
+.permiso-form-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+}
+.permiso-section {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+[data-theme="dark"] .permiso-section {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.permiso-modalidad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .permiso-modalidad-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.permiso-modalidad-card {
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  background: var(--bg-card, #ffffff);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+}
+.permiso-modalidad-card:hover {
+  border-color: var(--color-green-dark, #287522);
+  transform: translateY(-1px);
+}
+.permiso-modalidad-card.is-active {
+  border-color: var(--color-green-dark, #287522);
+  background: rgba(40, 117, 34, 0.06);
+  box-shadow: 0 0 0 2px rgba(40, 117, 34, 0.2);
+}
+[data-theme="dark"] .permiso-modalidad-card {
+  background: #0f172a;
+}
+[data-theme="dark"] .permiso-modalidad-card.is-active {
+  background: rgba(40, 117, 34, 0.18);
+  border-color: #4ade80;
+}
+.permiso-modalidad-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary, #0f172a);
+}
+.permiso-modalidad-desc {
+  font-size: 0.76rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.35;
+}
+.permiso-alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.permiso-alert-banner--info {
+  background: rgba(30, 64, 175, 0.08);
+  border: 1px solid rgba(30, 64, 175, 0.2);
+  color: #1e40af;
+}
+[data-theme="dark"] .permiso-alert-banner--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.permiso-alert-banner--warn {
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  color: #b45309;
+}
+[data-theme="dark"] .permiso-alert-banner--warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.permiso-soportes-dropzone {
+  border: 2px dashed var(--color-border, #cbd5e1);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(248, 250, 252, 0.6);
+}
+[data-theme="dark"] .permiso-soportes-dropzone {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.permiso-soportes-dropzone:hover,
+.permiso-soportes-dropzone.is-dragover {
+  border-color: var(--color-green-dark, #287522);
+  background: rgba(40, 117, 34, 0.05);
+}
+.soporte-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.soporte-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-hover, #f1f5f9);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+[data-theme="dark"] .soporte-file-item {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.soporte-file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

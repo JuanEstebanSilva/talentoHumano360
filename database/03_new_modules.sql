@@ -50,8 +50,38 @@ CREATE TABLE IF NOT EXISTS solicitudes_admin (
     fecha_solicitud   VARCHAR(80),
     aprobado_por      VARCHAR(160),
     nota_gestion      VARCHAR(500),
+    -- Campos extendidos Formulario Permisos Laborales (CamposFormulario.xlsx)
+    correo_solicitante   VARCHAR(200),
+    sectorial            VARCHAR(200),
+    nivel                VARCHAR(80),
+    modalidad            VARCHAR(20),
+    jornada              VARCHAR(40),
+    hora_entrada         VARCHAR(5),
+    hora_salida          VARCHAR(5),
+    horas_solicitadas    NUMERIC(5,2),
+    motivo_categoria     VARCHAR(40),
+    motivo_incentivo     VARCHAR(40),
+    jefe_nombre          VARCHAR(200),
+    jefe_correo          VARCHAR(200),
+    registrado_por       VARCHAR(120),
+    notificacion_estado  VARCHAR(20) DEFAULT 'pendiente',
+    notificacion_detalle VARCHAR(500),
+    notificacion_fecha   TIMESTAMP,
     creado_en         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Soportes adjuntos de solicitudes_admin
+CREATE TABLE IF NOT EXISTS solicitudes_admin_soportes (
+    id_soporte     SERIAL PRIMARY KEY,
+    id_solicitud   INTEGER NOT NULL REFERENCES solicitudes_admin(id_solicitud) ON DELETE CASCADE,
+    nombre_archivo VARCHAR(255) NOT NULL,
+    tipo_mime      VARCHAR(80)  NOT NULL,
+    tamano_bytes   INTEGER      NOT NULL,
+    contenido      BYTEA        NOT NULL,
+    subido_por     VARCHAR(120),
+    creado_en      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sol_admin_soportes_sol ON solicitudes_admin_soportes(id_solicitud);
 
 CREATE INDEX IF NOT EXISTS idx_sol_admin_tipo        ON solicitudes_admin(tipo);
 CREATE INDEX IF NOT EXISTS idx_sol_admin_estado      ON solicitudes_admin(estado);
