@@ -54,6 +54,7 @@ function todayDMY() {
 
 // ─── Formulario de Permisos Laborales (CamposFormulario.xlsx) ────────────────
 const permisosCatalog = require('../catalogs/permisos');
+const licenciasCatalog = require('../catalogs/licencias');
 const { validatePermiso, formatHoras } = require('../utils/permisos-validator');
 const { notifyPermiso } = require('../utils/mailer');
 
@@ -189,6 +190,30 @@ router.get('/catalogs/permisos', auth, (_req, res) => {
   });
 });
 
+
+function parseGenericSoportes(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const f of list) {
+    if (!f || !f.base64 || !f.nombre) continue;
+    const b64 = String(f.base64).replace(/^data:[^;]+;base64,/, '');
+    const buf = Buffer.from(b64, 'base64');
+    if (!buf.length) continue;
+    const tipo = f.tipo || 'application/pdf';
+    out.push({
+      nombre: String(f.nombre).replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200),
+      tipo,
+      buffer: buf
+    });
+  }
+  return out;
+}
+
+// ─── GET /api/admin-requests/catalogs/licencias ───────────────────────────────
+router.get('/catalogs/licencias', auth, (_req, res) => {
+  res.json(licenciasCatalog);
+});
+
 // ─── GET /api/admin-requests ──────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   const { tipo='', q='', estado='', departamento='', page=1, limit=20 } = req.query;
@@ -320,20 +345,31 @@ router.post('/', auth, async (req, res) => {
     return res.status(400).json({ error: 'Persona y documento son requeridos.' });
 
   const today = todayDMY();
-
+  const client = await pool.connect();
   try {
-    const r = await pool.query(
+    await client.query('BEGIN');
+    const r = await client.query(
       `INSERT INTO solicitudes_admin(tipo,dependencia,apellidos_nombres,documento,cargo,fecha_inicio,fecha_fin,
-        dias_solicitados,motivo,estado,observaciones,fecha_solicitud)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id_solicitud`,
+        dias_solicitados,motivo,estado,observaciones,fecha_solicitud,motivo_categoria,codigo,grado,sectorial,correo_solicitante)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id_solicitud`,
       [tipo, upper(dependencia), upper(persona), documento, upper(cargo),
        fechaInicio||'', fechaFin||'', parseInt(diasSolicitados)||1, motivo||'',
-       normalizeStatus(estado), observaciones||'', today]);
+       normalizeStatus(estado), observaciones||'', today,
+       req.body.motivoCategoria || req.body.motivo_categoria || '',
+       req.body.codigo || '', req.body.grado || '', req.body.sectorial || '',
+       req.body.correoSolicitante || req.body.correo || '']);
 
     const newId = r.rows[0].id_solicitud;
-    await pool.query(
+    const soportesParsed = parseGenericSoportes(req.body.soportes);
+    if (soportesParsed.length) {
+      await insertSoportes(client, newId, soportesParsed, req.user.username || 'web');
+    }
+
+    await client.query(
       'INSERT INTO historial_solicitudes_admin(id_solicitud,estado_nuevo,nota,actualizado_por) VALUES($1,$2,$3,$4)',
       [newId, normalizeStatus(estado), 'Creado desde interfaz web', req.user.username||'web']);
+
+    await client.query('COMMIT');
 
     res.status(201).json({
       message: 'Solicitud creada.',
@@ -341,8 +377,11 @@ router.post('/', auth, async (req, res) => {
       radicado: `${filingPrefix(tipo)}-2026-${String(newId).padStart(5,'0')}`
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[admin-requests] create error:', err.message);
     res.status(500).json({ error: 'Error al crear solicitud.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -486,24 +525,48 @@ router.put('/:id', auth, async (req, res) => {
   }
 
   const { persona, documento, dependencia, cargo, fechaInicio, fechaFin, diasSolicitados, motivo, estado, observaciones, notaGestion, aprobadoPor } = req.body;
+  const client = await pool.connect();
   try {
-
-    const r = await pool.query(
+    await client.query('BEGIN');
+    const r = await client.query(
       `UPDATE solicitudes_admin SET apellidos_nombres=$1,documento=$2,dependencia=$3,cargo=$4,fecha_inicio=$5,
-        fecha_fin=$6,dias_solicitados=$7,motivo=$8,estado=$9,observaciones=$10,nota_gestion=$11,aprobado_por=$12
-       WHERE id_solicitud=$13 RETURNING id_solicitud`,
+        fecha_fin=$6,dias_solicitados=$7,motivo=$8,estado=$9,observaciones=$10,nota_gestion=$11,aprobado_por=$12,
+        motivo_categoria=COALESCE($13, motivo_categoria), codigo=COALESCE($14, codigo), grado=COALESCE($15, grado),
+        correo_solicitante=COALESCE($16, correo_solicitante)
+       WHERE id_solicitud=$17 RETURNING id_solicitud`,
       [upper(persona), documento, upper(dependencia), upper(cargo), fechaInicio||'', fechaFin||'',
        parseInt(diasSolicitados)||1, motivo||'', normalizeStatus(estado), observaciones||'',
-       notaGestion||'', aprobadoPor||'', parseInt(id)]);
+       notaGestion||'', aprobadoPor||'', req.body.motivoCategoria || null, req.body.codigo || null,
+       req.body.grado || null, req.body.correoSolicitante || null, parseInt(id)]);
 
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Solicitud no encontrada.' });
-    await pool.query(
+    if (r.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Solicitud no encontrada.' });
+    }
+
+    const eliminar = (Array.isArray(req.body.soportesEliminar) ? req.body.soportesEliminar : [])
+      .map(n => parseInt(n)).filter(n => n > 0);
+    if (eliminar.length) {
+      await client.query('DELETE FROM solicitudes_admin_soportes WHERE id_solicitud=$1 AND id_soporte = ANY($2::int[])', [parseInt(id), eliminar]);
+    }
+
+    const soportesParsed = parseGenericSoportes(req.body.soportes);
+    if (soportesParsed.length) {
+      await insertSoportes(client, parseInt(id), soportesParsed, req.user.username || 'web');
+    }
+
+    await client.query(
       'INSERT INTO historial_solicitudes_admin(id_solicitud,estado_nuevo,nota,actualizado_por) VALUES($1,$2,$3,$4)',
       [parseInt(id), normalizeStatus(estado), notaGestion||'Actualizado desde web', req.user.username||'web']);
+
+    await client.query('COMMIT');
     res.json({ message: 'Solicitud actualizada.' });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('[admin-requests] update error:', err.message);
     res.status(500).json({ error: 'Error al actualizar.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -556,7 +619,7 @@ router.get('/:id/soportes', auth, async (req, res) => {
       `SELECT id_soporte, nombre_archivo, tipo_mime, tamano_bytes, subido_por, creado_en
          FROM solicitudes_admin_soportes WHERE id_solicitud=$1 ORDER BY id_soporte`, [id]);
     res.json(r.rows.map(s => ({
-      id: s.id_soporte, nombre: s.nombre_archivo, tipo: s.tipo_mime,
+      id: s.id_soporte, id_soporte: s.id_soporte, nombre: s.nombre_archivo, nombre_archivo: s.nombre_archivo, tipo: s.tipo_mime, tipo_mime: s.tipo_mime,
       tamano: s.tamano_bytes, subidoPor: s.subido_por, creadoEn: s.creado_en,
     })));
   } catch (err) {

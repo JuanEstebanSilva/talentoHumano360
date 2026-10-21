@@ -133,6 +133,7 @@ const API = (() => {
       request(`/admin-requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, notaGestion }) }),
     deleteAdminRequest: (id) => request(`/admin-requests/${id}`, { method: 'DELETE' }),
     getPermisosCatalogs: () => request('/admin-requests/catalogs/permisos'),
+    getLicenciasCatalogs: () => request('/admin-requests/catalogs/licencias'),
     getAdminRequestSoportes: (id) => request(`/admin-requests/${id}/soportes`),
     getAdminRequestSoporteUrl: (id, sid) => `${BASE}/admin-requests/${id}/soportes/${sid}`,
     reenviarNotificacionAdminRequest: (id) =>

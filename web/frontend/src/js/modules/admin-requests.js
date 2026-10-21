@@ -10,6 +10,114 @@ const AdminRequestsModule = (() => {
 
   let state = { tipo: 'Permiso Laboral', data: [], total: 0, page: 1, totalPages: 1, filters: {} };
   let permisosCatalogs = null;
+  let licenciasCatalogs = null;
+
+  const DEFAULT_LICENCIAS = [
+    {
+      id: 'LUTO',
+      nombre: 'Licencia por Luto',
+      diasPorLey: 5,
+      tipoDias: 'días hábiles remunerados',
+      norma: 'Ley 1280 de 2009 / Decreto 1083 de 2015, Art. 2.2.5.5.15',
+      descripcion: 'Fallecimiento de cónyuge, compañero(a) permanente o familiar hasta el 2º grado de consanguinidad (padres, hijos, abuelos, nietos, hermanos), 1º de afinidad (suegros, nueras, yernos) o 1º civil (padres adoptantes o hijos adoptivos).',
+      soportes: [
+        'Acta o Registro Civil de Defunción expedido por Notaría o Registraduría.',
+        'Registro Civil de Nacimiento o Matrimonio (o prueba de unión marital) que demuestre el parentesco legal.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'MATERNIDAD',
+      nombre: 'Licencia de Maternidad',
+      diasPorLey: 126,
+      tipoDias: '18 semanas remuneradas (126 días calendario)',
+      norma: 'Ley 1822 de 2017 / Ley 2114 de 2021 / Decreto 1083 de 2015',
+      descripcion: '18 semanas de descanso remunerado en época de parto. En partos múltiples o prematuros la duración se amplía conforme a certificación médica de la EPS.',
+      soportes: [
+        'Certificado de nacido vivo o certificado médico de incapacidad por maternidad de la EPS.',
+        'Registro Civil de Nacimiento del recién nacido.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'PATERNIDAD',
+      nombre: 'Licencia de Paternidad',
+      diasPorLey: 14,
+      tipoDias: '2 semanas hábiles remuneradas',
+      norma: 'Ley 2114 de 2021 (Modifica Ley 1822 de 2017 y Código Sustantivo del Trabajo)',
+      descripcion: 'Descanso remunerado para el padre servidor público por nacimiento o adopción de un hijo.',
+      soportes: [
+        'Registro Civil de Nacimiento del menor (debe aportarse dentro de los 30 días posteriores al nacimiento).',
+        'Certificado de nacido vivo o soporte de incapacidad de la EPS.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'PARENTAL_COMPARTIDA',
+      nombre: 'Licencia Parental Compartida / Flexible',
+      diasPorLey: null,
+      tipoDias: 'Semanas concertadas con la madre',
+      norma: 'Ley 2114 de 2021, Art. 2',
+      descripcion: 'Distribución concertada y voluntaria de las últimas semanas de la licencia de maternidad entre ambos progenitores.',
+      soportes: [
+        'Documento de mutuo acuerdo firmado por ambos padres.',
+        'Certificado médico de la EPS indicando semanas de gestación y fecha de parto.',
+        'Registro Civil de Nacimiento del menor.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'CUIDADO_MENOR_GRAVE',
+      nombre: 'Licencia por Enfermedad Terminal o Grave de Hijo Menor (Ley Camila)',
+      diasPorLey: 10,
+      tipoDias: 'Hasta 10 días hábiles/año (continuos o discontinuos)',
+      norma: 'Ley 2174 de 2021 (Ley Camila)',
+      descripcion: 'Acompañamiento y cuidado directo de hijos menores de edad diagnosticados con enfermedad terminal o cuadro clínico severo.',
+      soportes: [
+        'Certificación médica del especialista tratante donde conste la gravedad del diagnóstico y la necesidad de cuidado directo.',
+        'Registro Civil de Nacimiento que acredite la filiación.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'ORDINARIA_NO_REMUNERADA',
+      nombre: 'Licencia Ordinaria (No Remunerada)',
+      diasPorLey: null,
+      tipoDias: 'Hasta 60 días al año, prorrogables por 30 más',
+      norma: 'Decreto 1083 de 2015, Arts. 2.2.5.5.3 a 2.2.5.5.7',
+      descripcion: 'Separación transitoria del ejercicio del cargo por motivos particulares del servidor público, sujeta a autorización del nominador.',
+      soportes: [
+        'Carta formal de solicitud motivada dirigida a la Dirección General de Talento Humano / Nominador.',
+        'Documentos que justifiquen la solicitud (si aplica).'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'DOCENCIA_UNIVERSITARIA',
+      nombre: 'Licencia para Ejercicio de la Docencia Universitaria',
+      diasPorLey: null,
+      tipoDias: 'Hasta 5 horas semanales remuneradas',
+      norma: 'Decreto 1083 de 2015, Art. 2.2.5.5.17',
+      descripcion: 'Autorización remunerada para impartir cátedra en universidades reconocidas oficialmente.',
+      soportes: [
+        'Certificación de vinculación laboral o docente con la Universidad.',
+        'Horario oficial de cátedra o clases asignadas para el periodo correspondiente.'
+      ],
+      soporteObligatorio: true,
+    },
+    {
+      id: 'DEPORTIVA',
+      nombre: 'Licencia para Actividades Deportivas',
+      diasPorLey: null,
+      tipoDias: 'Durante la competición oficial',
+      norma: 'Ley 181 de 1995 / Decreto 1083 de 2015, Art. 2.2.5.5.16',
+      descripcion: 'Para servidores seleccionados en representación del departamento o de la nación en justas o competiciones deportivas oficiales.',
+      soportes: [
+        'Certificación oficial emitida por Coldeportes / Mindeporte o Federación / Liga Deportiva correspondiente.'
+      ],
+      soporteObligatorio: true,
+    },
+  ];
   let currentSoportes = [];       // Nuevos archivos a subir en modal [{ nombre, tipo, base64, size }]
   let existingSoportes = [];      // Soportes ya guardados en el servidor [{ id_soporte, nombre_archivo, tipo_mime, tamano_bytes }]
   let deletedSoporteIds = [];     // IDs de soportes a eliminar en edición
@@ -162,6 +270,47 @@ const AdminRequestsModule = (() => {
       console.warn('[AdminRequests] No se pudieron cargar los catálogos del servidor:', err);
       return null;
     }
+  }
+
+  // ─── Carga de Catálogos de Licencias Laborales ───────────────────────────────
+  async function ensureLicenciasCatalogs() {
+    if (licenciasCatalogs && Array.isArray(licenciasCatalogs) && licenciasCatalogs.length) return licenciasCatalogs;
+    try {
+      const res = typeof API.getLicenciasCatalogs === 'function' ? await API.getLicenciasCatalogs() : null;
+      if (res && res.LICENCIAS && Array.isArray(res.LICENCIAS) && res.LICENCIAS.length) {
+        licenciasCatalogs = res.LICENCIAS;
+      } else if (Array.isArray(res) && res.length) {
+        licenciasCatalogs = res;
+      } else {
+        licenciasCatalogs = DEFAULT_LICENCIAS;
+      }
+    } catch (e) {
+      console.warn('[AdminRequests] Error al cargar catálogo de licencias:', e);
+      licenciasCatalogs = DEFAULT_LICENCIAS;
+    }
+    if (!licenciasCatalogs || !Array.isArray(licenciasCatalogs) || !licenciasCatalogs.length) {
+      licenciasCatalogs = DEFAULT_LICENCIAS;
+    }
+    return licenciasCatalogs;
+  }
+
+  // ─── Carga de Catálogos de Licencias Laborales ───────────────────────────────
+  async function ensureLicenciasCatalogs() {
+    if (licenciasCatalogs && licenciasCatalogs.length) return licenciasCatalogs;
+    try {
+      const res = typeof API.getLicenciasCatalogs === 'function' ? await API.getLicenciasCatalogs() : null;
+      if (res && res.LICENCIAS && Array.isArray(res.LICENCIAS)) {
+        licenciasCatalogs = res.LICENCIAS;
+      } else if (Array.isArray(res)) {
+        licenciasCatalogs = res;
+      } else {
+        licenciasCatalogs = DEFAULT_LICENCIAS;
+      }
+    } catch (e) {
+      console.warn('[AdminRequests] Error al cargar catálogo de licencias:', e);
+      licenciasCatalogs = DEFAULT_LICENCIAS;
+    }
+    return licenciasCatalogs;
   }
 
   // ─── Cambio de Pestaña Principal ─────────────────────────────────────────────
@@ -1039,7 +1188,7 @@ const AdminRequestsModule = (() => {
 
   // ─── Gestión de Archivos y Soportes (Drag & Drop) ─────────────────────────────
   function bindDropzoneEvents() {
-    const dropzone = document.getElementById('perm-dropzone');
+    const dropzone = document.getElementById('lic-dropzone') || document.getElementById('perm-dropzone');
     if (!dropzone) return;
 
     ['dragenter', 'dragover'].forEach(name => {
@@ -1069,7 +1218,7 @@ const AdminRequestsModule = (() => {
 
   function processFiles(files) {
     const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
-    const maxBytes = 5 * 1024 * 1024;
+    const maxBytes = 10 * 1024 * 1024;
     const totalFiles = (existingSoportes.length - deletedSoporteIds.length) + currentSoportes.length;
 
     for (let i = 0; i < files.length; i++) {
@@ -1105,7 +1254,7 @@ const AdminRequestsModule = (() => {
   }
 
   function renderSoportesList() {
-    const listEl = document.getElementById('perm-soportes-list');
+    const listEl = document.getElementById('lic-soportes-list') || document.getElementById('perm-soportes-list');
     if (!listEl) return;
 
     let html = '';
@@ -1249,6 +1398,13 @@ const AdminRequestsModule = (() => {
         { text: 'Radicar Solicitud', cls: 'btn-primary', id: 'adm-save-btn', action: savePermisoCreate },
       ], 'modal-ficha');
       initPermisoForm({}, false);
+    } else if (state.tipo === 'Licencia') {
+      await ensureLicenciasCatalogs();
+      App.openModal('Radicar Licencia Laboral · Gobernación de Boyacá', buildLicenciaFormHtml({}, false), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Radicar Licencia', cls: 'btn-primary', id: 'adm-save-btn', action: saveLicenciaCreate },
+      ], 'modal-ficha');
+      initLicenciaForm({}, false);
     } else {
       App.openModal(`Nueva Solicitud — ${state.tipo}`, buildForm(), [
         { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
@@ -1294,6 +1450,13 @@ const AdminRequestsModule = (() => {
         { text: 'Actualizar Permiso', cls: 'btn-gold', id: 'adm-save-btn', action: () => savePermisoEdit(id) },
       ], 'modal-ficha');
       initPermisoForm(r, true);
+    } else if (r.tipo === 'Licencia') {
+      await ensureLicenciasCatalogs();
+      App.openModal(`Editar Licencia (${r.radicado || ''})`, buildLicenciaFormHtml(r, true), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Actualizar Licencia', cls: 'btn-gold', id: 'adm-save-btn', action: () => saveLicenciaEdit(id) },
+      ], 'modal-ficha');
+      initLicenciaForm(r, true);
     } else {
       App.openModal('Editar Solicitud', buildForm(r), [
         { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
@@ -1327,6 +1490,8 @@ const AdminRequestsModule = (() => {
 
     if (r.tipo === 'Permiso Laboral') {
       openPermisoView(r);
+    } else if (r.tipo === 'Licencia') {
+      openLicenciaView(r);
     } else {
       openLegacyView(r);
     }
@@ -1505,6 +1670,609 @@ const AdminRequestsModule = (() => {
     } catch (err) {
       App.showToast(err.message || 'Error al reenviar notificación.', 'error');
     }
+  }
+
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FORMULARIO ESPECIALIZADO DE LICENCIAS LABORALES (GOBERNACIÓN DE BOYACÁ)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getLicenciaDef(typeId) {
+    const list = (licenciasCatalogs && Array.isArray(licenciasCatalogs) && licenciasCatalogs.length) ? licenciasCatalogs : DEFAULT_LICENCIAS;
+    return list.find(l => l.id === typeId) || list[0] || DEFAULT_LICENCIAS[0];
+  }
+
+  function renderLicenciaLegalBanner(lic) {
+    if (!lic) return '';
+    const soportesItems = (lic.soportes || []).map(s => `<li style="margin-bottom:3px;">${escHtml(s)}</li>`).join('');
+    return `
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--color-green-dark,#287522);flex-shrink:0;margin-top:2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+            <strong style="color:var(--text-primary);font-size:0.9rem;">${escHtml(lic.nombre)}</strong>
+            <span class="badge badge--permiso" style="font-weight:700;">${escHtml(lic.tipoDias || (lic.diasPorLey ? lic.diasPorLey + ' días' : 'Según solicitud'))}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--color-green-dark,#287522);font-weight:700;margin-bottom:4px;">${escHtml(lic.norma)}</div>
+          <div style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:8px;">${escHtml(lic.descripcion)}</div>
+          <div style="background:rgba(255,255,255,0.7);padding:8px 12px;border-radius:6px;border-left:3px solid var(--color-green-dark,#287522);">
+            <div style="font-weight:700;font-size:0.78rem;color:var(--text-primary);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.4px;">Soportes Requeridos por Ley:</div>
+            <ul style="margin:0 0 0 16px;padding:0;font-size:0.8rem;color:var(--text-primary);">
+              ${soportesItems}
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildLicenciaFormHtml(r = {}, isEdit = false) {
+    const list = (licenciasCatalogs && Array.isArray(licenciasCatalogs) && licenciasCatalogs.length) ? licenciasCatalogs : DEFAULT_LICENCIAS;
+    const defaultLic = list[0] || DEFAULT_LICENCIAS[0];
+    const curTipoId = r.motivoCategoria || (list.find(l => (r.motivo || '').toLowerCase().includes((l.nombre || '').toLowerCase())) || defaultLic).id || 'LUTO';
+    const curLic = getLicenciaDef(curTipoId);
+
+    const fiIso = dmyToISO(r.fechaInicio) || new Date().toISOString().slice(0, 10);
+    const ffIso = dmyToISO(r.fechaFin) || fiIso;
+    const curDias = r.diasSolicitados || curLic.diasPorLey || 1;
+
+    return `
+      <div class="permiso-form-wrap">
+        <div class="permiso-alert-banner permiso-alert-banner--info" style="margin-bottom:14px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;flex-shrink:0"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <div>
+            <strong>Solicitud y Radicación de Licencia Laboral · Gobernación de Boyacá</strong>
+            <div style="font-size:0.8rem;opacity:0.9;">Seleccione el tipo de licencia conforme al régimen laboral de los empleados públicos y anexe los documentos soporte exigidos por ley (Decreto 1083 de 2015, Ley 1280 de 2009, Ley 2114 de 2021).</div>
+          </div>
+        </div>
+
+        <!-- 1. INFORMACIÓN DEL SERVIDOR PÚBLICO -->
+        <div class="permiso-section">
+          <div class="permiso-section-header">
+            <span class="permiso-section-title">Información del Servidor Público</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group span-2" style="position:relative;">
+              <label class="form-label">Buscar Servidor en Planta (Cédula o Nombre)</label>
+              <div class="autocomplete-wrapper" style="position:relative;">
+                <input id="lic-f-search" class="form-input" placeholder="Escriba el nombre o número de cédula para autocompletar datos del servidor..." autocomplete="off" />
+                <div id="lic-f-autocomplete" class="autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;"></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cédula *</label>
+              <input id="lic-f-doc" class="form-input font-mono" placeholder="Ej: 1049625596" value="${escHtml(r.documento || '')}" required />
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Nombres y Apellidos *</label>
+              <input id="lic-f-nombres" class="form-input" placeholder="NOMBRES Y APELLIDOS COMPLETOS" value="${escHtml(r.persona || '')}" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cargo *</label>
+              <input id="lic-f-cargo" class="form-input" placeholder="Ej: PROFESIONAL UNIVERSITARIO" value="${escHtml(r.cargo || '')}" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Código</label>
+              <input id="lic-f-codigo" class="form-input font-mono" placeholder="Ej: 219" value="${escHtml(r.codigo || '')}" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Grado</label>
+              <input id="lic-f-grado" class="form-input font-mono" placeholder="Ej: 03" value="${escHtml(r.grado || '')}" />
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Dependencia / Secretaría *</label>
+              <input id="lic-f-dep" class="form-input" placeholder="Secretaría o Dirección de adscripción..." value="${escHtml(cleanName(r.dependencia || ''))}" required />
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Correo Institucional</label>
+              <input id="lic-f-correo" type="email" class="form-input font-mono" placeholder="servidor@boyaca.gov.co" value="${escHtml(r.correoSolicitante || '')}" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. TIPO DE LICENCIA Y GUÍA LEGAL -->
+        <div class="permiso-section">
+          <div class="permiso-section-header">
+            <span class="permiso-section-title">Tipo de Licencia y Marco Legal</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label class="form-label">Tipo de Licencia *</label>
+              <select id="lic-f-tipo" class="filter-select" onchange="AdminRequestsModule.onLicenciaTypeChange()" required>
+                ${list.map(l => `<option value="${escHtml(l.id)}" ${l.id === curTipoId ? 'selected' : ''}>${escHtml(l.nombre)} (${escHtml(l.tipoDias)})</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="form-group span-2">
+              <div id="lic-legal-banner" class="permiso-alert-banner permiso-alert-banner--info" style="margin:0;">
+                ${renderLicenciaLegalBanner(curLic)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. PERIODO Y DURACIÓN -->
+        <div class="permiso-section">
+          <div class="permiso-section-header">
+            <span class="permiso-section-title">Periodo y Duración de la Licencia</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Fecha de Inicio *</label>
+              <input id="lic-f-fi" type="date" class="form-input" value="${escHtml(fiIso)}" onchange="AdminRequestsModule.onLicenciaDatesChange('start')" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Fecha de Fin *</label>
+              <input id="lic-f-ff" type="date" class="form-input" value="${escHtml(ffIso)}" onchange="AdminRequestsModule.onLicenciaDatesChange('end')" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Días Solicitados *</label>
+              <input id="lic-f-dias" type="number" min="1" max="365" class="form-input font-mono" value="${curDias}" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Estado de la Solicitud</label>
+              <select id="lic-f-estado" class="filter-select">
+                ${ESTADOS.filter(e => e !== 'Todos').map(e => `<option value="${e}" ${(r.estado || 'Pendiente') === e ? 'selected' : ''}>${e}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. SOPORTES DOCUMENTALES (ACTA DE DEFUNCIÓN, REGISTROS, CERTIFICADOS) -->
+        <div class="permiso-section">
+          <div class="permiso-section-header">
+            <span class="permiso-section-title">Anexo de Soportes Documentales (Obligatorio según Ley)</span>
+          </div>
+
+          <div
+            id="lic-dropzone"
+            class="soporte-dropzone"
+            style="border:2px dashed var(--color-border,#cbd5e1);border-radius:10px;padding:24px 16px;text-align:center;cursor:pointer;background:var(--bg-hover,#f8fafc);transition:all 0.2s;"
+            onclick="document.getElementById('lic-file-input').click()"
+          >
+            <input
+              id="lic-file-input"
+              type="file"
+              multiple
+              accept=".pdf,image/jpeg,image/png"
+              style="display:none;"
+              onchange="AdminRequestsModule.handleLicFileSelect(event)"
+            />
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;color:var(--color-green-dark,#287522);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <div style="font-weight:700;font-size:0.95rem;color:var(--text-primary);">Arrastre aquí los soportes o haga clic para seleccionar archivos</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">
+                Formatos permitidos: <strong>PDF, JPG, PNG</strong> (hasta 10 MB por documento, máx. 5 archivos).<br>
+                <em>Anexe el Acta de Defunción, Registro Civil o Certificado Médico según el tipo de licencia seleccionado.</em>
+              </div>
+            </div>
+          </div>
+
+          <div id="lic-soportes-list" class="soportes-list" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- 5. MOTIVO Y OBSERVACIONES -->
+        <div class="permiso-section">
+          <div class="permiso-section-header">
+            <span class="permiso-section-title">Motivo y Observaciones</span>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label class="form-label">Motivo o Justificación Detallada *</label>
+              <textarea id="lic-f-motivo" class="form-input" rows="2" placeholder="Detalle el motivo específico de la licencia (ej: Fallecimiento de progenitor / Nacimiento de hijo / Cuidado menor hospitalizado)..." required>${escHtml(r.motivo || '')}</textarea>
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Observaciones Adicionales / Nota de Gestión</label>
+              <textarea id="lic-f-obs" class="form-input" rows="2" placeholder="Observaciones adicionales para Talento Humano...">${escHtml(r.observaciones || '')}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function initLicenciaForm(r = {}, isEdit = false) {
+    currentSoportes = [];
+    existingSoportes = [];
+    deletedSoporteIds = [];
+
+    bindLicAutocomplete();
+    bindDropzoneEvents();
+
+    if (isEdit && r.id) {
+      try {
+        const s = await API.getAdminRequestSoportes(r.id);
+        existingSoportes = Array.isArray(s) ? s : [];
+      } catch (err) {
+        console.warn('[AdminRequests] Error al cargar soportes de licencia en edición:', err);
+      }
+    }
+
+    renderSoportesList();
+  }
+
+  function onLicenciaTypeChange() {
+    const sel = document.getElementById('lic-f-tipo');
+    if (!sel) return;
+    const lic = getLicenciaDef(sel.value);
+    const bannerEl = document.getElementById('lic-legal-banner');
+    if (bannerEl) bannerEl.innerHTML = renderLicenciaLegalBanner(lic);
+
+    const diasInput = document.getElementById('lic-f-dias');
+    const fiInput = document.getElementById('lic-f-fi');
+    const ffInput = document.getElementById('lic-f-ff');
+    const motivoInput = document.getElementById('lic-f-motivo');
+
+    if (lic.diasPorLey && diasInput) {
+      diasInput.value = lic.diasPorLey;
+      if (fiInput && fiInput.value && ffInput) {
+        const dStart = parseInputDate(fiInput.value);
+        if (dStart) {
+          if (lic.id === 'LUTO' || lic.id === 'PATERNIDAD') {
+            const dEnd = nthBusinessDay(dStart, lic.diasPorLey);
+            ffInput.value = formatISO(dEnd);
+          } else {
+            const dEnd = addDays(dStart, lic.diasPorLey - 1);
+            ffInput.value = formatISO(dEnd);
+          }
+        }
+      }
+    }
+
+    if (motivoInput && !motivoInput.value.trim()) {
+      motivoInput.value = `Solicitud de ${lic.nombre} según ${lic.norma}`;
+    }
+  }
+
+  function onLicenciaDatesChange(trigger) {
+    const fiInput = document.getElementById('lic-f-fi');
+    const ffInput = document.getElementById('lic-f-ff');
+    const diasInput = document.getElementById('lic-f-dias');
+    const sel = document.getElementById('lic-f-tipo');
+    if (!fiInput || !ffInput || !diasInput) return;
+
+    const fiVal = fiInput.value;
+    const ffVal = ffInput.value;
+    if (!fiVal) return;
+
+    const dStart = parseInputDate(fiVal);
+    if (!dStart) return;
+
+    const lic = sel ? getLicenciaDef(sel.value) : null;
+
+    if (trigger === 'start' && lic && lic.diasPorLey) {
+      if (lic.id === 'LUTO' || lic.id === 'PATERNIDAD') {
+        const dEnd = nthBusinessDay(dStart, lic.diasPorLey);
+        ffInput.value = formatISO(dEnd);
+      } else {
+        const dEnd = addDays(dStart, lic.diasPorLey - 1);
+        ffInput.value = formatISO(dEnd);
+      }
+      diasInput.value = lic.diasPorLey;
+      return;
+    }
+
+    if (ffVal) {
+      const dEnd = parseInputDate(ffVal);
+      if (dEnd && dEnd.getTime() >= dStart.getTime()) {
+        const nDays = lic && (lic.id === 'LUTO' || lic.id === 'PATERNIDAD')
+          ? countBusinessDays(dStart, dEnd)
+          : Math.round((dEnd.getTime() - dStart.getTime()) / (86400000)) + 1;
+        diasInput.value = Math.max(1, nDays);
+      }
+    }
+  }
+
+  function handleLicFileSelect(e) {
+    const files = e.target.files;
+    if (files && files.length) processFiles(files);
+  }
+
+  function bindLicAutocomplete() {
+    const searchInput = document.getElementById('lic-f-search');
+    const dropdown = document.getElementById('lic-f-autocomplete');
+    if (!searchInput || !dropdown) return;
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounceTimer);
+      if (q.length < 2) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      searchDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await API.getEmployees({ q, limit: 7 });
+          const emps = res.data || [];
+          if (!emps.length) {
+            dropdown.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:0.85rem;">No se encontraron servidores coincidentes.</div>';
+            dropdown.style.display = 'block';
+            return;
+          }
+          dropdown.innerHTML = emps.map(emp => {
+            const nom = emp.apellidos_nombres || emp.persona || emp.nombreCompleto || `${emp.primer_apellido || ''} ${emp.primer_nombre || ''}`.trim();
+            const doc = emp.documento || emp.cedula || '';
+            const dep = cleanName(emp.dependencia || '');
+            const car = emp.cargo || '';
+            const email = emp.email || emp.correo || emp.correoInstitucional || '';
+            const codigo = emp.codigoActual || emp.codigoBase || emp.codigo || '';
+            const grado = emp.gradoActual || emp.gradoBase || emp.grado || '';
+            const empJson = escHtml(JSON.stringify({ nom, doc, dep, car, email, codigo, grado }));
+            return `
+              <div class="autocomplete-item" onclick="AdminRequestsModule.selectLicEmployee(${empJson})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--color-border,#e2e8f0);">
+                <div class="autocomplete-item-name" style="font-weight:700;font-size:0.88rem;color:var(--text-primary);">${escHtml(nom)}</div>
+                <div class="autocomplete-item-meta" style="font-size:0.75rem;color:var(--text-muted);">
+                  C.C. ${escHtml(doc)} ${codigo ? `· Cód. ${escHtml(codigo)}` : ''} ${grado ? `· Grado ${escHtml(grado)}` : ''} · ${escHtml(dep || 'Sin dep.')} · ${escHtml(car || 'Sin cargo')}
+                </div>
+              </div>
+            `;
+          }).join('');
+          dropdown.style.display = 'block';
+        } catch (err) {
+          console.warn('[AdminRequests] Error en autocomplete de licencias:', err);
+        }
+      }, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+  }
+
+  function selectLicEmployee(emp) {
+    const searchInput = document.getElementById('lic-f-search');
+    const docInput = document.getElementById('lic-f-doc');
+    const nomInput = document.getElementById('lic-f-nombres');
+    const cargoInput = document.getElementById('lic-f-cargo');
+    const depInput = document.getElementById('lic-f-dep');
+    const emailInput = document.getElementById('lic-f-correo');
+    const codInput = document.getElementById('lic-f-codigo');
+    const gradoInput = document.getElementById('lic-f-grado');
+    const dropdown = document.getElementById('lic-f-autocomplete');
+
+    if (dropdown) dropdown.style.display = 'none';
+    if (searchInput) searchInput.value = emp.nom || '';
+    if (docInput) docInput.value = emp.doc || '';
+    if (nomInput) nomInput.value = emp.nom || '';
+    if (cargoInput && emp.car) cargoInput.value = emp.car;
+    if (depInput && emp.dep) depInput.value = cleanName(emp.dep);
+    if (emailInput && emp.email) emailInput.value = emp.email;
+    if (codInput) codInput.value = emp.codigo || '';
+    if (gradoInput) gradoInput.value = emp.grado || '';
+
+    App.showToast(`Servidor ${emp.nom} seleccionado.`, 'info');
+  }
+
+  function readLicenciaForm() {
+    const doc = document.getElementById('lic-f-doc')?.value.trim();
+    const nom = document.getElementById('lic-f-nombres')?.value.trim();
+    const cargo = document.getElementById('lic-f-cargo')?.value.trim();
+    const dep = document.getElementById('lic-f-dep')?.value.trim();
+    const fi = document.getElementById('lic-f-fi')?.value;
+    const ff = document.getElementById('lic-f-ff')?.value;
+    const dias = parseInt(document.getElementById('lic-f-dias')?.value) || 1;
+    const tipoLicId = document.getElementById('lic-f-tipo')?.value || 'LUTO';
+    const motivo = document.getElementById('lic-f-motivo')?.value.trim();
+    const obs = document.getElementById('lic-f-obs')?.value.trim();
+    const estado = document.getElementById('lic-f-estado')?.value || 'Pendiente';
+    const codigo = document.getElementById('lic-f-codigo')?.value.trim();
+    const grado = document.getElementById('lic-f-grado')?.value.trim();
+    const correo = document.getElementById('lic-f-correo')?.value.trim();
+
+    if (!doc || !nom) {
+      App.showToast('Cédula y Nombres del servidor son obligatorios.', 'warning');
+      return null;
+    }
+    if (!cargo || !dep) {
+      App.showToast('Cargo y Dependencia son obligatorios.', 'warning');
+      return null;
+    }
+    if (!fi || !ff) {
+      App.showToast('Fechas de inicio y fin son obligatorias.', 'warning');
+      return null;
+    }
+    if (!motivo) {
+      App.showToast('El motivo de la licencia es obligatorio.', 'warning');
+      return null;
+    }
+
+    const licDef = getLicenciaDef(tipoLicId);
+
+    // Validación de soportes según normativa
+    const totalSoportes = (existingSoportes.length - deletedSoporteIds.length) + currentSoportes.length;
+    if (licDef.soporteObligatorio && totalSoportes === 0) {
+      App.showToast(`Por disposición legal (${licDef.norma}), debe anexar los soportes requeridos para la ${licDef.nombre}.`, 'warning');
+    }
+
+    return {
+      tipo: 'Licencia',
+      persona: nom,
+      documento: doc,
+      cargo,
+      dependencia: dep,
+      fechaInicio: isoToDMY(fi),
+      fechaFin: isoToDMY(ff),
+      diasSolicitados: dias,
+      motivo,
+      motivoCategoria: tipoLicId,
+      estado,
+      observaciones: obs,
+      codigo,
+      grado,
+      correoSolicitante: correo,
+      soportes: currentSoportes.map(s => ({ nombre: s.nombre, tipo: s.tipo, base64: s.base64 })),
+      soportesEliminar: deletedSoporteIds,
+    };
+  }
+
+  async function saveLicenciaCreate() {
+    const body = readLicenciaForm();
+    if (!body) return;
+    const btn = document.getElementById('adm-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Radicando licencia...'; }
+
+    try {
+      const res = await API.createAdminRequest(body);
+      App.closeModal();
+      App.showToast(`Licencia radicada con éxito. Radicado: ${res.radicado || 'LIC-2026'}.`, 'success');
+      await load();
+    } catch (err) {
+      App.showToast(err.message || 'Error al radicar la licencia.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Radicar Licencia'; }
+    }
+  }
+
+  async function saveLicenciaEdit(id) {
+    const body = readLicenciaForm();
+    if (!body) return;
+    const btn = document.getElementById('adm-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Actualizando licencia...'; }
+
+    try {
+      await API.updateAdminRequest(id, body);
+      App.closeModal();
+      App.showToast('Licencia actualizada correctamente.', 'success');
+      await load();
+    } catch (err) {
+      App.showToast(err.message || 'Error al actualizar la licencia.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Actualizar Licencia'; }
+    }
+  }
+
+  async function openLicenciaView(r) {
+    let soportes = [];
+    try {
+      soportes = await API.getAdminRequestSoportes(r.id);
+    } catch (e) {
+      console.warn('[AdminRequests] Error al cargar soportes de licencia:', e);
+    }
+
+    const durLabel = r.duracion || (r.diasSolicitados != null ? `${r.diasSolicitados} días` : '—');
+    const soportesHtml = (soportes && soportes.length) ? soportes.map(s => `
+      <div class="soporte-file-item" style="margin-bottom:6px;">
+        <div class="soporte-file-info">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--color-green-dark,#287522);flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span style="font-weight:600;">${escHtml(s.nombre_archivo || s.nombre)}</span>
+          <span style="color:var(--text-muted);font-size:0.75rem;">(${formatBytes(s.tamano_bytes || s.tamano)})</span>
+        </div>
+        <a href="${API.getAdminRequestSoporteUrl(r.id, s.id_soporte || s.id)}" target="_blank" download="${escHtml(s.nombre_archivo || s.nombre)}" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Descargar
+        </a>
+      </div>
+    `).join('') : '<div style="color:var(--text-muted);font-size:0.82rem;padding:6px 0;">No se anexaron soportes a esta solicitud de licencia.</div>';
+
+    const catList = licenciasCatalogs || DEFAULT_LICENCIAS;
+    const licDef = catList.find(l => l.id === r.motivoCategoria || l.nombre === r.motivoCategoria) ||
+                   catList.find(l => (r.motivo || '').toLowerCase().includes(l.nombre.toLowerCase())) || null;
+
+    const content = `
+      <div class="detail-modal-card" style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-border,#e2e8f0);padding-bottom:10px;">
+          <div>
+            <div style="font-size:1.15rem;font-weight:800;color:var(--text-primary);">${escHtml(r.radicado || 'LIC-2026-—')}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">${licDef ? escHtml(licDef.norma) : 'Solicitud oficial de Licencia Laboral · Gobernación de Boyacá'}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="badge badge--licencia" style="font-weight:700;">${escHtml(licDef ? licDef.nombre : 'Licencia')}</span>
+            <span class="badge ${badgeClass(r.estado)}">${escHtml(r.estado)}</span>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-item detail-grid--full">
+            <span class="detail-label">Servidor Público</span>
+            <span class="detail-value" style="font-weight:700;">${escHtml(r.persona)} · C.C. ${escHtml(r.documento || '—')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Cargo</span>
+            <span class="detail-value">${escHtml(r.cargo || '—')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Dependencia</span>
+            <span class="detail-value">${escHtml(cleanName(r.dependencia) || '—')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha de Inicio</span>
+            <span class="detail-value font-mono">${escHtml(r.fechaInicio || '—')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha de Fin</span>
+            <span class="detail-value font-mono">${escHtml(r.fechaFin || '—')}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Duración Solicitada</span>
+            <span class="detail-value font-mono" style="font-weight:700;">${escHtml(durLabel)}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Fecha de Radicación</span>
+            <span class="detail-value font-mono">${escHtml(r.fechaSolicitud || '—')}</span>
+          </div>
+
+          ${licDef ? `
+          <div class="detail-item detail-grid--full" style="background:var(--bg-hover,#f8fafc);padding:10px 12px;border-radius:8px;border-left:3px solid var(--color-green-dark,#287522);">
+            <div style="font-weight:700;font-size:0.85rem;color:var(--text-primary);margin-bottom:4px;">Marco Legal Aplicable</div>
+            <div style="font-size:0.8rem;color:var(--text-secondary);">${escHtml(licDef.norma)} — ${escHtml(licDef.descripcion)}</div>
+          </div>` : ''}
+
+          ${r.motivo ? `
+          <div class="detail-item detail-grid--full">
+            <span class="detail-label">Motivo o Justificación</span>
+            <span class="detail-value">${escHtml(r.motivo)}</span>
+          </div>` : ''}
+
+          ${r.observaciones ? `
+          <div class="detail-item detail-grid--full">
+            <span class="detail-label">Observaciones</span>
+            <span class="detail-value">${escHtml(r.observaciones)}</span>
+          </div>` : ''}
+
+          <!-- Soportes -->
+          <div class="detail-item detail-grid--full">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span class="detail-label" style="font-weight:700;margin-bottom:0;">Soportes Anexos (${(soportes && soportes.length) || 0})</span>
+              <span style="font-size:0.75rem;color:var(--text-muted);">Acta de defunción, certificados y registros</span>
+            </div>
+            <div>${soportesHtml}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const actions = [
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+    ];
+    if (Auth.canEdit()) {
+      actions.push({
+        text: 'Editar Licencia',
+        cls: 'btn-gold',
+        action: () => {
+          App.closeModal();
+          openEdit(r.id);
+        }
+      });
+    }
+
+    App.openModal(`Detalles · Licencia (${r.radicado || ''})`, content, actions, 'modal-ficha');
   }
 
   // ─── Modal Tradicional (Incapacidades / Licencias) ───────────────────────────
