@@ -247,6 +247,8 @@ async function ensureSstSchema() {
           actualizado_en        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
+      ALTER TABLE sst_entrega_epp ADD COLUMN IF NOT EXISTS firma_digital TEXT;
+
       CREATE TABLE IF NOT EXISTS sst_historial (
           id_historial    SERIAL PRIMARY KEY,
           submodulo       VARCHAR(60)  NOT NULL,
@@ -301,7 +303,7 @@ async function ensureSstSchema() {
             'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo', 'CASA DE LA TORRE',
             'PROFESIONAL UNIVERSITARIO', 'CARRERA ADMINISTRATIVA', 'NINGUNA',
             'A', 'A. Casco de seguridad', 'N/A', '1 UNIDAD', '2026-01-15', 'Entregado', TRUE,
-            'Entrega oficial según Formato E-DO-ST-F-028 V4 e Instructivo E-DO-ST-I-007'
+            'Entrega oficial de dotación y elementos de protección personal'
         ),
         (
             '1003481573', 'ROMERO MARIN IVAN DARIO', '3213938142', '5. SECRETARIA GENERAL',
@@ -943,6 +945,7 @@ router.get('/epp', auth, async (req, res) => {
         fechaEntrega: r.fecha_entrega ? r.fecha_entrega.toISOString().split('T')[0] : '',
         estadoEntrega: r.estado_entrega,
         firmadoFuncionario: r.firmado_funcionario,
+        firmaDigital: r.firma_digital || null,
         observaciones: r.observaciones,
         soporte: r.soporte
       })),
@@ -966,14 +969,17 @@ router.post('/epp', auth, async (req, res) => {
   const resolved = resolveEppItem(b.elementoEpp || b.codigoElemento);
   const fechaEntrega = toIsoDateOrNull(b.fechaEntrega) || new Date().toISOString().split('T')[0];
 
+  const firmaDigital = b.firmaDigital || b.firma_digital || null;
+  const firmadoFuncionario = firmaDigital ? true : (b.firmadoFuncionario !== false);
+
   try {
     const r = await pool.query(
       `INSERT INTO sst_entrega_epp (
         documento, nombre_completo, telefono, secretaria, dependencia, sede_trabajo,
         cargo, tipo_vinculacion, restricciones_recomendaciones, codigo_elemento,
         elemento_epp, talla, cantidad, fecha_entrega, estado_entrega,
-        firmado_funcionario, observaciones, soporte, creado_por
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        firmado_funcionario, observaciones, soporte, firma_digital, creado_por
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING id_entrega_epp`,
       [
         String(b.documento).trim(),
@@ -991,9 +997,10 @@ router.post('/epp', auth, async (req, res) => {
         upper(b.cantidad || '1 UNIDAD'),
         fechaEntrega,
         b.estadoEntrega || 'Entregado',
-        b.firmadoFuncionario !== false,
+        firmadoFuncionario,
         b.observaciones || '',
         b.soporte || null,
+        firmaDigital,
         req.user.username || 'admin'
       ]
     );
@@ -1024,8 +1031,9 @@ router.put('/epp/:id', auth, async (req, res) => {
         sede_trabajo=$6, cargo=$7, tipo_vinculacion=$8, restricciones_recomendaciones=$9,
         codigo_elemento=$10, elemento_epp=$11, talla=$12, cantidad=$13, fecha_entrega=$14,
         estado_entrega=$15, firmado_funcionario=$16, observaciones=$17,
-        soporte=COALESCE($18, soporte)
-       WHERE id_entrega_epp=$19 RETURNING id_entrega_epp`,
+        soporte=COALESCE($18, soporte),
+        firma_digital=CASE WHEN $19 IS NOT NULL AND $19 != '' THEN $19 ELSE firma_digital END
+       WHERE id_entrega_epp=$20 RETURNING id_entrega_epp`,
       [
         String(b.documento || '').trim(),
         upper(b.nombreCompleto),
@@ -1042,9 +1050,10 @@ router.put('/epp/:id', auth, async (req, res) => {
         upper(b.cantidad || '1 UNIDAD'),
         fechaEntrega,
         b.estadoEntrega || 'Entregado',
-        b.firmadoFuncionario !== false,
+        (b.firmaDigital || b.firma_digital) ? true : (b.firmadoFuncionario !== false),
         b.observaciones || '',
         b.soporte !== undefined ? b.soporte : null,
+        b.firmaDigital || b.firma_digital || null,
         id
       ]
     );

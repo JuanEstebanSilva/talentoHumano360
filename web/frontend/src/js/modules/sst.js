@@ -1,9 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    sst.js — Módulo de Seguridad y Salud en el Trabajo (SST — Talento 360)
-   Formatos Oficiales Gobernación de Boyacá:
-   1. Perfil Epidemiológico y EMO (Código E-DO-ST-F-024 V3)
-   2. Entrega de Elementos de Protección Personal - EPP (Código E-DO-ST-F-028 V4)
-   3. Perfil Sociodemográfico (Código E-DO-ST-F-011 V5)
+   Submódulos:\n   1. Perfil Epidemiológico y EMO\n   2. Entrega de Elementos de Protección Personal (EPP)\n   3. Perfil Sociodemográfico
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const SstModule = (() => {
@@ -11,21 +8,21 @@ const SstModule = (() => {
     epidemiologico: {
       key: 'epidemiologico',
       title: 'Perfil Epidemiológico y EMO',
-      code: 'E-DO-ST-F-024 V3',
+      code: '',
       desc: 'Control de Exámenes Médicos Ocupacionales (EMO), restricciones, PVE y seguimiento de accidentes/enfermedades laborales',
       btnCreate: 'Nuevo Registro EMO'
     },
     epp: {
       key: 'epp',
       title: 'Entrega de Elementos de Protección Personal (EPP)',
-      code: 'E-DO-ST-F-028 V4',
-      desc: 'Suministro y reposición de Elementos de Protección Personal conforme al Instructivo E-DO-ST-I-007',
+      code: '',
+      desc: 'Suministro, reposición y verificación de entrega de Elementos de Protección Personal',
       btnCreate: 'Registrar Entrega EPP'
     },
     sociodemografico: {
       key: 'sociodemografico',
       title: 'Perfil Sociodemográfico',
-      code: 'E-DO-ST-F-011 V5',
+      code: '',
       desc: 'Caracterización sociodemográfica, familiar, educativa y laboral de los servidores públicos y contratistas',
       btnCreate: 'Nuevo Perfil Sociodemográfico'
     }
@@ -101,11 +98,11 @@ const SstModule = (() => {
           </div>
           <div class="stat-card">
             <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">E-DO-ST-F-028</span>
-              <span class="stat-label">Formato Oficial V4</span>
+              <span class="stat-value">Verificado</span>
+              <span class="stat-label">Firma en Entrega</span>
             </div>
           </div>
         `;
@@ -134,8 +131,8 @@ const SstModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value">E-DO-ST-F-011</span>
-              <span class="stat-label">Formato Oficial V5</span>
+              <span class="stat-value">Activo</span>
+              <span class="stat-label">Censo y Caracterización</span>
             </div>
           </div>
           <div class="stat-card">
@@ -481,7 +478,6 @@ const SstModule = (() => {
           <div class="page-header-info">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <h1 class="page-heading" id="sst-heading">${escHtml(tabCfg.title)}</h1>
-              <span class="badge badge--revision" id="sst-format-code" style="font-family:monospace;font-size:11px;">Formato ${escHtml(tabCfg.code)}</span>
             </div>
             <p class="page-desc" id="sst-desc">${escHtml(tabCfg.desc)}</p>
           </div>
@@ -744,7 +740,7 @@ const SstModule = (() => {
     const heading = document.getElementById('sst-heading');
     if (heading) heading.textContent = tabCfg.title;
     const codeBadge = document.getElementById('sst-format-code');
-    if (codeBadge) codeBadge.textContent = `Formato ${tabCfg.code}`;
+    if (codeBadge) codeBadge.style.display = 'none';
     const desc = document.getElementById('sst-desc');
     if (desc) desc.textContent = tabCfg.desc;
     const tableTitle = document.getElementById('sst-table-title');
@@ -1015,7 +1011,7 @@ const SstModule = (() => {
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Ficha Epidemiológica">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha PDF Oficial E-DO-ST-F-024">
+              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha Médica EMO (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
               ${Auth.canEdit() ? `
@@ -1055,13 +1051,23 @@ const SstModule = (() => {
             </div>
           </td>
           <td>${formatDate(r.fechaEntrega)}</td>
-          <td><span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span></td>
+          <td>
+            <span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span>
+            ${r.firmaDigital ? `
+              <div style="margin-top:4px;">
+                <span class="badge badge--aprobada" style="font-size:10px;padding:1px 6px;gap:3px;display:inline-flex;align-items:center;" title="Entrega verificada y firmada digitalmente en tablet">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;"><polyline points="20 6 9 17 4 12"/></svg>
+                  Firmado
+                </span>
+              </div>
+            ` : ''}
+          </td>
           <td class="td-actions">
             <div class="td-actions-wrap">
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Detalle de Entrega EPP">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega PDF (Formato E-DO-ST-F-028)">
+              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega EPP (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
               ${Auth.canEdit() ? `
@@ -1300,7 +1306,7 @@ const SstModule = (() => {
             </select>
           </div>
           <div class="form-group span-2">
-            <label class="form-label">Elemento de Protección Personal (Catálogo E-DO-ST-F-028) *</label>
+            <label class="form-label">Elemento de Protección Personal *</label>
             <select id="sst-elemento-epp" class="filter-select">
               ${cats.eppCatalogo.map(e => `<option value="${escHtml(e.nombre)}" ${(r.elementoEpp === e.nombre || r.codigoElemento === e.codigo) ? 'selected' : ''}>${escHtml(e.nombre)}</option>`).join('')}
             </select>
@@ -1328,13 +1334,42 @@ const SstModule = (() => {
             <input id="sst-restricciones" class="form-input" value="${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}" />
           </div>
           <div class="form-group span-2">
-            <label class="form-label">Observaciones de Dotación (Instructivo E-DO-ST-I-007)</label>
+            <label class="form-label">Observaciones de Dotación</label>
             <input id="sst-obs" class="form-input" placeholder="Observaciones adicionales..." value="${escHtml(r.observaciones || '')}" />
+          </div>
+
+          <!-- Apartado de Firma Digital (Tablet / Pantalla Táctil) -->
+          <div class="form-group span-2 sst-signature-box" style="margin-top:6px;background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-primary-400, #16a34a);"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                <label class="form-label" style="margin:0;font-weight:600;font-size:13px;color:var(--text-primary);">Firma Digital de Recepción y Verificación</label>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span id="sst-firma-status" class="badge ${r.firmaDigital ? 'badge--aprobada' : 'badge--pendiente'}" style="font-size:11px;">
+                  ${r.firmaDigital ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Firmado' : 'Pendiente de Firma'}
+                </span>
+                <button type="button" class="btn btn-secondary" onclick="SstModule.clearSignature()" style="padding:4px 10px;font-size:12px;height:28px;" title="Borrar y volver a firmar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;margin-right:4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Limpiar
+                </button>
+              </div>
+            </div>
+            <div style="position:relative;background:#ffffff;border:2px dashed var(--border-color, #cbd5e1);border-radius:8px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);">
+              <canvas id="sst-signature-canvas" style="width:100%;height:150px;display:block;cursor:crosshair;touch-action:none;"></canvas>
+              <div id="sst-signature-line" style="position:absolute;bottom:20px;left:24px;right:24px;border-bottom:1px solid #94a3b8;pointer-events:none;display:flex;justify-content:space-between;padding-bottom:2px;${r.firmaDigital ? 'opacity:0.2;' : ''}">
+                <span style="font-size:11px;color:#64748b;font-weight:500;">Firma del Funcionario / Receptor</span>
+                <span style="font-size:11px;color:#94a3b8;font-style:italic;">Firme con su dedo, lápiz o puntero táctil</span>
+              </div>
+            </div>
+            <input type="hidden" id="sst-firma-digital" value="${escHtml(r.firmaDigital || '')}" />
+            <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:6px;">
+              El personal certifica mediante esta firma digital la recepción conforme del Elemento de Protección Personal (EPP) y la verificación del estado de entrega.
+            </small>
           </div>
         </div>`;
     }
 
-    // Sociodemográfico (E-DO-ST-F-011 V5)
+    // Sociodemográfico
     return `
       <div class="form-grid">
         <div class="form-group span-2 autocomplete-wrapper">
@@ -1511,7 +1546,8 @@ const SstModule = (() => {
         fechaEntrega: document.getElementById('sst-fecha-entrega')?.value,
         estadoEntrega: document.getElementById('sst-estado-entrega')?.value,
         restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim(),
-        observaciones: document.getElementById('sst-obs')?.value.trim()
+        observaciones: document.getElementById('sst-obs')?.value.trim(),
+        firmaDigital: document.getElementById('sst-firma-digital')?.value || null
       };
     }
 
@@ -1544,10 +1580,13 @@ const SstModule = (() => {
 
   function openCreate() {
     const tabCfg = TABS[state.tab];
-    App.openModal(`${tabCfg.btnCreate} (${tabCfg.code})`, buildForm(), [
+    App.openModal(tabCfg.btnCreate, buildForm(), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Guardar Registro', cls: 'btn-primary', id: 'sst-save-btn', action: saveCreate }
     ]);
+    if (state.tab === 'epp') {
+      setTimeout(() => initSignaturePad(), 60);
+    }
   }
 
   function openEdit(id) {
@@ -1558,6 +1597,9 @@ const SstModule = (() => {
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Actualizar Cambios', cls: 'btn-gold', id: 'sst-save-btn', action: () => saveEdit(id) }
     ]);
+    if (state.tab === 'epp') {
+      setTimeout(() => initSignaturePad(r), 60);
+    }
   }
 
   async function saveCreate() {
@@ -1603,6 +1645,120 @@ const SstModule = (() => {
     }
   }
 
+
+  // ─── Pad de Firma Digital (Tablet / Pantalla Táctil EPP) ───────────────────
+  function initSignaturePad(existingRecord = null) {
+    const canvas = document.getElementById('sst-signature-canvas');
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = rect.width || 560;
+    const cssHeight = 150;
+
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const hiddenInput = document.getElementById('sst-firma-digital');
+    const existingSig = (existingRecord && existingRecord.firmaDigital) || (hiddenInput && hiddenInput.value);
+
+    if (existingSig && existingSig.startsWith('data:image')) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, cssWidth, cssHeight);
+        updateFirmaStatus(true);
+      };
+      img.src = existingSig;
+    }
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function getCoords(e) {
+      const b = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - b.left,
+        y: e.clientY - b.top
+      };
+    }
+
+    function onPointerDown(e) {
+      isDrawing = true;
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      const coords = getCoords(e);
+      lastX = coords.x;
+      lastY = coords.y;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      if (!isDrawing) return;
+      const coords = getCoords(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+      lastX = coords.x;
+      lastY = coords.y;
+      e.preventDefault();
+    }
+
+    function onPointerUp(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      const dataUrl = canvas.toDataURL('image/png');
+      if (hiddenInput) hiddenInput.value = dataUrl;
+      updateFirmaStatus(true);
+      e.preventDefault();
+    }
+
+    canvas.onpointerdown = onPointerDown;
+    canvas.onpointermove = onPointerMove;
+    canvas.onpointerup = onPointerUp;
+    canvas.onpointercancel = onPointerUp;
+  }
+
+  function clearSignature() {
+    const canvas = document.getElementById('sst-signature-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    const hidden = document.getElementById('sst-firma-digital');
+    if (hidden) hidden.value = '';
+    updateFirmaStatus(false);
+  }
+
+  function updateFirmaStatus(isSigned) {
+    const badge = document.getElementById('sst-firma-status');
+    const line = document.getElementById('sst-signature-line');
+    if (badge) {
+      if (isSigned) {
+        badge.className = 'badge badge--aprobada';
+        badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Firmado';
+      } else {
+        badge.className = 'badge badge--pendiente';
+        badge.textContent = 'Pendiente de Firma';
+      }
+    }
+    if (line) {
+      line.style.opacity = isSigned ? '0.2' : '1';
+    }
+  }
+
   function openView(id) {
     const r = state.data.find(x => x.id === id);
     if (!r) return;
@@ -1612,7 +1768,7 @@ const SstModule = (() => {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Código Formato E-DO-ST-F-024</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio EMO</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado del Caso</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoFinalCaso)}">${escHtml(r.estadoFinalCaso)}</span></div></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (${escHtml(r.tipoIdentificacion)}: ${escHtml(r.documento)})</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Sede</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.sedeTrabajo || 'CASA DE LA TORRE')}</span></div>
@@ -1631,7 +1787,7 @@ const SstModule = (() => {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Radicado E-DO-ST-F-028</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio EPP</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado Entrega</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span></div></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Cargo</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.cargo || '')}</span></div>
@@ -1642,13 +1798,33 @@ const SstModule = (() => {
             <div class="detail-item"><span class="detail-label">Tipo de Vinculación</span><span class="detail-value">${escHtml(r.tipoVinculacion || '—')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones y/o Recomendaciones</span><span class="detail-value">${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}</span></div>
             ${r.observaciones ? `<div class="detail-item detail-grid--full"><span class="detail-label">Observaciones</span><span class="detail-value">${escHtml(r.observaciones)}</span></div>` : ''}
+            <div class="detail-item detail-grid--full" style="background:var(--bg-subtle, rgba(255,255,255,0.03));border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-top:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span class="detail-label" style="font-weight:600;display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--color-primary-400, #16a34a);"><polyline points="20 6 9 17 4 12"/></svg>
+                  Firma Digital de Recepción y Verificación
+                </span>
+                ${r.firmaDigital ? '<span class="badge badge--aprobada">Verificado y Firmado</span>' : '<span class="badge badge--pendiente">Sin Firma Digital</span>'}
+              </div>
+              ${r.firmaDigital ? `
+                <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;text-align:center;">
+                  <img src="${escHtml(r.firmaDigital)}" alt="Firma de entrega" style="max-height:120px;max-width:100%;object-fit:contain;display:inline-block;" />
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px;">
+                  <span>Receptor: ${escHtml(r.nombreCompleto)}</span>
+                  <span>C.C. ${escHtml(r.documento)}</span>
+                </div>
+              ` : `
+                <div style="color:var(--text-muted);font-size:12px;font-style:italic;">No se registró firma digital en el momento de la entrega.</div>
+              `}
+            </div>
           </div>
         </div>`;
     } else {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Código E-DO-ST-F-011</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Sexo & Edad</span><span class="detail-value">${escHtml(r.sexo)} · ${r.edad ? `${r.edad} años` : '—'}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
             <div class="detail-item"><span class="detail-label">Estado Civil & Etnia</span><span class="detail-value">${escHtml(r.estadoCivil)} · ${escHtml(r.razaEtnia)}</span></div>
@@ -1753,7 +1929,7 @@ const SstModule = (() => {
     doc.setFontSize(13);
     doc.text('GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL', 14, 11);
     doc.setFontSize(10);
-    doc.text(`SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO · FORMATO ${tabCfg.code}`, 14, 19);
+    doc.text(`SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO · ${tabCfg.title.toUpperCase()}`, 14, 19);
 
     doc.setTextColor(30, 30, 30);
     doc.setFontSize(12);
@@ -1769,8 +1945,8 @@ const SstModule = (() => {
           ['Talla y Cantidad', `Talla: ${r.talla || 'N/A'} | Cantidad: ${r.cantidad}`],
           ['Fecha de Entrega', formatDate(r.fechaEntrega)],
           ['Restricciones / Recomendaciones', r.restriccionesRecomendaciones || 'NINGUNA'],
-          ['Estado / Firma', `${r.estadoEntrega} (Firmado por funcionario)`],
-          ['Observaciones', r.observaciones || 'Cumplimiento Instructivo E-DO-ST-I-007']
+          ['Estado / Verificación', `${r.estadoEntrega}${r.firmaDigital ? ' (Con Firma Digital Verificada)' : ''}`],
+          ['Observaciones', r.observaciones || 'Entrega y verificación de EPP']
         ]
       : [
           ['Servidor Público', r.nombreCompleto],
@@ -1796,7 +1972,7 @@ const SstModule = (() => {
     }
 
     doc.save(`${r.radicado}_${r.documento}.pdf`);
-    App.showToast(`Formato oficial ${tabCfg.code} descargado en PDF.`, 'success');
+    App.showToast('Documento oficial SST descargado en PDF.', 'success');
   }
 
   // ─── Exportación e Importación Masiva Excel por Submódulo ───────────────────
@@ -1880,8 +2056,8 @@ const SstModule = (() => {
     const cols = getExcelColumns().filter(c => c.key !== 'radicado');
 
     ExcelService.openImportModal({
-      title: `Carga Masiva SST — ${tabCfg.title} (${tabCfg.code})`,
-      subtitle: `Importe registros desde formato oficial Excel (${tabCfg.code}) o respuestas de Microsoft Forms`,
+      title: `Carga Masiva SST — ${tabCfg.title}`,
+      subtitle: 'Importe registros desde archivo Excel o respuestas de Microsoft Forms',
       moduleName: tabCfg.title.toLowerCase(),
       columns: cols,
       sampleRows: [
@@ -1937,6 +2113,7 @@ const SstModule = (() => {
     openEdit,
     openView,
     confirmDelete,
+    clearSignature,
     checkEmoVencimientos,
     applyFilters,
     clearFilters,
