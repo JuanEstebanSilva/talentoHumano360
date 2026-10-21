@@ -22,3 +22,6 @@ database/backup_*.sql
 *.swo
 .DS_Store
 Thumbs.db
+
+# Documentos locales
+documentos/

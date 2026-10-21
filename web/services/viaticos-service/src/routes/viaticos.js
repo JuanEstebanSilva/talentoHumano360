@@ -26,8 +26,39 @@ function auth(req, res, next) {
   catch { res.status(401).json({ error: 'Token inválido.' }); }
 }
 function canEdit(role) {
-  return role && (role.toLowerCase().includes('administrador') || role.toLowerCase().includes('coordinador') || role.toLowerCase().includes('admin'));
+  if (!role) return false;
+  const r = String(role).toLowerCase();
+  return r.includes('administrador') || r.includes('coordinador') || r.includes('admin');
 }
+
+// Garantizar columnas numero_resolucion y saldo en tabla viaticos
+async function ensureViaticosColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS numero_resolucion VARCHAR(120);
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS saldo NUMERIC(15,2);
+      CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion ON viaticos(numero_resolucion);
+    `);
+    console.log('[viaticos-service] Columnas garantizadas (numero_resolucion, saldo).');
+  } catch (err) {
+    console.warn('[viaticos-service] ensureViaticosColumns aviso:', err.message);
+  }
+}
+ensureViaticosColumns();
+
+function excelSerialToDate(serial) {
+  const s = Number(serial);
+  if (isNaN(s) || s < 1) return null;
+  const days = s > 60 ? s - 1 : s;
+  const epoch = new Date(Date.UTC(1899, 11, 31));
+  const ms = epoch.getTime() + days * 86400000;
+  const d = new Date(ms);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${day}/${month}/${year}`;
+}
+
 function upper(v) { return v == null ? '' : v.trim().replace(/\s+/g,' ').toUpperCase(); }
 function normalizeTokens(str) {
   if (!str) return '';
@@ -114,7 +145,7 @@ router.get('/stats', auth, async (_, res) => {
 
 // ─── POST /api/viaticos ───────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte, numeroResolucion, saldo } = req.body;
   if (!persona || !destino) return res.status(400).json({ error: 'Persona y destino son requeridos.' });
 
@@ -143,7 +174,7 @@ router.post('/', auth, async (req, res) => {
 
 // ─── POST /api/viaticos/bulk (Carga Masiva) ──────────────────────────────────
 router.post('/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : Array.isArray(req.body) ? req.body : [];
   const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) ? req.body.hojasProcesadas : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });
@@ -199,7 +230,7 @@ router.post('/bulk', auth, async (req, res) => {
         const key = `${ex.nom}|${ex.fecha_inicio || ''}|${ex.dest || ''}`;
         existingMap.set(key, ex.id_viatico);
         if (ex.numero_resolucion) {
-          existingMap.set(`RESOL:${ex.numero_resolucion.trim().toUpperCase()}`, ex.id_viatico);
+          existingMap.set(`RESOL:${ex.numero_resolucion.replace(/\\s+/g, '').toUpperCase()}`, ex.id_viatico);
         }
       }
     } catch (exErr) {
@@ -218,13 +249,13 @@ router.post('/bulk', auth, async (req, res) => {
       const fechaInicio = (row.fechaInicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim();
       const fechaFin = (row.fechaFin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || fechaInicio || '').toString().trim();
       const dias = parseInt(row.dias || row['Días'] || 1) || 1;
-      const valorDiario = parseFloat(row.valorDiario || row['Valor Diario'] || 0) || 0;
-      const estado = normalizeStatus(row.estado || row['Estado'] || (valorDiario === 0 ? 'Finalizada' : 'Aprobada'));
+      const estado = normalizeStatus(row.estado || row['Estado'] || 'Aprobada');
       const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
-      const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || '').toString().trim();
+      const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
       const saldo = parseFloat(row.saldo || row['SALDO']) || null;
-      const rowValorTotal = parseFloat(row.valorTotal || row.valor) || (dias * valorDiario);
+      const rowValorTotal = parseFloat(row.valorTotal != null ? row.valorTotal : (row.valor != null ? row.valor : 0)) || 0;
+      const valorDiario = dias > 0 && rowValorTotal > 0 ? parseFloat((rowValorTotal / dias).toFixed(2)) : (parseFloat(row.valorDiario || row['Valor Diario'] || 0) || 0);
       totalValor += rowValorTotal;
 
       if (!persona) {
@@ -250,7 +281,7 @@ router.post('/bulk', auth, async (req, res) => {
       const pUpper = upper(persona);
       const destUpper = upper(destino);
       const keyPrimary = `${pUpper}|${fechaInicio}|${destUpper}`;
-      const resolKey = numeroResolucion ? `RESOL:${numeroResolucion.toUpperCase()}` : null;
+      const resolKey = numeroResolucion ? `RESOL:${numeroResolucion.replace(/\s+/g, '').toUpperCase()}` : null;
       const existingId = existingMap.get(keyPrimary) || (resolKey ? existingMap.get(resolKey) : null);
 
       if (existingId) {
@@ -327,7 +358,7 @@ router.post('/bulk', auth, async (req, res) => {
 
 // ─── PUT /api/viaticos/:id ────────────────────────────────────────────────────
 router.put('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
   const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte, numeroResolucion, saldo } = req.body;
   try {
@@ -354,7 +385,7 @@ router.put('/:id', auth, async (req, res) => {
 
 // ─── PATCH /api/viaticos/:id/status ──────────────────────────────────────────
 router.patch('/:id/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
   const { estado, observaciones } = req.body;
   if (!estado) return res.status(400).json({ error: 'El estado es requerido.' });
@@ -379,7 +410,7 @@ router.patch('/:id/status', auth, async (req, res) => {
 
 // ─── DELETE /api/viaticos/:id ─────────────────────────────────────────────────
 router.delete('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const numId = parseInt(req.params.id);
   if (!numId || numId <= 0) return res.status(400).json({ error: 'ID inválido.' });
   try {

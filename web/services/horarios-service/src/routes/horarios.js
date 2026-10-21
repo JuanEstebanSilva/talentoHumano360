@@ -55,7 +55,17 @@ function auth(req, res, next) {
 function canEdit(role) {
   if (!role) return false;
   const r = role.toLowerCase();
-  return r.includes('administrador') || r.includes('coordinador');
+  return r.includes('administrador') || r.includes('coordinador') || r.includes('admin');
+}
+
+function excelSerialToIsoDate(serial) {
+  if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
+  const utcDays = Math.floor(serial - 25569);
+  const date = new Date(utcDays * 86400 * 1000);
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const y = date.getUTCFullYear();
+  return `${y}-${m}-${d}`;
 }
 
 function upper(v) {
@@ -763,14 +773,42 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Identificación y Nombres
-      const documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
+      let documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
       let apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
       if (!apellidos_nombres && (row['APELLIDOS'] || row['NOMBRES'] || row.apellidos || row.nombres)) {
         apellidos_nombres = cleanString([row['APELLIDOS'] || row.apellidos, row['NOMBRES'] || row.nombres].filter(Boolean).join(' '));
       }
 
+      // Si no viene documento pero sí nombre, intentar resolverlo contra el censo institucional de personas
+      if (!documento && apellidos_nombres) {
+        try {
+          const normNombre = apellidos_nombres.toUpperCase().trim();
+          const pRes = await client.query(
+            `SELECT documento, cargo, dependencia FROM personas 
+             WHERE UPPER(TRIM(nombre)) = $1 
+                OR UPPER(TRIM(COALESCE(nombre,'') || ' ' || COALESCE(apellido,''))) = $1
+                OR UPPER(TRIM(COALESCE(apellido,'') || ' ' || COALESCE(nombre,''))) = $1
+             LIMIT 1`,
+            [normNombre]
+          );
+          if (pRes.rows.length) {
+            documento = pRes.rows[0].documento;
+            if (!row.cargo && pRes.rows[0].cargo) row.cargo = pRes.rows[0].cargo;
+            if (!row.dependencia && pRes.rows[0].dependencia) row.dependencia = pRes.rows[0].dependencia;
+          }
+        } catch {
+          // ignore lookup error
+        }
+      }
+
+      if (!documento && apellidos_nombres) {
+        // Fallback no bloqueante si el archivo institucional carece de columna de documento
+        const hashStr = Math.abs(apellidos_nombres.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0));
+        documento = `SIN-CC-${hashStr}`;
+      }
+
       if (!documento || !apellidos_nombres) {
-        errors.push(`Fila ${i + 1}: Cédula y Nombre son obligatorios.`);
+        errors.push(`Fila ${i + 1}: El nombre del servidor público es obligatorio.`);
         skipped++;
         continue;
       }
@@ -818,26 +856,43 @@ router.post('/bulk', auth, async (req, res) => {
       const matchedEst = VALID_ESTADOS.find((e) => e.toLowerCase() === estado.toLowerCase());
       estado = matchedEst || 'Activa';
 
-      // Fecha del acto / solicitud si viene en el archivo (sin inventar fechas ficticias)
-      const rawFecha = (row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || '').toString().trim();
+      // Fecha del acto / solicitud con soporte para números de serie de Excel y Date objects
+      const rawFechaVal = row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || null;
       let fecha_inicio = null;
-      if (rawFecha) {
-        if (rawFecha.includes('/')) {
-          const parts = rawFecha.split('/');
-          if (parts.length === 3) {
-            fecha_inicio = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawFecha)) {
-          fecha_inicio = rawFecha;
+      if (rawFechaVal != null && rawFechaVal !== '') {
+        if (typeof rawFechaVal === 'number' && rawFechaVal > 30000 && rawFechaVal < 60000) {
+          fecha_inicio = excelSerialToIsoDate(rawFechaVal);
+        } else if (rawFechaVal instanceof Date) {
+          const d = String(rawFechaVal.getUTCDate()).padStart(2, '0');
+          const m = String(rawFechaVal.getUTCMonth() + 1).padStart(2, '0');
+          const y = rawFechaVal.getUTCFullYear();
+          fecha_inicio = `${y}-${m}-${d}`;
         } else {
-          const months = {
-            enero: '01', febrero: '02', marzo: '03', abril: '04',
-            mayo: '05', junio: '06', julio: '07', agosto: '08',
-            septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
-          };
-          const match = rawFecha.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
-          if (match && months[match[2].toLowerCase()]) {
-            fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          const rawFecha = String(rawFechaVal).trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawFecha)) {
+            fecha_inicio = rawFecha;
+          } else if (rawFecha.includes('/')) {
+            const parts = rawFecha.split('/');
+            if (parts.length === 3) {
+              let yr = parts[2];
+              if (yr.length === 2) yr = '20' + yr;
+              fecha_inicio = `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          } else if (/^\d{5}$/.test(rawFecha)) {
+            const num = parseInt(rawFecha, 10);
+            if (num > 30000 && num < 60000) {
+              fecha_inicio = excelSerialToIsoDate(num);
+            }
+          } else {
+            const months = {
+              enero: '01', febrero: '02', marzo: '03', abril: '04',
+              mayo: '05', junio: '06', julio: '07', agosto: '08',
+              septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+            };
+            const match = rawFecha.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+            if (match && months[match[2].toLowerCase()]) {
+              fecha_inicio = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            }
           }
         }
       }

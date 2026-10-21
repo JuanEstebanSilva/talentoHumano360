@@ -205,7 +205,10 @@ const ViaticosModule = (() => {
     }
     tbody.innerHTML = state.data.map(r => `
       <tr>
-        <td class="td-radicado">${r.radicado}</td>
+        <td class="td-radicado">
+          <span style="font-weight:700;">${r.radicado}</span>
+          ${r.numeroResolucion ? `<span class="user-table-cc font-mono" style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">Res. ${escHtml(r.numeroResolucion)}</span>` : ''}
+        </td>
         <td>
           <div class="user-table-cell">
             <span class="td-primary" title="${r.persona}">${truncate(r.persona, 26) || '—'}</span>
@@ -386,6 +389,16 @@ const ViaticosModule = (() => {
         <div class="form-group">
           <label class="form-label">Aprobado Por</label>
           <input id="vf-aprobado" class="form-input" placeholder="Nombre del aprobador..." value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">N° Resolución / Acto</label>
+          <input id="vf-resolucion" class="form-input font-mono" placeholder="Ej: 0053/18/01/2024" value="${escHtml(r.numeroResolucion||'')}" ${dis} />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Saldo Presupuestal ($ COP)</label>
+          <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" value="${escHtml(r.saldo||'')}" ${dis} />
         </div>
 
         <!-- Carga de Soportes / Facturas -->
@@ -803,6 +816,8 @@ const ViaticosModule = (() => {
       estado: document.getElementById('vf-estado')?.value || 'Pendiente',
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',
       aprobadoPor: document.getElementById('vf-aprobado')?.value.trim() || '',
+      numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
+      saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
       soporte: currentUploadedFile || null,
     };
   }
@@ -1063,6 +1078,19 @@ const ViaticosModule = (() => {
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
+                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial (En blanco)</strong>
+                    <small>Plantilla institucional vacía para diligenciar y cargar</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
                   onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -1082,7 +1110,7 @@ const ViaticosModule = (() => {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                   <div>
                     <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde plantilla institucional</small>
+                    <small>Importar registros desde archivo institucional</small>
                   </div>
                 </button>` : ''}
               </div>
@@ -1148,6 +1176,7 @@ const ViaticosModule = (() => {
 
   const EXCEL_COLUMNS = [
     { header: 'Código Solicitud', key: 'radicado', width: 18, sample: 'VIT-2026-00012' },
+    { header: 'No. Resolución', key: 'numeroResolucion', width: 20, sample: '1240/15/06/2024' },
     { header: 'Cédula', key: 'documento', width: 15, sample: '1049601234' },
     { header: 'Servidor Público', key: 'persona', width: 32, sample: 'GARCIA MARTINEZ LUIS FERNANDO' },
     { header: 'Dependencia', key: 'dependencia', width: 30, sample: 'SECRETARÍA DE HACIENDA' },
@@ -1158,6 +1187,7 @@ const ViaticosModule = (() => {
     { header: 'Días', key: 'dias', width: 10, sample: '3' },
     { header: 'Valor Diario', key: 'valorDiario', width: 16, sample: '120000', format: (v) => formatCOP(v) },
     { header: 'Total Viáticos', key: 'valorTotal', width: 18, sample: '360000', format: (v) => formatCOP(v) },
+    { header: 'Saldo COP', key: 'saldo', width: 18, sample: '45000000', format: (v) => v != null ? formatCOP(v) : '' },
     { header: 'Objeto Comisión', key: 'motivo', width: 35, sample: 'Capacitación en gestión tributaria - DIAN' },
     { header: 'Estado', key: 'estado', width: 16, sample: 'Aprobada' },
   ];
@@ -1375,17 +1405,37 @@ const ViaticosModule = (() => {
       'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO'
     };
 
-    // ─── Parser de Fechas y Rangos Institucionales ───────────────────────────
-    function parseDateRange(rawVal, resolucionStr) {
-      if (!rawVal) {
+    // ─── Conversor de número de serie de fecha de Excel ─────────────────────
+    function excelSerialToDate(serial) {
+      if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
+      const utcDays = Math.floor(serial - 25569);
+      const date = new Date(utcDays * 86400 * 1000);
+      const d = String(date.getUTCDate()).padStart(2, '0');
+      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const y = date.getUTCFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
+    function parseDateRobust(rawVal, resolucionStr) {
+      if (rawVal == null || rawVal === '') {
         if (resolucionStr) {
-          const m = String(resolucionStr).match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+          const m = String(resolucionStr).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
           if (m) {
-            const dStr = `${m[1]}/${m[2]}/${m[3]}`;
-            return { start: dStr, end: dStr, dias: 1 };
+            const d = m[1].padStart(2, '0');
+            const mo = m[2].padStart(2, '0');
+            let yr = m[3];
+            if (yr.length === 2) yr = '20' + yr;
+            const dStr = `${d}/${mo}/${yr}`;
+            return { start: dStr, end: dStr, dias: 1, raw: rawVal };
           }
         }
-        return { start: '01/01/2023', end: '01/01/2023', dias: 1 };
+        return { start: '01/01/2023', end: '01/01/2023', dias: 1, raw: rawVal };
+      }
+
+      if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
+        const sDate = excelSerialToDate(rawVal);
+        if (sDate) return { start: sDate, end: sDate, dias: 1, raw: rawVal };
       }
 
       if (rawVal instanceof Date) {
@@ -1393,46 +1443,92 @@ const ViaticosModule = (() => {
         const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
         const y = rawVal.getUTCFullYear();
         const dStr = `${d}/${m}/${y}`;
-        return { start: dStr, end: dStr, dias: 1 };
+        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
       }
 
       let s = String(rawVal).trim().replace(/\s+/g, '');
-      const mResol = s.match(/^\d{3,4}\/(\d{2}\/\d{2}\/\d{4})$/);
+      const mResol = s.match(/^\d{3,4}\/(\d{1,2}\/\d{1,2}\/\d{2,4})$/);
       if (mResol) s = mResol[1];
 
+      // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
       s = s.replace(/\/203$/, '/2023');
-      s = s.replace(/(\d{2})\/(\d{2})7?(\d{4})/, '$1/$2/$3');
-      s = s.replace(/^(\d{2},\d{2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
+      s = s.replace(/\/024$/, '/2024');
+      s = s.replace(/\/204$/, '/2024');
+      s = s.replace(/(\d{1,2}\/\d{1,2})\/(\d{4})$/, '$1/$2');
+      s = s.replace(/,(\/\d{2}\/\d{4})$/, '$1');
+      s = s.replace(/\/(\d{2})\/(\d{4})$/, '/$1/$2');
+      s = s.replace(/\/096\/(\d{4})$/, '/06/$1');
 
-      const parts = s.split('/');
+      // Fechas sin barra entre día y mes o mes y año (ej: 07,08,0908/2023 -> 07,08,09/08/2023)
+      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)(\d{2})\/(\d{4})$/, '$1/$2/$3');
+      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)\/(\d{2})(\d{4})$/, '$1/$2/$3');
+      s = s.replace(/^(\d{1,2})\/(\d{2})(\d{4})$/, '$1/$2/$3');
+      s = s.replace(/^(\d{1,2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
+
+      const parts = s.split('/').filter(p => p.length > 0);
+
       if (parts.length === 3) {
-        const dayPart = parts[0];
-        const month = parts[1].padStart(2, '0');
+        let dayPart = parts[0];
+        let month = parts[1].padStart(2, '0');
         let year = parts[2];
         if (year.length === 2) year = '20' + year;
-        const days = dayPart.split(',').map(d => d.trim()).filter(Boolean);
+        if (month.length === 3 && month.startsWith('0')) month = month.substring(1);
+
+        const days = dayPart.split(',').map(d => {
+          let cl = d.trim().replace(/^0+/, '') || '0';
+          if (cl.length === 3 && cl.startsWith('22')) cl = '22';
+          return cl;
+        }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
+
         if (days.length > 1) {
           const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
           const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
-          return { start, end, dias: days.length };
+          return { start, end, dias: days.length, raw: rawVal };
         }
         const single = `${(days[0] || '01').padStart(2, '0')}/${month}/${year}`;
-        return { start: single, end: single, dias: 1 };
-      } else if (parts.length >= 4) {
-        const year = parts[parts.length - 1];
-        const tokens = parts.slice(0, parts.length - 1);
-        const endMonth = tokens[tokens.length - 1].padStart(2, '0');
-        const endDays = (tokens[tokens.length - 2] || '').split(',').map(d => d.trim()).filter(Boolean);
-        const startDays = (tokens[0] || '').split(',').map(d => d.trim()).filter(Boolean);
-        const startMonth = (tokens.length > 2 ? tokens[1] : endMonth).padStart(2, '0');
+        return { start: single, end: single, dias: 1, raw: rawVal };
+      } else if (parts.length === 4) {
+        let day1Part = parts[0];
+        let m1Part = parts[1];
+        let day2Part = parts[2];
+        let m2Part = parts[3];
+
+        let year = '2023';
+        let month2 = '01';
+
+        if (m2Part.length === 4) {
+          year = m2Part;
+          month2 = day2Part.padStart(2, '0');
+          const d1Tokens = day1Part.split(',').filter(Boolean);
+          const d2Tokens = [m1Part];
+          const startMonth = month2;
+          const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
+          const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
+          return { start, end, dias: d1Tokens.length + d2Tokens.length, raw: rawVal };
+        }
+      } else if (parts.length >= 5) {
+        let year = parts[parts.length - 1];
+        if (year.length === 2) year = '20' + year;
+        let endMonth = parts[parts.length - 2].padStart(2, '0');
+        let endDays = parts[parts.length - 3].split(',').filter(Boolean);
+        let startMonth = parts[1].padStart(2, '0');
+        let startDays = parts[0].split(',').filter(Boolean);
 
         const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
         const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
-        const totalDays = startDays.length + endDays.length;
-        return { start, end, dias: totalDays || 2 };
+        const dias = (startDays.length || 1) + (endDays.length || 1);
+        return { start, end, dias, raw: rawVal };
       }
-      return { start: s, end: s, dias: 1 };
+
+      const mMatch = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if (mMatch) {
+        let yr = mMatch[3];
+        if (yr.length === 2) yr = '20' + yr;
+        const dStr = `${mMatch[1].padStart(2, '0')}/${mMatch[2].padStart(2, '0')}/${yr}`;
+        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
+      }
+
+      return { start: s, end: s, dias: 1, raw: rawVal };
     }
 
     // ─── Confirmación y procesamiento masivo con SheetJS ────────────────────
@@ -1512,6 +1608,8 @@ const ViaticosModule = (() => {
                     valorTotal: parseFloat(jr['Valor Total'] || jr.valorTotal || 0) || 0,
                     estado: (jr['Estado'] || jr.estado || 'Aprobada').toString().trim(),
                     observaciones: (jr['Observaciones'] || jr.observaciones || 'Carga masiva Excel').toString().trim(),
+                    numeroResolucion: (jr['No. Resolución'] || jr.numeroResolucion || '').toString().trim(),
+                    saldo: jr['Saldo COP'] != null ? parseFloat(jr['Saldo COP']) : null,
                     hoja: sheetName
                   });
                 }
@@ -1522,24 +1620,32 @@ const ViaticosModule = (() => {
 
           // Mapear columnas según el encabezado de la hoja
           const headerRow = sheetData[headerIdx] || [];
-          let colNombre = 1;
-          let colFecha = 2;
-          let colDestino = 3;
-          let colResolucion = 4;
-          let colValor = 5;
-          let colSaldo = 6;
-          let colObs = 7;
+          let colNombre = -1;
+          let colFecha = -1;
+          let colDestino = -1;
+          let colResolucion = -1;
+          let colValor = -1;
+          let colSaldo = -1;
+          let colObs = -1;
 
           headerRow.forEach((cell, idx) => {
             const hStr = String(cell || '').trim().toUpperCase();
-            if (hStr.includes('NOMBRE') || hStr.includes('FUNCIONARIO')) colNombre = idx;
+            if (hStr.includes('NOMBRE') || hStr.includes('FUNCIONARIO') || hStr.includes('SERVIDOR')) colNombre = idx;
             else if (hStr.includes('FECHA')) colFecha = idx;
-            else if (hStr.includes('LUGAR') || hStr.includes('DESTINO')) colDestino = idx;
-            else if (hStr.includes('RESOLUCION')) colResolucion = idx;
-            else if (hStr.includes('VALOR')) colValor = idx;
+            else if (hStr.includes('LUGAR') || hStr.includes('DESTINO') || hStr.includes('COMISION')) colDestino = idx;
+            else if (hStr.includes('RESOLUCION') || hStr.includes('RESOL') || hStr.includes('ACTO')) colResolucion = idx;
+            else if (hStr.includes('VALOR') || hStr.includes('TOTAL') || hStr.includes('COSTO')) colValor = idx;
             else if (hStr.includes('SALDO')) colSaldo = idx;
-            else if (hStr.includes('OBSERVACION')) colObs = idx;
+            else if (hStr.includes('OBSERVACION') || hStr.includes('OBS')) colObs = idx;
           });
+
+          if (colNombre === -1) colNombre = 0;
+          if (colFecha === -1) colFecha = colNombre + 1;
+          if (colDestino === -1) colDestino = colFecha + 1;
+          if (colResolucion === -1) colResolucion = colDestino + 1;
+          if (colValor === -1) colValor = colResolucion + 1;
+          if (colSaldo === -1 || colSaldo <= colValor) colSaldo = colValor + 1;
+          if (colObs === -1 || colObs <= colValor) colObs = colValor + 2;
 
           // Iterar filas de datos
           for (let rIdx = headerIdx + 1; rIdx < sheetData.length; rIdx++) {
@@ -1559,9 +1665,9 @@ const ViaticosModule = (() => {
             const saldoVal = row[colSaldo] != null && !isNaN(Number(row[colSaldo])) ? Number(row[colSaldo]) : null;
             const obsVal = row[colObs] ? String(row[colObs]).trim() : '';
 
-            const dInfo = parseDateRange(rawFecha, resolVal);
+            const dInfo = parseDateRobust(rawFecha, resolVal);
             const dias = dInfo.dias || 1;
-            const valorDiario = dias > 0 && valor > 0 ? Math.round(valor / dias) : 0;
+            const valorDiario = dias > 0 && valor > 0 ? parseFloat((valor / dias).toFixed(2)) : 0;
             const estado = (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada';
 
             allRows.push({
@@ -1682,6 +1788,88 @@ const ViaticosModule = (() => {
     });
   }
 
+  function downloadOfficialTemplate() {
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca de Excel (SheetJS) aún no se ha cargado.', 'error');
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Hoja 1: Formato Institucional Gobernación / Secretarías
+      const secData = [
+        ['GOBERNACIÓN DE BOYACÁ'],
+        ['SECRETARÍA DE HACIENDA - CONTROL Y GESTIÓN DE VIÁTICOS'],
+        ['SALDO INICIAL DISPONIBLE:', null, null, null, null, 50000000],
+        ['NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No. RESOLUCION', 'VALOR', 'SALDO', 'OBSERVACIONES'],
+        ['GARCIA MARTINEZ LUIS FERNANDO', '15,16,17/05/2026', 'BOGOTA D.C.', '1240/10/05/2026', 360000, 49640000, 'Capacitación DIAN'],
+        ['RODRIGUEZ PAEZ MARIA CAMILA', '22/05/2026', 'SOGAMOSO', '1245/18/05/2026', 120000, 49520000, 'Comisión técnica de hacienda'],
+        ['PEREZ GOMEZ JORGE ANDRES', '28,29/05/2026', 'DUITAMA', '1250/25/05/2026', 0, 49520000, 'SIN VIATICOS']
+      ];
+      const wsSec = XLSX.utils.aoa_to_sheet(secData);
+      wsSec['!cols'] = [
+        { wch: 36 },
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsSec, 'HACIENDA');
+
+      // Hoja 2: Formato Detallado (Talento360 Completo)
+      const fullCols = [
+        { header: 'Cédula', key: 'documento', width: 16 },
+        { header: 'Servidor Público', key: 'persona', width: 34 },
+        { header: 'Dependencia', key: 'dependencia', width: 30 },
+        { header: 'Cargo', key: 'cargo', width: 26 },
+        { header: 'Destino', key: 'destino', width: 25 },
+        { header: 'Fecha Salida', key: 'fechaInicio', width: 16 },
+        { header: 'Fecha Retorno', key: 'fechaFin', width: 16 },
+        { header: 'Días', key: 'dias', width: 10 },
+        { header: 'Valor Diario', key: 'valorDiario', width: 16 },
+        { header: 'Total Viáticos', key: 'valorTotal', width: 18 },
+        { header: 'No. Resolución', key: 'numeroResolucion', width: 22 },
+        { header: 'Saldo COP', key: 'saldo', width: 18 },
+        { header: 'Objeto Comisión', key: 'motivo', width: 35 },
+        { header: 'Estado', key: 'estado', width: 16 },
+        { header: 'Observaciones', key: 'observaciones', width: 30 }
+      ];
+      const fullRows = [
+        {
+          'Cédula': '1049601234',
+          'Servidor Público': 'GARCIA MARTINEZ LUIS FERNANDO',
+          'Dependencia': 'SECRETARÍA DE HACIENDA',
+          'Cargo': 'PROFESIONAL UNIVERSITARIO',
+          'Destino': 'BOGOTÁ D.C.',
+          'Fecha Salida': '15/05/2026',
+          'Fecha Retorno': '17/05/2026',
+          'Días': 3,
+          'Valor Diario': 120000,
+          'Total Viáticos': 360000,
+          'No. Resolución': '1240/10/05/2026',
+          'Saldo COP': 49640000,
+          'Objeto Comisión': 'Capacitación en gestión tributaria',
+          'Estado': 'Aprobada',
+          'Observaciones': 'Viáticos aprobados'
+        }
+      ];
+      const wsFull = XLSX.utils.json_to_sheet(fullRows);
+      wsFull['!cols'] = fullCols.map(c => ({ wch: c.width }));
+      XLSX.utils.book_append_sheet(wb, wsFull, 'FORMATO_DETALLADO');
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Plantilla_Oficial_Viaticos_${dateStr}.xlsx`);
+      App.showToast('Plantilla oficial descargada exitosamente.', 'success');
+      if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+    } catch (err) {
+      console.error('[ViaticosModule] Error al descargar plantilla:', err);
+      App.showToast('Error al generar plantilla: ' + err.message, 'error');
+    }
+  }
+
   return {
     render,
     openCreate,
@@ -1706,6 +1894,7 @@ const ViaticosModule = (() => {
     viewSoporte,
     exportExcel,
     openImportModal,
+    downloadOfficialTemplate,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown,

@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS viaticos (
 CREATE INDEX IF NOT EXISTS idx_viaticos_estado     ON viaticos(estado);
 CREATE INDEX IF NOT EXISTS idx_viaticos_dependencia ON viaticos(dependencia);
 CREATE INDEX IF NOT EXISTS idx_viaticos_documento   ON viaticos(documento);
+CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion  ON viaticos(numero_resolucion);
 
 -- ─── Tabla: solicitudes_admin ─────────────────────────────────────────────────
 -- Contiene Permisos Laborales, Incapacidades y Licencias

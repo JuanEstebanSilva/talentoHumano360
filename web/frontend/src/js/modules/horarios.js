@@ -2958,6 +2958,25 @@ const HorariosModule = (() => {
         return '';
       };
 
+      const getRawVal = (...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+        }
+        const rowKeys = Object.keys(row);
+        for (const k of keys) {
+          const cleanK = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+          if (!cleanK) continue;
+          const foundKey = rowKeys.find(rk => {
+            const cleanRK = rk.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+            return cleanRK === cleanK || (cleanK.length >= 4 && cleanRK.startsWith(cleanK));
+          });
+          if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') {
+            return row[foundKey];
+          }
+        }
+        return null;
+      };
+
       const consecutivoRaw = getVal('NO', 'No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
       const documento = getVal('NO DE CEDULA', 'No. De Cedula', 'Nro. De Identificación', 'De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
       const nombresVal = getVal('NOMBRES', 'Nombre', 'nombres');
@@ -2974,11 +2993,11 @@ const HorariosModule = (() => {
       const situacion = getVal('SITUACION', 'Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
       const diasTeletrabajo = getVal('DIAS DE TELETRABAJO', 'Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
       const resolucion = getVal('RESOLUCION', 'Resolución', 'Resolucion', 'No. Resolución', 'No. Resolucion', 'numero_resolucion');
-      const fechaRaw = getVal('FECHA', 'fecha', 'Fecha', 'Fecha Inicio', 'fecha_inicio');
+      const fechaRaw = getRawVal('FECHA', 'fecha', 'Fecha', 'Fecha Inicio', 'fecha_inicio');
       const telefono = getVal('TELEFONO', 'Teléfono', 'Telefono', 'tel.', 'celular');
 
-      if (!documento || !nombre) {
-        return { valid: false, error: 'Documento (No de cédula) y Nombre son obligatorios.' };
+      if (!nombre) {
+        return { valid: false, error: 'El nombre del servidor público es obligatorio.' };
       }
 
       let modalidadNorm = situacion;
@@ -2993,23 +3012,49 @@ const HorariosModule = (() => {
         modalidadNorm = 'Presencial';
       }
 
+      function excelSerialToIso(serial) {
+        if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
+        const utcDays = Math.floor(serial - 25569);
+        const date = new Date(utcDays * 86400 * 1000);
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const y = date.getUTCFullYear();
+        return `${y}-${m}-${d}`;
+      }
+
       let parsedFecha = null;
-      if (fechaRaw) {
-        const s = String(fechaRaw).toLowerCase().trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-          parsedFecha = s;
-        } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-          const parts = s.split('/');
-          parsedFecha = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      if (fechaRaw != null && fechaRaw !== '') {
+        if (typeof fechaRaw === 'number' && fechaRaw > 30000 && fechaRaw < 60000) {
+          parsedFecha = excelSerialToIso(fechaRaw);
+        } else if (fechaRaw instanceof Date) {
+          const d = String(fechaRaw.getUTCDate()).padStart(2, '0');
+          const m = String(fechaRaw.getUTCMonth() + 1).padStart(2, '0');
+          const y = fechaRaw.getUTCFullYear();
+          parsedFecha = `${y}-${m}-${d}`;
         } else {
-          const months = {
-            enero: '01', febrero: '02', marzo: '03', abril: '04',
-            mayo: '05', junio: '06', julio: '07', agosto: '08',
-            septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
-          };
-          const match = s.match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
-          if (match && months[match[2].toLowerCase()]) {
-            parsedFecha = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+          const s = String(fechaRaw).toLowerCase().trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            parsedFecha = s;
+          } else if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
+            const parts = s.split('/');
+            let yr = parts[2];
+            if (yr.length === 2) yr = '20' + yr;
+            parsedFecha = `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          } else if (/^\d{5}$/.test(s)) {
+            const num = parseInt(s, 10);
+            if (num > 30000 && num < 60000) {
+              parsedFecha = excelSerialToIso(num);
+            }
+          } else {
+            const months = {
+              enero: '01', febrero: '02', marzo: '03', abril: '04',
+              mayo: '05', junio: '06', julio: '07', agosto: '08',
+              septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+            };
+            const match = s.match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+            if (match && months[match[2].toLowerCase()]) {
+              parsedFecha = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            }
           }
         }
       }
@@ -3022,7 +3067,7 @@ const HorariosModule = (() => {
         valid: true,
         cleanRow: {
           numero_consecutivo: numConsecutivo,
-          documento,
+          documento: documento || '',
           apellidos_nombres: nombre,
           cargo,
           codigo,
