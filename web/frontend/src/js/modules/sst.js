@@ -210,6 +210,146 @@ const SstModule = (() => {
 
   // ─── Catálogos Fallback Locales ────────────────────────────────────────────
   const DEFAULT_CATALOGS = {
+    elementosEppClean: [
+      'Casco de seguridad',
+      'Gorro o Cofias',
+      'Gorro Zafari',
+      'Tapones externos',
+      'Tapones de copa (orejeras)',
+      'Careta (guadañar)',
+      'Monogafas',
+      'Gafas de seguridad',
+      'Gafas de seguridad / UV',
+      'Respirador con filtros',
+      'Filtros para respiradores',
+      'Respirador ffp2 o n95',
+      'Mascarilla desechable',
+      'Guantes de poliuretano',
+      'Guantes de vaqueta',
+      'Guantes de Nitrilo',
+      'Guantes de látex',
+      'Guantes de caucho',
+      'Guantes sustancias químicas',
+      'Chaleco Trabajo en campo',
+      'Overol de dos piezas cinta reflectiva',
+      'Overol antifluidos',
+      'Bata manga larga antifluido',
+      'Delantal Carnaza',
+      'Zapato cerrado',
+      'Botas de Seguridad',
+      'Botas pantaneras con puntera',
+      'Otros'
+    ],
+    secretariasEpp: [
+      'DESPACHO DEL GOBERNADOR',
+      'SECRETARIA DE PLANEACION',
+      'SECRETARIA DE HACIENDA',
+      'SECRETARIA DE CONTRATACION',
+      'SECRETARIA GENERAL',
+      'SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL',
+      'SECRETARIA DE INTEGRACION SOCIAL',
+      'SECRETARIA DE EDUCACIÓN',
+      'SECRETARIA DE CULTURA Y PATRIMONIO',
+      'SECRETARIA DE SALUD',
+      'SECRETARIA DE INFRAESTRUCTURA PUBLICA',
+      'SECRETARIA DE MINAS Y ENERGIA',
+      'SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+      'SECRETARIA DE AGRICULTURA',
+      'SECRETARIA DE DESARROLLO EMPRESARIAL',
+      'SECRETARIA DE TURISMO',
+      'SECRETARIA DE TIC Y GOBIERNO ABIERTO'
+    ],
+    direccionesEpp: [
+      'OFICINA DE CONTROL INTERNO',
+      'OFICINA CONTROL INTERNO DISCIPLINARIO (INSTRUCCIÓN)',
+      'UNIDAD ADMINISTRATIVA ESPECIAL DE ASESORÍA Y DEFENSA JURIDICA DEL DEPARTAMENTO',
+      'UNIDAD ADMINISTRATIVA ESPECIAL PARA LA GESTION DEL RIESGO DE DESASTRES',
+      'UNIDAD ADMINISTRATIVA DE RELACIONES NACIONALES E INTERNACIONALES',
+      'UNIDAD ADMINISTRATIVA DE COMUNICACIONES Y PROTOCOLO',
+      'SUBDIRECCION DE RADIO Y TELEVISION',
+      'OFICINA ASESORA DE PLANEACION Y METODOS DE GESTION',
+      'DIRECCION DE SEGUIMIENTO Y PLANEACION TERRITORIAL',
+      'DIRECCION GEOGRAFICA Y DE GESTION TERRITORIAL',
+      'DIRECCION DE INVERSION PUBLICA DEL DEPARTAMENTO',
+      'DIRECCION FINANCIERA Y FISCAL',
+      'SUBDIRECCION DE PRESUPUESTO',
+      'SUBDIRECCION DE CENTRAL DE CUENTAS',
+      'SUBDIRECCION DE CONTABILIDAD',
+      'SUBDIRECCION DE COBRO COACTIVO',
+      'TESORERIA GENERAL',
+      'DIRECCION DE RECAUDO Y FISCALIZACION',
+      'DIRECCION DEPARTAMENTAL DE PASIVOS PENSIONALES',
+      'SUBDIRECCION ADMINISTRATIVA DE PASIVOS PENSIONALES',
+      'SUBDIRECCION JURIDICA DE PASIVOS PENSIONALES',
+      'DIRECCION DE PROCESOS DE SELECCIÓN',
+      'DIRECCION ADMINISTRATIVA CONTRACTUAL',
+      'DIRECCION GENERAL DE TALENTO HUMANO',
+      'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO',
+      'DIRECCION SERVICIOS ADMINISTRATIVOS Y LOGÍSTICOS',
+      'SUBDIRECCION DE ATENCIÓN  AL CIUDADANO',
+      'SUBDIRECCION DE GESTION DOCUMENTAL',
+      'DIRECCION DE DIALOGO SOCIAL Y CONVIVENCIA',
+      'DIRECCION DE PARTICIPACION Y ACCIÓN COMUNAL',
+      'DIRECCION DE JUVENTUD',
+      'DIRECCION DE FAMILIA, INFANCIA, ADOLESCENCIA Y ADULTO MAYOR',
+      'DIRECCION DE LA MUJER E INCLUSIÓN SOCIAL',
+      'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR EDUCACIÓN',
+      'OFICINA ASESORA PARA LA GESTIÓN ESTRATEGICA DEL SECTOR EDUCACIÓN',
+      'DIRECCION ADMINISTRATIVA Y FINANCIERA',
+      'SUBDIRECCION DE TALENTO HUMANO',
+      'DIRECCION TECNICO PEDAGOGICA',
+      'SUBDIRECCION DE NUCLEOS EDUCATIVOS',
+      'SUBDIRECCION DE INSPECCION Y VIGILANCIA',
+      'SUBDIRECCION DE COBERTURA Y RURALIDAD',
+      'PROGRAMA DE ADULTOS Y JOVENES EN EXTRA EDAD',
+      'PROGRAMA DEL PLAN ALIMENTARIO ESCOLAR',
+      'SUBDIRECCION DE CALIDAD EDUCATIVA',
+      'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR SALUD',
+      'OFICINA ASESORA PARA LA GESTION ESTRATEGICA DEL SECTOR SALUD',
+      'DIRECCION DE PROMOCION Y PREVENCION EN SALUD',
+      'SUBDIRECCION DE PROMOCION EN SALUD',
+      'DIRECCION DE ASEGURAMIENTO EN SALUD',
+      'DIRECCION DE PRESTACION DE SERVICIOS DE SALUD',
+      'DIRECCION TECNICA  DE ESTUDIOS Y DISEÑO',
+      'DIRECCION DE DESARROLLO DE LA INFRAESTRUCTURA VIAL',
+      'DIRECCION DE VIVIENDA, EDIFICACIONES Y OBRA PUBLICA',
+      'DIRECCION DE GESTION DEL RECURSO HIDRICO Y SANEAMIENTO BASICO',
+      'DIRECCION DE DESARROLLO RURAL INTEGRAL',
+      'DIRECCION DE BIENESTAR CAMPESINO',
+      'DIRECCION DE PRODUCTIVIDAD AGROPECUARIA',
+      'DIRECCION DE DESARROLLO EMPRESARIAL',
+      'DIRECCION DE INVERSION Y COMERCIO',
+      'DIRECCION DE APROPIACION DE TIC',
+      'DIRECCION DE SISTEMAS'
+    ],
+    cargosEpp: [
+      'GOBERNADOR',
+      'ASESOR',
+      'SECRETARIO DE DESPACHO',
+      'JEFE OFICINA ASESORA',
+      'DIRECTOR ADMINISTRATIVO',
+      'DIRECTOR TÉCNICO',
+      'PROFESIONAL UNIVERSITARIO',
+      'PROFESIONAL ESPECIALIZADO',
+      'ALMACENISTA GENERAL',
+      'TESORERO GENERAL',
+      'TECNICO ADMINISTRATIVO',
+      'TECNICO OPERATIVO',
+      'SECRETARIO EJECUTIVO',
+      'SECRETARIA EJECUTIVA',
+      'AUXILIAR ADMINISTRATIVO',
+      'AUXILIAR DE SERVICIOS GENERALES',
+      'CONDUCTOR',
+      'CONDUCTOR MECANICO',
+      'OPERARIO'
+    ],
+    vinculacionesEpp: [
+      'CARRERA ADMINISTRATIVA',
+      'PROVISIONALIDAD',
+      'LIBRE NOMBRAMIENTO',
+      'JUDICANTE',
+      'ESTUDIANTE / PASANTE'
+    ],
     eppCatalogo: [
       { codigo: 'A',  nombre: 'A. Casco de seguridad' },
       { codigo: 'B',  nombre: 'B. Gorro o Cofias' },
@@ -821,6 +961,20 @@ const SstModule = (() => {
     setVal('sst-cargo', emp.cargo);
     setVal('sst-tel', emp.telefono);
     setVal('sst-edad', emp.edad);
+    if (emp.dependencia || emp.secretaria) {
+      const depUpper = String(emp.secretaria || emp.dependencia || '').toUpperCase();
+      const secEl = document.getElementById('sst-secretaria');
+      if (secEl) {
+        for (let i = 0; i < secEl.options.length; i++) {
+          const optVal = secEl.options[i].value.toUpperCase();
+          const cleanOpt = optVal.replace(/^SECRETARIA\s+DE\s+/, '').replace(/^SECRETARIA\s+/, '').trim();
+          if (cleanOpt && depUpper.includes(cleanOpt)) {
+            secEl.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
     if (emp.fechaIngreso) {
       const fIng = String(emp.fechaIngreso).split('T')[0];
       setVal('sst-ingreso', fIng);
@@ -1568,6 +1722,9 @@ const SstModule = (() => {
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Detalle de Entrega EPP">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
+              <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Formato de Entrega EPP en Excel (.xlsx)" style="color:#16a34a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+              </button>
               <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega EPP (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
@@ -1886,69 +2043,132 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epp') {
+      const eppList = cats.elementosEppClean || [];
+      const secList = cats.secretariasEpp || [];
+      const dirList = cats.direccionesEpp || [];
+      const cargoList = cats.cargosEpp || [];
+      const vincList = cats.vinculacionesEpp || [];
+
+      const currentElemento = r.elementoEpp || '';
+      const cleanCurrentElemento = currentElemento.replace(/^[A-Z]+\.\s*/, '').trim();
+
       return `
         <div class="form-grid">
+          <!-- SECCIÓN 1: DATOS PERSONALES -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              1. Datos Personales
+            </h4>
+          </div>
+
           <div class="form-group span-2 autocomplete-wrapper">
-            <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar desde planta)</span></label>
-            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
+            <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
+            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
             <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Documento de Identidad (C.C.) *</label>
-            <input id="sst-doc" class="form-input" placeholder="Número de documento" value="${escHtml(r.documento || '')}" required />
+            <label class="form-label">No. De Identificación (C.C.) *</label>
+            <input id="sst-doc" class="form-input" placeholder="Número de identificación" value="${escHtml(r.documento || '')}" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Teléfono</label>
-            <input id="sst-tel" class="form-input" placeholder="Celular de contacto" value="${escHtml(r.telefono || '')}" />
+            <input id="sst-tel" class="form-input" placeholder="Número telefónico o celular" value="${escHtml(r.telefono || '')}" />
           </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Dependencia / Subdirección *</label>
-            <input id="sst-dep" list="sst-deps-list" class="form-input" value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
-            <datalist id="sst-deps-list">
-              ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
+            <label class="form-label">Secretaría *</label>
+            <select id="sst-secretaria" class="filter-select" required>
+              ${secList.map(s => {
+                const isSel = (r.secretaria || '').toUpperCase().includes(s.toUpperCase()) || ((!r.secretaria || r.secretaria === 'SECRETARIA GENERAL') && s === 'SECRETARIA GENERAL');
+                return `<option value="${escHtml(s)}" ${isSel ? 'selected' : ''}>${escHtml(s)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Dirección / Subdirección *</label>
+            <select id="sst-dep" class="filter-select" required>
+              ${dirList.map(d => {
+                const isSel = (r.dependencia || '').toUpperCase().includes(d.toUpperCase());
+                return `<option value="${escHtml(d)}" ${isSel ? 'selected' : ''}>${escHtml(d)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Cargo *</label>
+            <select id="sst-cargo" class="filter-select" required>
+              ${cargoList.map(c => {
+                const isSel = (r.cargo || '').toUpperCase() === c.toUpperCase() || ((!r.cargo || r.cargo === 'PROFESIONAL UNIVERSITARIO') && c === 'PROFESIONAL UNIVERSITARIO');
+                return `<option value="${escHtml(c)}" ${isSel ? 'selected' : ''}>${escHtml(c)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tipo de Vinculación *</label>
+            <select id="sst-vinculacion" class="filter-select" required>
+              ${vincList.map(v => {
+                const isSel = (r.tipoVinculacion || '').toUpperCase() === v.toUpperCase() || ((!r.tipoVinculacion || r.tipoVinculacion === 'CARRERA ADMINISTRATIVA') && v === 'CARRERA ADMINISTRATIVA');
+                return `<option value="${escHtml(v)}" ${isSel ? 'selected' : ''}>${escHtml(v)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Restricciones y/o Recomendaciones</label>
+            <input id="sst-restricciones" list="sst-epp-restricciones-list" class="form-input" placeholder="Restricciones médicas o recomendaciones de uso..." value="${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}" />
+            <datalist id="sst-epp-restricciones-list">
+              ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
             </datalist>
           </div>
-          <div class="form-group">
-            <label class="form-label">Cargo</label>
-            <input id="sst-cargo" class="form-input" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
+
+          <!-- SECCIÓN 2: REGISTRO DE ENTREGA -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              2. Registro de Entrega de EPP
+            </h4>
           </div>
-          <div class="form-group">
-            <label class="form-label">Tipo de Vinculación</label>
-            <select id="sst-vinculacion" class="filter-select">
-              ${cats.tiposVinculacion.map(v => `<option ${(r.tipoVinculacion || '').toUpperCase() === v.toUpperCase() ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-            </select>
-          </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Elemento de Protección Personal *</label>
-            <select id="sst-elemento-epp" class="filter-select">
-              ${cats.eppCatalogo.map(e => `<option value="${escHtml(e.nombre)}" ${(r.elementoEpp === e.nombre || r.codigoElemento === e.codigo) ? 'selected' : ''}>${escHtml(e.nombre)}</option>`).join('')}
+            <label class="form-label">Elemento *</label>
+            <select id="sst-elemento-epp" class="filter-select" required>
+              ${eppList.map(e => {
+                const isSel = (cleanCurrentElemento.toUpperCase() === e.toUpperCase() || currentElemento.toUpperCase() === e.toUpperCase());
+                return `<option value="${escHtml(e)}" ${isSel ? 'selected' : ''}>${escHtml(e)}</option>`;
+              }).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Talla</label>
             <input id="sst-talla" class="form-input" placeholder="N/A, S, M, L, XL, 38, 40..." value="${escHtml(r.talla || 'N/A')}" />
           </div>
+
           <div class="form-group">
-            <label class="form-label">Cantidad Entregada *</label>
-            <input id="sst-cantidad" class="form-input" placeholder="1 UNIDAD, 1 PAR, 1 CAJA..." value="${escHtml(r.cantidad || '1 UNIDAD')}" />
+            <label class="form-label">Cantidad *</label>
+            <input id="sst-cantidad" class="form-input" placeholder="1 UNIDAD, 1 PAR, 1 CAJA..." value="${escHtml(r.cantidad || '1 UNIDAD')}" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha de Entrega *</label>
-            <input id="sst-fecha-entrega" type="date" class="form-input" value="${escHtml(r.fechaEntrega || new Date().toISOString().split('T')[0])}" />
+            <input id="sst-fecha-entrega" type="date" class="form-input" value="${escHtml(r.fechaEntrega || new Date().toISOString().split('T')[0])}" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Estado de Entrega</label>
             <select id="sst-estado-entrega" class="filter-select">
               ${['Entregado', 'Reposición Programada', 'Pendiente Firma', 'Devuelto'].map(s => `<option ${r.estadoEntrega === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Restricciones y/o Recomendaciones Asociadas</label>
-            <input id="sst-restricciones" class="form-input" value="${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}" />
-          </div>
-          <div class="form-group span-2">
-            <label class="form-label">Observaciones de Dotación</label>
-            <input id="sst-obs" class="form-input" placeholder="Observaciones adicionales..." value="${escHtml(r.observaciones || '')}" />
+            <label class="form-label">Observaciones</label>
+            <input id="sst-obs" class="form-input" placeholder="Observaciones adicionales sobre la entrega o estado del elemento..." value="${escHtml(r.observaciones || '')}" />
           </div>
 
           <!-- Apartado de Firma Digital (Tablet / Pantalla Táctil) -->
@@ -2271,17 +2491,18 @@ const SstModule = (() => {
       return {
         nombreCompleto,
         documento,
-        telefono: document.getElementById('sst-tel')?.value.trim(),
-        dependencia: document.getElementById('sst-dep')?.value.trim(),
-        cargo: document.getElementById('sst-cargo')?.value.trim(),
-        tipoVinculacion: document.getElementById('sst-vinculacion')?.value,
-        elementoEpp: document.getElementById('sst-elemento-epp')?.value,
-        talla: document.getElementById('sst-talla')?.value.trim(),
-        cantidad: document.getElementById('sst-cantidad')?.value.trim(),
-        fechaEntrega: document.getElementById('sst-fecha-entrega')?.value,
-        estadoEntrega: document.getElementById('sst-estado-entrega')?.value,
-        restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim(),
-        observaciones: document.getElementById('sst-obs')?.value.trim(),
+        telefono: document.getElementById('sst-tel')?.value.trim() || '',
+        secretaria: document.getElementById('sst-secretaria')?.value.trim() || 'SECRETARIA GENERAL',
+        dependencia: document.getElementById('sst-dep')?.value.trim() || '',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || 'PROFESIONAL UNIVERSITARIO',
+        tipoVinculacion: document.getElementById('sst-vinculacion')?.value || 'CARRERA ADMINISTRATIVA',
+        elementoEpp: document.getElementById('sst-elemento-epp')?.value || 'Casco de seguridad',
+        talla: document.getElementById('sst-talla')?.value.trim() || 'N/A',
+        cantidad: document.getElementById('sst-cantidad')?.value.trim() || '1 UNIDAD',
+        fechaEntrega: document.getElementById('sst-fecha-entrega')?.value || new Date().toISOString().split('T')[0],
+        estadoEntrega: document.getElementById('sst-estado-entrega')?.value || 'Entregado',
+        restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
+        observaciones: document.getElementById('sst-obs')?.value.trim() || '',
         firmaDigital: document.getElementById('sst-firma-digital')?.value || null
       };
     }
@@ -2574,12 +2795,15 @@ const SstModule = (() => {
             <div class="detail-item"><span class="detail-label">Radicado / Folio EPP</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado Entrega</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span></div></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Cargo</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.cargo || '')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Secretaría</span><span class="detail-value">${escHtml(r.secretaria || 'SECRETARIA GENERAL')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Dirección / Subdirección</span><span class="detail-value">${escHtml(r.dependencia || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Cargo</span><span class="detail-value">${escHtml(r.cargo || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Tipo de Vinculación</span><span class="detail-value">${escHtml(r.tipoVinculacion || '—')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Elemento de Protección Personal Entregado</span><span class="detail-value">${escHtml(r.elementoEpp)}</span></div>
             <div class="detail-item"><span class="detail-label">Talla</span><span class="detail-value">${escHtml(r.talla || 'N/A')}</span></div>
             <div class="detail-item"><span class="detail-label">Cantidad</span><span class="detail-value">${escHtml(r.cantidad)}</span></div>
             <div class="detail-item"><span class="detail-label">Fecha de Entrega</span><span class="detail-value">${formatDate(r.fechaEntrega)}</span></div>
-            <div class="detail-item"><span class="detail-label">Tipo de Vinculación</span><span class="detail-value">${escHtml(r.tipoVinculacion || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Teléfono de Contacto</span><span class="detail-value">${escHtml(r.telefono || '—')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones y/o Recomendaciones</span><span class="detail-value">${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}</span></div>
             ${r.observaciones ? `<div class="detail-item detail-grid--full"><span class="detail-label">Observaciones</span><span class="detail-value">${escHtml(r.observaciones)}</span></div>` : ''}
             <div class="detail-item detail-grid--full" style="background:var(--bg-subtle, rgba(255,255,255,0.03));border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-top:6px;">
@@ -2653,7 +2877,7 @@ const SstModule = (() => {
         text: 'Exportar Ficha Excel',
         cls: 'btn-secondary',
         action: () => {
-          if (state.tab === 'epidemiologico' || state.tab === 'sociodemografico') exportSingleProfileExcel(id);
+          if (state.tab === 'epidemiologico' || state.tab === 'sociodemografico' || state.tab === 'epp') exportSingleProfileExcel(id);
           else exportExcel();
         }
       }
@@ -2822,7 +3046,8 @@ const SstModule = (() => {
         { header: 'Documento', key: 'documento', width: 16 },
         { header: 'Servidor Público', key: 'nombreCompleto', width: 32 },
         { header: 'Teléfono', key: 'telefono', width: 15 },
-        { header: 'Dependencia', key: 'dependencia', width: 35 },
+        { header: 'Secretaría', key: 'secretaria', width: 28 },
+        { header: 'Dirección / Subdirección', key: 'dependencia', width: 35 },
         { header: 'Cargo', key: 'cargo', width: 25 },
         { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
         { header: 'Elemento EPP', key: 'elementoEpp', width: 30 },
@@ -2830,6 +3055,7 @@ const SstModule = (() => {
         { header: 'Cantidad', key: 'cantidad', width: 14 },
         { header: 'Fecha Entrega', key: 'fechaEntrega', width: 16 },
         { header: 'Estado Entrega', key: 'estadoEntrega', width: 18 },
+        { header: 'Restricciones y Recomendaciones', key: 'restriccionesRecomendaciones', width: 28 },
         { header: 'Observaciones', key: 'observaciones', width: 30 }
       ];
     }
@@ -2963,7 +3189,59 @@ const SstModule = (() => {
         return;
       }
 
-      // CASO B: PERFIL EPIDEMIOLÓGICO
+      // CASO B: ENTREGA DE EPP
+      if (state.tab === 'epp') {
+        let wb = null;
+        try {
+          const resp = await fetch('plantillas/FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx');
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+          }
+        } catch (_) {}
+
+        if (!wb) {
+          wb = buildOfficialEppTemplateWorkbook();
+        }
+
+        const wsName = wb.SheetNames[0]; // FÍSICO
+        const ws = wb.Sheets[wsName];
+
+        const firmaTexto = r.firmaDigital ? 'Firma Digital Registrada' : (r.firmadoFuncionario ? 'Firma del funcionario' : 'Pendiente');
+
+        // Datos Personales en formato oficial
+        ws['C10'] = { t: 's', v: r.nombreCompleto || '' };
+        ws['K10'] = { t: 's', v: String(r.documento || '') };
+        ws['N10'] = { t: 's', v: String(r.telefono || '') };
+
+        ws['A12'] = { t: 's', v: r.secretaria || 'SECRETARIA GENERAL' };
+        ws['F12'] = { t: 's', v: r.dependencia || '' };
+        ws['J12'] = { t: 's', v: r.cargo || '' };
+        ws['M12'] = { t: 's', v: r.tipoVinculacion || 'CARRERA ADMINISTRATIVA' };
+
+        ws['A14'] = { t: 's', v: r.restriccionesRecomendaciones || 'NINGUNA' };
+
+        // Registro de Entrega (Fila 18)
+        ws['A18'] = { t: 's', v: r.elementoEpp || '' };
+        ws['C18'] = { t: 's', v: r.talla || 'N/A' };
+        ws['D18'] = { t: 's', v: r.cantidad || '1 UNIDAD' };
+        ws['F18'] = { t: 's', v: formatDate(r.fechaEntrega) || '' };
+        ws['G18'] = { t: 's', v: firmaTexto };
+
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:O25');
+        if (range.e.r < 18) range.e.r = 18;
+        ws['!ref'] = XLSX.utils.encode_range(range);
+
+        const cleanDoc = String(r.documento || 'epp').replace(/[^a-zA-Z0-9]/g, '');
+        const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const filename = `FORMATO_ENTREGA_EPP_${cleanDoc}_${cleanNom}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+        App.showToast(`Formato oficial de entrega de EPP para ${r.nombreCompleto} exportado exitosamente.`, 'success');
+        return;
+      }
+
+      // CASO C: PERFIL EPIDEMIOLÓGICO
       let wb = null;
       try {
         const resp = await fetch('plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx');
@@ -3081,15 +3359,96 @@ const SstModule = (() => {
       } catch (err) {
         App.showToast('Error al descargar plantilla: ' + err.message, 'error');
       }
-    } else {
-      // Para otros submódulos (EPP)
-      const tabCfg = TABS[state.tab];
-      ExcelService.downloadTemplate({
-        filename: `Plantilla_${state.tab}`,
-        sheetName: tabCfg.title.substring(0, 30),
-        columns: getExcelColumns().filter(c => c.key !== 'radicado')
-      });
+      return;
     }
+
+    if (state.tab === 'epp') {
+      try {
+        const a = document.createElement('a');
+        a.href = 'plantillas/FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx';
+        a.download = 'FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Entrega de EPP descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      try {
+        const wb = buildOfficialEppTemplateWorkbook();
+        XLSX.writeFile(wb, 'FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx');
+        App.showToast('Plantilla oficial de Entrega de EPP generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+      return;
+    }
+
+    const tabCfg = TABS[state.tab];
+    ExcelService.downloadTemplate({
+      filename: `Plantilla_${state.tab}`,
+      sheetName: tabCfg.title.substring(0, 30),
+      columns: getExcelColumns().filter(c => c.key !== 'radicado')
+    });
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS para Entrega de EPP (E-DO-ST-F-028 V4)
+  function buildOfficialEppTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: FÍSICO
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 4'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-028'],
+      ['', 'ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 02/Ene/2026'],
+      [],
+      ['A. Casco de seguridad', 'B. Gorro o Cofias', 'C. Gorro Zafari', 'D. Tapones externos', 'E. Tapones de copa (orejeras)', 'F. Careta  (guadañar)', 'G. Monogafas', 'H. Gafas de seguridad ', 'I. Gafas de seguridad / UV ', 'J. Respirador con filtros', 'K. Filtros para respiradores', 'L. Respirador ffp2 o n95', 'M. Mascarilla desechable ', 'N. Guantes de poliuretano', ''],
+      ['O. Guantes de vaqueta', 'P. Guantes de Nitrilo', 'Q. Guantes de látex', 'R. Guantes de caucho ', 'S. Guantes sustancias químicas', 'T. Chaleco Trabajo en campo', 'U. Overol de dos piezas cinta reflectiva', 'V. Overol antifluidos', 'W. Bata manga larga antifluido', 'X. Delantal Carnaza', 'Y. Zapato cerrado', 'Z. Botas de Seguridad', 'AA. Botas pantaneras con puntera', 'AB. Otros ', ''],
+      [],
+      ['DATOS PERSONALES'],
+      ['Nombres y apellidos', '', '', '', '', '', '', '', 'No. De Identificación', '', '', '', 'Teléfono', ''],
+      ['Secretaria', '', '', '', '', 'Dirección / Subdirección', '', '', '', 'Cargo', '', '', 'Tipo de Vinculación', ''],
+      [],
+      ['Restricciones y/o Recomendaciones'],
+      [],
+      [],
+      ['REGISTROS DE ENTREGAS'],
+      ['Elemento ', '', 'Talla ', 'Cantidad', '', 'Fecha', 'Firma', '', 'Elemento ', '', 'Talla', 'Cantidad', 'Fecha', 'Firma', '']
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 16 }, { wch: 22 }, { wch: 4 }, { wch: 18 }, { wch: 18 },
+      { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, 'FÍSICO');
+
+    // Hoja 2: Hoja1 (Catálogos oficiales)
+    const secList = cats.secretariasEpp || [];
+    const dirList = cats.direccionesEpp || [];
+    const cargoList = cats.cargosEpp || [];
+    const vincList = cats.vinculacionesEpp || [];
+    const maxLen = Math.max(secList.length, dirList.length, cargoList.length, vincList.length);
+
+    const ws2Data = [['SECRETARIA', 'DIRECCIÓN / SUBDIRECCIÓN', '', 'CARGO', '', 'TIPO DE VINCULACIÓN']];
+    for (let i = 0; i < maxLen; i++) {
+      ws2Data.push([
+        secList[i] || '',
+        dirList[i] || '',
+        '',
+        cargoList[i] || '',
+        '',
+        vincList[i] || ''
+      ]);
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [{ wch: 38 }, { wch: 55 }, { wch: 4 }, { wch: 30 }, { wch: 4 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja1');
+
+    return wb;
   }
 
   // Constructor interno de la plantilla oficial SheetJS para Perfil Sociodemográfico (E-DO-ST-F-011 V5)
@@ -3448,9 +3807,67 @@ const SstModule = (() => {
           }
         }
       ]);
-    } else {
-      exportExcel();
+      return;
     }
+
+    if (state.tab === 'epp') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros de EPP en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione la entrega de EPP que desea exportar al <strong>Formato Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Entrega de EPP:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.elementoEpp)} · ${escHtml(r.cantidad)} · ${formatDate(r.fechaEntrega)}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica al formato suministrado (Código E-DO-ST-F-028 Versión 4).</li>
+              <li>Poblado de los datos personales: Secretaría, Dirección/Subdirección, Cargo, Vinculación y Restricciones.</li>
+              <li>Poblado del registro de entrega: Elemento, Talla, Cantidad, Fecha y Verificación de Firma.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Formato Oficial Excel (EPP)', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Entrega Seleccionada (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+      return;
+    }
+
+    exportExcel();
   }
 
   function exportExcelAllCurrent() {
@@ -4006,6 +4423,167 @@ const SstModule = (() => {
     }
   }
 
+  async function generateEppAnnualReport() {
+    try {
+      App.showToast('Generando Reporte Anual Consolidado Entregas de EPP...', 'info');
+
+      const res = await API.getSstEpp({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de EPP para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const total = records.length;
+      const servidoresSet = new Set();
+      let countFirmados = 0;
+      let countEntregados = 0;
+      let countReposicion = 0;
+      let countPendienteFirma = 0;
+      let countDevueltos = 0;
+
+      const porElemento = {};
+      const porSecretaria = {};
+      const porVinculacion = {};
+
+      records.forEach(r => {
+        if (r.documento) servidoresSet.add(String(r.documento).trim());
+        if (r.firmaDigital) countFirmados++;
+
+        const est = (r.estadoEntrega || 'Entregado').toLowerCase();
+        if (est.includes('entregado')) countEntregados++;
+        else if (est.includes('reposic')) countReposicion++;
+        else if (est.includes('pend')) countPendienteFirma++;
+        else if (est.includes('devuelt')) countDevueltos++;
+
+        const elem = r.elementoEpp || 'Otros';
+        porElemento[elem] = (porElemento[elem] || 0) + 1;
+
+        const sec = r.secretaria || 'SECRETARIA GENERAL';
+        porSecretaria[sec] = (porSecretaria[sec] || 0) + 1;
+
+        const vinc = r.tipoVinculacion || 'CARRERA ADMINISTRATIVA';
+        porVinculacion[vinc] = (porVinculacion[vinc] || 0) + 1;
+      });
+
+      const totalServidores = servidoresSet.size;
+      const wb = XLSX.utils.book_new();
+
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`REPORTE ANUAL CONSOLIDADO — ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP) (VIGENCIA ${anioActual})`],
+        [`Fecha de Emisión: ${fechaHoy} | Total Dotaciones: ${total} | Servidores Únicos Dotados: ${totalServidores}`],
+        [],
+        ['1. INDICADORES GLOBALES DE DOTACIÓN Y ENTREGA DE EPP', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Dotaciones / Entregas Realizadas', total, '100%'],
+        ['Servidores Públicos Únicos Beneficiados', totalServidores, '—'],
+        ['Entregas Verificadas con Firma Digital en Tablet', countFirmados, `${((countFirmados / total) * 100).toFixed(1)}%`],
+        ['Entregas con Estado "Entregado"', countEntregados, `${((countEntregados / total) * 100).toFixed(1)}%`],
+        ['Entregas en Reposición Programada', countReposicion, `${((countReposicion / total) * 100).toFixed(1)}%`],
+        ['Entregas con Firma Pendiente', countPendienteFirma, `${((countPendienteFirma / total) * 100).toFixed(1)}%`],
+        ['Elementos Devueltos', countDevueltos, `${((countDevueltos / total) * 100).toFixed(1)}%`],
+        [],
+        ['2. DISTRIBUCIÓN POR ELEMENTO DE PROTECCIÓN PERSONAL (EPP)', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porElemento)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([elem, cant]) => {
+          summaryRows.push([elem, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. DISTRIBUCIÓN POR SECRETARÍA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porSecretaria)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([sec, cant]) => {
+          summaryRows.push([sec, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. DISTRIBUCIÓN POR TIPO DE VINCULACIÓN', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVinculacion)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([vinc, cant]) => {
+          summaryRows.push([vinc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 18 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores EPP');
+
+      // HOJA 2: MATRIZ BASE CONSOLIDADA DE ENTREGAS
+      const matrixHeaders = [
+        'Radicado Folio',
+        'No. Documento',
+        'Servidor Público',
+        'Teléfono',
+        'Secretaría',
+        'Dirección / Subdirección',
+        'Cargo',
+        'Tipo de Vinculación',
+        'Elemento EPP',
+        'Talla',
+        'Cantidad',
+        'Fecha de Entrega',
+        'Estado de Entrega',
+        'Firma Digital Registrada',
+        'Restricciones y/o Recomendaciones',
+        'Observaciones'
+      ];
+
+      const matrixRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`MATRIZ MAESTRA ANUAL DE ENTREGAS DE EPP — VIGENCIA ${anioActual}`],
+        matrixHeaders
+      ];
+
+      records.forEach(r => {
+        matrixRows.push([
+          r.radicado || '',
+          r.documento || '',
+          r.nombreCompleto || '',
+          r.telefono || '',
+          r.secretaria || 'SECRETARIA GENERAL',
+          r.dependencia || '',
+          r.cargo || '',
+          r.tipoVinculacion || 'CARRERA ADMINISTRATIVA',
+          r.elementoEpp || '',
+          r.talla || 'N/A',
+          r.cantidad || '1 UNIDAD',
+          formatDate(r.fechaEntrega) || '',
+          r.estadoEntrega || 'Entregado',
+          r.firmaDigital ? 'SI (Verificada en Tablet)' : (r.firmadoFuncionario ? 'SI' : 'NO'),
+          r.restriccionesRecomendaciones || 'NINGUNA',
+          r.observaciones || ''
+        ]);
+      });
+
+      const wsMatrix = XLSX.utils.aoa_to_sheet(matrixRows);
+      wsMatrix['!cols'] = [
+        { wch: 16 }, { wch: 16 }, { wch: 32 }, { wch: 16 },
+        { wch: 30 }, { wch: 35 }, { wch: 28 }, { wch: 24 },
+        { wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 16 },
+        { wch: 16 }, { wch: 24 }, { wch: 32 }, { wch: 32 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsMatrix, `Matriz Entregas ${anioActual}`);
+
+      const filename = `Reporte_Anual_Entregas_EPP_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} entregas de EPP generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateEppAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual de EPP: ' + err.message, 'error');
+    }
+  }
+
   async function generateAnnualReport() {
     if (typeof XLSX === 'undefined') {
       App.showToast('La biblioteca SheetJS aún no está cargada.', 'error');
@@ -4014,9 +4592,134 @@ const SstModule = (() => {
 
     if (state.tab === 'sociodemografico') {
       await generateSociodemograficoAnnualReport();
+    } else if (state.tab === 'epp') {
+      await generateEppAnnualReport();
     } else {
       await generateEpidemiologicoAnnualReport();
     }
+  }
+
+  // ─── 5. Carga Masiva de Archivos Excel por Submódulo ─────────────────────────
+  function openEppImportModal() {
+    const cols = [
+      { header: 'No. De Identificación', key: 'documento', width: 18 },
+      { header: 'Nombres y apellidos', key: 'nombreCompleto', width: 28 },
+      { header: 'Teléfono', key: 'telefono', width: 16 },
+      { header: 'Secretaría', key: 'secretaria', width: 28 },
+      { header: 'Dirección / Subdirección', key: 'dependencia', width: 36 },
+      { header: 'Cargo', key: 'cargo', width: 24 },
+      { header: 'Tipo de Vinculación', key: 'tipoVinculacion', width: 22 },
+      { header: 'Elemento', key: 'elementoEpp', width: 26 },
+      { header: 'Talla', key: 'talla', width: 12 },
+      { header: 'Cantidad', key: 'cantidad', width: 14 },
+      { header: 'Fecha', key: 'fechaEntrega', width: 16 },
+      { header: 'Estado', key: 'estadoEntrega', width: 16 },
+      { header: 'Restricciones y/o Recomendaciones', key: 'restriccionesRecomendaciones', width: 28 },
+      { header: 'Observaciones', key: 'observaciones', width: 24 }
+    ];
+
+    ExcelService.openImportModal({
+      title: 'Carga Masiva SST — Entregas de EPP',
+      subtitle: 'Importe el archivo oficial FORMATO ENTREGA DE EPP o planilla con las entregas de dotación',
+      moduleName: 'entrega_epp',
+      columns: cols,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
+      sampleRows: [
+        {
+          'No. De Identificación': '1003481573',
+          'Nombres y apellidos': 'ROMERO MARIN IVAN DARIO',
+          'Teléfono': '3213938142',
+          'Secretaria': 'SECRETARIA GENERAL',
+          'Dirección / Subdirección': 'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO',
+          'Cargo': 'PROFESIONAL UNIVERSITARIO',
+          'Tipo de Vinculación': 'CARRERA ADMINISTRATIVA',
+          'Elemento': 'Casco de seguridad',
+          'Talla': 'N/A',
+          'Cantidad': '1 UNIDAD',
+          'Fecha': '2026-01-15',
+          'Estado': 'Entregado',
+          'Restricciones y/o Recomendaciones': 'NINGUNA',
+          'Observaciones': 'Entrega de dotación y EPP oficial'
+        }
+      ],
+      validateRow: (row) => {
+        const documento = String(
+          row['No. De Identificación'] ||
+          row['No De Identificación'] ||
+          row['No. DOCUMENTO IDENTIFICACIÓN'] ||
+          row['NÚMERO DOCUMENTO DE IDENTIFICACIÓN'] ||
+          row['Documento'] ||
+          row['DOCUMENTO'] ||
+          row['Cédula'] ||
+          row['Cedula'] ||
+          row.documento || ''
+        ).trim();
+
+        const nombreCompleto = String(
+          row['Nombres y apellidos'] ||
+          row['Servidor Público'] ||
+          row['Nombre Completo'] ||
+          row['NOMBRE COMPLETO'] ||
+          row.nombreCompleto ||
+          `${row['APELLIDOS'] || ''} ${row['NOMBRES'] || ''}`.trim()
+        ).trim();
+
+        if (!documento || !nombreCompleto) {
+          return { valid: false, error: 'Documento y Nombres y apellidos del servidor son obligatorios.' };
+        }
+
+        const elementoRaw = String(
+          row['Elemento'] ||
+          row['Elemento '] ||
+          row['ELEMENTO'] ||
+          row['ELEMENTO '] ||
+          row['Elemento EPP'] ||
+          row.elementoEpp ||
+          'Casco de seguridad'
+        ).trim();
+
+        const fechaRaw = row['Fecha'] || row['FECHA'] || row['Fecha Entrega'] || row['Fecha de Entrega'] || row.fechaEntrega;
+        let fechaEntrega = new Date().toISOString().split('T')[0];
+        if (fechaRaw) {
+          if (fechaRaw instanceof Date) {
+            fechaEntrega = fechaRaw.toISOString().split('T')[0];
+          } else {
+            const s = String(fechaRaw).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) fechaEntrega = s;
+            else if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+              const [d, m, y] = s.split('/');
+              fechaEntrega = `${y}-${m}-${d}`;
+            }
+          }
+        }
+
+        return {
+          valid: true,
+          cleanRow: {
+            documento,
+            nombreCompleto,
+            telefono: String(row['Teléfono'] || row['Telefono'] || row.telefono || '').trim(),
+            secretaria: String(row['Secretaria'] || row['Secretaría'] || row['SECRETARIA'] || row.secretaria || 'SECRETARIA GENERAL').trim(),
+            dependencia: String(row['Dirección / Subdirección'] || row['Direccion / Subdireccion'] || row['Dependencia'] || row['DEPENDENCIA'] || row.dependencia || 'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO').trim(),
+            cargo: String(row['Cargo'] || row['CARGO'] || row.cargo || 'PROFESIONAL UNIVERSITARIO').trim(),
+            tipoVinculacion: String(row['Tipo de Vinculación'] || row['Tipo de Vinculacion'] || row['Tipo Vinculación'] || row.tipoVinculacion || 'CARRERA ADMINISTRATIVA').trim(),
+            elementoEpp: elementoRaw,
+            talla: String(row['Talla'] || row['Talla '] || row['TALLA'] || row.talla || 'N/A').trim(),
+            cantidad: String(row['Cantidad'] || row['CANTIDAD'] || row.cantidad || '1 UNIDAD').trim(),
+            fechaEntrega,
+            estadoEntrega: String(row['Estado'] || row['Estado Entrega'] || row['Estado de Entrega'] || row.estadoEntrega || 'Entregado').trim(),
+            restriccionesRecomendaciones: String(row['Restricciones y/o Recomendaciones'] || row['Restricciones'] || row.restriccionesRecomendaciones || 'NINGUNA').trim(),
+            observaciones: String(row['Observaciones'] || row['OBSERVACIONES'] || row.observaciones || '').trim()
+          }
+        };
+      },
+      onImport: async (rows) => {
+        const res = await API.bulkCreateSstEpp(rows);
+        App.showToast(res.message || `Se importaron ${rows.length} entregas de EPP con éxito.`, 'success');
+        loadStats();
+        await load();
+      }
+    });
   }
 
   // ─── 5. Carga Masiva de Archivos Excel por Submódulo ─────────────────────────
@@ -4167,6 +4870,10 @@ const SstModule = (() => {
   function openImportModal() {
     if (state.tab === 'sociodemografico') {
       openSociodemograficoImportModal();
+      return;
+    }
+    if (state.tab === 'epp') {
+      openEppImportModal();
       return;
     }
 

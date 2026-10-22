@@ -52,6 +52,156 @@ const CATALOGO_EPP = [
   { codigo: 'AB', nombre: 'AB. Otros' }
 ];
 
+// 28 elementos oficiales de EPP limpios (sin prefijo de letras A., B., etc.)
+const ELEMENTOS_EPP_CLEAN = [
+  'Casco de seguridad',
+  'Gorro o Cofias',
+  'Gorro Zafari',
+  'Tapones externos',
+  'Tapones de copa (orejeras)',
+  'Careta (guadañar)',
+  'Monogafas',
+  'Gafas de seguridad',
+  'Gafas de seguridad / UV',
+  'Respirador con filtros',
+  'Filtros para respiradores',
+  'Respirador ffp2 o n95',
+  'Mascarilla desechable',
+  'Guantes de poliuretano',
+  'Guantes de vaqueta',
+  'Guantes de Nitrilo',
+  'Guantes de látex',
+  'Guantes de caucho',
+  'Guantes sustancias químicas',
+  'Chaleco Trabajo en campo',
+  'Overol de dos piezas cinta reflectiva',
+  'Overol antifluidos',
+  'Bata manga larga antifluido',
+  'Delantal Carnaza',
+  'Zapato cerrado',
+  'Botas de Seguridad',
+  'Botas pantaneras con puntera',
+  'Otros'
+];
+
+// 17 Secretarías oficiales de la Gobernación de Boyacá (sin numeración)
+const SECRETARIAS_EPP = [
+  'DESPACHO DEL GOBERNADOR',
+  'SECRETARIA DE PLANEACION',
+  'SECRETARIA DE HACIENDA',
+  'SECRETARIA DE CONTRATACION',
+  'SECRETARIA GENERAL',
+  'SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL',
+  'SECRETARIA DE INTEGRACION SOCIAL',
+  'SECRETARIA DE EDUCACIÓN',
+  'SECRETARIA DE CULTURA Y PATRIMONIO',
+  'SECRETARIA DE SALUD',
+  'SECRETARIA DE INFRAESTRUCTURA PUBLICA',
+  'SECRETARIA DE MINAS Y ENERGIA',
+  'SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+  'SECRETARIA DE AGRICULTURA',
+  'SECRETARIA DE DESARROLLO EMPRESARIAL',
+  'SECRETARIA DE TURISMO',
+  'SECRETARIA DE TIC Y GOBIERNO ABIERTO'
+];
+
+// 61 Direcciones, Subdirecciones y Unidades oficiales (sin numeración)
+const DIRECCIONES_EPP = [
+  'OFICINA DE CONTROL INTERNO',
+  'OFICINA CONTROL INTERNO DISCIPLINARIO (INSTRUCCIÓN)',
+  'UNIDAD ADMINISTRATIVA ESPECIAL DE ASESORÍA Y DEFENSA JURIDICA DEL DEPARTAMENTO',
+  'UNIDAD ADMINISTRATIVA ESPECIAL PARA LA GESTION DEL RIESGO DE DESASTRES',
+  'UNIDAD ADMINISTRATIVA DE RELACIONES NACIONALES E INTERNACIONALES',
+  'UNIDAD ADMINISTRATIVA DE COMUNICACIONES Y PROTOCOLO',
+  'SUBDIRECCION DE RADIO Y TELEVISION',
+  'OFICINA ASESORA DE PLANEACION Y METODOS DE GESTION',
+  'DIRECCION DE SEGUIMIENTO Y PLANEACION TERRITORIAL',
+  'DIRECCION GEOGRAFICA Y DE GESTION TERRITORIAL',
+  'DIRECCION DE INVERSION PUBLICA DEL DEPARTAMENTO',
+  'DIRECCION FINANCIERA Y FISCAL',
+  'SUBDIRECCION DE PRESUPUESTO',
+  'SUBDIRECCION DE CENTRAL DE CUENTAS',
+  'SUBDIRECCION DE CONTABILIDAD',
+  'SUBDIRECCION DE COBRO COACTIVO',
+  'TESORERIA GENERAL',
+  'DIRECCION DE RECAUDO Y FISCALIZACION',
+  'DIRECCION DEPARTAMENTAL DE PASIVOS PENSIONALES',
+  'SUBDIRECCION ADMINISTRATIVA DE PASIVOS PENSIONALES',
+  'SUBDIRECCION JURIDICA DE PASIVOS PENSIONALES',
+  'DIRECCION DE PROCESOS DE SELECCIÓN',
+  'DIRECCION ADMINISTRATIVA CONTRACTUAL',
+  'DIRECCION GENERAL DE TALENTO HUMANO',
+  'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO',
+  'DIRECCION SERVICIOS ADMINISTRATIVOS Y LOGÍSTICOS',
+  'SUBDIRECCION DE ATENCIÓN  AL CIUDADANO',
+  'SUBDIRECCION DE GESTION DOCUMENTAL',
+  'DIRECCION DE DIALOGO SOCIAL Y CONVIVENCIA',
+  'DIRECCION DE PARTICIPACION Y ACCIÓN COMUNAL',
+  'DIRECCION DE JUVENTUD',
+  'DIRECCION DE FAMILIA, INFANCIA, ADOLESCENCIA Y ADULTO MAYOR',
+  'DIRECCION DE LA MUJER E INCLUSIÓN SOCIAL',
+  'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR EDUCACIÓN',
+  'OFICINA ASESORA PARA LA GESTIÓN ESTRATEGICA DEL SECTOR EDUCACIÓN',
+  'DIRECCION ADMINISTRATIVA Y FINANCIERA',
+  'SUBDIRECCION DE TALENTO HUMANO',
+  'DIRECCION TECNICO PEDAGOGICA',
+  'SUBDIRECCION DE NUCLEOS EDUCATIVOS',
+  'SUBDIRECCION DE INSPECCION Y VIGILANCIA',
+  'SUBDIRECCION DE COBERTURA Y RURALIDAD',
+  'PROGRAMA DE ADULTOS Y JOVENES EN EXTRA EDAD',
+  'PROGRAMA DEL PLAN ALIMENTARIO ESCOLAR',
+  'SUBDIRECCION DE CALIDAD EDUCATIVA',
+  'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR SALUD',
+  'OFICINA ASESORA PARA LA GESTION ESTRATEGICA DEL SECTOR SALUD',
+  'DIRECCION DE PROMOCION Y PREVENCION EN SALUD',
+  'SUBDIRECCION DE PROMOCION EN SALUD',
+  'DIRECCION DE ASEGURAMIENTO EN SALUD',
+  'DIRECCION DE PRESTACION DE SERVICIOS DE SALUD',
+  'DIRECCION TECNICA  DE ESTUDIOS Y DISEÑO',
+  'DIRECCION DE DESARROLLO DE LA INFRAESTRUCTURA VIAL',
+  'DIRECCION DE VIVIENDA, EDIFICACIONES Y OBRA PUBLICA',
+  'DIRECCION DE GESTION DEL RECURSO HIDRICO Y SANEAMIENTO BASICO',
+  'DIRECCION DE DESARROLLO RURAL INTEGRAL',
+  'DIRECCION DE BIENESTAR CAMPESINO',
+  'DIRECCION DE PRODUCTIVIDAD AGROPECUARIA',
+  'DIRECCION DE DESARROLLO EMPRESARIAL',
+  'DIRECCION DE INVERSION Y COMERCIO',
+  'DIRECCION DE APROPIACION DE TIC',
+  'DIRECCION DE SISTEMAS'
+];
+
+// 19 Cargos oficiales de la Gobernación de Boyacá (sin numeración)
+const CARGOS_EPP = [
+  'GOBERNADOR',
+  'ASESOR',
+  'SECRETARIO DE DESPACHO',
+  'JEFE OFICINA ASESORA',
+  'DIRECTOR ADMINISTRATIVO',
+  'DIRECTOR TÉCNICO',
+  'PROFESIONAL UNIVERSITARIO',
+  'PROFESIONAL ESPECIALIZADO',
+  'ALMACENISTA GENERAL',
+  'TESORERO GENERAL',
+  'TECNICO ADMINISTRATIVO',
+  'TECNICO OPERATIVO',
+  'SECRETARIO EJECUTIVO',
+  'SECRETARIA EJECUTIVA',
+  'AUXILIAR ADMINISTRATIVO',
+  'AUXILIAR DE SERVICIOS GENERALES',
+  'CONDUCTOR',
+  'CONDUCTOR MECANICO',
+  'OPERARIO'
+];
+
+// 5 Tipos de Vinculación oficial (sin numeración)
+const VINCULACIONES_EPP = [
+  'CARRERA ADMINISTRATIVA',
+  'PROVISIONALIDAD',
+  'LIBRE NOMBRAMIENTO',
+  'JUDICANTE',
+  'ESTUDIANTE / PASANTE'
+];
+
 const SEDES_TRABAJO = [
   'ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.',
   'ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.',
@@ -432,9 +582,18 @@ function addOneYear(isoDate) {
 function resolveEppItem(raw) {
   if (!raw) return CATALOGO_EPP[0];
   const s = String(raw).trim().toUpperCase();
+  // 1. Por código directo (A, B, AA, etc.)
   const byCode = CATALOGO_EPP.find(e => e.codigo === s || s.startsWith(e.codigo + '.'));
   if (byCode) return byCode;
-  const byName = CATALOGO_EPP.find(e => e.nombre.toUpperCase().includes(s));
+  // 2. Por nombre limpio de elemento
+  const cleanIdx = ELEMENTOS_EPP_CLEAN.findIndex(name => name.toUpperCase() === s);
+  if (cleanIdx >= 0 && CATALOGO_EPP[cleanIdx]) return CATALOGO_EPP[cleanIdx];
+  // 3. Por coincidencia parcial
+  const byName = CATALOGO_EPP.find(e => {
+    const nomUpper = e.nombre.toUpperCase();
+    const cleanUpper = nomUpper.replace(/^[A-Z]+\.\s*/, '');
+    return nomUpper.includes(s) || s.includes(cleanUpper) || cleanUpper.includes(s);
+  });
   return byName || { codigo: 'AB', nombre: String(raw).trim() };
 }
 
@@ -452,6 +611,11 @@ router.get('/catalogs', auth, async (_, res) => {
 
     res.json({
       eppCatalogo: CATALOGO_EPP,
+      elementosEppClean: ELEMENTOS_EPP_CLEAN,
+      secretariasEpp: SECRETARIAS_EPP,
+      direccionesEpp: DIRECCIONES_EPP,
+      cargosEpp: CARGOS_EPP,
+      vinculacionesEpp: VINCULACIONES_EPP,
       sedes: SEDES_TRABAJO,
       dependencias: mergedDeps,
       tiposEmo: TIPOS_EMO,
@@ -1167,6 +1331,7 @@ router.post('/epp', auth, async (req, res) => {
   }
 
   const resolved = resolveEppItem(b.elementoEpp || b.codigoElemento);
+  const elementoFinal = b.elementoEpp ? String(b.elementoEpp).trim() : resolved.nombre;
   const fechaEntrega = toIsoDateOrNull(b.fechaEntrega) || new Date().toISOString().split('T')[0];
 
   const firmaDigital = b.firmaDigital || b.firma_digital || null;
@@ -1192,7 +1357,7 @@ router.post('/epp', auth, async (req, res) => {
         upper(b.tipoVinculacion || 'CARRERA ADMINISTRATIVA'),
         b.restriccionesRecomendaciones || 'NINGUNA',
         resolved.codigo,
-        resolved.nombre,
+        elementoFinal,
         upper(b.talla || 'N/A'),
         upper(b.cantidad || '1 UNIDAD'),
         fechaEntrega,
@@ -1222,6 +1387,7 @@ router.put('/epp/:id', auth, async (req, res) => {
   const id = parseInt(req.params.id);
   const b = req.body;
   const resolved = resolveEppItem(b.elementoEpp || b.codigoElemento);
+  const elementoFinal = b.elementoEpp ? String(b.elementoEpp).trim() : resolved.nombre;
   const fechaEntrega = toIsoDateOrNull(b.fechaEntrega) || new Date().toISOString().split('T')[0];
 
   try {
@@ -1245,7 +1411,7 @@ router.put('/epp/:id', auth, async (req, res) => {
         upper(b.tipoVinculacion || 'CARRERA ADMINISTRATIVA'),
         b.restriccionesRecomendaciones || 'NINGUNA',
         resolved.codigo,
-        resolved.nombre,
+        elementoFinal,
         upper(b.talla || 'N/A'),
         upper(b.cantidad || '1 UNIDAD'),
         fechaEntrega,
@@ -1279,6 +1445,7 @@ router.post('/epp/bulk', auth, async (req, res) => {
       const nom = upper(r.nombreCompleto || '');
       if (!doc || !nom) continue;
       const resolved = resolveEppItem(r.elementoEpp || r.codigoElemento);
+      const elementoFinal = r.elementoEpp ? String(r.elementoEpp).trim() : resolved.nombre;
       const fechaEntrega = toIsoDateOrNull(r.fechaEntrega) || new Date().toISOString().split('T')[0];
 
       await client.query(
@@ -1291,7 +1458,7 @@ router.post('/epp/bulk', auth, async (req, res) => {
           doc, nom, r.telefono || '', upper(r.secretaria || 'SECRETARIA GENERAL'),
           r.dependencia || 'SGEN - SECRETARIA GENERAL (Despacho)', r.sedeTrabajo || 'CASA DE LA TORRE',
           upper(r.cargo || 'PROFESIONAL UNIVERSITARIO'), upper(r.tipoVinculacion || 'CARRERA ADMINISTRATIVA'),
-          r.restriccionesRecomendaciones || 'NINGUNA', resolved.codigo, resolved.nombre,
+          r.restriccionesRecomendaciones || 'NINGUNA', resolved.codigo, elementoFinal,
           upper(r.talla || 'N/A'), upper(r.cantidad || '1 UNIDAD'), fechaEntrega,
           r.estadoEntrega || 'Entregado', r.observaciones || '', req.user.username || 'admin'
         ]
