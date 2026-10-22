@@ -483,7 +483,7 @@ router.get('/', auth, async (req, res) => {
 // ─── GET /api/employees/catalogs ─────────────────────────────────────────────
 router.get('/catalogs', auth, async (_, res) => {
   try {
-    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes] = await Promise.all([
+    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
       pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
       pool.query(`
@@ -494,22 +494,73 @@ router.get('/catalogs', auth, async (_, res) => {
         WHERE d.dependencia IS NOT NULL AND c.cargo IS NOT NULL
         ORDER BY d.dependencia, c.cargo
       `),
-      pool.query('SELECT departamento, municipio FROM divipola ORDER BY departamento, municipio')
+      pool.query('SELECT departamento, municipio FROM divipola ORDER BY departamento, municipio'),
+      pool.query('SELECT DISTINCT estudios FROM educacion WHERE estudios IS NOT NULL AND TRIM(estudios) <> \'\' ORDER BY estudios'),
+      pool.query('SELECT DISTINCT institucion_estudios FROM educacion WHERE institucion_estudios IS NOT NULL AND TRIM(institucion_estudios) <> \'\' ORDER BY institucion_estudios')
     ]);
 
-    // Mapeo dinámico: Dependencia -> Lista de Cargos
+    // Dependencias únicas (sin duplicados por mayúsculas/espacios)
+    const dependenciasSet = new Set();
+    const dependenciasList = [];
+    for (const r of depsRes.rows) {
+      const dep = clean(r.dependencia)?.toUpperCase();
+      if (dep && !dependenciasSet.has(dep)) {
+        dependenciasSet.add(dep);
+        dependenciasList.push(dep);
+      }
+    }
+    dependenciasList.sort((a, b) => a.localeCompare(b, 'es'));
+
+    // Mapeo dinámico: Dependencia -> Lista de Cargos (deduplicados por cargo)
     const cargosPorDependencia = {};
     for (const row of cargosPorDepRes.rows) {
-      const dep = clean(row.dependencia);
+      const dep = clean(row.dependencia)?.toUpperCase();
+      if (!dep) continue;
       if (!cargosPorDependencia[dep]) cargosPorDependencia[dep] = [];
-      cargosPorDependencia[dep].push({
-        cargo: clean(row.cargo),
-        codigo: clean(row.codigo),
-        grado: clean(row.grado),
-        asignacion: row.asignacion_sueldo,
-        nivel: inferirNivelCargo(row.cargo, row.codigo, row.nivel)
-      });
+      const cargoName = clean(row.cargo);
+      if (cargoName && !cargosPorDependencia[dep].some(c => c.cargo.toUpperCase() === cargoName.toUpperCase())) {
+        cargosPorDependencia[dep].push({
+          cargo: cargoName.toUpperCase(),
+          codigo: clean(row.codigo),
+          grado: clean(row.grado),
+          asignacion: row.asignacion_sueldo,
+          nivel: inferirNivelCargo(row.cargo, row.codigo, row.nivel)
+        });
+      }
     }
+
+    // Cargos generales deduplicados por nombre
+    const cargosList = [];
+    const cargosSet = new Set();
+    for (const r of cargosRes.rows) {
+      const cName = clean(r.cargo)?.toUpperCase();
+      if (cName && !cargosSet.has(cName)) {
+        cargosSet.add(cName);
+        cargosList.push({
+          cargo: cName,
+          codigo: clean(r.codigo),
+          grado: clean(r.grado),
+          asignacion: r.asignacion_sueldo,
+          nivel: inferirNivelCargo(r.cargo, r.codigo, r.nivel)
+        });
+      }
+    }
+    cargosList.sort((a, b) => a.cargo.localeCompare(b.cargo, 'es'));
+
+    // Estudios e Instituciones existentes deduplicados
+    const estudiosSet = new Set();
+    for (const r of (estudiosRes.rows || [])) {
+      const est = clean(r.estudios)?.toUpperCase();
+      if (est && est !== 'NO REGISTRADO' && est !== 'NINGUNO') estudiosSet.add(est);
+    }
+    const estudiosList = Array.from(estudiosSet).sort((a, b) => a.localeCompare(b, 'es'));
+
+    const instSet = new Set();
+    for (const r of (instRes.rows || [])) {
+      const inst = clean(r.institucion_estudios)?.toUpperCase();
+      if (inst && inst !== 'NO REGISTRADO' && inst !== 'NINGUNA') instSet.add(inst);
+    }
+    const instList = Array.from(instSet).sort((a, b) => a.localeCompare(b, 'es'));
 
     // DIVIPOLA: Departamentos y Municipios dependientes
     const departamentosSet = new Set();
@@ -523,16 +574,12 @@ router.get('/catalogs', auth, async (_, res) => {
     }
 
     res.json({
-      dependencias: depsRes.rows.map(r => clean(r.dependencia)).filter(Boolean),
-      departamentos: depsRes.rows.map(r => clean(r.dependencia)).filter(Boolean),
-      cargos: cargosRes.rows.map(r => ({
-        cargo: clean(r.cargo),
-        codigo: clean(r.codigo),
-        grado: clean(r.grado),
-        asignacion: r.asignacion_sueldo,
-        nivel: inferirNivelCargo(r.cargo, r.codigo, r.nivel)
-      })).filter(c => Boolean(c.cargo)),
+      dependencias: dependenciasList,
+      departamentos: dependenciasList,
+      cargos: cargosList,
       cargosPorDependencia,
+      estudios: estudiosList,
+      institucionesEstudios: instList,
       divipola: {
         departamentos: Array.from(departamentosSet).sort((a, b) => {
           if (a === 'BOYACÁ') return -1;
@@ -705,18 +752,20 @@ router.post('/', auth, async (req, res) => {
     const statusId = await nextId('estados', 'id_estado', 'EST', 4);
     const recordId = await nextId('rel_principal', 'id_registro', 'REL', 4);
 
-    const deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, dependencia || 'NO REGISTRADO', async (id, name) =>
+    const cleanDep = clean(dependencia)?.toUpperCase() || 'NO REGISTRADO';
+    const deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, cleanDep, async (id, name) =>
       client.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1,$2)', [id, name]));
 
-    const cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual || 'NO REGISTRADO', async (id, name) =>
+    const cleanCargo = clean(cargoActual)?.toUpperCase() || 'NO REGISTRADO';
+    const cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cleanCargo, async (id, name) =>
       client.query(
         "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
         [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
       ));
 
     // Inserción en personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA');
-    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ');
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA')?.toUpperCase();
+    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ')?.toUpperCase();
     const expedidaLugar = `${mpioExp}, ${deptoExp}`;
     await client.query(
       `INSERT INTO personas (
@@ -739,7 +788,7 @@ router.post('/', auth, async (req, res) => {
         tipoSangreValidado.valor,
         fechaNacimiento || null,
         fechaNacimiento ? calcularDiferenciaFechasExacta(parseExcelDate(fechaNacimiento)).texto : null,
-        sexoValidado.valor,
+        sexoValidado.valor ? clean(sexoValidado.valor).toUpperCase() : null,
         documentoPendiente
       ]
     );
@@ -753,8 +802,8 @@ router.post('/', auth, async (req, res) => {
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         contactId,
-        clean(direccion) || 'NO REGISTRADO',
-        clean(ciudad) || 'TUNJA, BOYACÁ',
+        clean(direccion)?.toUpperCase() || 'NO REGISTRADO',
+        clean(ciudad)?.toUpperCase() || 'TUNJA, BOYACÁ',
         telFijoValidado.valor || null,
         primaryCelular,
         celularesValidados.celulares,
@@ -773,12 +822,12 @@ router.post('/', auth, async (req, res) => {
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         educationId,
-        clean(estudios) || 'NO REGISTRADO',
+        clean(estudios)?.toUpperCase() || 'NO REGISTRADO',
         matriculaValidada.valor,
-        clean(institucionEstudios) || 'NO REGISTRADO',
-        clean(postgrado) || null,
-        clean(institucionPostgrado) || null,
-        clean(diplomadoCapSena) || null,
+        clean(institucionEstudios)?.toUpperCase() || 'NO REGISTRADO',
+        clean(postgrado)?.toUpperCase() || null,
+        clean(institucionPostgrado)?.toUpperCase() || null,
+        clean(diplomadoCapSena)?.toUpperCase() || null,
         tieneDip,
         correoInstValidado.valor
       ]
@@ -794,11 +843,11 @@ router.post('/', auth, async (req, res) => {
         statusId,
         normalizarClasificacionEmpleo(clasificacionEmpleo),
         situacionValidada.situacion,
-        funcionesValidadas.valor,
-        clean(novedades) || '',
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null,
+        clean(novedades)?.toUpperCase() || '',
         opec || null,
-        estadoServidorValidado.valor,
-        funcionesValidadas.valor
+        estadoServidorValidado.valor ? clean(estadoServidorValidado.valor).toUpperCase() : 'ACTIVO',
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null
       ]
     );
 
@@ -1191,8 +1240,8 @@ router.put('/:cedula', auth, async (req, res) => {
     }
 
     // Actualizar personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion);
-    const deptoExp = clean(departamentoExpedicion);
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
+    const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
     const expedidaLugar = mpioExp ? `${mpioExp}${deptoExp ? ', ' + deptoExp : ''}` : null;
     await client.query(
       `UPDATE personas
@@ -1210,7 +1259,7 @@ router.put('/:cedula', auth, async (req, res) => {
         nombreValidado.primerApellido,
         nombreValidado.segundoApellido,
         nombreValidado.nombres,
-        sexoValidado.valor,
+        sexoValidado.valor ? clean(sexoValidado.valor).toUpperCase() : null,
         tipoSangreValidado ? tipoSangreValidado.valor : null,
         fechaNacimiento || null,
         deptoExp || null,
@@ -1234,8 +1283,8 @@ router.put('/:cedula', auth, async (req, res) => {
         primaryCelular,
         celularesValidados.celulares,
         telFijoValidado.valor,
-        clean(direccion) || null,
-        clean(ciudad) || null,
+        clean(direccion)?.toUpperCase() || null,
+        clean(ciudad)?.toUpperCase() || null,
         id_contacto
       ]
     );
@@ -1251,12 +1300,12 @@ router.put('/:cedula', auth, async (req, res) => {
            correo_institucional=$8
        WHERE id_educacion=$9`,
       [
-        clean(estudios) || null,
+        clean(estudios)?.toUpperCase() || null,
         matriculaValidada.valor,
-        clean(institucionEstudios) || null,
-        clean(postgrado) || null,
-        clean(institucionPostgrado) || null,
-        clean(diplomadoCapSena) || null,
+        clean(institucionEstudios)?.toUpperCase() || null,
+        clean(postgrado)?.toUpperCase() || null,
+        clean(institucionPostgrado)?.toUpperCase() || null,
+        clean(diplomadoCapSena)?.toUpperCase() || null,
         tieneDip,
         correoInstValidado.valor,
         id_educacion
@@ -1274,10 +1323,10 @@ router.put('/:cedula', auth, async (req, res) => {
       [
         normalizarClasificacionEmpleo(clasificacionEmpleo),
         situacionValidada.situacion,
-        funcionesValidadas.valor,
-        clean(novedades) || null,
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null,
+        clean(novedades)?.toUpperCase() || null,
         opec || null,
-        estadoServidorValidado.valor,
+        estadoServidorValidado.valor ? clean(estadoServidorValidado.valor).toUpperCase() : 'ACTIVO',
         id_estado
       ]
     );
@@ -1294,8 +1343,8 @@ router.put('/:cedula', auth, async (req, res) => {
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
-      const cleanName = clean(name) || 'NO REGISTRADO';
-      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
+      const cleanName = clean(name)?.toUpperCase() || 'NO REGISTRADO';
+      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE UPPER(${nameCol}) = UPPER($1) LIMIT 1`, [cleanName]);
       if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
       const id = await nextId(table, idCol, prefix, width);
       await insertFn(id, cleanName);
@@ -1304,13 +1353,13 @@ router.put('/:cedula', auth, async (req, res) => {
 
     let deptId = null;
     if (dependencia) {
-      deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, dependencia, async (id, name) =>
+      deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, clean(dependencia).toUpperCase(), async (id, name) =>
         client.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1,$2)', [id, name]));
     }
 
     let cargoId = null;
     if (cargoActual) {
-      cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual, async (id, name) =>
+      cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, clean(cargoActual).toUpperCase(), async (id, name) =>
         client.query(
           "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
           [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
@@ -1390,6 +1439,58 @@ router.put('/:cedula', auth, async (req, res) => {
     await client.query('ROLLBACK');
     console.error('[employees] update error:', err.message);
     res.status(500).json({ error: 'Error al actualizar el servidor: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── PATCH /api/employees/:cedula/status ─────────────────────────────────────
+router.patch('/:cedula/status', auth, async (req, res) => {
+  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const { cedula } = req.params;
+  const { estadoServidor } = req.body;
+  if (!estadoServidor) return res.status(400).json({ error: 'estadoServidor es requerido.' });
+
+  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
+
+  const client = await pool.connect();
+  try {
+    const cleanTarget = (cedula || '').trim();
+    const numericTarget = cleanTarget.replace(/\D/g, '');
+
+    const r = await client.query(
+      `SELECT r.id_estado, p.nombre_completo 
+       FROM rel_principal r 
+       LEFT JOIN personas p ON p.id_persona = r.id_persona 
+       WHERE r.id_registro = $1 
+          OR r.id_persona = $1 
+          OR p.id_persona = $1 
+          OR p.cedula = $1 
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $1 
+          OR ($2 <> '' AND (p.cedula = $2 OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $2)) 
+       LIMIT 1`,
+      [cleanTarget, numericTarget]
+    );
+
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: 'Servidor no encontrado.' });
+    }
+
+    const { id_estado, nombre_completo } = r.rows[0];
+    await client.query(
+      `UPDATE estados SET estado_servidor = $1 WHERE id_estado = $2`,
+      [estadoServidorValidado.valor, id_estado]
+    );
+
+    res.json({
+      success: true,
+      message: `Estado actualizado a ${estadoServidorValidado.valor}`,
+      estadoServidor: estadoServidorValidado.valor
+    });
+  } catch (err) {
+    console.error('[employees-service] error updating status:', err.message);
+    res.status(500).json({ error: 'Error al actualizar el estado: ' + err.message });
   } finally {
     client.release();
   }

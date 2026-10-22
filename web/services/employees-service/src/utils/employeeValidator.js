@@ -7,7 +7,7 @@
 const GRADOS_VALIDOS = [
   '01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
   '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-  'N/a', 'NE'
+  'N/A', 'NE'
 ];
 
 const CLASIFICACIONES_EMPLEO = [
@@ -222,7 +222,8 @@ function validateGrado(val) {
   if (val === null || val === undefined || String(val).trim() === '') {
     return { valido: true, valor: null };
   }
-  const str = String(val).trim();
+  let str = String(val).trim();
+  if (/^\d$/.test(str)) str = '0' + str;
   const match = GRADOS_VALIDOS.find(g => g.toLowerCase() === str.toLowerCase());
   if (match) {
     return { valido: true, valor: match };
@@ -475,10 +476,10 @@ function validateCelulares(input) {
   for (let i = 0; i < arr.length; i++) {
     const raw = String(arr[i] || '').trim().replace(/[\s\-\.]/g, '');
     if (!raw) continue;
-    if (!/^\d{9,10}$/.test(raw)) {
+    if (!/^[3]\d{8,9}$/.test(raw)) {
       return {
         valido: false,
-        error: `El número de celular "${arr[i]}" no es válido. Debe tener entre 9 y 10 dígitos numéricos.`
+        error: `El número de celular "${arr[i]}" debe iniciar con el dígito 3 y contener entre 9 y 10 dígitos numéricos.`
       };
     }
     cleaned.push(raw);

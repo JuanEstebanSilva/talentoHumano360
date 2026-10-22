@@ -220,10 +220,7 @@ const RequestsModule = (() => {
       actions.push({
         text: 'Editar Solicitud',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(id);
-        }
+        action: () => openEdit(id)
       });
     }
     App.openModal(`Detalles de Solicitud · ${r.radicado || ''}`, content, actions);

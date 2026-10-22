@@ -121,6 +121,8 @@ const API = (() => {
       return data;
     },
     updateEmployee: (cedula, data) => request(`/employees/${cedula}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateEmployeeStatus: (cedula, estadoServidor) =>
+      request(`/employees/${cedula}/status`, { method: 'PATCH', body: JSON.stringify({ estadoServidor }) }),
     deleteEmployee: (cedula) => request(`/employees/${cedula}`, { method: 'DELETE' }),
 
     // Vacaciones

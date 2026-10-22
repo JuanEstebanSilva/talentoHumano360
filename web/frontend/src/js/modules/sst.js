@@ -1668,7 +1668,7 @@ const SstModule = (() => {
       actions.push({
         text: 'Editar Registro',
         cls: 'btn-gold',
-        action: () => { App.closeModal(); openEdit(id); }
+        action: () => openEdit(id)
       });
     }
     App.openModal(`Detalle SST · ${r.radicado}`, html, actions);

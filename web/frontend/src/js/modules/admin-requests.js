@@ -321,10 +321,7 @@ const AdminRequestsModule = (() => {
       actions.push({
         text: 'Editar Solicitud',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(id);
-        }
+        action: () => openEdit(id)
       });
     }
     App.openModal(`Detalles · ${r.tipo || state.tipo} (${r.radicado || ''})`, content, actions);

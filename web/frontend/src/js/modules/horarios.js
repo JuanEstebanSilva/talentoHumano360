@@ -2129,7 +2129,7 @@ const HorariosModule = (() => {
                         <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="font-weight:700;">
                           📄 Ver Documento
                         </button>
-                        <button type="button" class="btn btn-outline btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})">
                           Reemplazar Archivo
                         </button>
                       </div>
@@ -2137,7 +2137,7 @@ const HorariosModule = (() => {
                   ` : `
                     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                       <span style="color:var(--text-muted); font-size:13px;">No cuenta con soporte digitalizado adjunto actualmente.</span>
-                      <button type="button" class="btn btn-primary btn-sm" onclick="App.closeModal(); HorariosModule.openUploadSoporteModal(${h.id_horario})" style="font-weight:700;">
+                      <button type="button" class="btn btn-primary btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})" style="font-weight:700;">
                         📎 Adjuntar Resolución Firmada
                       </button>
                     </div>
@@ -2247,12 +2247,9 @@ const HorariosModule = (() => {
       ];
       if (Auth.canEdit()) {
         actions.push({
-          text: 'Editar Servidor',
+          text: 'Editar Horario',
           cls: 'btn-gold',
-          action: () => {
-            App.closeModal();
-            openEdit(h.id_horario);
-          }
+          action: () => openEdit(h.id_horario)
         });
       }
 

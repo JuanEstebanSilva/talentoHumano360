@@ -732,10 +732,7 @@ const ViaticosModule = (() => {
       actions.push({
         text: 'Editar Viático',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(id);
-        }
+        action: () => openEdit(id)
       });
     }
     App.openModal(`Detalle del Viático · ${r.radicado || ''}`, content, actions);

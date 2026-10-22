@@ -1617,7 +1617,7 @@ tbody tr:last-child td {
   height: 38px;
   min-width: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-forest, #355833) 0%, var(--color-green-dark, #287522) 100%);
+  background: #355833 !important;
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 800;
@@ -1625,13 +1625,19 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   letter-spacing: -0.5px;
-  box-shadow: 0 2px 6px rgba(40, 117, 34, 0.25);
+  box-shadow: 0 2px 6px rgba(53, 88, 51, 0.35);
   flex-shrink: 0;
 }
 
 .user-row-avatar--vacante {
   background: linear-gradient(135deg, var(--color-taupe, #857352) 0%, var(--color-rust, #A5451B) 100%);
   color: #ffffff;
+}
+
+[data-theme="dark"] .user-row-avatar:not(.user-row-avatar--vacante) {
+  background: #D1AD2A !important;
+  color: #111827 !important;
+  box-shadow: 0 2px 8px rgba(209, 173, 42, 0.4) !important;
 }
 
 /* ─── Indicador de Progreso Accesible en Botones (Sin Spinners Tradicionales) ─ */
@@ -4045,6 +4051,49 @@ tbody tr:last-child td {
   white-space: nowrap !important;
 }
 
+.td-tiempo-total {
+  color: #914169 !important;
+  font-weight: 700 !important;
+  font-size: 12.5px;
+}
+
+[data-theme="dark"] .td-tiempo-total {
+  color: #E879F9 !important;
+}
+
+.emp-tiempo-otros {
+  font-size: 11px;
+  color: #1D8096;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+[data-theme="dark"] .emp-tiempo-otros,
+[data-theme="dark"] .emp-tiempo-otros span {
+  color: #38BDF8 !important;
+}
+
+.badge--clickable {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.badge--clickable:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.03);
+  filter: brightness(1.06);
+}
+.badge--clickable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.badge--countdown {
+  animation: pulse-countdown 1s ease-in-out infinite;
+}
+@keyframes pulse-countdown {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.88; transform: scale(1.02); }
+}
+
 .user-table-title {
   font-weight: 600;
   font-size: 12.5px;
@@ -5230,7 +5279,7 @@ tbody tr:last-child td {
 }
 
 .modal-box.modal-form-emp .modal-body {
-  padding: 18px 24px 24px 24px !important;
+  padding: 0 24px 24px 24px !important;
   max-height: calc(90vh - 130px) !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
@@ -5271,6 +5320,23 @@ tbody tr:last-child td {
   overflow: visible !important;
 }
 
+.emp-form-tabs-container {
+  position: sticky;
+  top: 0;
+  margin: 0 -24px 16px -24px;
+  padding: 16px 24px 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  z-index: 30;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .emp-form-tabs-container {
+  background: var(--color-surface, #1e293b) !important;
+  border-bottom-color: var(--color-border) !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
+
 .form-tabs {
   display: flex;
   gap: 6px;
@@ -5279,10 +5345,9 @@ tbody tr:last-child td {
   border-radius: 12px;
   border: 1px solid var(--color-border);
   overflow-x: auto;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   flex-shrink: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -5334,8 +5399,14 @@ tbody tr:last-child td {
 
 [data-theme="dark"] .form-tab-btn.active {
   background: #1e293b;
-  color: #4ade80;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #F472B6 !important;
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.25);
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+[data-theme="dark"] .form-tab-btn.active svg {
+  color: #F472B6 !important;
+  stroke: #F472B6 !important;
 }
 
 .form-tab-pane {
@@ -5345,6 +5416,88 @@ tbody tr:last-child td {
 .form-tab-pane.active {
   display: block;
   animation: fichaFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Selects con flecha/chevron garantizada ─── */
+.form-grid select.filter-select,
+.modal-form-emp select.filter-select,
+select.filter-select {
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23007bc7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+}
+
+[data-theme="dark"] .form-grid select.filter-select,
+[data-theme="dark"] .modal-form-emp select.filter-select,
+[data-theme="dark"] select.filter-select,
+[data-theme="dark"] select.form-select,
+[data-theme="dark"] select {
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #0f172a !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+  color: #f8fafc !important;
+}
+
+/* ─── Calendario / Fechas con área de clic ampliada ─── */
+.modal-form-emp input[type="date"],
+.form-grid input[type="date"] {
+  cursor: pointer;
+  position: relative;
+}
+
+.modal-form-emp input[type="date"]::-webkit-calendar-picker-indicator,
+.form-grid input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  filter: invert(0.35) sepia(1) saturate(5) hue-rotate(175deg);
+}
+
+.modal-form-emp input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.form-grid input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background: rgba(0, 123, 199, 0.12);
+  transform: scale(1.18);
+}
+
+/* ─── Botón Eliminar Periodo Rojo Líquido (Acción) ─── */
+.btn-del-periodo {
+  background: linear-gradient(180deg, #ff453a 0%, #d32f2f 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 3px 10px rgba(255, 69, 58, 0.35) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-del-periodo:hover {
+  transform: translateY(-2px) scale(1.08) !important;
+  background: linear-gradient(180deg, #ff5b52 0%, #e53935 100%) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85), 0 6px 18px rgba(255, 69, 58, 0.5) !important;
 }
 
 /* ─── Input Error Highlight Animation ─── */

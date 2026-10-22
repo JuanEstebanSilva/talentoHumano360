@@ -36,6 +36,8 @@ const App = (() => {
   }
 
   // ─── Modal System ──────────────────────────────────────────────────────────
+  let modalCloseSeq = 0;
+
   function openModal(title, bodyHtml, footerButtons = [], customClass = '') {
     const overlay = document.getElementById('modal-overlay');
     const titleEl = document.getElementById('modal-title');
@@ -44,8 +46,21 @@ const App = (() => {
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
 
+    modalCloseSeq++; // Invalidate any running closeModal animation callbacks
+
+    if (window.anime && window.anime.remove) {
+      window.anime.remove(overlay);
+      if (box) window.anime.remove(box);
+    }
+
+    const isAlreadyOpen = overlay.style.display === 'flex' && window.getComputedStyle(overlay).opacity > 0.1;
+
     if (box) {
       box.className = 'modal-box' + (customClass ? ' ' + customClass : '');
+      box.style.maxWidth = '';
+      box.style.width = '';
+      box.style.transform = 'none';
+      box.style.opacity = '1';
     }
 
     titleEl.textContent = title;
@@ -61,18 +76,18 @@ const App = (() => {
     });
 
     overlay.style.display = 'flex';
-    overlay.style.opacity = '0';
     document.body.style.overflow = 'hidden';
 
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
-      FX.animateModalOpen(overlay, box);
+      FX.animateModalOpen(overlay, box, isAlreadyOpen);
     } else {
       overlay.style.opacity = '1';
     }
   }
 
   function closeModal() {
+    const currentSeq = ++modalCloseSeq;
     const overlay = document.getElementById('modal-overlay');
     const box = document.querySelector('.modal-box');
     if (!overlay) return;
@@ -87,6 +102,7 @@ const App = (() => {
 
     if (typeof FX !== 'undefined') {
       FX.animateModalClose(overlay, box, () => {
+        if (modalCloseSeq !== currentSeq) return;
         overlay.style.display = 'none';
         document.body.style.overflow = '';
       });

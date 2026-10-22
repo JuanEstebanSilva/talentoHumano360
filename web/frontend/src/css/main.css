@@ -2720,7 +2720,6 @@ body {
 [data-theme="dark"] .form-grid .filter-select,
 [data-theme="dark"] textarea {
   background-color: var(--color-surface-2) !important;
-  background: var(--color-surface-2) !important;
   border-color: var(--color-border) !important;
   color: #f8fafc !important;
 }

@@ -15,7 +15,7 @@ const EmployeesModule = (() => {
       cargos: [],
       cargosPorDependencia: {},
       divipola: { departamentos: [], municipiosPorDepto: {} },
-      grados: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 'N/a', 'NE'],
+      grados: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', 'N/A', 'NE'],
       clasificaciones: [
         'Carrera Administrativa',
         'Encargo en Vacante Definitiva',
@@ -182,6 +182,146 @@ const EmployeesModule = (() => {
     if (val === 'activo') return '<span class="badge badge--activo">Activo</span>';
     if (val === 'pensionado') return '<span class="badge badge--pensionado">Pensionado</span>';
     return '<span class="badge badge--inactivo">Inactivo</span>';
+  }
+
+  const pendingInactivations = {};
+
+  function renderEstadoBadge(emp, itemKey) {
+    const pending = pendingInactivations[itemKey];
+    const est = (emp.estadoServidor || 'Activo').toLowerCase();
+    const canEdit = Auth.canEdit();
+
+    if (pending) {
+      return `
+        <button type="button"
+                id="btn-estado-${itemKey}"
+                class="badge badge--inactivo badge--clickable"
+                onclick="EmployeesModule.cancelInactivation('${itemKey}')"
+                title="Deshacer: Click para cancelar inactivación"
+                aria-label="Inactivo pendiente. Click para cancelar."
+                tabindex="0">
+          Inactivo
+        </button>`;
+    }
+
+    if (est === 'activo') {
+      return `
+        <button type="button"
+                id="btn-estado-${itemKey}"
+                class="badge badge--activo ${canEdit ? 'badge--clickable' : ''}"
+                ${canEdit ? `onclick="EmployeesModule.startInactivation('${itemKey}')"` : 'disabled'}
+                title="${canEdit ? 'Click para inactivar (3s para deshacer)' : 'Servidor Activo'}"
+                aria-label="Estado Activo. ${canEdit ? 'Click para inactivar' : ''}"
+                tabindex="${canEdit ? '0' : '-1'}">
+          Activo
+        </button>`;
+    }
+
+    if (est === 'pensionado') {
+      return '<span class="badge badge--pensionado">Pensionado</span>';
+    }
+
+    return `
+      <button type="button"
+              id="btn-estado-${itemKey}"
+              class="badge badge--inactivo ${canEdit ? 'badge--clickable' : ''}"
+              ${canEdit ? `onclick="EmployeesModule.reactivateEmployee('${itemKey}')"` : 'disabled'}
+              title="${canEdit ? 'Click para reactivar como Activo' : 'Servidor Inactivo'}"
+              aria-label="Estado Inactivo. ${canEdit ? 'Click para reactivar' : ''}"
+              tabindex="${canEdit ? '0' : '-1'}">
+        Inactivo
+      </button>`;
+  }
+
+  function startInactivation(itemKey) {
+    if (!Auth.canEdit()) return;
+    const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
+    if (!emp) return;
+
+    if (pendingInactivations[itemKey]) {
+      cancelInactivation(itemKey);
+      return;
+    }
+
+    const record = {
+      emp,
+      timerId: null
+    };
+    pendingInactivations[itemKey] = record;
+
+    const td = document.getElementById(`td-estado-${itemKey}`);
+    if (td) {
+      td.innerHTML = renderEstadoBadge(emp, itemKey);
+    }
+
+    record.timerId = setTimeout(async () => {
+      await finalizeInactivation(itemKey);
+    }, 3000);
+  }
+
+  function cancelInactivation(itemKey) {
+    const record = pendingInactivations[itemKey];
+    if (!record) return;
+
+    if (record.timerId) clearTimeout(record.timerId);
+    delete pendingInactivations[itemKey];
+
+    const emp = record.emp || state.data.find(x => String(x.cedula || x.id) === String(itemKey));
+    if (emp) {
+      emp.estadoServidor = 'Activo';
+      const td = document.getElementById(`td-estado-${itemKey}`);
+      if (td) {
+        td.innerHTML = renderEstadoBadge(emp, itemKey);
+      }
+    }
+    App.showToast('Acción cancelada. El servidor continúa Activo.', 'info');
+  }
+
+  async function finalizeInactivation(itemKey) {
+    const record = pendingInactivations[itemKey];
+    if (!record) return;
+
+    if (record.timerId) clearTimeout(record.timerId);
+    delete pendingInactivations[itemKey];
+
+    const emp = record.emp;
+    const targetCedula = emp.cedula || emp.id;
+
+    try {
+      await API.updateEmployeeStatus(targetCedula, 'Inactivo');
+      emp.estadoServidor = 'Inactivo';
+      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} inactivado y archivado.`, 'warning');
+      await load();
+    } catch (err) {
+      console.error('[employees] Error al inactivar servidor:', err);
+      App.showToast(`Error al inactivar servidor: ${err.message}`, 'error');
+      emp.estadoServidor = 'Activo';
+      await load();
+    }
+  }
+
+  async function reactivateEmployee(itemKey) {
+    if (!Auth.canEdit()) return;
+    const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
+    if (!emp) return;
+
+    const targetCedula = emp.cedula || emp.id;
+    try {
+      await API.updateEmployeeStatus(targetCedula, 'Activo');
+      emp.estadoServidor = 'Activo';
+      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} reactivado como Activo.`, 'success');
+      await load();
+    } catch (err) {
+      console.error('[employees] Error al reactivar servidor:', err);
+      App.showToast(`Error al reactivar servidor: ${err.message}`, 'error');
+    }
+  }
+
+  function clearPendingInactivations() {
+    Object.keys(pendingInactivations).forEach(k => {
+      if (pendingInactivations[k].timerId) clearTimeout(pendingInactivations[k].timerId);
+      delete pendingInactivations[k];
+    });
   }
 
   const CLASIFICACION_MAP = {
@@ -389,8 +529,12 @@ const EmployeesModule = (() => {
             <div class="skeleton skeleton-line" style="width:40%; height:10px;" aria-hidden="true"></div>
           </div>
         </td>
-        <td><div class="skeleton skeleton-line" style="width:60%; height:12px;" aria-hidden="true"></div></td>
-        <td><div class="skeleton skeleton-line" style="width:65%; height:12px;" aria-hidden="true"></div></td>
+        <td>
+          <div style="display:flex; flex-direction:column; gap:5px;">
+            <div class="skeleton skeleton-line" style="width:75%; height:13px;" aria-hidden="true"></div>
+            <div class="skeleton skeleton-line" style="width:45%; height:10px;" aria-hidden="true"></div>
+          </div>
+        </td>
         <td><div class="skeleton skeleton-line" style="width:70%; height:13px;" aria-hidden="true"></div></td>
         <td><div class="skeleton skeleton-badge" style="width:75px; height:22px; border-radius:9999px;" aria-hidden="true"></div></td>
         <td class="td-actions">
@@ -440,12 +584,16 @@ const EmployeesModule = (() => {
       state.totalPages = res.totalPages || 1;
       renderTable();
       renderPagination();
+      const countEl = document.getElementById('emp-count');
+      if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
     } catch (err) {
+      const countEl = document.getElementById('emp-count');
+      if (countEl) countEl.textContent = '—';
       const tbody = document.getElementById('emp-tbody');
       if (tbody) {
         tbody.setAttribute('aria-busy', 'false');
         tbody.removeAttribute('role');
-        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state" style="color:var(--color-danger); border-color:var(--color-danger);">
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--color-danger); border-color:var(--color-danger);">
           <span class="empty-state-title" style="color:var(--color-danger);">Error al cargar servidores</span>
           <span class="empty-state-desc">${escHtml(err.message)}</span>
           <button class="btn btn-secondary btn-sm" onclick="EmployeesModule.load()" style="margin-top:12px;">Reintentar</button>
@@ -467,7 +615,7 @@ const EmployeesModule = (() => {
     tbody.removeAttribute('aria-valuetext');
 
     if (!state.data.length) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="empty-state-title">No se encontraron servidores</span>
         <span class="empty-state-desc">${state.q ? `No hay resultados para "${state.q}"` : 'Aún no hay servidores registrados.'}</span>
@@ -510,14 +658,16 @@ const EmployeesModule = (() => {
             ${(e.gradoActual && e.gradoActual !== 'N/A') ? ` • Grado <strong>${escHtml(e.gradoActual)}</strong>` : ''}
           </div>
         </td>
-        <td style="font-size:12px;" title="Otro Tiempo Calculado: ${escHtml(e.otroTiempoCalculado || '0 años, 0 meses, 0 días')}${e.otroTiempoGobernacion ? ` • Original: ${escHtml(e.otroTiempoGobernacion)}` : ''}">
-          ${(e.otroTiempoCalculado && e.otroTiempoCalculado !== '0 años, 0 meses, 0 días')
-          ? `<span style="font-weight:600; color:var(--text-primary);">${escHtml(e.otroTiempoCalculado)}</span>`
-          : (e.otroTiempoCalculado ? `<span style="color:var(--text-muted);">${escHtml(e.otroTiempoCalculado)}</span>` : '—')}
+        <td title="Tiempo de Servicio: ${escHtml(e.tiempoServicioCalculado || '—')}${e.otroTiempoCalculado ? ` • Otro Tiempo Gobernación: ${escHtml(e.otroTiempoCalculado)}` : ''}">
+          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">
+            ${escHtml(e.tiempoServicioCalculado || '—')}
+          </div>
+          <div class="emp-tiempo-otros" title="Otros tiempos en Gobernación: ${escHtml(e.otroTiempoCalculado || '0 años, 0 meses, 0 días')}">
+            Otros: <span>${escHtml(e.otroTiempoCalculado || '0 años, 0 meses, 0 días')}</span>
+          </div>
         </td>
-        <td style="font-size:12px;" title="${escHtml(e.tiempoServicioCalculado)}">${escHtml(e.tiempoServicioCalculado || '—')}</td>
-        <td style="font-size:12px; font-weight:700; color:var(--color-primary);" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</td>
-        <td>${badgeEstadoServidor(e.estadoServidor)}</td>
+        <td class="td-tiempo-total" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</td>
+        <td id="td-estado-${itemKey}">${renderEstadoBadge(e, itemKey)}</td>
         <td class="td-actions">
           <div class="td-actions-wrap">
             <button class="btn-action-view" onclick="EmployeesModule.openView('${itemKey}')" title="Ver Detalles" aria-label="Ver detalles de ${escHtml(e.nombreCompleto)}">
@@ -1216,10 +1366,7 @@ const EmployeesModule = (() => {
       actions.push({
         text: isVacante ? 'Editar Plaza' : 'Editar Servidor',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(idOrCedula);
-        }
+        action: () => openEdit(idOrCedula)
       });
     }
     App.openModal(isVacante ? 'Ficha de Plaza Vacante' : 'Ficha Integral del Servidor Público', content, actions, 'modal-ficha modal-lg');
@@ -1330,9 +1477,32 @@ const EmployeesModule = (() => {
     attachFormListeners(emp);
   }
 
+  function extractNombresApellidos(emp = {}) {
+    let nombres = emp.nombres || '';
+    let apellidos = emp.apellidos || [emp.primerApellido, emp.segundoApellido].filter(Boolean).join(' ') || '';
+    if (!nombres && !apellidos && emp.nombreCompleto) {
+      const clean = sanitizeText(emp.nombreCompleto).trim();
+      const parts = clean.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) {
+        nombres = parts[0];
+      } else if (parts.length === 2) {
+        apellidos = parts[0];
+        nombres = parts[1];
+      } else if (parts.length === 3) {
+        apellidos = `${parts[0]} ${parts[1]}`;
+        nombres = parts[2];
+      } else {
+        apellidos = `${parts[0]} ${parts[1]}`;
+        nombres = parts.slice(2).join(' ');
+      }
+    }
+    return { nombres: nombres.trim(), apellidos: apellidos.trim() };
+  }
+
   function buildForm(emp = {}) {
     const isVacante = Boolean(emp.es_vacante || emp.situacion === 'VACANTE' || (emp.nombreCompleto && emp.nombreCompleto.startsWith('PLAZA VACANTE')));
     const cats = state.catalogs;
+    const { nombres: nombresVal, apellidos: apellidosVal } = extractNombresApellidos(emp);
 
     if (isVacante) {
       return `
@@ -1372,39 +1542,48 @@ const EmployeesModule = (() => {
       ? emp.otroTiempoPeriodos
       : [];
 
+    const isEdit = Boolean(emp.cedula || emp.id);
+
     return `
       <div class="emp-form-wrapper">
-        <!-- BARRA ÚNICA DE NAVEGACIÓN HORIZONTAL (SIN NÚMEROS, SOLO EMOJI Y NOMBRE) -->
-        <div class="form-tabs">
-          <button type="button" class="form-tab-btn active" data-tab="tab-form-personales" onclick="EmployeesModule.switchFormTab('tab-form-personales')">
-            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            Datos Personales
-          </button>
-          <button type="button" class="form-tab-btn" data-tab="tab-form-cargo" onclick="EmployeesModule.switchFormTab('tab-form-cargo')">
-            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-            Cargo & Ubicación
-          </button>
-          <button type="button" class="form-tab-btn" data-tab="tab-form-tiempos" onclick="EmployeesModule.switchFormTab('tab-form-tiempos')">
-            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Tiempos de Servicio
-          </button>
-          <button type="button" class="form-tab-btn" data-tab="tab-form-formacion" onclick="EmployeesModule.switchFormTab('tab-form-formacion')">
-            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-            Formación & Contacto
-          </button>
+        <!-- BARRA ÚNICA DE NAVEGACIÓN HORIZONTAL PEGADA AL TOPE (SIN FUGAS AL SCROLLEAR) -->
+        <div class="emp-form-tabs-container">
+          <div class="form-tabs">
+            <button type="button" class="form-tab-btn active" data-tab="tab-form-personales" onclick="EmployeesModule.switchFormTab('tab-form-personales')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              Datos Personales
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-form-cargo" onclick="EmployeesModule.switchFormTab('tab-form-cargo')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+              Cargo & Ubicación
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-form-tiempos" onclick="EmployeesModule.switchFormTab('tab-form-tiempos')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              Tiempos de Servicio
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-form-formacion" onclick="EmployeesModule.switchFormTab('tab-form-formacion')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+              Formación & Contacto
+            </button>
+          </div>
         </div>
 
         <!-- ─── PESTAÑA: DATOS PERSONALES ─── -->
         <div id="tab-form-personales" class="form-tab-pane active" style="padding-top: 6px;">
           <div class="form-grid">
-            <div class="form-group span-2">
-              <label class="form-label" for="ef-nombre">Nombres y Apellidos * <span style="font-size:11px; color:var(--text-muted);">(Solo admite letras y espacios)</span></label>
-              <input id="ef-nombre" class="form-input" placeholder="Ej: PEREZ RODRIGUEZ JUAN CARLOS" value="${escHtml(emp.nombreCompleto || '')}" required />
+            <div class="form-group">
+              <label class="form-label" for="ef-nombres">Nombres *</label>
+              <input id="ef-nombres" class="form-input" placeholder="Ej: JUAN CARLOS" value="${escHtml(nombresVal)}" required />
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-cedula">Cédula de Ciudadanía * <span style="font-size:11px; color:var(--text-muted);">(Solo números)</span></label>
-              <input id="ef-cedula" class="form-input font-mono" placeholder="Ej: 1049603050" value="${escHtml(emp.cedula || '')}" required />
+              <label class="form-label" for="ef-apellidos">Apellidos *</label>
+              <input id="ef-apellidos" class="form-input" placeholder="Ej: PEREZ RODRIGUEZ" value="${escHtml(apellidosVal)}" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ef-cedula">Cédula de Ciudadanía *</label>
+              <input id="ef-cedula" class="form-input font-mono" placeholder="Ej: 1000000000" value="${escHtml(emp.cedula || '')}" required />
             </div>
 
             <div class="form-group">
@@ -1418,15 +1597,15 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-depto-exp">Depto. de Expedición Cédula</label>
               <select id="ef-depto-exp" class="filter-select">
-                <option value="">Seleccionar Departamento...</option>
-                ${cats.divipola.departamentos.map(dep => `<option value="${escHtml(dep)}" ${(emp.departamentoExpedicion || 'BOYACÁ') === dep ? 'selected' : ''}>${escHtml(dep)}</option>`).join('')}
+                <option value="">(Sin seleccionar / Vacío)</option>
+                ${cats.divipola.departamentos.map(dep => `<option value="${escHtml(dep)}" ${(isEdit && emp.departamentoExpedicion === dep) ? 'selected' : ''}>${escHtml(dep)}</option>`).join('')}
               </select>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-municipio-exp">Municipio de Expedición Cédula</label>
               <select id="ef-municipio-exp" class="filter-select">
-                <option value="${escHtml(emp.municipioExpedicion || emp.ciudadExpedicion || '')}">${escHtml(emp.municipioExpedicion || emp.ciudadExpedicion || '(Sin seleccionar / Vacío)')}</option>
+                <option value="${isEdit ? escHtml(emp.municipioExpedicion || emp.ciudadExpedicion || '') : ''}">${isEdit ? escHtml(emp.municipioExpedicion || emp.ciudadExpedicion || '(Sin seleccionar / Vacío)') : '(Sin seleccionar / Vacío)'}</option>
               </select>
             </div>
 
@@ -1455,15 +1634,19 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-dep">Dependencia <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
               <select id="ef-dep" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${cats.dependencias.map(d => `<option value="${escHtml(d)}" ${d === emp.dependencia ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+                ${cats.dependencias.map(d => `<option value="${escHtml(d)}" ${d.toUpperCase() === (emp.dependencia || '').toUpperCase() ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+                <option value="__OTRA__">+ Otra Dependencia (Especificar)...</option>
               </select>
+              <input id="ef-dep-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique el nombre de la nueva dependencia..." />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-cargo">Denominación del Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
               <select id="ef-cargo" class="filter-select">
                 <option value="${escHtml(emp.cargoActual || '')}">${escHtml(emp.cargoActual || '(Sin seleccionar / Vacío)')}</option>
+                <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
               </select>
+              <input id="ef-cargo-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la denominación del nuevo cargo..." />
             </div>
 
             <div class="form-group">
@@ -1483,8 +1666,11 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-clasificacion">Tipo de Vinculación</label>
               <select id="ef-clasificacion" class="filter-select">
-                ${cats.clasificaciones.map(c => `<option value="${escHtml(c)}" ${normalizarClasificacion(c) === normalizarClasificacion(emp.clasificacionEmpleo) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
+                <option value="Sin clasificar" ${!emp.clasificacionEmpleo || emp.clasificacionEmpleo === 'Sin clasificar' ? 'selected' : ''}>Sin clasificar</option>
+                ${cats.clasificaciones.filter(c => c !== 'Sin clasificar').map(c => `<option value="${escHtml(c)}" ${normalizarClasificacion(c) === normalizarClasificacion(emp.clasificacionEmpleo) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
+                <option value="__OTRA__">+ Otra Vinculación (Especificar)...</option>
               </select>
+              <input id="ef-clasificacion-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique el tipo de vinculación..." />
             </div>
 
             <div class="form-group">
@@ -1496,7 +1682,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-opec">OPEC <span style="font-size:11px; color:var(--text-muted);">(Texto o número)</span></label>
-              <input id="ef-opec" class="form-input font-mono" placeholder="Número u OPEC" value="${escHtml(emp.opec || '')}" />
+              <input id="ef-opec" class="form-input font-mono" placeholder="Ej: 184592" value="${escHtml(emp.opec || '')}" />
             </div>
 
             <div class="form-group">
@@ -1543,7 +1729,7 @@ const EmployeesModule = (() => {
               <label class="form-label">Otro Tiempo con la Gobernación (Experiencia Múltiple) <span style="font-size:11px; color:var(--text-muted);">(Opcional, agregue periodos con fecha desde y hasta)</span></label>
               <div id="ef-periodos-container" style="display:flex; flex-direction:column; gap:8px;">
                 ${periodosList.map((p, idx) => `
-                  <div class="periodo-row" style="display:grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap:8px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:6px; border:1px solid var(--color-border);">
+                  <div class="periodo-row" style="display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);">
                     <div>
                       <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde *</label>
                       <input type="date" class="form-input ef-periodo-desde" value="${escHtml(p.desde || '')}" required />
@@ -1552,11 +1738,11 @@ const EmployeesModule = (() => {
                       <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
                       <input type="date" class="form-input ef-periodo-hasta" value="${escHtml(p.hasta || '')}" required />
                     </div>
-                    <div style="font-size:12px; color:var(--color-green-bright); font-weight:600; padding-top:14px;" class="ef-periodo-duracion">
+                    <div style="font-size:13.5px; color:#16a34a; font-weight:700; padding-top:14px; text-align:right;" class="ef-periodo-duracion">
                       ${escHtml(p.duracionTexto || '')}
                     </div>
-                    <div style="padding-top:14px;">
-                      <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:var(--color-danger);" title="Eliminar periodo">🗑️</button>
+                    <div style="padding-top:14px; display:flex; justify-content:center;">
+                      <button type="button" class="btn-del-periodo" title="Eliminar periodo">🗑️</button>
                     </div>
                   </div>
                 `).join('')}
@@ -1565,7 +1751,7 @@ const EmployeesModule = (() => {
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-add-periodo" style="font-size:11px;">+ Agregar Periodo Histórico</button>
                 <div id="ef-periodos-total-display" style="font-size:12px; font-weight:700; color:var(--color-green-bright);"></div>
               </div>
-              <div id="ef-tiempo-total-display" style="display:none; font-size:12px; font-weight:700; color:var(--color-navy); margin-top:6px; padding:6px 10px; background:rgba(0,123,199,0.08); border:1px solid rgba(0,123,199,0.25); border-radius:6px;"></div>
+              <div id="ef-tiempo-total-display" style="display:none; font-size:14.5px; font-weight:700; color:var(--color-navy); margin-top:12px; padding:12px 18px; background:rgba(0,123,199,0.08); border:1.5px solid rgba(0,123,199,0.3); border-radius:10px; box-shadow:0 3px 10px rgba(0,123,199,0.06);"></div>
               ${(emp.otroTiempoGobernacion && (!periodosList || periodosList.length === 0)) ? `
                 <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
                   Nota histórica anterior: <em>${escHtml(emp.otroTiempoGobernacion)}</em>
@@ -1585,17 +1771,27 @@ const EmployeesModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-novedades">Novedades <span style="font-size:11px; color:var(--text-muted);">(Texto libre)</span></label>
-              <input id="ef-novedades" class="form-input" placeholder="Novedades del servidor" value="${escHtml(emp.novedades || '')}" />
+              <input id="ef-novedades" class="form-input" placeholder="Ej: POSESIÓN RECIENTE" value="${escHtml(emp.novedades || '')}" />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-estudios">Estudios (Pregrado)</label>
-              <input id="ef-estudios" class="form-input" placeholder="Carrera o Título" value="${escHtml(emp.estudios || '')}" />
+              <select id="ef-estudios" class="filter-select">
+                <option value="">(Sin seleccionar / Vacío)</option>
+                ${(cats.estudios || []).map(est => `<option value="${escHtml(est)}" ${(emp.estudios || '').toUpperCase() === est ? 'selected' : ''}>${escHtml(est)}</option>`).join('')}
+                <option value="__OTRO__">+ Otro Estudio (Especificar)...</option>
+              </select>
+              <input id="ef-estudios-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la carrera o título de estudio..." />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-inst-estudios">Institución de Estudios</label>
-              <input id="ef-inst-estudios" class="form-input" placeholder="Universidad / Institución" value="${escHtml(emp.institucionEstudios || '')}" />
+              <select id="ef-inst-estudios" class="filter-select">
+                <option value="">(Sin seleccionar / Vacío)</option>
+                ${(cats.institucionesEstudios || []).map(inst => `<option value="${escHtml(inst)}" ${(emp.institucionEstudios || '').toUpperCase() === inst ? 'selected' : ''}>${escHtml(inst)}</option>`).join('')}
+                <option value="__OTRA__">+ Otra Institución (Especificar)...</option>
+              </select>
+              <input id="ef-inst-estudios-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la universidad o institución..." />
             </div>
 
             <div class="form-group">
@@ -1626,11 +1822,11 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Teléfonos Celulares <span style="font-size:11px; color:var(--text-muted);">(Hasta 3 números, 9-10 dígitos c/u)</span></label>
+              <label class="form-label">Teléfonos Celulares <span style="font-size:11px; color:var(--text-muted);">(Hasta 3 números, inician con 3, 9-10 dígitos c/u)</span></label>
               <div id="ef-celulares-container" style="display:flex; flex-direction:column; gap:8px;">
                 ${celularesList.map((cel, idx) => `
                   <div class="celular-row" style="display:flex; align-items:center; gap:8px;">
-                    <input class="form-input ef-celular-input font-mono" placeholder="Celular ${idx + 1} (9 o 10 dígitos)" value="${escHtml(cel)}" maxlength="10" />
+                    <input class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" value="${escHtml(cel)}" maxlength="10" />
                     ${idx > 0 ? `<button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>` : ''}
                   </div>
                 `).join('')}
@@ -1639,18 +1835,18 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-correo-inst">Correo Institucional <span style="font-size:11px; color:var(--text-muted);">(Opcional, exige @ si se ingresa)</span></label>
-              <input id="ef-correo-inst" type="email" class="form-input font-mono" placeholder="usuario@boyaca.gov.co" value="${escHtml(emp.correo || '')}" />
+              <label class="form-label" for="ef-correo-inst">Correo Institucional</label>
+              <input id="ef-correo-inst" type="email" class="form-input font-mono" placeholder="Ej: usuario@boyaca.gov.co" value="${escHtml(emp.correo || '')}" />
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-correo-pers">Correo Personal <span style="font-size:11px; color:var(--text-muted);">(Exige @)</span></label>
-              <input id="ef-correo-pers" type="email" class="form-input font-mono" placeholder="usuario@gmail.com" value="${escHtml(emp.correoPersonal || '')}" />
+              <label class="form-label" for="ef-correo-pers">Correo Personal</label>
+              <input id="ef-correo-pers" type="email" class="form-input font-mono" placeholder="Ej: usuario@gmail.com" value="${escHtml(emp.correoPersonal || '')}" />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-direccion">Dirección de Residencia</label>
-              <input id="ef-direccion" class="form-input" placeholder="Dirección completa" value="${escHtml(emp.direccion || '')}" />
+              <input id="ef-direccion" class="form-input" placeholder="Ej: Calle 20 # 10-45, Tunja" value="${escHtml(emp.direccion || '')}" />
             </div>
           </div>
         </div>
@@ -1664,13 +1860,22 @@ const EmployeesModule = (() => {
   function attachFormListeners(emp = {}) {
     const cats = state.catalogs;
 
-    // 1. Regla 7: Restricción en Nombres y Apellidos (Solo letras y espacios)
-    const nombreInput = document.getElementById('ef-nombre');
-    if (nombreInput) {
-      nombreInput.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '');
+    // 0. Habilitar click directo para abrir el calendario en todos los inputs date
+    document.querySelectorAll('.modal-form-emp input[type="date"]').forEach(inp => {
+      inp.addEventListener('click', () => {
+        try { inp.showPicker(); } catch (_) {}
       });
-    }
+    });
+
+    // 1. Regla 7: Restricción en Nombres y Apellidos (Solo letras y espacios)
+    ['ef-nombres', 'ef-apellidos', 'ef-nombre'].forEach(id => {
+      const inp = document.getElementById(id);
+      if (inp) {
+        inp.addEventListener('input', (e) => {
+          e.target.value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '');
+        });
+      }
+    });
 
     // 2. Regla 8: Restricción en Cédula (Solo números)
     const cedulaInput = document.getElementById('ef-cedula');
@@ -1682,48 +1887,92 @@ const EmployeesModule = (() => {
       });
     }
 
-    // 3. Regla 1: Dependencia y Cargo (Carga dinámica de cargos por dependencia)
+    // 3. Regla 1: Dependencia y Cargo (Carga dinámica y deduplicada según dependencia)
     const depSelect = document.getElementById('ef-dep');
+    const depCustom = document.getElementById('ef-dep-custom');
     const cargoSelect = document.getElementById('ef-cargo');
+    const cargoCustom = document.getElementById('ef-cargo-custom');
     const codigoInput = document.getElementById('ef-codigo-cargo');
     const gradoSelect = document.getElementById('ef-grado');
 
     const updateCargosForDep = (selectedDep, currentCargo = '') => {
       if (!cargoSelect) return;
       const cleanDep = (selectedDep || '').trim().toUpperCase();
-      const availableCargos = cats.cargosPorDependencia[cleanDep] || cats.cargos || [];
+      let rawList = (cleanDep && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
 
-      cargoSelect.innerHTML = '<option value="">Seleccionar Cargo...</option>' +
-        availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo === currentCargo ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('');
+      // Deduplicación estricta por denominación de cargo
+      const seenCargos = new Set();
+      const availableCargos = [];
+      for (const item of rawList) {
+        const u = (item.cargo || '').toUpperCase().trim();
+        if (u && !seenCargos.has(u)) {
+          seenCargos.add(u);
+          availableCargos.push(item);
+        }
+      }
 
-      // Si el cargo actual no estaba en la lista de esa dependencia, agregarlo como opción
-      if (currentCargo && !availableCargos.some(c => c.cargo === currentCargo)) {
-        const opt = document.createElement('option');
-        opt.value = currentCargo;
-        opt.textContent = currentCargo;
-        opt.selected = true;
-        cargoSelect.appendChild(opt);
+      cargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
+        availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo.toUpperCase() === (currentCargo || '').toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
+        '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
+
+      if (currentCargo && !seenCargos.has(currentCargo.toUpperCase())) {
+        cargoSelect.value = '__OTRO__';
+        if (cargoCustom) {
+          cargoCustom.value = currentCargo;
+          cargoCustom.style.display = 'block';
+        }
+      } else if (cargoCustom) {
+        cargoCustom.style.display = cargoSelect.value === '__OTRO__' ? 'block' : 'none';
       }
     };
 
     if (depSelect) {
       depSelect.addEventListener('change', (e) => {
-        updateCargosForDep(e.target.value);
+        if (e.target.value === '__OTRA__') {
+          if (depCustom) {
+            depCustom.style.display = 'block';
+            depCustom.focus();
+          }
+          updateCargosForDep('');
+        } else {
+          if (depCustom) depCustom.style.display = 'none';
+          updateCargosForDep(e.target.value);
+        }
       });
+
       if (emp.dependencia) {
-        updateCargosForDep(emp.dependencia, emp.cargoActual || '');
+        const matchDep = Array.from(depSelect.options).find(o => o.value.toUpperCase() === emp.dependencia.toUpperCase());
+        if (matchDep) {
+          depSelect.value = matchDep.value;
+          updateCargosForDep(matchDep.value, emp.cargoActual || '');
+        } else {
+          depSelect.value = '__OTRA__';
+          if (depCustom) {
+            depCustom.value = emp.dependencia;
+            depCustom.style.display = 'block';
+          }
+          updateCargosForDep('', emp.cargoActual || '');
+        }
+      } else {
+        updateCargosForDep('');
       }
     }
 
-    // 4. Al seleccionar el cargo, se autorrellena código (letras o números) y grado
     if (cargoSelect) {
       cargoSelect.addEventListener('change', () => {
+        if (cargoSelect.value === '__OTRO__') {
+          if (cargoCustom) {
+            cargoCustom.style.display = 'block';
+            cargoCustom.focus();
+          }
+          return;
+        }
+        if (cargoCustom) cargoCustom.style.display = 'none';
+
         const selOpt = cargoSelect.selectedOptions[0];
         if (selOpt && codigoInput) {
           const defaultCode = selOpt.getAttribute('data-codigo');
-          if (defaultCode) {
-            codigoInput.value = defaultCode;
-          }
+          if (defaultCode) codigoInput.value = defaultCode;
           const defaultGrado = selOpt.getAttribute('data-grado');
           if (defaultGrado && gradoSelect) {
             const match = cats.grados.find(g => g.toLowerCase() === defaultGrado.toLowerCase());
@@ -1731,6 +1980,30 @@ const EmployeesModule = (() => {
           }
         }
       });
+    }
+
+    // 4. Tipo de Vinculación condicional "Otra..."
+    const clasifSelect = document.getElementById('ef-clasificacion');
+    const clasifCustom = document.getElementById('ef-clasificacion-custom');
+    if (clasifSelect && clasifCustom) {
+      clasifSelect.addEventListener('change', () => {
+        if (clasifSelect.value === '__OTRA__') {
+          clasifCustom.style.display = 'block';
+          clasifCustom.focus();
+        } else {
+          clasifCustom.style.display = 'none';
+        }
+      });
+      if (emp.clasificacionEmpleo) {
+        const match = Array.from(clasifSelect.options).find(o => normalizarClasificacion(o.value) === normalizarClasificacion(emp.clasificacionEmpleo));
+        if (match) {
+          clasifSelect.value = match.value;
+        } else {
+          clasifSelect.value = '__OTRA__';
+          clasifCustom.value = emp.clasificacionEmpleo;
+          clasifCustom.style.display = 'block';
+        }
+      }
     }
 
     // 5. Regla 10: Expedición de Cédula (Departamento -> Municipio dinámico vía DIVIPOLA)
@@ -1741,10 +2014,10 @@ const EmployeesModule = (() => {
       if (!mpioExpSelect) return;
       const cleanDepto = (selectedDepto || '').trim().toUpperCase();
       const mpios = cats.divipola.municipiosPorDepto[cleanDepto] || [];
-      mpioExpSelect.innerHTML = '<option value="">Seleccionar Municipio...</option>' +
-        mpios.map(c => `<option value="${escHtml(c)}" ${c === currentMpio ? 'selected' : ''}>${escHtml(c)}</option>`).join('');
+      mpioExpSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
+        mpios.map(c => `<option value="${escHtml(c)}" ${c.toUpperCase() === (currentMpio || '').toUpperCase() ? 'selected' : ''}>${escHtml(c)}</option>`).join('');
 
-      if (currentMpio && !mpios.includes(currentMpio)) {
+      if (currentMpio && !mpios.some(m => m.toUpperCase() === currentMpio.toUpperCase())) {
         const opt = document.createElement('option');
         opt.value = currentMpio;
         opt.textContent = currentMpio;
@@ -1757,8 +2030,10 @@ const EmployeesModule = (() => {
       deptoExpSelect.addEventListener('change', (e) => {
         updateMunicipiosForDepto(e.target.value);
       });
-      const initDepto = emp.departamentoExpedicion || 'BOYACÁ';
-      updateMunicipiosForDepto(initDepto, emp.municipioExpedicion || emp.ciudadExpedicion || 'TUNJA');
+      // Solo en modo edición o si ya viene especificado el departamento
+      if (emp.departamentoExpedicion) {
+        updateMunicipiosForDepto(emp.departamentoExpedicion, emp.municipioExpedicion || emp.ciudadExpedicion || '');
+      }
     }
 
     // 6. Regla 12: Situación y Discapacidad
@@ -1766,11 +2041,7 @@ const EmployeesModule = (() => {
     const discGroup = document.getElementById('ef-discapacidad-group');
     if (situacionSelect && discGroup) {
       situacionSelect.addEventListener('change', (e) => {
-        if (e.target.value === 'DISCAPACIDAD') {
-          discGroup.style.display = 'block';
-        } else {
-          discGroup.style.display = 'none';
-        }
+        discGroup.style.display = e.target.value === 'DISCAPACIDAD' ? 'block' : 'none';
       });
     }
 
@@ -1820,7 +2091,7 @@ const EmployeesModule = (() => {
           const diff = calcExactDiffBetween(desde, hasta);
           if (diff) {
             if (durDisplay) {
-              durDisplay.style.color = 'var(--color-green-bright)';
+              durDisplay.style.color = '#16a34a';
               durDisplay.textContent = diff.texto;
             }
             totalAnios += diff.anios;
@@ -1866,8 +2137,18 @@ const EmployeesModule = (() => {
         const totalCombined = sumExactDurations(diffIngreso, acumuladoOtro);
 
         if (totalCombined) {
-          tiempoTotalDisplay.style.display = 'block';
-          tiempoTotalDisplay.innerHTML = `🏆 <strong>Tiempo Total en la Gobernación Estimado:</strong> ${totalCombined.texto} <span style="font-size:11px; font-weight:normal; opacity:0.85;">(Servicio + Otro Tiempo)</span>`;
+          tiempoTotalDisplay.style.display = 'flex';
+          tiempoTotalDisplay.style.alignItems = 'center';
+          tiempoTotalDisplay.style.gap = '12px';
+          tiempoTotalDisplay.innerHTML = `
+            <span style="font-size:28px; line-height:1;">🏆</span>
+            <div style="flex:1;">
+              <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-secondary);">Tiempo Total en la Gobernación Estimado</div>
+              <div style="font-size:16px; font-weight:800; color:var(--color-navy); margin-top:2px;">
+                ${totalCombined.texto}
+                <span style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:12px; background:rgba(145,65,105,0.12); color:#914169; margin-left:8px;">Servicio + Otro Tiempo</span>
+              </div>
+            </div>`;
         } else {
           tiempoTotalDisplay.style.display = 'none';
         }
@@ -1884,8 +2165,14 @@ const EmployeesModule = (() => {
       const hastaInp = row.querySelector('.ef-periodo-hasta');
       const delBtn = row.querySelector('.btn-del-periodo');
 
-      if (desdeInp) desdeInp.addEventListener('change', updatePeriodosTotal);
-      if (hastaInp) hastaInp.addEventListener('change', updatePeriodosTotal);
+      if (desdeInp) {
+        desdeInp.addEventListener('change', updatePeriodosTotal);
+        desdeInp.addEventListener('click', () => { try { desdeInp.showPicker(); } catch (_) {} });
+      }
+      if (hastaInp) {
+        hastaInp.addEventListener('change', updatePeriodosTotal);
+        hastaInp.addEventListener('click', () => { try { hastaInp.showPicker(); } catch (_) {} });
+      }
       if (delBtn) {
         delBtn.addEventListener('click', () => {
           row.remove();
@@ -1903,7 +2190,7 @@ const EmployeesModule = (() => {
       btnAddPeriodo.addEventListener('click', () => {
         const div = document.createElement('div');
         div.className = 'periodo-row';
-        div.style = 'display:grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap:8px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:6px; border:1px solid var(--color-border);';
+        div.style = 'display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);';
         div.innerHTML = `
           <div>
             <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde *</label>
@@ -1913,9 +2200,9 @@ const EmployeesModule = (() => {
             <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
             <input type="date" class="form-input ef-periodo-hasta" required />
           </div>
-          <div style="font-size:12px; color:var(--color-green-bright); font-weight:600; padding-top:14px;" class="ef-periodo-duracion"></div>
-          <div style="padding-top:14px;">
-            <button type="button" class="btn btn-secondary btn-sm btn-del-periodo" style="padding:4px 8px; color:var(--color-danger);" title="Eliminar periodo">🗑️</button>
+          <div style="font-size:13.5px; color:#16a34a; font-weight:700; padding-top:14px; text-align:right;" class="ef-periodo-duracion"></div>
+          <div style="padding-top:14px; display:flex; justify-content:center;">
+            <button type="button" class="btn-del-periodo" title="Eliminar periodo">🗑️</button>
           </div>
         `;
         periodosContainer.appendChild(div);
@@ -1923,13 +2210,60 @@ const EmployeesModule = (() => {
       });
     }
 
-    // 9. Teléfono fijo (solo dígitos)
+    // 9. Estudios e Institución condicional "Otro..."
+    const estudiosSelect = document.getElementById('ef-estudios');
+    const estudiosCustom = document.getElementById('ef-estudios-custom');
+    if (estudiosSelect && estudiosCustom) {
+      estudiosSelect.addEventListener('change', () => {
+        if (estudiosSelect.value === '__OTRO__') {
+          estudiosCustom.style.display = 'block';
+          estudiosCustom.focus();
+        } else {
+          estudiosCustom.style.display = 'none';
+        }
+      });
+      if (emp.estudios) {
+        const match = Array.from(estudiosSelect.options).find(o => o.value.toUpperCase() === emp.estudios.toUpperCase());
+        if (match) {
+          estudiosSelect.value = match.value;
+        } else {
+          estudiosSelect.value = '__OTRO__';
+          estudiosCustom.value = emp.estudios;
+          estudiosCustom.style.display = 'block';
+        }
+      }
+    }
+
+    const instSelect = document.getElementById('ef-inst-estudios');
+    const instCustom = document.getElementById('ef-inst-estudios-custom');
+    if (instSelect && instCustom) {
+      instSelect.addEventListener('change', () => {
+        if (instSelect.value === '__OTRA__') {
+          instCustom.style.display = 'block';
+          instCustom.focus();
+        } else {
+          instCustom.style.display = 'none';
+        }
+      });
+      if (emp.institucionEstudios) {
+        const match = Array.from(instSelect.options).find(o => o.value.toUpperCase() === emp.institucionEstudios.toUpperCase());
+        if (match) {
+          instSelect.value = match.value;
+        } else {
+          instSelect.value = '__OTRA__';
+          instCustom.value = emp.institucionEstudios;
+          instCustom.style.display = 'block';
+        }
+      }
+    }
+
+    // 10. Teléfono fijo (solo dígitos)
     const telFijoInput = document.getElementById('ef-telefono-fijo');
     if (telFijoInput) {
       telFijoInput.addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); });
     }
 
-    // 10. Celular dinámico (hasta 3 números independientes de 9-10 dígitos)
+    // 11. Celular dinámico (hasta 3 números independientes de 9-10 dígitos iniciando con 3)
     const btnAddCel = document.getElementById('btn-add-celular');
     const celContainer = document.getElementById('ef-celulares-container');
 
@@ -1954,7 +2288,7 @@ const EmployeesModule = (() => {
         div.className = 'celular-row';
         div.style = 'display:flex; align-items:center; gap:8px;';
         div.innerHTML = `
-          <input class="form-input ef-celular-input font-mono" placeholder="Celular ${rows.length + 1} (9 o 10 dígitos)" maxlength="10" />
+          <input class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" maxlength="10" />
           <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>
         `;
         celContainer.appendChild(div);
@@ -1977,6 +2311,8 @@ const EmployeesModule = (() => {
         state.catalogs.sexos = cats.sexos || state.catalogs.sexos;
         state.catalogs.discapacidades = cats.discapacidades || state.catalogs.discapacidades;
         state.catalogs.diplomados = cats.diplomados || state.catalogs.diplomados;
+        state.catalogs.estudios = cats.estudios || [];
+        state.catalogs.institucionesEstudios = cats.institucionesEstudios || [];
       }
     } catch (err) {
       console.warn('Error al cargar catálogos completos:', err);
@@ -1984,21 +2320,47 @@ const EmployeesModule = (() => {
   }
 
   function readForm(isEdit = false) {
-    const nombre = document.getElementById('ef-nombre')?.value.trim();
+    const isVacanteForm = document.getElementById('ef-cedula')?.type === 'hidden' || Boolean(document.getElementById('ef-nombre'));
+    let nombreCompletoFinal = '';
+    let nombresVal = '';
+    let apellidosVal = '';
+
+    if (isVacanteForm) {
+      const nomVac = document.getElementById('ef-nombre')?.value.trim();
+      if (!nomVac) {
+        markInvalidField('ef-nombre', 'La denominación de la plaza es obligatoria.');
+        return null;
+      }
+      nombreCompletoFinal = nomVac.toUpperCase();
+    } else {
+      nombresVal = document.getElementById('ef-nombres')?.value.trim();
+      apellidosVal = document.getElementById('ef-apellidos')?.value.trim();
+
+      if (!nombresVal) {
+        markInvalidField('ef-nombres', 'Los Nombres son obligatorios.');
+        return null;
+      }
+      if (!apellidosVal) {
+        markInvalidField('ef-apellidos', 'Los Apellidos son obligatorios.');
+        return null;
+      }
+
+      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(nombresVal)) {
+        markInvalidField('ef-nombres', 'Los Nombres solo admiten letras y espacios.');
+        return null;
+      }
+      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(apellidosVal)) {
+        markInvalidField('ef-apellidos', 'Los Apellidos solo admiten letras y espacios.');
+        return null;
+      }
+
+      // Orden estándar institucional: APELLIDOS NOMBRES (ej. SILVA JUAN ESTEBAN)
+      nombreCompletoFinal = `${apellidosVal.toUpperCase()} ${nombresVal.toUpperCase()}`.replace(/\s+/g, ' ');
+    }
+
     const cedula = document.getElementById('ef-cedula')?.value.trim();
 
-    // 1. Validar Nombres y Apellidos (OBLIGATORIO: solo letras y espacios)
-    if (!nombre) {
-      markInvalidField('ef-nombre', 'Nombres y Apellidos son obligatorios.');
-      return null;
-    }
-    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(nombre)) {
-      markInvalidField('ef-nombre', 'Nombres y Apellidos solo admiten letras y espacios.');
-      return null;
-    }
-
     // 2. Validar Cédula de Ciudadanía (OBLIGATORIA: solo números, salvo en vacantes)
-    const isVacanteForm = document.getElementById('ef-cedula')?.type === 'hidden' || (nombre && nombre.startsWith('PLAZA VACANTE'));
     if (!isVacanteForm) {
       if (!cedula) {
         markInvalidField('ef-cedula', 'La Cédula de Ciudadanía es obligatoria.');
@@ -2028,16 +2390,59 @@ const EmployeesModule = (() => {
     const grado = document.getElementById('ef-grado')?.value || null;
 
     // 6. Sexo (Opcional)
-    const sexo = document.getElementById('ef-sexo')?.value || null;
+    const sexoRaw = document.getElementById('ef-sexo')?.value;
+    const sexo = sexoRaw ? sexoRaw.trim().toUpperCase() : null;
 
-    // 7. Situación y Discapacidad (Opcionales)
+    // 7. Dependencia (con soporte para especificar "Otra...")
+    const depRaw = document.getElementById('ef-dep')?.value;
+    const depCustomVal = document.getElementById('ef-dep-custom')?.value.trim();
+    let finalDep = null;
+    if (depRaw === '__OTRA__') {
+      if (!depCustomVal) {
+        markInvalidField('ef-dep-custom', 'Por favor especifique el nombre de la nueva dependencia.');
+        return null;
+      }
+      finalDep = depCustomVal.toUpperCase();
+    } else if (depRaw) {
+      finalDep = depRaw.trim().toUpperCase();
+    }
+
+    // 8. Cargo (con soporte para especificar "Otro...")
+    const cargoRaw = document.getElementById('ef-cargo')?.value;
+    const cargoCustomVal = document.getElementById('ef-cargo-custom')?.value.trim();
+    let finalCargo = null;
+    if (cargoRaw === '__OTRO__') {
+      if (!cargoCustomVal) {
+        markInvalidField('ef-cargo-custom', 'Por favor especifique la denominación del nuevo cargo.');
+        return null;
+      }
+      finalCargo = cargoCustomVal.toUpperCase();
+    } else if (cargoRaw) {
+      finalCargo = cargoRaw.trim().toUpperCase();
+    }
+
+    // 9. Tipo de Vinculación (con soporte para especificar "Otra...")
+    const clasifRaw = document.getElementById('ef-clasificacion')?.value;
+    const clasifCustomVal = document.getElementById('ef-clasificacion-custom')?.value.trim();
+    let finalClasif = 'Sin clasificar';
+    if (clasifRaw === '__OTRA__') {
+      if (!clasifCustomVal) {
+        markInvalidField('ef-clasificacion-custom', 'Por favor especifique el tipo de vinculación.');
+        return null;
+      }
+      finalClasif = normalizarClasificacion(clasifCustomVal.toUpperCase());
+    } else if (clasifRaw) {
+      finalClasif = normalizarClasificacion(clasifRaw);
+    }
+
+    // 10. Situación y Discapacidad (Opcionales)
     const situacion = document.getElementById('ef-situacion')?.value || 'ACTIVO';
     let tipoDiscapacidad = null;
     if (situacion === 'DISCAPACIDAD') {
       tipoDiscapacidad = document.getElementById('ef-tipo-discapacidad')?.value || null;
     }
 
-    // 8. Periodos de Otro Tiempo con la Gobernación (Experiencia Múltiple, Opcional)
+    // 11. Periodos de Otro Tiempo con la Gobernación (Experiencia Múltiple, Opcional)
     const periodoRows = document.querySelectorAll('.periodo-row');
     const otroTiempoPeriodos = [];
     for (let i = 0; i < periodoRows.length; i++) {
@@ -2065,21 +2470,21 @@ const EmployeesModule = (() => {
       otroTiempoPeriodos.push({ desde, hasta });
     }
 
-    // 9. Celulares (Opcionales, hasta 3 números independientes de 9-10 dígitos)
+    // 12. Celulares (Opcionales, hasta 3 números independientes de 9-10 dígitos iniciando con 3)
     const celularInputs = document.querySelectorAll('.ef-celular-input');
     const celulares = [];
     for (const inp of celularInputs) {
       const val = inp.value.trim().replace(/[^\d]/g, '');
       if (val) {
-        if (val.length < 9 || val.length > 10) {
-          markInvalidField(inp, `El celular "${val}" debe tener entre 9 y 10 dígitos.`);
+        if (!/^[3]\d{8,9}$/.test(val)) {
+          markInvalidField(inp, `El celular "${val}" debe iniciar con el número 3 y contener 9 o 10 dígitos.`);
           return null;
         }
         celulares.push(val);
       }
     }
 
-    // 10. Teléfono fijo (Opcional, 6 a 12 dígitos)
+    // 13. Teléfono fijo (Opcional, 6 a 12 dígitos)
     const telFijoInp = document.getElementById('ef-telefono-fijo');
     const telefonoFijo = telFijoInp?.value.trim().replace(/[^\d]/g, '');
     if (telefonoFijo && (telefonoFijo.length < 6 || telefonoFijo.length > 12)) {
@@ -2087,7 +2492,7 @@ const EmployeesModule = (() => {
       return null;
     }
 
-    // 11. Correo institucional (Opcional, solo valida @ si se ingresa)
+    // 14. Correo institucional (Opcional, solo valida @ si se ingresa)
     const correoInp = document.getElementById('ef-correo-inst');
     const correo = correoInp?.value.trim();
     if (correo && !correo.includes('@')) {
@@ -2095,7 +2500,7 @@ const EmployeesModule = (() => {
       return null;
     }
 
-    // 12. Correo personal (Opcional, solo valida @ si se ingresa)
+    // 15. Correo personal (Opcional, solo valida @ si se ingresa)
     const correoPersInp = document.getElementById('ef-correo-pers');
     const correoPersonal = correoPersInp?.value.trim();
     if (correoPersonal && !correoPersonal.includes('@')) {
@@ -2103,29 +2508,66 @@ const EmployeesModule = (() => {
       return null;
     }
 
+    // 16. Estudios e Institución de Estudios (con soporte para especificar "Otro...")
+    const estRaw = document.getElementById('ef-estudios')?.value;
+    const estCustomVal = document.getElementById('ef-estudios-custom')?.value.trim();
+    let finalEst = null;
+    if (estRaw === '__OTRO__') {
+      if (!estCustomVal) {
+        markInvalidField('ef-estudios-custom', 'Por favor especifique la carrera o título de estudio.');
+        return null;
+      }
+      finalEst = estCustomVal.toUpperCase();
+    } else if (estRaw) {
+      finalEst = estRaw.trim().toUpperCase();
+    }
+
+    const instRaw = document.getElementById('ef-inst-estudios')?.value;
+    const instCustomVal = document.getElementById('ef-inst-estudios-custom')?.value.trim();
+    let finalInst = null;
+    if (instRaw === '__OTRA__') {
+      if (!instCustomVal) {
+        markInvalidField('ef-inst-estudios-custom', 'Por favor especifique la universidad o institución de estudios.');
+        return null;
+      }
+      finalInst = instCustomVal.toUpperCase();
+    } else if (instRaw) {
+      finalInst = instRaw.trim().toUpperCase();
+    }
+
     const tieneDiplomado = document.getElementById('ef-diplomado-toggle')?.value === 'SI';
     const diplomadoCapSena = tieneDiplomado ? (document.getElementById('ef-diplomado-opt')?.value || 'Diplomado Registrado') : null;
 
-    const mpioVal = document.getElementById('ef-municipio-exp')?.value || document.getElementById('ef-ciudad-exp')?.value || null;
+    const deptoExpVal = document.getElementById('ef-depto-exp')?.value?.trim().toUpperCase() || null;
+    const mpioRaw = document.getElementById('ef-municipio-exp')?.value || document.getElementById('ef-ciudad-exp')?.value;
+    const mpioVal = mpioRaw ? mpioRaw.trim().toUpperCase() : null;
 
     // Matrícula profesional (admite letras, números, guiones, etc.)
-    const matricula = document.getElementById('ef-matricula')?.value.trim() || null;
+    const matriculaVal = document.getElementById('ef-matricula')?.value.trim() || null;
+
+    const funcionesVal = document.getElementById('ef-funciones')?.value.trim() || null;
+    const novedadesVal = document.getElementById('ef-novedades')?.value.trim() || null;
+    const direccionVal = document.getElementById('ef-direccion')?.value.trim() || null;
 
     return {
-      nombreCompleto: nombre,
+      nombreCompleto: nombreCompletoFinal,
+      nombres: nombresVal ? nombresVal.toUpperCase() : null,
+      apellidos: apellidosVal ? apellidosVal.toUpperCase() : null,
+      primerApellido: apellidosVal ? apellidosVal.split(/\s+/)[0].toUpperCase() : null,
+      segundoApellido: apellidosVal ? (apellidosVal.split(/\s+/).slice(1).join(' ').toUpperCase() || null) : null,
       cedula: cedula || '',
       nuevaCedula: cedula || '',
-      departamentoExpedicion: document.getElementById('ef-depto-exp')?.value || null,
+      departamentoExpedicion: deptoExpVal,
       municipioExpedicion: mpioVal,
       ciudadExpedicion: mpioVal,
       sexo,
       tipoSangre,
       fechaNacimiento: document.getElementById('ef-fecha-nac')?.value || null,
-      dependencia: document.getElementById('ef-dep')?.value || null,
-      cargoActual: document.getElementById('ef-cargo')?.value || null,
-      codigoCargo: codigoCargo || null,
+      dependencia: finalDep,
+      cargoActual: finalCargo,
+      codigoCargo: codigoCargo ? codigoCargo.toUpperCase() : null,
       grado: grado || null,
-      clasificacionEmpleo: normalizarClasificacion(document.getElementById('ef-clasificacion')?.value || 'Carrera Administrativa'),
+      clasificacionEmpleo: finalClasif,
       estadoServidor: document.getElementById('ef-estado-servidor')?.value || 'Activo',
       opec: document.getElementById('ef-opec')?.value.trim() || null,
       situacion,
@@ -2134,19 +2576,19 @@ const EmployeesModule = (() => {
       fechaEncargo: document.getElementById('ef-fecha-encargo')?.value || null,
       otroTiempoPeriodos,
       otroTiempoGobernacion: document.getElementById('ef-periodos-total-display')?.textContent.replace('Otro Tiempo acumulado: ', '') || null,
-      funciones: document.getElementById('ef-funciones')?.value.trim() || null,
-      novedades: document.getElementById('ef-novedades')?.value.trim() || null,
-      estudios: document.getElementById('ef-estudios')?.value.trim() || null,
-      institucionEstudios: document.getElementById('ef-inst-estudios')?.value.trim() || null,
-      matriculaProfesional: matricula,
+      funciones: funcionesVal ? funcionesVal.toUpperCase() : null,
+      novedades: novedadesVal ? novedadesVal.toUpperCase() : null,
+      estudios: finalEst,
+      institucionEstudios: finalInst,
+      matriculaProfesional: matriculaVal ? matriculaVal.toUpperCase() : null,
       tieneDiplomado,
       diplomadoCapSena,
       telefonoFijo: telefonoFijo || null,
       celular: celulares[0] || null,
       celulares,
-      correo: correo || null,
-      correoPersonal: correoPersonal || null,
-      direccion: document.getElementById('ef-direccion')?.value.trim() || null
+      correo: correo ? correo.toLowerCase() : null,
+      correoPersonal: correoPersonal ? correoPersonal.toLowerCase() : null,
+      direccion: direccionVal ? direccionVal.toUpperCase() : null
     };
   }
 
@@ -2285,6 +2727,7 @@ const EmployeesModule = (() => {
 
   function goPage(p) {
     if (p < 1 || p > state.totalPages) return;
+    clearPendingInactivations();
     state.page = p;
     load();
   }
@@ -2910,8 +3353,7 @@ const EmployeesModule = (() => {
                 <tr>
                   <th scope="col" class="th-servidor">Servidor / Documento</th>
                   <th scope="col">Nivel, Cargo & Código</th>
-                  <th scope="col">Otro Tiempo Gobernación</th>
-                  <th scope="col">Tiempo de Servicio</th>
+                  <th scope="col">Tiempo de Servicio / Otros</th>
                   <th scope="col" class="th-tiempo-total">Tiempo Total</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Acciones</th>
@@ -2949,11 +3391,13 @@ const EmployeesModule = (() => {
   }
 
   function search() {
+    clearPendingInactivations();
     const q = document.getElementById('emp-search')?.value.trim() || '';
     state.q = q; state.page = 1;
     load();
   }
   function clearSearch() {
+    clearPendingInactivations();
     const inp = document.getElementById('emp-search');
     if (inp) inp.value = '';
     state.q = ''; state.page = 1;
@@ -2980,6 +3424,9 @@ const EmployeesModule = (() => {
     closeActionsDropdown,
     handleDropdownKeydown,
     handleMenuKeydown,
-    renderSkeletonTable
+    renderSkeletonTable,
+    startInactivation,
+    cancelInactivation,
+    reactivateEmployee
   };
 })();
