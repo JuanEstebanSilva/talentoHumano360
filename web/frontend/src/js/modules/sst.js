@@ -240,29 +240,204 @@ const SstModule = (() => {
       { codigo: 'AA', nombre: 'AA. Botas pantaneras con puntera' },
       { codigo: 'AB', nombre: 'AB. Otros' }
     ],
-    sedes: [
-      'CASA DE LA TORRE',
-      'EDIFICIO INTELIGENTE - BICENTENARIO',
-      'ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.',
-      'ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.',
-      'AUDITORIO JOSE MOSSER Y OFICINAS.',
-      'CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 203 B INTERIOR.',
-      'EDIFICIO LOTERÍA DE BOYACÁ',
-      'CASA DE BOYACÁ EN BOGOTÁ.',
-      'SECRETARIA DE EDUCACION DE BOYACÁ.',
-      'SECRETARÍA DE SALUD DEL DEPARTAMENTO DE BOYACÁ.'
-    ],
+        sedes: [
+      "ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.",
+      "ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.",
+      "AUDITORIO JOSE MOSSER Y OFICINAS.",
+      "BIBLIOTECA DEPARTAMENTAL \"EDUARDO TORRES QUINTERO\"ARCHIVO COBRO COACTIVO.",
+      "BIBLIOTECA PEDRO PASCACIO MARTÍNEZ. (CASA JUAN DE CASTELLANOS)",
+      "BODEGA TALLERES DE OBRAS PÚBLICAS DEL DEPARTAMENTO DE BOYACÁ.",
+      "BODEGA VECTORES",
+      "CASA DE BOYACÁ EN BOGOTÁ.",
+      "CASA DE LA TORRE",
+      "CASA PRIVADA DEL SEÑOR GOBERNADOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 203 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 209 B INTERIOR",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 206 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 207 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 208 B INTERIOR",
+      "EDIFICIO CENTRO EXPERIMENTAL PILOTO - CEP.",
+      "EDIFICIO LOTERÍA DE BOYACÁ",
+      "EDIFICIO LOTERÍA DE BOYACÁ PISO 4",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 8° OFICINA 805",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1002",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1003",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1004",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1006",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1007",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 11°",
+      "ESCUELA DE ARTES.",
+      "FONDO TERRITORIAL DE PENSIONES DE BOYACÁ.",
+      "JARDÍN BOTÁNICO.",
+      "LABORATORIO DEPARTAMENTAL DE SALUD PÚBLICA.",
+      "MONUMENTO HISTÓRICO DEL PUENTE DE BOYACÁ.",
+      "OFICINAS DEL CDGRD.",
+      "PALACIO DE SERVICIOS CULTURALES",
+      "PARQUEADERO DEL DEPARTAMENTO.",
+      "SECRETARIA DE EDUCACION DE BOYACÁ.",
+      "SECRETARÍA DE SALUD DE BOYACÁ - CRISDI",
+      "SECRETARÍA DE SALUD DEL DEPARTAMENTO DE BOYACÁ.",
+      "VIVE DIGITAL Y VIVE LAB.",
+      "EDIFICIO INTELIGENTE - BICENTENARIO"
+],
     dependencias: [
-      'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
-      'SGEN - Dirección General de Talento Humano',
-      'SGEN - SECRETARIA GENERAL (Despacho)',
-      'DES - Despacho del gobernador',
-      'SHAC - SECRETARIA DE HACIENDA (Despacho)',
-      'SSAL - SECRETARIA DE SALUD (Despacho)',
-      'SEDU - SECRETARIA DE EDUCACIÓN (Despacho)',
-      'SINF - SECRETARIA DE INFRAESTRUCTURA PÚBLICA (Despacho)',
-      'STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)'
-    ],
+      "DES - Despacho del gobernador",
+      "DES - Oficina Asesora de Control Interno de Gestión",
+      "DES - Oficina Asesora de Control Interno Disciplinario",
+      "DES - Unidad Administrativa de Comunicaciones y Protocolo",
+      "DES - UCOM - Subdirección de Radio y Televisión",
+      "DES - Unidad Administrativa de Relaciones Nacionales Internacionales",
+      "DES - Unidad Administrativa Especial de Asesoría y Defensa Jurídica del Departamento",
+      "DES - Unidad Administrativa para la Gestión del Riesgo y del Desastre",
+      "SAGR - SECRETARIA DE AGRICULTURA (Despacho)",
+      "SAGR - Dirección de Desarrollo Rural Integral",
+      "SAGR - Dirección de Productividad Agropecuaria",
+      "SAGR - Dirección de Bienestar Campesino",
+      "SAMB - SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE (Despacho)",
+      "SAMB - Dirección de Gestión del Recurso Hídrico y Saneamiento Básico",
+      "SCON - SECRETARIA DE CONTRATACION (Despacho)",
+      "SCON - Dirección Administrativa Contractual",
+      "SCON - Dirección de Procesos de Selección",
+      "SCUP - SECRETARIA DE CULTURA Y PATRIMONIO (Despacho)",
+      "SDEM - SECRETARIA DE DESARROLLO EMPRESARIAL (Despacho)",
+      "SDEM - Dirección de Desarrollo Empresarial",
+      "SDEM - Dirección de Inversión y Comercio",
+      "SEDU - SECRETARIA DE EDUCACIÓN (Despacho)",
+      "*SEDU - INSTITUCIÓN EDUCATIVA DEL DEPARTAMENTO",
+      "SEDU - Oficina Asesora para la Gestión Estratégica del Sector Educación",
+      "SEDU - Oficina Asesora y Defensa Jurídica del Sector Educación",
+      "SEDU - Dirección Técnico Pedagógica",
+      "SEDU - DTP - Programa de Adultos y Jóvenes en Extra Edad",
+      "SEDU - DTP - Programa del Plan Alimentario Escolar",
+      "SEDU - DTP - Subdirección de Calidad Educativa",
+      "SEDU - DTP - Subdirección de Cobertura y Ruralidad",
+      "SEDU - DTP - Subdirección de Inspección de Vigilancia",
+      "SEDU - DTP - Subdirección de Núcleos Educativos",
+      "SEDU - Dirección Administrativa Financiera",
+      "SEDU - DAF - Subdirección de Talento Humano",
+      "SGEN - SECRETARIA GENERAL (Despacho)",
+      "SGEN - Dirección General de Talento Humano",
+      "SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo",
+      "SGEN - Dirección de Servicios Administrativos y Logísticos",
+      "SGEN - DSA - Subdirección de Atención al Ciudadano",
+      "SGEN - DSA - Subdirección de Gestión Documental",
+      "SGOB - SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL (Despacho)",
+      "SGOB - Dirección de Dialogo Social y Convivencia",
+      "SGOB - Dirección de Participación y Acción Comunal",
+      "SGOB -Dirección de Juventud",
+      "SHAC - SECRETARIA DE HACIENDA (Despacho)",
+      "SHAC - Dirección Financiera Y Fiscal",
+      "SHAC - DFF - Subdirección de Cobro Coactivo",
+      "SHAC - DFF - Subdirección Central de Cuentas",
+      "SHAC - DFF - Subdirección de Contabilidad",
+      "SHAC - DFF - Subdirección de Presupuesto",
+      "SHAC - Dirección Departamental de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Administrativa de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Jurídica de Pasivos Pensionales",
+      "SHAC - Dirección de Recaudo y Fiscalización",
+      "SHAC - Tesorería General",
+      "SINF - SECRETARIA DE INFRAESTRUCTURA PUBLICA (Despacho)",
+      "SINF - Dirección de Desarrollo de la Infraestructura Vial",
+      "SINF - Dirección de Vivienda Edificaciones y Obra Publica",
+      "SINF - Dirección Técnica de Estudios y Diseños",
+      "SINS - SECRETARIA DE INTEGRACIÓN SOCIAL (Despacho)",
+      "SINS - Dirección de Familia, Infancia, Adolescencia y Adulto Mayor",
+      "SINS - Dirección de la Mujer e Inclusión Social",
+      "SMIN - SECRETARIA DE MINAS Y ENERGIA (Despacho)",
+      "SPLA - SECRETARIA DE PLANEACIÓN (Despacho)",
+      "SPLA - Dirección de Inversión Publica del Departamento",
+      "SPLA - Dirección de Seguimiento y Planeación Territorial",
+      "SPLA - Dirección Geográfica y de Gestión Territorial",
+      "SPLA - Oficina Asesora de Planeación y Métodos de Gestión",
+      "SSAL - SECRETARIA DE SALUD (Despacho)",
+      "SSAL - Dirección de Aseguramiento en Salud",
+      "SSAL - Dirección de Prestación de Servicios de Salud",
+      "SSAL - Dirección de Promoción y Prevención en Salud",
+      "SSAL - DPP - Subdirección de Promoción Social en Salud",
+      "SSAL - Oficina Asesora de Defensa Jurídica del Sector Salud",
+      "SSAL - Oficina Asesora para la Gestión Estratégica del Sector Salud",
+      "STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)",
+      "STIC - Dirección de Apropiación de TIC",
+      "STIC - Dirección de Sistemas de Información",
+      "STUR - SECRETARIA DE TURISMO (Despacho)",
+      "DES - Oficina Asesora de Control Interno de Gestión",
+      "DES - Oficina Asesora de Control Interno Disciplinario",
+      "DES - Unidad Administrativa de Comunicaciones y Protocolo",
+      "DES - UCOM - Subdirección de Radio y Televisión",
+      "DES - Unidad Administrativa de Relaciones Nacionales Internacionales",
+      "DES - Unidad Administrativa Especial de Asesoría y Defensa Jurídica del Departamento",
+      "DES - Unidad Administrativa para la Gestión del Riesgo y del Desastre",
+      "SAGR - SECRETARIA DE AGRICULTURA (Despacho)",
+      "SAGR - Dirección de Bienestar Campesino",
+      "SAGR - Dirección de Desarrollo Rural Integral",
+      "SAGR - Dirección de Productividad Agropecuaria",
+      "SAMB - SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE (Despacho)",
+      "SAMB - Dirección de Gestión del Recurso Hídrico y Saneamiento Básico",
+      "SCON - SECRETARIA DE CONTRATACION (Despacho)",
+      "SCON - Dirección Administrativa Contractual",
+      "SCON - Dirección de Procesos de Selección",
+      "SCUP - SECRETARIA DE CULTURA Y PATRIMONIO (Despacho)",
+      "SDEM - SECRETARIA DE DESARROLLO EMPRESARIAL (Despacho)",
+      "SDEM - Dirección de Desarrollo Empresarial",
+      "SDEM - Dirección de Inversión y Comercio",
+      "SEDU - SECRETARIA DE EDUCACIÓN (Despacho)",
+      "SEDU - Oficina Asesora para la Gestión Estratégica del Sector Educación",
+      "SEDU - Oficina Asesora y Defensa Jurídica del Sector Educación",
+      "SEDU - Dirección Técnico Pedagógica",
+      "SEDU - DTP - Programa de Adultos y Jóvenes en Extra Edad",
+      "SEDU - DTP - Programa del Plan Alimentario Escolar",
+      "SEDU - DTP - Subdirección de Calidad Educativa",
+      "SEDU - DTP - Subdirección de Cobertura y Ruralidad",
+      "SEDU - DTP - Subdirección de Inspección de Vigilancia",
+      "SEDU - DTP - Subdirección de Núcleos Educativos",
+      "SEDU - Dirección Administrativa Financiera",
+      "SEDU - DAF - Subdirección de Talento Humano",
+      "SGEN - SECRETARIA GENERAL (Despacho)",
+      "SGEN - Dirección General de Talento Humano",
+      "SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo",
+      "SGEN - Dirección de Servicios Administrativos y Logísticos",
+      "SGEN - DSA - Subdirección de Atención al Ciudadano",
+      "SGEN - DSA - Subdirección de Gestión Documental",
+      "SGOB - SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL (Despacho)",
+      "SGOB - Dirección de Dialogo Social y Convivencia",
+      "SGOB - Dirección de Participación y Acción Comunal",
+      "SGOB -Dirección de Juventud",
+      "SHAC - SECRETARIA DE HACIENDA (Despacho)",
+      "SHAC - Dirección Financiera Y Fiscal",
+      "SHAC - DFF - Subdirección de Cobro Coactivo",
+      "SHAC - DFF - Subdirección Central de Cuentas",
+      "SHAC - DFF - Subdirección de Contabilidad",
+      "SHAC - DFF - Subdirección de Presupuesto",
+      "SHAC - Dirección Departamental de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Administrativa de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Jurídica de Pasivos Pensionales",
+      "SHAC - Dirección de Recaudo y Fiscalización",
+      "SHAC - Tesorería General",
+      "SINF - SECRETARIA DE INFRAESTRUCTURA PUBLICA (Despacho)",
+      "SINF - Dirección de Desarrollo de la Infraestructura Vial",
+      "SINF - Dirección de Vivienda Edificaciones y Obra Publica",
+      "SINF - Dirección Técnica de Estudios y Diseños",
+      "SINS - SECRETARIA DE INTEGRACIÓN SOCIAL (Despacho)",
+      "SINS - Dirección de Familia, Infancia, Adolescencia y Adulto Mayor",
+      "SINS - Dirección de la Mujer e Inclusión Social",
+      "SMIN - SECRETARIA DE MINAS Y ENERGIA (Despacho)",
+      "SPLA - SECRETARIA DE PLANEACIÓN (Despacho)",
+      "SPLA - Dirección de Inversión Publica del Departamento",
+      "SPLA - Dirección de Seguimiento y Planeación Territorial",
+      "SPLA - Dirección Geográfica y de Gestión Territorial",
+      "SPLA - Oficina Asesora de Planeación y Métodos de Gestión",
+      "SSAL - SECRETARIA DE SALUD (Despacho)",
+      "SSAL - Dirección de Aseguramiento en Salud",
+      "SSAL - Dirección de Prestación de Servicios de Salud",
+      "SSAL - Dirección de Promoción y Prevención en Salud",
+      "SSAL - DPP - Subdirección de Promoción Social en Salud",
+      "SSAL - Oficina Asesora de Defensa Jurídica del Sector Salud",
+      "SSAL - Oficina Asesora para la Gestión Estratégica del Sector Salud",
+      "STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)",
+      "STIC - Dirección de Apropiación de TIC",
+      "STIC - Dirección de Sistemas de Información",
+      "STUR - SECRETARIA DE TURISMO (Despacho)"
+],
     tiposEmo: ['Ingreso', 'Periódico', 'Egreso', 'Post Incapacidad', 'Trabajo en alturas'],
     estadosCaso: ['Vigente', 'En Seguimiento', 'En Rehabilitación', 'Próximo a Vencer', 'Vencido', 'Cerrado'],
     programasPve: [
@@ -274,6 +449,71 @@ const SstModule = (() => {
       'PVE Cardiovascular y Metabólico',
       'PVE Respiratorio',
       'PVE Voz'
+    ],
+    estadosAccidente: [
+      'No aplica',
+      'En investigación / Reporte inicial',
+      'En tratamiento médico',
+      'En proceso de rehabilitación',
+      'En calificación PCL (ARL / Junta)',
+      'Cerrado sin secuelas',
+      'Cerrado con secuelas',
+      'Caso archivado'
+    ],
+    estadosEnfermedad: [
+      'No aplica',
+      'En estudio / Calificación de origen',
+      'Origen laboral calificado en firme',
+      'En tratamiento médico especializado',
+      'En rehabilitación laboral',
+      'Con reubicación / adecuación laboral',
+      'Cerrado / Dictamen emitido'
+    ],
+    epsSugerencias: [
+      'No aplica',
+      'Nueva EPS',
+      'Sanitas EPS',
+      'Salud Total EPS',
+      'Famisanar EPS',
+      'Coosalud EPS',
+      'Compensar EPS',
+      'EPS Sura',
+      'ARL Positiva Compañía de Seguros',
+      'Asmet Salud',
+      'Seguimiento por Medicina Laboral'
+    ],
+    restriccionesFrecuentes: [
+      'NINGUNA',
+      'Evitar levantamiento de cargas mayores a 5 kg',
+      'Evitar levantamiento de cargas mayores a 10 kg',
+      'Evitar bipedestación prolongada (más de 2 horas continuas)',
+      'Evitar sedestación prolongada (realizar pausas activas cada 2 horas)',
+      'Evitar movimientos repetitivos y flexoextensión forzada de miembros superiores',
+      'Uso permanente de lentes correctivos para trabajo con pantallas (PVD)',
+      'Uso obligatorio de elementos de protección auditiva',
+      'Restricción para trabajo en alturas y espacios confinados',
+      'Restricción para conducción de vehículos automotores'
+    ],
+    recomendacionesFrecuentes: [
+      'Pausas activas e higiene postural',
+      'Pausas activas visuales y ergonómicas cada 2 horas',
+      'Adecuación ergonómica del puesto de trabajo (silla, descansapiés, soporte monitor)',
+      'Seguimiento por optometría / oftalmología anual',
+      'Seguimiento por audiometría ocupacional anual',
+      'Control médico periódico por EPS tratante',
+      'Ingreso y adherencia al Programa de Vigilancia Epidemiológica (PVE)',
+      'Promoción de estilos de vida y trabajo saludable, actividad física y control de peso',
+      'Seguimiento conjunto con ARL Positiva'
+    ],
+    actividadesPendientesFrecuentes: [
+      'Ninguna',
+      'Programar inspección de puesto de trabajo',
+      'Seguimiento al cumplimiento de recomendaciones médicas en puesto de trabajo',
+      'Remisión a especialista EPS tratante',
+      'Seguimiento a dictamen de calificación ARL Positiva',
+      'Programación de examen médico ocupacional de control',
+      'Adecuación de elementos ergonómicos (silla ergonómica / descansapiés / soporte monitor)',
+      'Capacitación y sensibilización en higiene postural y autocuidado'
     ],
     tiposIdentificacion: ['Cédula de Ciudadanía', 'Cédula de Extranjería', 'Pasaporte', 'Tarjeta de Identidad'],
     razas: ['Blanco/Mestizo', 'Afrodescendiente', 'Indígena', 'Raizal', 'Palenquero', 'Gitano', 'OTRA'],
@@ -304,7 +544,14 @@ const SstModule = (() => {
   };
 
   function getCats() {
-    return state.catalogs || DEFAULT_CATALOGS;
+    const backend = state.catalogs || {};
+    const merged = Object.assign({}, DEFAULT_CATALOGS);
+    for (const [key, val] of Object.entries(backend)) {
+      if (Array.isArray(val) && val.length > 0) {
+        merged[key] = val;
+      }
+    }
+    return merged;
   }
 
   function badgeClass(estado) {
@@ -374,6 +621,69 @@ const SstModule = (() => {
     }, 260);
   }
 
+    function onFechaEmoChange(val) {
+    if (!val) return;
+    const tipo = document.getElementById('sst-tipo-emo')?.value;
+    const proxInput = document.getElementById('sst-prox-emo');
+    if (proxInput && tipo !== 'Egreso') {
+      try {
+        const d = new Date(val + 'T00:00:00');
+        d.setFullYear(d.getFullYear() + 1);
+        proxInput.value = d.toISOString().split('T')[0];
+      } catch (_) {}
+    }
+  }
+
+  function onTipoEmoChange(val) {
+    const proxInput = document.getElementById('sst-prox-emo');
+    if (!proxInput) return;
+    if (val === 'Egreso') {
+      proxInput.value = '';
+    } else if (!proxInput.value) {
+      const fEmo = document.getElementById('sst-fecha-emo')?.value;
+      if (fEmo) onFechaEmoChange(fEmo);
+    }
+  }
+
+  function onAtToggle(val) {
+    const fAt = document.getElementById('sst-fecha-at');
+    const estAt = document.getElementById('sst-estado-at');
+    const isSi = val === 'SI';
+    if (fAt) {
+      fAt.disabled = !isSi;
+      if (!isSi) fAt.value = '';
+    }
+    if (estAt) {
+      estAt.disabled = !isSi;
+      if (!isSi) estAt.value = 'No aplica';
+      else if (estAt.value === 'No aplica') estAt.value = 'En investigación / Reporte inicial';
+    }
+  }
+
+  function onElToggle(val) {
+    const fEl = document.getElementById('sst-fecha-el');
+    const estEl = document.getElementById('sst-estado-el');
+    const isSi = val === 'SI';
+    if (fEl) {
+      fEl.disabled = !isSi;
+      if (!isSi) fEl.value = '';
+    }
+    if (estEl) {
+      estEl.disabled = !isSi;
+      if (!isSi) estEl.value = 'No aplica';
+      else if (estEl.value === 'No aplica') estEl.value = 'En estudio / Calificación de origen';
+    }
+  }
+
+  function onApellidosNombresChange() {
+    const ape = (document.getElementById('sst-apellidos')?.value || '').trim();
+    const nom = (document.getElementById('sst-nombres')?.value || '').trim();
+    const nomInput = document.getElementById('sst-nombre');
+    if (nomInput && (ape || nom)) {
+      nomInput.value = `${ape} ${nom}`.trim();
+    }
+  }
+
   function selectEmployee(emp) {
     const dropdown = document.getElementById('sst-autocomplete-list');
     if (dropdown) dropdown.style.display = 'none';
@@ -385,13 +695,16 @@ const SstModule = (() => {
 
     setVal('sst-nombre', emp.nombreCompleto);
     setVal('sst-doc', emp.cedula);
-    setVal('sst-apellidos', emp.apellidos);
-    setVal('sst-nombres', emp.nombres);
+    setVal('sst-apellidos', emp.apellidos || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(0, 2).join(' ') : ''));
+    setVal('sst-nombres', emp.nombres || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(2).join(' ') : ''));
     setVal('sst-dep', emp.dependencia);
     setVal('sst-cargo', emp.cargo);
     setVal('sst-tel', emp.telefono);
     setVal('sst-edad', emp.edad);
-    setVal('sst-ingreso', emp.fechaIngreso);
+    if (emp.fechaIngreso) {
+      const fIng = String(emp.fechaIngreso).split('T')[0];
+      setVal('sst-ingreso', fIng);
+    }
     setVal('sst-profesion', emp.estudios);
     setVal('sst-mpio-res', emp.ciudad);
     if (emp.sexo) {
@@ -506,19 +819,39 @@ const SstModule = (() => {
                 aria-labelledby="sst-dropdown-toggle"
                 hidden
               >
+                <!-- 1. Exportar a Excel -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
-                  onclick="SstModule.closeActionsDropdown(); SstModule.exportExcel();"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.openExportProfileModal();"
+                  title="Exportar perfil seleccionado a plantilla oficial o listado completo"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <div>
-                    <strong>Exportar SST a Excel</strong>
-                    <small>Descarga los registros actuales del submódulo en formato .xlsx</small>
+                    <strong>Exportar a Excel</strong>
+                    <small>Descargar perfil en plantilla oficial (.xlsx) o tabla actual</small>
                   </div>
                 </button>
+
+                <!-- 2. Descargar la Plantilla Oficial -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.downloadOfficialTemplate();"
+                  title="Descargar archivo Excel oficial en blanco para diligenciar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                  <div>
+                    <strong>Descargar la Plantilla Oficial</strong>
+                    <small>Archivo Excel vacío oficial con columnas y listas de validación</small>
+                  </div>
+                </button>
+
+                <!-- 3. Cargue Masivo de un Excel -->
                 ${canManage ? `
                 <button
                   type="button"
@@ -526,13 +859,31 @@ const SstModule = (() => {
                   tabindex="-1"
                   class="actions-dropdown-item"
                   onclick="SstModule.closeActionsDropdown(); SstModule.openImportModal();"
+                  title="Cargar archivo Excel con perfiles y guardar en el sistema"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde plantilla oficial SST</small>
+                    <strong>Cargue Masivo de un Excel</strong>
+                    <small>Importar múltiples perfiles registrados desde archivo Excel</small>
                   </div>
                 </button>` : ''}
+
+                <!-- 4. Descargar Reporte Anual -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.generateAnnualReport();"
+                  style="border-top: 1px solid var(--border-color, #e2e8f0); margin-top: 4px; padding-top: 8px;"
+                  title="Generar y descargar informe anual con estadísticas y base completa"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-400, #16a34a);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+                  <div>
+                    <strong style="color:var(--color-primary-400, #16a34a);">Descargar Reporte Anual</strong>
+                    <small>Consolidado anual con estadísticas, gráficos e indicadores SST</small>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -1011,6 +1362,9 @@ const SstModule = (() => {
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Ficha Epidemiológica">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
+              <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Perfil en Plantilla Oficial Excel (.xlsx)" style="color:#16a34a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+              </button>
               <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha Médica EMO (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
@@ -1163,111 +1517,220 @@ const SstModule = (() => {
     currentUploadedFile = r.soporte || null;
 
     if (state.tab === 'epidemiologico') {
+      const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+      const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+      const isAt = (r.accidenteTrabajo === 'SI');
+      const isEl = (r.enfermedadLaboral === 'SI');
+
       return `
         <div class="form-grid">
+          <!-- SECCIÓN 1: DATOS DEL SERVIDOR PÚBLICO -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              1. Información del Servidor Público
+            </h4>
+          </div>
+
           <div class="form-group span-2 autocomplete-wrapper">
-            <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe nombre o cédula para autocompletar desde planta)</span></label>
-            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
+            <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
+            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
             <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Tipo de Identificación</label>
+            <label class="form-label">Tipo de Identificación *</label>
             <select id="sst-tipo-id" class="filter-select">
               ${cats.tiposIdentificacion.map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Número de Documento *</label>
-            <input id="sst-doc" class="form-input" placeholder="Cédula" value="${escHtml(r.documento || '')}" required />
+            <input id="sst-doc" class="form-input" placeholder="Cédula de ciudadanía o extranjería" value="${escHtml(r.documento || '')}" required />
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Apellidos *</label>
+            <input id="sst-apellidos" class="form-input" placeholder="Primer y segundo apellido" value="${escHtml(apellidos)}" oninput="SstModule.onApellidosNombresChange()" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nombres *</label>
+            <input id="sst-nombres" class="form-input" placeholder="Nombres completos" value="${escHtml(nombres)}" oninput="SstModule.onApellidosNombresChange()" required />
+          </div>
+
           <div class="form-group">
             <label class="form-label">Teléfono / Celular</label>
-            <input id="sst-tel" class="form-input" placeholder="Ej: 3213938142" value="${escHtml(r.telefono || '')}" />
+            <input id="sst-tel" class="form-input" placeholder="Número de contacto (Ej: 3101234567)" value="${escHtml(r.telefono || '')}" />
           </div>
+
           <div class="form-group">
             <label class="form-label">Edad (años)</label>
-            <input id="sst-edad" type="number" class="form-input" value="${escHtml(r.edad || '')}" />
+            <input id="sst-edad" type="number" min="18" max="99" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" />
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Fecha de Ingreso a la Entidad</label>
+            <input id="sst-ingreso" type="date" class="form-input" value="${escHtml(r.fechaIngreso || '')}" />
+          </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Dependencia donde trabaja *</label>
-            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Seleccione o escriba dependencia..." value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
+            <label class="form-label">Dependencia donde Trabaja *</label>
+            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Haga clic para desplegar lista o escriba para filtrar..." value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" required />
             <datalist id="sst-deps-list">
               ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
             </datalist>
           </div>
+
           <div class="form-group">
             <label class="form-label">Sede de Trabajo</label>
             <select id="sst-sede" class="filter-select">
               ${cats.sedes.map(s => `<option ${r.sedeTrabajo === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Cargo</label>
-            <input id="sst-cargo" class="form-input" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
+            <input id="sst-cargo" class="form-input" placeholder="Denominación del cargo" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
           </div>
+
+          <!-- SECCIÓN 2: EXAMEN MÉDICO OCUPACIONAL (EMO) Y PVE -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              2. Examen Médico Ocupacional (EMO) y Vigilancia Epidemiológica
+            </h4>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Tipo de EMO *</label>
-            <select id="sst-tipo-emo" class="filter-select">
+            <select id="sst-tipo-emo" class="filter-select" onchange="SstModule.onTipoEmoChange(this.value)">
               ${cats.tiposEmo.map(t => `<option ${r.tipoEmo === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha Realización EMO *</label>
-            <input id="sst-fecha-emo" type="date" class="form-input" value="${escHtml(r.fechaEmo || new Date().toISOString().split('T')[0])}" />
+            <input id="sst-fecha-emo" type="date" class="form-input" value="${escHtml(r.fechaEmo || new Date().toISOString().split('T')[0])}" onchange="SstModule.onFechaEmoChange(this.value)" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha Próximo EMO</label>
             <input id="sst-prox-emo" type="date" class="form-input" value="${escHtml(r.fechaProximoEmo || '')}" />
           </div>
-          <div class="form-group">
-            <label class="form-label">Estado Final del Caso</label>
-            <select id="sst-estado-caso" class="filter-select">
-              ${cats.estadosCaso.map(e => `<option ${r.estadoFinalCaso === e ? 'selected' : ''}>${escHtml(e)}</option>`).join('')}
-            </select>
-          </div>
+
           <div class="form-group">
             <label class="form-label">Direccionado a PVE</label>
             <select id="sst-pve" class="filter-select">
               ${cats.programasPve.map(p => `<option ${r.direccionadoPve === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">Direccionado a EPS / ARL</label>
-            <input id="sst-eps" class="form-input" placeholder="Ej: Control por Ortopedia EPS / No aplica" value="${escHtml(r.direccionadoEps || 'No aplica')}" />
+
+          <div class="form-group span-2">
+            <label class="form-label">Direccionado a EPS / IPS</label>
+            <input id="sst-eps" list="sst-eps-list" class="form-input" placeholder="Seleccione o escriba entidad de salud (Ej: Nueva EPS / No aplica)" value="${escHtml(r.direccionadoEps || 'No aplica')}" />
+            <datalist id="sst-eps-list">
+              ${(cats.epsSugerencias || []).map(eps => `<option value="${escHtml(eps)}"></option>`).join('')}
+            </datalist>
           </div>
+
           <div class="form-group span-2">
             <label class="form-label">Restricciones Médicas Laborales</label>
-            <input id="sst-restricciones" class="form-input" placeholder="NINGUNA o detalle de restricción médica..." value="${escHtml(r.restricciones || 'NINGUNA')}" />
+            <input id="sst-restricciones" list="sst-restricciones-list" class="form-input" placeholder="Haga clic para opciones frecuentes o escriba la restricción médica..." value="${escHtml(r.restricciones || 'NINGUNA')}" />
+            <datalist id="sst-restricciones-list">
+              ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
+            </datalist>
           </div>
+
           <div class="form-group span-2">
             <label class="form-label">Recomendaciones Médicas Ocupacionales</label>
-            <input id="sst-recomendaciones" class="form-input" placeholder="Pausas activas, higiene postural, adecuación ergonómica..." value="${escHtml(r.recomendaciones || 'Pausas activas e higiene postural')}" />
+            <input id="sst-recomendaciones" list="sst-recomendaciones-list" class="form-input" placeholder="Haga clic para recomendaciones frecuentes o escriba..." value="${escHtml(r.recomendaciones || 'Pausas activas e higiene postural')}" />
+            <datalist id="sst-recomendaciones-list">
+              ${(cats.recomendacionesFrecuentes || []).map(rc => `<option value="${escHtml(rc)}"></option>`).join('')}
+            </datalist>
           </div>
+
+          <!-- SECCIÓN 3: ACCIDENTE DE TRABAJO Y ENFERMEDAD LABORAL -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              3. Accidente de Trabajo (AT) y Enfermedad Laboral (EL)
+            </h4>
+          </div>
+
           <div class="form-group">
             <label class="form-label">¿Accidente de Trabajo (AT)?</label>
-            <select id="sst-at" class="filter-select">
-              <option value="NO" ${r.accidenteTrabajo !== 'SI' ? 'selected' : ''}>NO</option>
-              <option value="SI" ${r.accidenteTrabajo === 'SI' ? 'selected' : ''}>SI</option>
+            <select id="sst-at" class="filter-select" onchange="SstModule.onAtToggle(this.value)">
+              <option value="NO" ${!isAt ? 'selected' : ''}>NO</option>
+              <option value="SI" ${isAt ? 'selected' : ''}>SI</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Fecha del Accidente (AT)</label>
+            <input id="sst-fecha-at" type="date" class="form-input" value="${escHtml(r.fechaAccidente || '')}" ${isAt ? '' : 'disabled'} />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Estado Actual del Accidente</label>
+            <input id="sst-estado-at" list="sst-estado-at-list" class="form-input" placeholder="Seleccione o escriba estado actual del accidente..." value="${escHtml(r.estadoActualAccidente || 'No aplica')}" ${isAt ? '' : 'disabled'} />
+            <datalist id="sst-estado-at-list">
+              ${(cats.estadosAccidente || []).map(ea => `<option value="${escHtml(ea)}"></option>`).join('')}
+            </datalist>
+          </div>
+
           <div class="form-group">
             <label class="form-label">¿Enfermedad Laboral (EL)?</label>
-            <select id="sst-el" class="filter-select">
-              <option value="NO" ${r.enfermedadLaboral !== 'SI' ? 'selected' : ''}>NO</option>
-              <option value="SI" ${r.enfermedadLaboral === 'SI' ? 'selected' : ''}>SI</option>
+            <select id="sst-el" class="filter-select" onchange="SstModule.onElToggle(this.value)">
+              <option value="NO" ${!isEl ? 'selected' : ''}>NO</option>
+              <option value="SI" ${isEl ? 'selected' : ''}>SI</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label class="form-label">¿Cumplió Rehabilitación?</label>
+            <label class="form-label">Fecha Diagnóstico Enfermedad (EL)</label>
+            <input id="sst-fecha-el" type="date" class="form-input" value="${escHtml(r.fechaEnfermedad || '')}" ${isEl ? '' : 'disabled'} />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Estado Actual de la Enfermedad</label>
+            <input id="sst-estado-el" list="sst-estado-el-list" class="form-input" placeholder="Seleccione o escriba estado actual de la enfermedad..." value="${escHtml(r.estadoActualEnfermedad || 'No aplica')}" ${isEl ? '' : 'disabled'} />
+            <datalist id="sst-estado-el-list">
+              ${(cats.estadosEnfermedad || []).map(ee => `<option value="${escHtml(ee)}"></option>`).join('')}
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">¿Cumplió Proceso de Rehabilitación?</label>
             <select id="sst-rehab" class="filter-select">
               <option value="N/A" ${(!r.cumplioRehabilitacion || r.cumplioRehabilitacion === 'N/A') ? 'selected' : ''}>N/A</option>
               <option value="SI" ${r.cumplioRehabilitacion === 'SI' ? 'selected' : ''}>SI</option>
               <option value="NO" ${r.cumplioRehabilitacion === 'NO' ? 'selected' : ''}>NO</option>
             </select>
           </div>
+
+          <!-- SECCIÓN 4: ESTADO FINAL Y ACTIVIDADES PENDIENTES -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              4. Estado Final del Caso y Seguimiento SST
+            </h4>
+          </div>
+
           <div class="form-group">
+            <label class="form-label">Estado Final del Caso *</label>
+            <select id="sst-estado-caso" class="filter-select">
+              ${cats.estadosCaso.map(e => `<option ${r.estadoFinalCaso === e ? 'selected' : ''}>${escHtml(e)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
             <label class="form-label">Actividades Pendientes SST</label>
-            <input id="sst-pendientes" class="form-input" placeholder="Seguimiento, inspección de puesto..." value="${escHtml(r.actividadesPendientes || '')}" />
+            <input id="sst-pendientes" list="sst-pendientes-list" class="form-input" placeholder="Haga clic para actividades frecuentes o escriba pendientes..." value="${escHtml(r.actividadesPendientes || '')}" />
+            <datalist id="sst-pendientes-list">
+              ${(cats.actividadesPendientesFrecuentes || []).map(ap => `<option value="${escHtml(ap)}"></option>`).join('')}
+            </datalist>
           </div>
         </div>`;
     }
@@ -1508,27 +1971,41 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epidemiologico') {
+      const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
+      const nombres = document.getElementById('sst-nombres')?.value.trim() || '';
+      let nomComp = nombreCompleto;
+      if (!nomComp && (apellidos || nombres)) {
+        nomComp = `${apellidos} ${nombres}`.trim();
+      }
+
       return {
-        nombreCompleto,
+        nombreCompleto: nomComp,
+        apellidos: apellidos || (nomComp ? nomComp.split(' ').slice(0, 2).join(' ') : ''),
+        nombres: nombres || (nomComp ? nomComp.split(' ').slice(2).join(' ') : ''),
         documento,
-        tipoIdentificacion: document.getElementById('sst-tipo-id')?.value,
-        telefono: document.getElementById('sst-tel')?.value.trim(),
-        edad: document.getElementById('sst-edad')?.value,
-        dependencia: document.getElementById('sst-dep')?.value.trim(),
-        sedeTrabajo: document.getElementById('sst-sede')?.value,
-        cargo: document.getElementById('sst-cargo')?.value.trim(),
-        tipoEmo: document.getElementById('sst-tipo-emo')?.value,
-        fechaEmo: document.getElementById('sst-fecha-emo')?.value,
-        fechaProximoEmo: document.getElementById('sst-prox-emo')?.value,
-        estadoFinalCaso: document.getElementById('sst-estado-caso')?.value,
-        direccionadoPve: document.getElementById('sst-pve')?.value,
-        direccionadoEps: document.getElementById('sst-eps')?.value.trim(),
-        restricciones: document.getElementById('sst-restricciones')?.value.trim(),
-        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim(),
-        accidenteTrabajo: document.getElementById('sst-at')?.value,
-        enfermedadLaboral: document.getElementById('sst-el')?.value,
-        cumplioRehabilitacion: document.getElementById('sst-rehab')?.value,
-        actividadesPendientes: document.getElementById('sst-pendientes')?.value.trim()
+        tipoIdentificacion: document.getElementById('sst-tipo-id')?.value || 'Cédula de Ciudadanía',
+        telefono: document.getElementById('sst-tel')?.value.trim() || '',
+        edad: document.getElementById('sst-edad')?.value || null,
+        fechaIngreso: document.getElementById('sst-ingreso')?.value || '',
+        dependencia: document.getElementById('sst-dep')?.value.trim() || 'SGEN - SECRETARIA GENERAL (Despacho)',
+        sedeTrabajo: document.getElementById('sst-sede')?.value || 'CASA DE LA TORRE',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || 'PROFESIONAL UNIVERSITARIO',
+        tipoEmo: document.getElementById('sst-tipo-emo')?.value || 'Periódico',
+        fechaEmo: document.getElementById('sst-fecha-emo')?.value || new Date().toISOString().split('T')[0],
+        fechaProximoEmo: document.getElementById('sst-prox-emo')?.value || '',
+        estadoFinalCaso: document.getElementById('sst-estado-caso')?.value || 'Vigente',
+        direccionadoPve: document.getElementById('sst-pve')?.value || 'No aplica',
+        direccionadoEps: document.getElementById('sst-eps')?.value.trim() || 'No aplica',
+        restricciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
+        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim() || 'Pausas activas e higiene postural',
+        accidenteTrabajo: document.getElementById('sst-at')?.value || 'NO',
+        fechaAccidente: document.getElementById('sst-fecha-at')?.value || '',
+        estadoActualAccidente: document.getElementById('sst-estado-at')?.value.trim() || 'No aplica',
+        enfermedadLaboral: document.getElementById('sst-el')?.value || 'NO',
+        fechaEnfermedad: document.getElementById('sst-fecha-el')?.value || '',
+        estadoActualEnfermedad: document.getElementById('sst-estado-el')?.value.trim() || 'No aplica',
+        cumplioRehabilitacion: document.getElementById('sst-rehab')?.value || 'N/A',
+        actividadesPendientes: document.getElementById('sst-pendientes')?.value.trim() || ''
       };
     }
 
@@ -1579,26 +2056,36 @@ const SstModule = (() => {
   }
 
   function openCreate() {
-    const tabCfg = TABS[state.tab];
-    App.openModal(tabCfg.btnCreate, buildForm(), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Guardar Registro', cls: 'btn-primary', id: 'sst-save-btn', action: saveCreate }
-    ]);
-    if (state.tab === 'epp') {
-      setTimeout(() => initSignaturePad(), 60);
+    try {
+      const tabCfg = TABS[state.tab];
+      App.openModal(tabCfg.btnCreate, buildForm(), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Guardar Registro', cls: 'btn-primary', id: 'sst-save-btn', action: saveCreate }
+      ], 'modal-box--wide');
+      if (state.tab === 'epp') {
+        setTimeout(() => initSignaturePad(), 60);
+      }
+    } catch (err) {
+      console.error('[SstModule.openCreate error]', err);
+      App.showToast('Error al abrir formulario: ' + err.message, 'error');
     }
   }
 
   function openEdit(id) {
-    const r = state.data.find(x => x.id === id);
-    if (!r) return;
-    const tabCfg = TABS[state.tab];
-    App.openModal(`Editar — ${tabCfg.title} (${r.radicado})`, buildForm(r), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Actualizar Cambios', cls: 'btn-gold', id: 'sst-save-btn', action: () => saveEdit(id) }
-    ]);
-    if (state.tab === 'epp') {
-      setTimeout(() => initSignaturePad(r), 60);
+    try {
+      const r = state.data.find(x => x.id === id);
+      if (!r) return;
+      const tabCfg = TABS[state.tab];
+      App.openModal(`Editar — ${tabCfg.title} (${r.radicado})`, buildForm(r), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Actualizar Cambios', cls: 'btn-gold', id: 'sst-save-btn', action: () => saveEdit(id) }
+      ], 'modal-box--wide');
+      if (state.tab === 'epp') {
+        setTimeout(() => initSignaturePad(r), 60);
+      }
+    } catch (err) {
+      console.error('[SstModule.openEdit error]', err);
+      App.showToast('Error al abrir edición: ' + err.message, 'error');
     }
   }
 
@@ -1770,17 +2257,42 @@ const SstModule = (() => {
           <div class="detail-grid">
             <div class="detail-item"><span class="detail-label">Radicado / Folio EMO</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado del Caso</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoFinalCaso)}">${escHtml(r.estadoFinalCaso)}</span></div></div>
+            
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">INFORMACIÓN DEL SERVIDOR PÚBLICO</strong>
+            </div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (${escHtml(r.tipoIdentificacion)}: ${escHtml(r.documento)})</span></div>
+            <div class="detail-item"><span class="detail-label">Apellidos & Nombres</span><span class="detail-value">${escHtml(r.apellidos || '—')}, ${escHtml(r.nombres || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Teléfono & Edad</span><span class="detail-value">${escHtml(r.telefono || '—')} · ${r.edad ? `${r.edad} años` : '—'}</span></div>
+            <div class="detail-item"><span class="detail-label">Fecha Ingreso Entidad</span><span class="detail-value">${formatDate(r.fechaIngreso)}</span></div>
+            <div class="detail-item"><span class="detail-label">Cargo</span><span class="detail-value">${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Sede</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.sedeTrabajo || 'CASA DE LA TORRE')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">VALORACIÓN MÉDICA OCUPACIONAL (EMO)</strong>
+            </div>
             <div class="detail-item"><span class="detail-label">Tipo de EMO</span><span class="detail-value">${escHtml(r.tipoEmo)}</span></div>
             <div class="detail-item"><span class="detail-label">Fecha Realización EMO</span><span class="detail-value">${formatDate(r.fechaEmo)}</span></div>
             <div class="detail-item"><span class="detail-label">Próximo EMO Programado</span><span class="detail-value">${formatDate(r.fechaProximoEmo)}</span></div>
-            <div class="detail-item"><span class="detail-label">Programa Vigilancia (PVE)</span><span class="detail-value">${escHtml(r.direccionadoPve || 'No aplica')}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones Laborales</span><span class="detail-value">${escHtml(r.restricciones || 'NINGUNA')}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Recomendaciones Médicas</span><span class="detail-value">${escHtml(r.recomendaciones || '—')}</span></div>
-            <div class="detail-item"><span class="detail-label">Accidente de Trabajo</span><span class="detail-value">${escHtml(r.accidenteTrabajo)} ${r.estadoActualAccidente ? `— ${escHtml(r.estadoActualAccidente)}` : ''}</span></div>
-            <div class="detail-item"><span class="detail-label">Enfermedad Laboral / Rehab.</span><span class="detail-value">EL: ${escHtml(r.enfermedadLaboral)} · Rehab: ${escHtml(r.cumplioRehabilitacion)}</span></div>
-            ${r.actividadesPendientes ? `<div class="detail-item detail-grid--full"><span class="detail-label">Actividades Pendientes SST</span><span class="detail-value">${escHtml(r.actividadesPendientes)}</span></div>` : ''}
+            <div class="detail-item"><span class="detail-label">Direccionado a PVE</span><span class="detail-value">${escHtml(r.direccionadoPve || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Direccionado a EPS / IPS</span><span class="detail-value">${escHtml(r.direccionadoEps || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones Médicas Laborales</span><span class="detail-value">${escHtml(r.restricciones || 'NINGUNA')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Recomendaciones Médicas Ocupacionales</span><span class="detail-value">${escHtml(r.recomendaciones || '—')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">ACCIDENTES DE TRABAJO (AT) & ENFERMEDAD LABORAL (EL)</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Accidente de Trabajo (AT)</span><span class="detail-value">${escHtml(r.accidenteTrabajo)} ${r.fechaAccidente ? `(${formatDate(r.fechaAccidente)})` : ''}</span></div>
+            <div class="detail-item"><span class="detail-label">Estado Actual AT</span><span class="detail-value">${escHtml(r.estadoActualAccidente || 'No aplica')}</span></div>
+            <div class="detail-item"><span class="detail-label">Enfermedad Laboral (EL)</span><span class="detail-value">${escHtml(r.enfermedadLaboral)} ${r.fechaEnfermedad ? `(${formatDate(r.fechaEnfermedad)})` : ''}</span></div>
+            <div class="detail-item"><span class="detail-label">Estado Actual EL</span><span class="detail-value">${escHtml(r.estadoActualEnfermedad || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Cumplió Proceso de Rehabilitación</span><span class="detail-value">${escHtml(r.cumplioRehabilitacion || 'N/A')}</span></div>
+
+            ${r.actividadesPendientes ? `
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <span class="detail-label">Actividades Pendientes SST</span>
+              <span class="detail-value">${escHtml(r.actividadesPendientes)}</span>
+            </div>` : ''}
           </div>
         </div>`;
     } else if (state.tab === 'epp') {
@@ -1839,7 +2351,17 @@ const SstModule = (() => {
         </div>`;
     }
 
-    const actions = [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }];
+    const actions = [
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+      {
+        text: 'Exportar Ficha Excel',
+        cls: 'btn-secondary',
+        action: () => {
+          if (state.tab === 'epidemiologico') exportSingleProfileExcel(id);
+          else exportExcel();
+        }
+      }
+    ];
     if (Auth.canEdit()) {
       actions.push({
         text: 'Editar Registro',
@@ -2051,6 +2573,522 @@ const SstModule = (() => {
     }
   }
 
+
+  // ─── 1. Exportar Perfil Individual a la Plantilla Oficial Excel ──────────────
+  async function exportSingleProfileExcel(id) {
+    const r = state.data.find(x => x.id === id);
+    if (!r) {
+      App.showToast('No se encontró el registro a exportar.', 'warning');
+      return;
+    }
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca de Excel (SheetJS) no está disponible.', 'error');
+      return;
+    }
+
+    try {
+      App.showToast('Generando plantilla oficial de Excel...', 'info');
+
+      // Intentar cargar la plantilla oficial pre-almacenada para máxima fidelidad
+      let wb = null;
+      try {
+        const resp = await fetch('plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx');
+        if (resp.ok) {
+          const buf = await resp.arrayBuffer();
+          wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+        }
+      } catch (_) {}
+
+      // Si no se pudo obtener el archivo estático, generarlo programáticamente con la estructura exacta
+      if (!wb) {
+        wb = buildOfficialTemplateWorkbook();
+      }
+
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+
+      const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+      const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
+      // Escribir fila 7 (fila de datos oficiales A7:X7)
+      const dataRow = [
+        1,
+        r.tipoIdentificacion || 'Cédula de Ciudadanía',
+        r.documento || '',
+        apellidos,
+        nombres,
+        r.telefono || '',
+        r.edad ? parseInt(r.edad) : '',
+        formatDate(r.fechaIngreso) || '',
+        r.dependencia || '',
+        formatDate(r.fechaEmo) || '',
+        r.tipoEmo || 'Periódico',
+        r.restricciones || 'NINGUNA',
+        r.recomendaciones || 'Pausas activas e higiene postural',
+        r.direccionadoPve || 'No aplica',
+        r.direccionadoEps || 'No aplica',
+        formatDate(r.fechaProximoEmo) || '',
+        r.accidenteTrabajo || 'NO',
+        formatDate(r.fechaAccidente) || '',
+        r.estadoActualAccidente || 'No aplica',
+        r.enfermedadLaboral || 'NO',
+        formatDate(r.fechaEnfermedad) || '',
+        r.estadoActualEnfermedad || 'No aplica',
+        r.estadoFinalCaso || 'Vigente',
+        r.actividadesPendientes || ''
+      ];
+
+      // Escribir celdas A7 a X7
+      dataRow.forEach((val, idx) => {
+        const cellRef = XLSX.utils.encode_cell({ r: 6, c: idx });
+        ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val };
+      });
+
+      // Asegurar rango adecuado
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:X7');
+      if (range.e.r < 6) range.e.r = 6;
+      if (range.e.c < 23) range.e.c = 23;
+      ws['!ref'] = XLSX.utils.encode_range(range);
+
+      const cleanDoc = String(r.documento || 'perfil').replace(/[^a-zA-Z0-9]/g, '');
+      const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const filename = `PERFIL_EPIDEMIOLOGICO_${cleanDoc}_${cleanNom}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+      App.showToast(`Perfil de ${r.nombreCompleto} exportado exitosamente a la plantilla oficial Excel.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] exportSingleProfileExcel error:', err);
+      App.showToast('Error al exportar plantilla Excel: ' + err.message, 'error');
+    }
+  }
+
+  // ─── 2. Descargar la Plantilla Oficial en Blanco ────────────────────────────
+  async function downloadOfficialTemplate() {
+    if (state.tab === 'epidemiologico') {
+      try {
+        // Enlace directo si el archivo existe en el servidor
+        const a = document.createElement('a');
+        a.href = 'plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx';
+        a.download = 'PERFILEPIDEMIOLOGICO_Plantilla_Oficial_V3.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Perfil Epidemiológico descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      // Fallback programático con SheetJS
+      try {
+        const wb = buildOfficialTemplateWorkbook();
+        XLSX.writeFile(wb, 'PERFILEPIDEMIOLOGICO_Plantilla_Oficial_V3.xlsx');
+        App.showToast('Plantilla oficial generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+    } else {
+      // Para otros submódulos (EPP, Sociodemográfico)
+      const tabCfg = TABS[state.tab];
+      ExcelService.downloadTemplate({
+        filename: `Plantilla_${state.tab}`,
+        sheetName: tabCfg.title.substring(0, 30),
+        columns: getExcelColumns().filter(c => c.key !== 'radicado')
+      });
+    }
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS con todas las columnas y hojas
+  function buildOfficialTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // 1. Hoja principal: PERFIL EPIDEMIOLÓGICO
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 3'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-024'],
+      ['PERFIL  EPIDEMIOLÓGICO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 30/Abr/2025'],
+      [],
+      [
+        'N°',
+        'TIPO DE IDENTIFICACIÓN',
+        'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+        'APELLIDOS',
+        'NOMBRES',
+        'TELEFONO',
+        'EDAD\n(años)',
+        'FECHA DE INGRESO A LA ENTIDAD',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'FECHA EMO',
+        'TIPO DE EMO',
+        'RESTRICCIONES',
+        'RECOMENDACIONES ',
+        'DIRECCIONADO \nA PVE',
+        'DIRECCIONADO A EPS',
+        'FECHA PRÓXIMO EMO',
+        'ACCIDENTE DE TRABAJO',
+        'FECHA',
+        'ESTADO ACTUAL',
+        'ENFERMEDAD LABORAL',
+        'FECHA',
+        'ESTADO ACTUAL',
+        'ESTADO FINAL DEL CASO',
+        'ACTIVIDADES PENDIENTES'
+      ]
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 7 },   // A: N°
+      { wch: 28 },  // B: TIPO DE IDENTIFICACIÓN
+      { wch: 16 },  // C: NÚMERO DOCUMENTO
+      { wch: 24 },  // D: APELLIDOS
+      { wch: 23 },  // E: NOMBRES
+      { wch: 18 },  // F: TELEFONO
+      { wch: 13 },  // G: EDAD
+      { wch: 20 },  // H: FECHA INGRESO
+      { wch: 48 },  // I: DEPENDENCIA
+      { wch: 20 },  // J: FECHA EMO
+      { wch: 16 },  // K: TIPO EMO
+      { wch: 35 },  // L: RESTRICCIONES
+      { wch: 40 },  // M: RECOMENDACIONES
+      { wch: 30 },  // N: DIRECCIONADO A PVE
+      { wch: 32 },  // O: DIRECCIONADO A EPS
+      { wch: 25 },  // P: FECHA PROXIMO EMO
+      { wch: 25 },  // Q: ACCIDENTE DE TRABAJO
+      { wch: 15 },  // R: FECHA
+      { wch: 30 },  // S: ESTADO ACTUAL
+      { wch: 25 },  // T: ENFERMEDAD LABORAL
+      { wch: 15 },  // U: FECHA
+      { wch: 25 },  // V: ESTADO ACTUAL
+      { wch: 25 },  // W: ESTADO FINAL
+      { wch: 33 }   // X: ACTIVIDADES PENDIENTES
+    ];
+
+    // 2. Hoja 2: Hoja1 (Catálogos y listas oficiales de validación)
+    const maxLen = Math.max(
+      cats.tiposIdentificacion.length,
+      cats.dependencias.length,
+      cats.tiposEmo.length,
+      cats.sedes.length,
+      2
+    );
+
+    const ws2Data = [
+      [],
+      ['TIPO DE IDENTIFICACIÓN', 'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA', 'TIPO DE EMO', 'SEDE DE TRABAJO', 'CUMPLIÓ PROCESO DE REHABILITACIÓN']
+    ];
+
+    for (let i = 0; i < maxLen; i++) {
+      ws2Data.push([
+        cats.tiposIdentificacion[i] || '',
+        cats.dependencias[i] || '',
+        cats.tiposEmo[i] || '',
+        cats.sedes[i] || '',
+        i === 0 ? 'SI' : (i === 1 ? 'NO' : '')
+      ]);
+    }
+
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [
+      { wch: 26 },
+      { wch: 50 },
+      { wch: 18 },
+      { wch: 42 },
+      { wch: 35 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'PERFIL EPIDEMIOLÓGICO');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja1');
+    return wb;
+  }
+
+  // ─── 3. Modal de Exportar a Excel con Selección de Perfil ────────────────────
+  function openExportProfileModal() {
+    if (state.tab === 'epidemiologico') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione el servidor público cuyo perfil epidemiológico desea exportar a la <strong>Plantilla Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Servidor Público:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.tipoEmo)} ${formatDate(r.fechaEmo)}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica a la plantilla suministrada (Código E-DO-ST-F-024 Versión 3).</li>
+              <li>Poblado de los 24 campos oficiales clínicos y ocupacionales en la fila de datos.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Plantilla Oficial Excel', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Perfil Seleccionado (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+    } else {
+      exportExcel();
+    }
+  }
+
+  function exportExcelAllCurrent() {
+    exportExcel();
+  }
+
+  // ─── 4. Generación y Descarga de Reporte Anual Consolidado ───────────────────
+  async function generateAnnualReport() {
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca SheetJS aún no está cargada.', 'error');
+      return;
+    }
+
+    try {
+      App.showToast('Generando Reporte Anual Consolidado SST...', 'info');
+
+      // Obtener todos los registros disponibles
+      const res = await API.getSstEpidemiologico({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de Perfil Epidemiológico para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Estadísticas e indicadores anuales
+      const total = records.length;
+      let countVigentes = 0;
+      let countSeguimiento = 0;
+      let countRehab = 0;
+      let countAlertas = 0;
+      let countCerrados = 0;
+      let countAt = 0;
+      let countEl = 0;
+      let countRestricciones = 0;
+      let countPve = 0;
+
+      const porTipoEmo = {};
+      const porPve = {};
+      const porDependencia = {};
+
+      records.forEach(r => {
+        const est = (r.estadoFinalCaso || 'Vigente').toLowerCase();
+        if (est.includes('vigente')) countVigentes++;
+        else if (est.includes('seguimiento')) countSeguimiento++;
+        else if (est.includes('rehabilit')) countRehab++;
+        else if (est.includes('venc') || est.includes('próx')) countAlertas++;
+        else if (est.includes('cerrad')) countCerrados++;
+
+        if (r.accidenteTrabajo === 'SI') countAt++;
+        if (r.enfermedadLaboral === 'SI') countEl++;
+        if (r.restricciones && r.restricciones.toUpperCase() !== 'NINGUNA') countRestricciones++;
+        if (r.direccionadoPve && r.direccionadoPve !== 'No aplica') countPve++;
+
+        const tEmo = r.tipoEmo || 'Periódico';
+        porTipoEmo[tEmo] = (porTipoEmo[tEmo] || 0) + 1;
+
+        const pveProg = r.direccionadoPve || 'No aplica';
+        porPve[pveProg] = (porPve[pveProg] || 0) + 1;
+
+        const dep = r.dependencia || 'SGEN - SECRETARIA GENERAL';
+        porDependencia[dep] = (porDependencia[dep] || 0) + 1;
+      });
+
+      // Crear Libro Excel con SheetJS
+      const wb = XLSX.utils.book_new();
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES ANUALES
+      // ───────────────────────────────────────────────────────────────────────
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`REPORTE ANUAL CONSOLIDADO — PERFIL EPIDEMIOLÓGICO Y EMO (VIGENCIA ${anioActual})`],
+        [`Fecha de Emisión: ${fechaHoy} | Total Servidores Evaluados: ${total}`],
+        [],
+        ['1. INDICADORES GLOBALES DE VIGILANCIA EPIDEMIOLÓGICA', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Exámenes Médicos Ocupacionales (EMO) Realizados', total, '100%'],
+        ['Casos Vigentes con Aptitud Laboral', countVigentes, `${((countVigentes / total) * 100).toFixed(1)}%`],
+        ['Casos en Seguimiento Médico Activo', countSeguimiento, `${((countSeguimiento / total) * 100).toFixed(1)}%`],
+        ['Casos en Proceso de Rehabilitación Ocupacional', countRehab, `${((countRehab / total) * 100).toFixed(1)}%`],
+        ['Casos Vencidos o Próximos a Vencer (Alertas SST)', countAlertas, `${((countAlertas / total) * 100).toFixed(1)}%`],
+        ['Casos Cerrados en la Vigencia', countCerrados, `${((countCerrados / total) * 100).toFixed(1)}%`],
+        ['Servidores con Restricciones Médicas Laborales', countRestricciones, `${((countRestricciones / total) * 100).toFixed(1)}%`],
+        ['Servidores Ingresados a Programas PVE', countPve, `${((countPve / total) * 100).toFixed(1)}%`],
+        ['Casos con Accidente de Trabajo (AT) Registrado', countAt, `${((countAt / total) * 100).toFixed(1)}%`],
+        ['Casos con Enfermedad Laboral (EL) Registrada', countEl, `${((countEl / total) * 100).toFixed(1)}%`],
+        [],
+        ['2. CLASIFICACIÓN POR TIPO DE EXAMEN MÉDICO OCUPACIONAL', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porTipoEmo).forEach(([tipo, cant]) => {
+        summaryRows.push([tipo, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. PROGRAMAS DE VIGILANCIA EPIDEMIOLÓGICA (PVE)', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porPve).forEach(([prog, cant]) => {
+        summaryRows.push([prog, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. COBERTURA POR DEPENDENCIAS (TOP)', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porDependencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .forEach(([dep, cant]) => {
+          summaryRows.push([dep, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 24 }, { wch: 20 }];
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 2: BASE CONSOLIDADA DE PERFILES EPIDEMIOLÓGICOS (24 COLUMNAS OFICIALES)
+      // ───────────────────────────────────────────────────────────────────────
+      const baseRows = [
+        [
+          'N°',
+          'TIPO DE IDENTIFICACIÓN',
+          'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+          'APELLIDOS',
+          'NOMBRES',
+          'TELEFONO',
+          'EDAD (años)',
+          'FECHA DE INGRESO A LA ENTIDAD',
+          'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+          'SEDE DE TRABAJO',
+          'CARGO',
+          'FECHA EMO',
+          'TIPO DE EMO',
+          'RESTRICCIONES',
+          'RECOMENDACIONES',
+          'DIRECCIONADO A PVE',
+          'DIRECCIONADO A EPS',
+          'FECHA PRÓXIMO EMO',
+          'ACCIDENTE DE TRABAJO',
+          'FECHA ACCIDENTE',
+          'ESTADO ACTUAL ACCIDENTE',
+          'ENFERMEDAD LABORAL',
+          'FECHA ENFERMEDAD',
+          'ESTADO ACTUAL ENFERMEDAD',
+          'CUMPLIÓ REHABILITACIÓN',
+          'ESTADO FINAL DEL CASO',
+          'ACTIVIDADES PENDIENTES'
+        ]
+      ];
+
+      records.forEach((r, idx) => {
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+        baseRows.push([
+          idx + 1,
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.telefono || '',
+          r.edad || '',
+          formatDate(r.fechaIngreso) || '',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE',
+          r.cargo || '',
+          formatDate(r.fechaEmo) || '',
+          r.tipoEmo || 'Periódico',
+          r.restricciones || 'NINGUNA',
+          r.recomendaciones || '',
+          r.direccionadoPve || 'No aplica',
+          r.direccionadoEps || 'No aplica',
+          formatDate(r.fechaProximoEmo) || '',
+          r.accidenteTrabajo || 'NO',
+          formatDate(r.fechaAccidente) || '',
+          r.estadoActualAccidente || 'No aplica',
+          r.enfermedadLaboral || 'NO',
+          formatDate(r.fechaEnfermedad) || '',
+          r.estadoActualEnfermedad || 'No aplica',
+          r.cumplioRehabilitacion || 'N/A',
+          r.estadoFinalCaso || 'Vigente',
+          r.actividadesPendientes || ''
+        ]);
+      });
+
+      const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
+      wsBase['!cols'] = [
+        { wch: 6 },
+        { wch: 25 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 45 },
+        { wch: 28 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 32 },
+        { wch: 35 },
+        { wch: 28 },
+        { wch: 24 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 32 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores Anuales SST');
+      XLSX.utils.book_append_sheet(wb, wsBase, 'Base Consolidada');
+
+      const filename = `Reporte_Anual_Perfil_Epidemiologico_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} perfiles epidemiológicos generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual: ' + err.message, 'error');
+    }
+  }
+
   function openImportModal() {
     const tabCfg = TABS[state.tab];
     const cols = getExcelColumns().filter(c => c.key !== 'radicado');
@@ -2121,8 +3159,17 @@ const SstModule = (() => {
     onEmployeeInput,
     selectEmployee,
     exportSinglePdf,
+    exportSingleProfileExcel,
+    downloadOfficialTemplate,
+    openExportProfileModal,
+    generateAnnualReport,
     exportExcel,
     openImportModal,
+    onFechaEmoChange,
+    onTipoEmoChange,
+    onAtToggle,
+    onElToggle,
+    onApellidosNombresChange,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown

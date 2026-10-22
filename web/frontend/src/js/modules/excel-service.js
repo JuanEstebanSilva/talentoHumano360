@@ -99,7 +99,8 @@ const ExcelService = (() => {
     columns = [],
     sampleRows = [],
     validateRow,
-    onImport
+    onImport,
+    onDownloadTemplate
   }) {
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel (SheetJS) aún no se ha cargado.');
@@ -274,7 +275,18 @@ const ExcelService = (() => {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
 
-          parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          let headerRowIdx = 0;
+          for (let i = 0; i < Math.min(15, rawRows.length); i++) {
+            const rowStr = (rawRows[i] || []).map(c => String(c || '').toUpperCase()).join(' ');
+            if (rowStr.includes('DOCUMENTO') || rowStr.includes('IDENTIFICACI') || rowStr.includes('APELLIDOS') || rowStr.includes('SERVIDOR')) {
+              headerRowIdx = i;
+              break;
+            }
+          }
+          parsedData = headerRowIdx > 0
+            ? XLSX.utils.sheet_to_json(worksheet, { range: headerRowIdx, defval: '' })
+            : XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
           if (!parsedData || !parsedData.length) {
             alert('El archivo no contiene filas de datos o está vacío.');

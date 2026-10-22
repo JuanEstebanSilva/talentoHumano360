@@ -446,6 +446,71 @@ router.get('/catalogs', auth, async (_, res) => {
       rangosAntiguedad: [
         'Menos de 1 año.', 'Entre 1 y 4 años', 'Entre 4 y 10 años',
         'Entre 10 y 20 años', 'Entre 20 y 30 años', 'Mas de 30 años', 'N/A - CPS.'
+      ],
+      estadosAccidente: [
+        'No aplica',
+        'En investigación / Reporte inicial',
+        'En tratamiento médico',
+        'En proceso de rehabilitación',
+        'En calificación PCL (ARL / Junta)',
+        'Cerrado sin secuelas',
+        'Cerrado con secuelas',
+        'Caso archivado'
+      ],
+      estadosEnfermedad: [
+        'No aplica',
+        'En estudio / Calificación de origen',
+        'Origen laboral calificado en firme',
+        'En tratamiento médico especializado',
+        'En rehabilitación laboral',
+        'Con reubicación / adecuación laboral',
+        'Cerrado / Dictamen emitido'
+      ],
+      epsSugerencias: [
+        'No aplica',
+        'Nueva EPS',
+        'Sanitas EPS',
+        'Salud Total EPS',
+        'Famisanar EPS',
+        'Coosalud EPS',
+        'Compensar EPS',
+        'EPS Sura',
+        'ARL Positiva Compañía de Seguros',
+        'Asmet Salud',
+        'Seguimiento por Medicina Laboral'
+      ],
+      restriccionesFrecuentes: [
+        'NINGUNA',
+        'Evitar levantamiento de cargas mayores a 5 kg',
+        'Evitar levantamiento de cargas mayores a 10 kg',
+        'Evitar bipedestación prolongada (más de 2 horas continuas)',
+        'Evitar sedestación prolongada (realizar pausas activas cada 2 horas)',
+        'Evitar movimientos repetitivos y flexoextensión forzada de miembros superiores',
+        'Uso permanente de lentes correctivos para trabajo con pantallas (PVD)',
+        'Uso obligatorio de elementos de protección auditiva',
+        'Restricción para trabajo en alturas y espacios confinados',
+        'Restricción para conducción de vehículos automotores'
+      ],
+      recomendacionesFrecuentes: [
+        'Pausas activas e higiene postural',
+        'Pausas activas visuales y ergonómicas cada 2 horas',
+        'Adecuación ergonómica del puesto de trabajo (silla, descansapiés, soporte monitor)',
+        'Seguimiento por optometría / oftalmología anual',
+        'Seguimiento por audiometría ocupacional anual',
+        'Control médico periódico por EPS tratante',
+        'Ingreso y adherencia al Programa de Vigilancia Epidemiológica (PVE)',
+        'Promoción de estilos de vida y trabajo saludable, actividad física y control de peso',
+        'Seguimiento conjunto con ARL Positiva'
+      ],
+      actividadesPendientesFrecuentes: [
+        'Ninguna',
+        'Programar inspección de puesto de trabajo',
+        'Seguimiento al cumplimiento de recomendaciones médicas en puesto de trabajo',
+        'Remisión a especialista EPS tratante',
+        'Seguimiento a dictamen de calificación ARL Positiva',
+        'Programación de examen médico ocupacional de control',
+        'Adecuación de elementos ergonómicos (silla ergonómica / descansapiés / soporte monitor)',
+        'Capacitación y sensibilización en higiene postural y autocuidado'
       ]
     });
   } catch (err) {
@@ -824,13 +889,17 @@ router.post('/epidemiologico/bulk', auth, async (req, res) => {
           tipo_identificacion, documento, apellidos, nombres, nombre_completo, telefono, edad,
           fecha_ingreso, dependencia, sede_trabajo, cargo, fecha_emo, tipo_emo,
           restricciones, recomendaciones, direccionado_pve, direccionado_eps, fecha_proximo_emo,
-          accidente_trabajo, enfermedad_laboral, estado_final_caso, actividades_pendientes, creado_por
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
+          accidente_trabajo, fecha_accidente, estado_actual_accidente, cumplio_rehabilitacion,
+          enfermedad_laboral, fecha_enfermedad, estado_actual_enfermedad,
+          estado_final_caso, actividades_pendientes, creado_por
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
+        )`,
         [
           r.tipoIdentificacion || 'Cédula de Ciudadanía',
           doc,
-          upper(r.apellidos || nom.split(' ').slice(0, 2).join(' ')),
-          upper(r.nombres || nom.split(' ').slice(2).join(' ') || nom),
+          upper(r.apellidos || (nom.split(' ').length > 2 ? nom.split(' ').slice(0, 2).join(' ') : nom.split(' ').slice(0, 1).join(' '))),
+          upper(r.nombres || (nom.split(' ').length > 2 ? nom.split(' ').slice(2).join(' ') : nom.split(' ').slice(1).join(' ') || nom)),
           nom,
           r.telefono || '',
           parseInt(r.edad) || null,
@@ -841,12 +910,17 @@ router.post('/epidemiologico/bulk', auth, async (req, res) => {
           fechaEmo,
           r.tipoEmo || 'Periódico',
           r.restricciones || 'NINGUNA',
-          r.recomendaciones || 'Pausas activas',
+          r.recomendaciones || 'Pausas activas e higiene postural',
           r.direccionadoPve || 'No aplica',
           r.direccionadoEps || 'No aplica',
           fechaProx,
           upper(r.accidenteTrabajo || 'NO'),
+          toIsoDateOrNull(r.fechaAccidente),
+          r.estadoActualAccidente || 'No aplica',
+          upper(r.cumplioRehabilitacion || 'N/A'),
           upper(r.enfermedadLaboral || 'NO'),
+          toIsoDateOrNull(r.fechaEnfermedad),
+          r.estadoActualEnfermedad || 'No aplica',
           r.estadoFinalCaso || 'Vigente',
           r.actividadesPendientes || '',
           req.user.username || 'admin'
