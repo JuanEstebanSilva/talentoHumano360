@@ -78,11 +78,43 @@ const App = (() => {
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
+    // Inicializar selectores de fecha mejorados (Flatpickr institucional)
+    setTimeout(() => initDatePickers(bodyEl), 30);
+
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
       FX.animateModalOpen(overlay, box, isAlreadyOpen);
     } else {
       overlay.style.opacity = '1';
+    }
+  }
+
+  function initDatePickers(container = document) {
+    if (typeof flatpickr === 'undefined') return;
+    try {
+      const inputs = container.querySelectorAll ? container.querySelectorAll('input[type="date"], input[data-datepicker]') : [];
+      inputs.forEach(input => {
+        if (input._flatpickr) return;
+        const currentVal = input.value || '';
+        flatpickr(input, {
+          locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'd/m/Y',
+          altInputClass: (input.className || 'form-input') + ' flatpickr-input-custom',
+          defaultDate: currentVal || null,
+          allowInput: true,
+          disableMobile: true,
+          monthSelectorType: 'dropdown',
+          onChange: function(selectedDates, dateStr) {
+            input.value = dateStr;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      });
+    } catch (e) {
+      console.warn('[Flatpickr] Fallback to native datepicker:', e);
     }
   }
 
@@ -1115,7 +1147,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

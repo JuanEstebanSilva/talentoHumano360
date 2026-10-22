@@ -199,7 +199,7 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q = '', page = 1, limit = 30 } = req.query;
+  const { q = '', dependencia = '', cargo = '', page = 1, limit = 30 } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
   try {
     const trimmedQ = (q || '').trim();
@@ -213,33 +213,58 @@ router.get('/', auth, async (req, res) => {
       normCedula = digitsOnly;
     }
 
-    let whereClause = '';
+    const whereConditions = [];
     const params = [];
+
     if (trimmedQ) {
-      params.push(`%${trimmedQ}%`); // $1
+      params.push(`%${trimmedQ}%`);
+      const qIdx = params.length;
       if (normCedula) {
-        params.push(`%${normCedula}%`); // $2
-        whereClause = `WHERE (
-          LOWER(p.nombre_completo) LIKE LOWER($1)
-          OR p.cedula LIKE $1
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
-          OR p.cedula LIKE $2
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $2
-          OR LOWER(d.dependencia) LIKE LOWER($1)
-          OR LOWER(ca.cargo) LIKE LOWER($1)
-          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
-        )`;
+        params.push(`%${normCedula}%`);
+        const cIdx = params.length;
+        whereConditions.push(`(
+          LOWER(p.nombre_completo) LIKE LOWER($${qIdx})
+          OR p.cedula LIKE $${qIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${qIdx}
+          OR p.cedula LIKE $${cIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${cIdx}
+          OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
+          OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
+        )`);
       } else {
-        whereClause = `WHERE (
-          LOWER(p.nombre_completo) LIKE LOWER($1)
-          OR p.cedula LIKE $1
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
-          OR LOWER(d.dependencia) LIKE LOWER($1)
-          OR LOWER(ca.cargo) LIKE LOWER($1)
-          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
-        )`;
+        whereConditions.push(`(
+          LOWER(p.nombre_completo) LIKE LOWER($${qIdx})
+          OR p.cedula LIKE $${qIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${qIdx}
+          OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
+          OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
+        )`);
       }
     }
+
+    const trimmedDep = (dependencia || '').trim();
+    if (trimmedDep && trimmedDep !== 'Todas' && trimmedDep !== 'Todas las Dependencias') {
+      params.push(trimmedDep);
+      const depIdx = params.length;
+      whereConditions.push(`(
+        LOWER(d.dependencia) = LOWER($${depIdx})
+        OR LOWER(d.dependencia) LIKE '%' || LOWER($${depIdx}) || '%'
+      )`);
+    }
+
+    const trimmedCargo = (cargo || '').trim();
+    if (trimmedCargo && trimmedCargo !== 'Todos' && trimmedCargo !== 'Todos los Cargos') {
+      params.push(trimmedCargo);
+      const cargoIdx = params.length;
+      whereConditions.push(`(
+        LOWER(ca.cargo) = LOWER($${cargoIdx})
+        OR LOWER(cb.cargo) = LOWER($${cargoIdx})
+      )`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const limitParam = `$${params.length + 1}`;
     const offsetParam = `$${params.length + 2}`;
 
@@ -499,17 +524,22 @@ router.get('/catalogs', auth, async (_, res) => {
       pool.query('SELECT DISTINCT institucion_estudios FROM educacion WHERE institucion_estudios IS NOT NULL AND TRIM(institucion_estudios) <> \'\' ORDER BY institucion_estudios')
     ]);
 
-    // Dependencias únicas (sin duplicados por mayúsculas/espacios)
-    const dependenciasSet = new Set();
-    const dependenciasList = [];
+    // Dependencias únicas institucionales (sin duplicados, sin registros espurios y ordenadas naturalmente)
+    const normalizedMap = new Map();
     for (const r of depsRes.rows) {
       const dep = clean(r.dependencia)?.toUpperCase();
-      if (dep && !dependenciasSet.has(dep)) {
-        dependenciasSet.add(dep);
-        dependenciasList.push(dep);
+      if (!dep || ['HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA'].includes(dep)) continue;
+      
+      // Clave normalizada eliminando prefijos numéricos ("1. ", "10. ", etc.)
+      const normKey = dep.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+      if (!normKey) continue;
+
+      if (!normalizedMap.has(normKey)) {
+        normalizedMap.set(normKey, dep);
       }
     }
-    dependenciasList.sort((a, b) => a.localeCompare(b, 'es'));
+    const dependenciasList = Array.from(normalizedMap.values());
+    dependenciasList.sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
 
     // Mapeo dinámico: Dependencia -> Lista de Cargos (deduplicados por cargo)
     const cargosPorDependencia = {};
@@ -739,8 +769,21 @@ router.post('/', auth, async (req, res) => {
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
       const cleanName = clean(name) || 'NO REGISTRADO';
-      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
+      let existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
       if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+
+      // Fallback para dependencias: buscar sin prefijo numérico "1. ", "3. ", etc.
+      if (table === 'dependencias') {
+        const unnumbered = cleanName.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+        if (unnumbered) {
+          existing = await client.query(
+            `SELECT ${idCol} FROM ${table} WHERE REGEXP_REPLACE(LOWER(${nameCol}), '^[0-9]+(\\.[0-9]+)*\\.?\\s*', '') = LOWER($1) LIMIT 1`,
+            [unnumbered]
+          );
+          if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+        }
+      }
+
       const id = await nextId(table, idCol, prefix, width);
       await insertFn(id, cleanName);
       return id;
@@ -1344,8 +1387,21 @@ router.put('/:cedula', auth, async (req, res) => {
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
       const cleanName = clean(name)?.toUpperCase() || 'NO REGISTRADO';
-      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE UPPER(${nameCol}) = UPPER($1) LIMIT 1`, [cleanName]);
+      let existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE UPPER(${nameCol}) = UPPER($1) LIMIT 1`, [cleanName]);
       if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+
+      // Fallback para dependencias: buscar sin prefijo numérico
+      if (table === 'dependencias') {
+        const unnumbered = cleanName.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+        if (unnumbered) {
+          existing = await client.query(
+            `SELECT ${idCol} FROM ${table} WHERE REGEXP_REPLACE(UPPER(${nameCol}), '^[0-9]+(\\.[0-9]+)*\\.?\\s*', '') = UPPER($1) LIMIT 1`,
+            [unnumbered]
+          );
+          if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+        }
+      }
+
       const id = await nextId(table, idCol, prefix, width);
       await insertFn(id, cleanName);
       return id;

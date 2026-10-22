@@ -212,40 +212,40 @@ const HorariosModule = (() => {
               >
                 <button
                   type="button"
+                  class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  class="actions-dropdown-item"
                   onclick="HorariosModule.closeActionsDropdown(); HorariosModule.exportExcel();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <div>
-                    <strong>Descargar Datos en Excel</strong>
-                    <small>Exporta los registros (con filtros aplicados o todos los esquemas)</small>
+                    <strong>Exportar a Excel</strong>
+                    <small>Descargar listado filtrado (.xlsx)</small>
                   </div>
                 </button>
                 <button
                   type="button"
+                  class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  class="actions-dropdown-item"
                   onclick="HorariosModule.closeActionsDropdown(); HorariosModule.downloadTemplate();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                   <div>
-                    <strong>Descargar Plantilla Oficial (En blanco)</strong>
-                    <small>Plantilla institucional vacía para diligenciar y cargar</small>
+                    <strong>Descargar Plantilla Oficial</strong>
+                    <small>Formato oficial institucional (.xlsx)</small>
                   </div>
                 </button>
                 ${
                   canManage
                     ? `<button
                         type="button"
+                        class="actions-dropdown-item"
                         role="menuitem"
                         tabindex="-1"
-                        class="actions-dropdown-item"
                         onclick="HorariosModule.closeActionsDropdown(); HorariosModule.openImportModal();"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                         <div>
                           <strong>Carga Masiva Excel</strong>
                           <small>Importar registros desde plantilla institucional</small>
@@ -259,9 +259,9 @@ const HorariosModule = (() => {
             <!-- Acción Primaria (CTA - Visual Salience) -->
             ${
               canManage
-                ? `<button class="btn btn-primary btn-primary-cta" onclick="HorariosModule.openCreate()">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                     <span>Nuevo Horario</span>
+                ? `<button class="btn btn-primary-cta" onclick="HorariosModule.openCreate()" id="btn-nuevo-horario" aria-label="Registrar nuevo esquema de horario">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                     <span>+ Nuevo Horario</span>
                    </button>`
                 : ''
             }

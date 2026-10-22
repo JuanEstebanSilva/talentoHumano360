@@ -10,6 +10,8 @@ const EmployeesModule = (() => {
     page: 1,
     totalPages: 1,
     q: '',
+    dependencia: '',
+    cargo: '',
     catalogs: {
       dependencias: [],
       cargos: [],
@@ -553,7 +555,13 @@ const EmployeesModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const res = await API.getEmployees({ q: state.q, page: state.page, limit: 25 });
+      const res = await API.getEmployees({
+        q: state.q,
+        dependencia: state.dependencia,
+        cargo: state.cargo,
+        page: state.page,
+        limit: 25
+      });
       let records = res.data || [];
       // Ordenar: 1) Activos con cédula (primeras), 2) Sin cédula (penúltimas), 3) Inactivos (últimas)
       const getPriority = (emp) => {
@@ -3234,6 +3242,9 @@ const EmployeesModule = (() => {
   }
 
   async function render(container) {
+    if (!state.catalogs.dependencias || !state.catalogs.dependencias.length) {
+      await loadCatalogs();
+    }
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
@@ -3321,22 +3332,38 @@ const EmployeesModule = (() => {
             ${Auth.canEdit() ? `
             <button class="btn btn-primary-cta" onclick="EmployeesModule.openCreate()" id="btn-nuevo-servidor" aria-label="Crear nuevo servidor público">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Nuevo Servidor</span>
+              <span>+ Nuevo Servidor</span>
             </button>` : ''}
           </div>
         </div>
 
         <div class="filters-card">
-          <div class="filters-row">
-            <div class="filter-group" style="flex:2;min-width:240px">
+          <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <div class="filter-group" style="flex:2; min-width:220px;">
               <label class="filter-label" for="emp-search">Buscar Servidor</label>
-              <input id="emp-search" class="filter-input" placeholder="Buscar por nombre, cédula, dependencia, cargo..." aria-label="Buscar servidor por nombre, cédula o cargo" />
+              <input id="emp-search" class="filter-input" placeholder="Buscar por nombre o cédula..." aria-label="Buscar servidor por nombre o cédula" value="${escHtml(state.q || '')}" />
             </div>
-            <button class="btn btn-primary" onclick="EmployeesModule.search()" aria-label="Ejecutar búsqueda">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Buscar
-            </button>
-            <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
+            <div class="filter-group" style="flex:1.5; min-width:200px;">
+              <label class="filter-label" for="emp-filter-dep">Dependencia</label>
+              <select id="emp-filter-dep" class="filter-select" onchange="EmployeesModule.search()" aria-label="Filtrar por dependencia institucional">
+                <option value="">Todas las Dependencias</option>
+                ${(state.catalogs.dependencias || []).map(d => `<option value="${escHtml(d)}" ${d === state.dependencia ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="filter-group" style="flex:1.5; min-width:200px;">
+              <label class="filter-label" for="emp-filter-cargo">Cargo</label>
+              <select id="emp-filter-cargo" class="filter-select" onchange="EmployeesModule.search()" aria-label="Filtrar por cargo">
+                <option value="">Todos los Cargos</option>
+                ${(state.catalogs.cargos || []).map(c => `<option value="${escHtml(c.cargo)}" ${c.cargo === state.cargo ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
+              </select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <button class="btn btn-primary" onclick="EmployeesModule.search()" aria-label="Ejecutar búsqueda">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar
+              </button>
+              <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
+            </div>
           </div>
         </div>
 
@@ -3384,7 +3411,7 @@ const EmployeesModule = (() => {
       });
     }
 
-    state.page = 1; state.q = '';
+    state.page = 1; state.q = ''; state.dependencia = ''; state.cargo = '';
     await load();
     const countEl = document.getElementById('emp-count');
     if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
@@ -3392,15 +3419,24 @@ const EmployeesModule = (() => {
 
   function search() {
     clearPendingInactivations();
-    const q = document.getElementById('emp-search')?.value.trim() || '';
-    state.q = q; state.page = 1;
+    state.q = document.getElementById('emp-search')?.value.trim() || '';
+    state.dependencia = document.getElementById('emp-filter-dep')?.value || '';
+    state.cargo = document.getElementById('emp-filter-cargo')?.value || '';
+    state.page = 1;
     load();
   }
   function clearSearch() {
     clearPendingInactivations();
     const inp = document.getElementById('emp-search');
     if (inp) inp.value = '';
-    state.q = ''; state.page = 1;
+    const depSelect = document.getElementById('emp-filter-dep');
+    if (depSelect) depSelect.value = '';
+    const cargoSelect = document.getElementById('emp-filter-cargo');
+    if (cargoSelect) cargoSelect.value = '';
+    state.q = '';
+    state.dependencia = '';
+    state.cargo = '';
+    state.page = 1;
     load();
   }
 

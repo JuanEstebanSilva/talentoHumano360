@@ -1072,42 +1072,42 @@ const ViaticosModule = (() => {
               >
                 <button
                   type="button"
+                  class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  class="actions-dropdown-item"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
+                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <div>
-                    <strong>Descargar Plantilla Oficial (En blanco)</strong>
-                    <small>Plantilla institucional vacía para diligenciar y cargar</small>
+                    <strong>Exportar a Excel</strong>
+                    <small>Descargar listado filtrado (.xlsx)</small>
                   </div>
                 </button>
                 <button
                   type="button"
+                  class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  class="actions-dropdown-item"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
+                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                   <div>
-                    <strong>Exportar Viáticos a Excel</strong>
-                    <small>Descarga el listado filtrado actual en formato .xlsx</small>
+                    <strong>Descargar Plantilla Oficial</strong>
+                    <small>Formato oficial institucional (.xlsx)</small>
                   </div>
                 </button>
                 ${Auth.canEdit() ? `
                 <button
                   type="button"
+                  class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  class="actions-dropdown-item"
                   onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openImportModal();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                   <div>
                     <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde archivo institucional</small>
+                    <small>Importar registros desde plantilla institucional</small>
                   </div>
                 </button>` : ''}
               </div>
@@ -1115,9 +1115,9 @@ const ViaticosModule = (() => {
 
             <!-- Acción Primaria (CTA - Visual Salience) -->
             ${Auth.canEdit() ? `
-            <button class="btn btn-primary btn-primary-cta" onclick="ViaticosModule.openCreate()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Nuevo Viático</span>
+            <button class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear nuevo viático">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>+ Nuevo Viático</span>
             </button>` : ''}
           </div>
         </div>
@@ -1399,7 +1399,11 @@ const ViaticosModule = (() => {
       'CONTRATACION': 'SECRETARÍA DE CONTRATACIÓN',
       'AMBIENTE': 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
       'TURISMO': 'SECRETARÍA DE TURISMO',
-      'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO'
+      'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO',
+      'SALUD': 'SECRETARÍA DE SALUD',
+      'SECRETARIA DE SALUD': 'SECRETARÍA DE SALUD',
+      '704': 'SECRETARÍA DE SALUD',
+      '703': 'SECRETARÍA DE SALUD'
     };
 
     // ─── Conversor de número de serie de fecha de Excel ─────────────────────
@@ -1794,75 +1798,58 @@ const ViaticosModule = (() => {
     try {
       const wb = XLSX.utils.book_new();
 
-      // Hoja 1: Formato Institucional Gobernación / Secretarías
-      const secData = [
-        ['GOBERNACIÓN DE BOYACÁ'],
-        ['SECRETARÍA DE HACIENDA - CONTROL Y GESTIÓN DE VIÁTICOS'],
-        ['SALDO INICIAL DISPONIBLE:', null, null, null, null, 50000000],
-        ['NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No. RESOLUCION', 'VALOR', 'SALDO', 'OBSERVACIONES'],
-        ['GARCIA MARTINEZ LUIS FERNANDO', '15,16,17/05/2026', 'BOGOTA D.C.', '1240/10/05/2026', 360000, 49640000, 'Capacitación DIAN'],
-        ['RODRIGUEZ PAEZ MARIA CAMILA', '22/05/2026', 'SOGAMOSO', '1245/18/05/2026', 120000, 49520000, 'Comisión técnica de hacienda'],
-        ['PEREZ GOMEZ JORGE ANDRES', '28,29/05/2026', 'DUITAMA', '1250/25/05/2026', 0, 49520000, 'SIN VIATICOS']
+      // 17 Secretarías y Despachos Institucionales de la Gobernación de Boyacá
+      const SECRETARIAS_PLANTILLA = [
+        { code: 'DESPACHOGOBER', name: 'DESPACHO DEL GOBERNADOR', saldo: 50000000, sampleNom: 'ANA MARIA ROJAS VILLAMIL', sampleFecha: '18,19/01/2026', sampleLugar: 'TUNJA / BOGOTA', sampleRes: '0056/17/01/2026', sampleVal: 138000 },
+        { code: 'HACIENDA', name: 'SECRETARÍA DE HACIENDA', saldo: 50000000, sampleNom: 'PEDRO PASCASIO MARTINEZ', sampleFecha: '29,30/01/2026', sampleLugar: 'SATIVANORTE', sampleRes: '0200/29/01/2026', sampleVal: 128000 },
+        { code: 'PLANEACION', name: 'SECRETARÍA DE PLANEACIÓN', saldo: 40000000, sampleNom: 'HENRY ALIRIO MORALES JAIME', sampleFecha: '18,19/04/2026', sampleLugar: 'CHISCAS, GUICAN, EL COCUY', sampleRes: '1337/15/04/2026', sampleVal: 383000 },
+        { code: 'GENERAL', name: 'SECRETARÍA GENERAL', saldo: 45000000, sampleNom: 'GARCIA MARTINEZ LUIS FERNANDO', sampleFecha: '15,16/05/2026', sampleLugar: 'BOGOTA D.C.', sampleRes: '0412/12/05/2026', sampleVal: 240000 },
+        { code: 'INFRAESTRUCTURA', name: 'SECRETARÍA DE INFRAESTRUCTURA', saldo: 60000000, sampleNom: 'RAMIREZ LOPEZ CARLOS ARTURO', sampleFecha: '20,21/02/2026', sampleLugar: 'PUERTO BOYACA', sampleRes: '0520/20/02/2026', sampleVal: 350000 },
+        { code: 'EDUCACION', name: 'SECRETARÍA DE EDUCACIÓN', saldo: 70000000, sampleNom: 'MONTAÑEZ SILVA CLARA INES', sampleFecha: '05,06/03/2026', sampleLugar: 'SOATA', sampleRes: '0615/05/03/2026', sampleVal: 180000 },
+        { code: 'AGRICULTURA', name: 'SECRETARÍA DE AGRICULTURA', saldo: 40000000, sampleNom: 'CASTRO VARGAS DANIEL FELIPE', sampleFecha: '18,19/02/2026', sampleLugar: 'MIRAFLORES', sampleRes: '0710/18/02/2026', sampleVal: 210000 },
+        { code: 'INTEGRACION SOCIAL', name: 'SECRETARÍA DE INTEGRACIÓN SOCIAL', saldo: 35000000, sampleNom: 'PINZON DUARTE LILIANA ANDREA', sampleFecha: '22,23/03/2026', sampleLugar: 'GARAGOA', sampleRes: '0812/22/03/2026', sampleVal: 165000 },
+        { code: 'CULTURA', name: 'SECRETARÍA DE CULTURA Y PATRIMONIO', saldo: 30000000, sampleNom: 'TORRES BARRERA MAURICIO', sampleFecha: '10,11/04/2026', sampleLugar: 'VILLA DE LEYVA', sampleRes: '0915/10/04/2026', sampleVal: 195000 },
+        { code: 'MINAS', name: 'SECRETARÍA DE MINAS Y ENERGÍA', saldo: 35000000, sampleNom: 'HERNANDEZ ROA GABRIEL', sampleFecha: '14,15/03/2026', sampleLugar: 'PAZ DE RIO', sampleRes: '1012/14/03/2026', sampleVal: 220000 },
+        { code: 'GOBIERNO', name: 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL', saldo: 45000000, sampleNom: 'ORTIZ SUAREZ BLANCA HELENA', sampleFecha: '02,03/02/2026', sampleLugar: 'CHIQUINQUIRA', sampleRes: '1105/02/02/2026', sampleVal: 175000 },
+        { code: 'DESARROLLOEMP', name: 'SECRETARÍA DE DESARROLLO EMPRESARIAL', saldo: 40000000, sampleNom: 'GOMEZ BERNAL RICARDO', sampleFecha: '25,26/03/2026', sampleLugar: 'DUITAMA', sampleRes: '1210/25/03/2026', sampleVal: 150000 },
+        { code: 'CONTRATACION', name: 'SECRETARÍA DE CONTRATACIÓN', saldo: 30000000, sampleNom: 'SUAREZ RIVERA ANDRES', sampleFecha: '11,12/02/2026', sampleLugar: 'BOGOTA D.C.', sampleRes: '1302/11/02/2026', sampleVal: 240000 },
+        { code: 'AMBIENTE', name: 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE', saldo: 35000000, sampleNom: 'RODRIGUEZ PAEZ CAMILA', sampleFecha: '19,20/03/2026', sampleLugar: 'AQUITANIA', sampleRes: '1410/19/03/2026', sampleVal: 185000 },
+        { code: 'TURISMO', name: 'SECRETARÍA DE TURISMO', saldo: 30000000, sampleNom: 'ALVAREZ DUARTE JULIAN', sampleFecha: '08,09/04/2026', sampleLugar: 'PAIPA', sampleRes: '1515/08/04/2026', sampleVal: 145000 },
+        { code: 'TIC', name: 'SECRETARÍA TIC Y GOBIERNO ABIERTO', saldo: 35000000, sampleNom: 'MEDINA REYES OSCAR DAVID', sampleFecha: '16,17/03/2026', sampleLugar: 'SOGAMOSO', sampleRes: '1612/16/03/2026', sampleVal: 160000 },
+        { code: 'SALUD', name: 'SECRETARÍA DE SALUD', saldo: 80000000, sampleNom: 'FRANCISCO JOSE ALVAREZ OCHOA', sampleFecha: '02,03/02/2026', sampleLugar: 'PAIPA, COMBITA', sampleRes: '0256/02/02/2026', sampleVal: 190000 }
       ];
-      const wsSec = XLSX.utils.aoa_to_sheet(secData);
-      wsSec['!cols'] = [
-        { wch: 36 },
-        { wch: 20 },
-        { wch: 25 },
-        { wch: 22 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 30 }
-      ];
-      XLSX.utils.book_append_sheet(wb, wsSec, 'HACIENDA');
 
-      // Hoja 2: Formato Detallado (Talento360 Completo)
-      const fullCols = [
-        { header: 'Cédula', key: 'documento', width: 16 },
-        { header: 'Servidor Público', key: 'persona', width: 34 },
-        { header: 'Dependencia', key: 'dependencia', width: 30 },
-        { header: 'Cargo', key: 'cargo', width: 26 },
-        { header: 'Destino', key: 'destino', width: 25 },
-        { header: 'Fecha Salida', key: 'fechaInicio', width: 16 },
-        { header: 'Fecha Retorno', key: 'fechaFin', width: 16 },
-        { header: 'Días', key: 'dias', width: 10 },
-        { header: 'Valor Diario', key: 'valorDiario', width: 16 },
-        { header: 'Total Viáticos', key: 'valorTotal', width: 18 },
-        { header: 'No. Resolución', key: 'numeroResolucion', width: 22 },
-        { header: 'Saldo COP', key: 'saldo', width: 18 },
-        { header: 'Objeto Comisión', key: 'motivo', width: 35 },
-        { header: 'Estado', key: 'estado', width: 16 },
-        { header: 'Observaciones', key: 'observaciones', width: 30 }
-      ];
-      const fullRows = [
-        {
-          'Cédula': '1049601234',
-          'Servidor Público': 'GARCIA MARTINEZ LUIS FERNANDO',
-          'Dependencia': 'SECRETARÍA DE HACIENDA',
-          'Cargo': 'PROFESIONAL UNIVERSITARIO',
-          'Destino': 'BOGOTÁ D.C.',
-          'Fecha Salida': '15/05/2026',
-          'Fecha Retorno': '17/05/2026',
-          'Días': 3,
-          'Valor Diario': 120000,
-          'Total Viáticos': 360000,
-          'No. Resolución': '1240/10/05/2026',
-          'Saldo COP': 49640000,
-          'Objeto Comisión': 'Capacitación en gestión tributaria',
-          'Estado': 'Aprobada',
-          'Observaciones': 'Viáticos aprobados'
-        }
-      ];
-      const wsFull = XLSX.utils.json_to_sheet(fullRows);
-      wsFull['!cols'] = fullCols.map(c => ({ wch: c.width }));
-      XLSX.utils.book_append_sheet(wb, wsFull, 'FORMATO_DETALLADO');
+      SECRETARIAS_PLANTILLA.forEach(sec => {
+        const rows = [
+          ['GOBERNACIÓN DE BOYACÁ - EJECUCIÓN PRESUPUESTAL VIÁTICOS'],
+          [sec.name],
+          [null, null, null, null, null, 'SALDO'],
+          ['ITEM', 'NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No.RESOLUCION', 'VALOR', sec.saldo, 'OBSERVACIONES'],
+          [1, sec.sampleNom, sec.sampleFecha, sec.sampleLugar, sec.sampleRes, sec.sampleVal, sec.saldo - sec.sampleVal, 'Comisión oficial institucional']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [
+          { wch: 8 },
+          { wch: 38 },
+          { wch: 20 },
+          { wch: 28 },
+          { wch: 22 },
+          { wch: 16 },
+          { wch: 18 },
+          { wch: 32 }
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, sec.code);
+      });
 
       const dateStr = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `Plantilla_Oficial_Viaticos_${dateStr}.xlsx`);
-      App.showToast('Plantilla oficial descargada exitosamente.', 'success');
+      XLSX.writeFile(wb, `Plantilla_Oficial_Viaticos_Gobernacion_Boyaca_${dateStr}.xlsx`);
+      App.showToast('Plantilla oficial institucional de viáticos (17 secretarías) descargada exitosamente.', 'success');
       if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
     } catch (err) {
-      console.error('[ViaticosModule] Error al descargar plantilla:', err);
+      console.error('[ViaticosModule] Error al descargar plantilla oficial:', err);
+      App.showToast('Error al generar la plantilla oficial de viáticos: ' + err.message, 'error');
+    }
+  }
       App.showToast('Error al generar plantilla: ' + err.message, 'error');
     }
   }
