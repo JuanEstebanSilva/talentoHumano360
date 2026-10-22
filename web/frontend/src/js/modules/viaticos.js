@@ -1117,7 +1117,7 @@ const ViaticosModule = (() => {
             ${Auth.canEdit() ? `
             <button class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear nuevo viático">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>+ Nuevo Viático</span>
+              <span>Nuevo Viático</span>
             </button>` : ''}
           </div>
         </div>
@@ -1848,9 +1848,6 @@ const ViaticosModule = (() => {
     } catch (err) {
       console.error('[ViaticosModule] Error al descargar plantilla oficial:', err);
       App.showToast('Error al generar la plantilla oficial de viáticos: ' + err.message, 'error');
-    }
-  }
-      App.showToast('Error al generar plantilla: ' + err.message, 'error');
     }
   }
 
