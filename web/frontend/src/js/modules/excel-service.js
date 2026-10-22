@@ -227,6 +227,10 @@ const ExcelService = (() => {
 
     // Descarga de plantilla
     downloadTemplateBtn.addEventListener('click', () => {
+      if (onDownloadTemplate && typeof onDownloadTemplate === 'function') {
+        onDownloadTemplate();
+        return;
+      }
       downloadTemplate({
         filename: `Plantilla_${moduleName.replace(/\s+/g, '_')}`,
         sheetName: moduleName,

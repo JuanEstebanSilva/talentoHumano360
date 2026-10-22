@@ -244,7 +244,7 @@ const SstModule = (() => {
       "ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.",
       "ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.",
       "AUDITORIO JOSE MOSSER Y OFICINAS.",
-      "BIBLIOTECA DEPARTAMENTAL \"EDUARDO TORRES QUINTERO\"ARCHIVO COBRO COACTIVO.",
+      "BIBLIOTECA DEPARTAMENTAL \"EDUARDO TORRES QUINTERO\"/SECRETARÍA DE DE AMBIENTE Y DESARROLLO SOSTENIBLE/ARCHIVO COBRO COACTIVO.",
       "BIBLIOTECA PEDRO PASCACIO MARTÍNEZ. (CASA JUAN DE CASTELLANOS)",
       "BODEGA TALLERES DE OBRAS PÚBLICAS DEL DEPARTAMENTO DE BOYACÁ.",
       "BODEGA VECTORES",
@@ -540,6 +540,96 @@ const SstModule = (() => {
     rangosAntiguedad: [
       'Menos de 1 año.', 'Entre 1 y 4 años', 'Entre 4 y 10 años',
       'Entre 10 y 20 años', 'Entre 20 y 30 años', 'Mas de 30 años', 'N/A - CPS.'
+    ],
+    cargosOficialesSocio: [
+      'Profesional Universitario',
+      'Profesional Especializado',
+      'Técnico Administrativo',
+      'Técnico Operativo',
+      'Auxiliar Administrativo',
+      'Aux. Servicios Generales',
+      'Secretario',
+      'Secretario Ejecutivo',
+      'Secretaria Ejecutiva',
+      'Secretario de Despacho',
+      'Subdirector Administrativo',
+      'Subdirector Técnico',
+      'Director Administrativo',
+      'Director Técnico',
+      'Director de Departamento',
+      'Jefe de Oficina Asesora',
+      'Asesor',
+      'Gobernador',
+      'Tesorero General',
+      'Almacenista General',
+      'Celador',
+      'Conductor',
+      'Conductor Mecánico',
+      'Operario',
+      'Judicante',
+      'Pasante SENA',
+      'Practicante Universitario',
+      'N/A (Contrato de Prestación de Servicios)',
+      'OTRO'
+    ],
+    municipiosResidenciaSugeridos: [
+      'Tunja',
+      'Duitama',
+      'Sogamoso',
+      'Chiquinquirá',
+      'Paipa',
+      'Cómbita',
+      'Samacá',
+      'Villa de Leyva',
+      'Moniquirá',
+      'Nobsa',
+      'Garagoa',
+      'Guateque',
+      'Puerto Boyacá',
+      'Ventaquemada',
+      'Tuta',
+      'Oicatá',
+      'Soracá',
+      'Siachoque',
+      'Chivatá',
+      'Toca',
+      'Pesca',
+      'Tibasosa',
+      'Santa Rosa de Viterbo',
+      'Bogotá D.C.',
+      'Otro Municipio'
+    ],
+    municipiosTrabajoSugeridos: [
+      'Tunja',
+      'Bogotá',
+      'Duitama',
+      'Sogamoso',
+      'Chiquinquirá',
+      'Paipa',
+      'Puerto Boyacá',
+      'OTRO'
+    ],
+    profesionesSugeridas: [
+      'Ingeniero Industrial',
+      'Abogado',
+      'Contador Público',
+      'Administrador de Empresas',
+      'Administrador Público',
+      'Economista',
+      'Ingeniero de Sistemas',
+      'Ingeniero Civil',
+      'Ingeniero Ambiental',
+      'Psicólogo',
+      'Trabajador Social',
+      'Comunicador Social / Periodista',
+      'Médico',
+      'Enfermero',
+      'Arquitecto',
+      'Docente / Licenciado',
+      'Tecnólogo en Gestión Administrativa',
+      'Técnico en Sistemas',
+      'Bachiller',
+      'OTRA'
     ]
   };
 
@@ -690,7 +780,37 @@ const SstModule = (() => {
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
-      if (el && val !== undefined && val !== null && val !== '') el.value = val;
+      if (!el || val === undefined || val === null || val === '') return;
+      if (el.tagName === 'SELECT') {
+        const valStr = String(val).trim().toLowerCase();
+        let matched = false;
+        for (let i = 0; i < el.options.length; i++) {
+          if (el.options[i].value.toLowerCase() === valStr || el.options[i].textContent.toLowerCase() === valStr) {
+            el.selectedIndex = i;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          for (let i = 0; i < el.options.length; i++) {
+            const optVal = el.options[i].value.toLowerCase();
+            if (optVal && (optVal.includes(valStr) || valStr.includes(optVal))) {
+              el.selectedIndex = i;
+              matched = true;
+              break;
+            }
+          }
+        }
+        if (!matched) {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          opt.selected = true;
+          el.appendChild(opt);
+        }
+      } else {
+        el.value = val;
+      }
     };
 
     setVal('sst-nombre', emp.nombreCompleto);
@@ -710,6 +830,33 @@ const SstModule = (() => {
     if (emp.sexo) {
       const s = emp.sexo.toUpperCase().startsWith('F') ? 'Femenino' : 'Masculino';
       setVal('sst-sexo', s);
+    }
+    if (emp.edad) {
+      const yNac = new Date().getFullYear() - parseInt(emp.edad);
+      setVal('sst-anio-nac', yNac);
+    }
+    if (emp.clasificacion) {
+      setVal('sst-vinculacion', emp.clasificacion);
+    }
+  }
+
+  function onSocioAnioNacChange(val) {
+    if (!val) return;
+    const y = parseInt(val);
+    const currYear = new Date().getFullYear();
+    if (y > 1920 && y <= currYear) {
+      const edadInput = document.getElementById('sst-edad');
+      if (edadInput) edadInput.value = currYear - y;
+    }
+  }
+
+  function onSocioEdadChange(val) {
+    if (!val) return;
+    const age = parseInt(val);
+    const currYear = new Date().getFullYear();
+    if (age >= 16 && age <= 100) {
+      const anioInput = document.getElementById('sst-anio-nac');
+      if (anioInput && !anioInput.value) anioInput.value = currYear - age;
     }
   }
 
@@ -1482,6 +1629,9 @@ const SstModule = (() => {
             <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Ficha Sociodemográfica">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+            <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Perfil en Plantilla Oficial Excel (.xlsx)" style="color:#16a34a;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+            </button>
             ${Auth.canEdit() ? `
             <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Perfil">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1833,130 +1983,238 @@ const SstModule = (() => {
     }
 
     // Sociodemográfico
+    const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+    const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
     return `
       <div class="form-grid">
+        <!-- SECCIÓN 1: DATOS DEL SERVIDOR PÚBLICO -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            1. Información del Servidor Público
+          </h4>
+        </div>
+
         <div class="form-group span-2 autocomplete-wrapper">
-          <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar desde planta)</span></label>
-          <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
+          <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
+          <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
           <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Documento</label>
+          <label class="form-label">Tipo de Identificación *</label>
           <select id="sst-tipo-id" class="filter-select">
-            ${cats.tiposIdentificacion.map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+            ${(cats.tiposIdentificacion || []).map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Número de Identificación *</label>
-          <input id="sst-doc" class="form-input" value="${escHtml(r.documento || '')}" required />
+          <label class="form-label">Número de Documento *</label>
+          <input id="sst-doc" class="form-input" placeholder="Cédula de ciudadanía o extranjería" value="${escHtml(r.documento || '')}" required />
         </div>
+
         <div class="form-group">
-          <label class="form-label">Sexo</label>
+          <label class="form-label">Apellidos *</label>
+          <input id="sst-apellidos" class="form-input" placeholder="Primer y segundo apellido" value="${escHtml(apellidos)}" oninput="SstModule.onApellidosNombresChange()" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nombres *</label>
+          <input id="sst-nombres" class="form-input" placeholder="Nombres completos" value="${escHtml(nombres)}" oninput="SstModule.onApellidosNombresChange()" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Sexo *</label>
           <select id="sst-sexo" class="filter-select">
-            <option ${r.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
-            <option ${r.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
+            <option value="Masculino" ${r.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
+            <option value="Femenino" ${r.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
           </select>
         </div>
+
         <div class="form-group">
           <label class="form-label">Año Nacimiento / Edad</label>
           <div style="display:flex;gap:8px;">
-            <input id="sst-anio-nac" type="number" class="form-input" placeholder="Año (Ej: 1990)" value="${escHtml(r.anioNacimiento || '')}" />
-            <input id="sst-edad" type="number" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" />
+            <input id="sst-anio-nac" type="number" min="1920" max="2015" class="form-input" placeholder="Año (Ej: 1990)" value="${escHtml(r.anioNacimiento || '')}" oninput="SstModule.onSocioAnioNacChange(this.value)" />
+            <input id="sst-edad" type="number" min="16" max="99" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" oninput="SstModule.onSocioEdadChange(this.value)" />
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Raza / Etnia</label>
-          <select id="sst-raza" class="filter-select">
-            ${cats.razas.map(rz => `<option ${r.razaEtnia === rz ? 'selected' : ''}>${escHtml(rz)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Estado Civil</label>
-          <select id="sst-estado-civil" class="filter-select">
-            ${cats.estadosCiviles.map(ec => `<option ${r.estadoCivil === ec ? 'selected' : ''}>${escHtml(ec)}</option>`).join('')}
-          </select>
-        </div>
+
         <div class="form-group span-2">
-          <label class="form-label">Composición Familiar (Personas con las que comparte vivienda)</label>
+          <label class="form-label">Raza / Etnia *</label>
+          <select id="sst-raza" class="filter-select">
+            ${(cats.razas || []).map(rz => `<option ${r.razaEtnia === rz ? 'selected' : ''}>${escHtml(rz)}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- SECCIÓN 2: ENTORNO SOCIOFAMILIAR Y VIVIENDA -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            2. Entorno Sociofamiliar y Vivienda
+          </h4>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estado Civil *</label>
+          <select id="sst-estado-civil" class="filter-select">
+            ${(cats.estadosCiviles || []).map(ec => `<option ${r.estadoCivil === ec ? 'selected' : ''}>${escHtml(ec)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Composición Familiar (Convive con) *</label>
           <select id="sst-familia" class="filter-select">
-            ${cats.composicionesFamiliares.map(cf => `<option ${r.composicionFamiliar === cf ? 'selected' : ''}>${escHtml(cf)}</option>`).join('')}
+            ${(cats.composicionesFamiliares || []).map(cf => `<option ${r.composicionFamiliar === cf ? 'selected' : ''}>${escHtml(cf)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Vivienda</label>
+          <label class="form-label">Tipo de Vivienda *</label>
           <select id="sst-vivienda" class="filter-select">
-            ${cats.tiposVivienda.map(tv => `<option ${r.tipoVivienda === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+            ${(cats.tiposVivienda || []).map(tv => `<option ${r.tipoVivienda === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Estrato Servicios Públicos</label>
+          <label class="form-label">Estrato Servicios Públicos *</label>
           <select id="sst-estrato" class="filter-select">
-            ${cats.estratos.map(es => `<option ${String(r.estrato || '3') === es ? 'selected' : ''}>${es}</option>`).join('')}
+            ${(cats.estratos || []).map(es => `<option ${String(r.estrato || '3') === es ? 'selected' : ''}>Estrato ${es}</option>`).join('')}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Municipio de Residencia</label>
-          <input id="sst-mpio-res" class="form-input" value="${escHtml(r.municipioResidencia || 'Tunja')}" />
+
+        <div class="form-group span-2">
+          <label class="form-label">Ciudad / Municipio de Residencia *</label>
+          <select id="sst-mpio-res" class="filter-select">
+            ${(() => {
+              const current = r.municipioResidencia || 'Tunja';
+              const list = cats.municipiosResidenciaSugeridos || ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Moniquirá', 'Puerto Boyacá', 'Villa de Leyva', 'Garagoa', 'Guateque', 'Miraflores', 'Nobsa', 'Santa Rosa de Viterbo', 'Soatá', 'Cómbita', 'Samacá', 'Ventaquemada', 'Tuta', 'Oicatá', 'Soracá', 'Siachoque', 'Chivatá', 'Toca', 'Pesca', 'Tibasosa', 'Bogotá D.C.', 'Otro Municipio'];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(m => `<option value="${escHtml(m)}" ${current === m ? 'selected' : ''}>${escHtml(m)}</option>`).join('');
+            })()}
+          </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Municipio donde Trabaja</label>
-          <input id="sst-mpio-trab" class="form-input" value="${escHtml(r.municipioTrabajo || 'Tunja')}" />
+
+        <!-- SECCIÓN 3: FORMACIÓN ACADÉMICA Y UBICACIÓN LABORAL -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            3. Formación Académica y Ubicación Laboral
+          </h4>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Escolaridad (Último nivel)</label>
+          <label class="form-label">Escolaridad (Último nivel) *</label>
           <select id="sst-escolaridad" class="filter-select">
-            ${cats.escolaridades.map(sc => `<option ${r.escolaridad === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('')}
+            ${(() => {
+              const current = r.escolaridad || 'Profesional';
+              const list = cats.escolaridades || ['Ninguna', 'Primaria', 'Bachillerato', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado', 'Posdoctorado'];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(sc => `<option value="${escHtml(sc)}" ${current === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Ocupación o Profesión</label>
-          <input id="sst-profesion" class="form-input" placeholder="Ej: Ingeniero Industrial, Abogado..." value="${escHtml(r.ocupacionProfesion || '')}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Rango de Ingresos</label>
-          <select id="sst-ingresos" class="filter-select">
-            ${cats.rangosIngresos.map(ri => `<option ${r.rangoIngresos === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
+          <label class="form-label">Ocupación o Profesión *</label>
+          <select id="sst-profesion" class="filter-select">
+            ${(() => {
+              const current = r.ocupacionProfesion || '';
+              const list = cats.profesionesSugeridas || ['Abogado', 'Administrador de Empresas', 'Administrador Público', 'Contador Público', 'Economista', 'Ingeniero Civil', 'Ingeniero de Sistemas', 'Ingeniero Ambiental', 'Ingeniero Industrial', 'Médico', 'Enfermero', 'Psicólogo', 'Trabajador Social', 'Comunicador Social / Periodista', 'Docente / Licenciado', 'Arquitecto', 'Tecnólogo en Gestión Administrativa', 'Técnico en Sistemas', 'Bachiller', 'OTRA'];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccionar Profesión / Oficio --</option>` + all.map(p => `<option value="${escHtml(p)}" ${current === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Denominación del Cargo</label>
-          <input id="sst-cargo" class="form-input" value="${escHtml(r.denominacionCargo || 'Profesional Universitario')}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tipo de Cargo</label>
-          <select id="sst-tipo-cargo" class="filter-select">
-            ${cats.tiposCargo.map(tc => `<option ${r.tipoCargo === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
+          <label class="form-label">Ciudad / Municipio donde Trabaja *</label>
+          <select id="sst-mpio-trab" class="filter-select">
+            ${(() => {
+              const current = r.municipioTrabajo || 'Tunja';
+              const list = ['Tunja', 'Bogotá'];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(mt => `<option value="${escHtml(mt)}" ${current === mt ? 'selected' : ''}>${escHtml(mt)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Vinculación</label>
-          <select id="sst-vinculacion" class="filter-select">
-            ${cats.tiposVinculacion.map(tv => `<option ${r.tipoVinculacion === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+          <label class="form-label">Sede de Trabajo *</label>
+          <select id="sst-sede" class="filter-select">
+            ${(() => {
+              const current = r.sedeTrabajo || 'CASA DE LA TORRE';
+              const list = cats.sedes || [];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(s => `<option value="${escHtml(s)}" ${current === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
+            })()}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Antigüedad en el Cargo Actual</label>
-          <select id="sst-ant-cargo" class="filter-select">
-            ${cats.rangosAntiguedad.map(ra => `<option ${r.antiguedadCargo === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Antigüedad en la Entidad</label>
-          <select id="sst-ant-entidad" class="filter-select">
-            ${cats.rangosAntiguedad.map(ra => `<option ${r.antiguedadEntidad === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
-          </select>
-        </div>
+
         <div class="form-group span-2">
           <label class="form-label">Dependencia donde Trabaja *</label>
-          <input id="sst-dep" list="sst-deps-list" class="form-input" value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
-          <datalist id="sst-deps-list">
-            ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
-          </datalist>
+          <select id="sst-dep" class="filter-select">
+            ${(() => {
+              const current = r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo';
+              const list = cats.dependencias || [];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(d => `<option value="${escHtml(d)}" ${current === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
+            })()}
+          </select>
         </div>
+
+        <!-- SECCIÓN 4: VINCULACIÓN Y CONDICIONES LABORALES -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            4. Vinculación y Condiciones Laborales
+          </h4>
+        </div>
+
         <div class="form-group span-2">
-          <label class="form-label">Sede de Trabajo</label>
-          <select id="sst-sede" class="filter-select">
-            ${cats.sedes.map(s => `<option ${r.sedeTrabajo === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+          <label class="form-label">Denominación del Cargo *</label>
+          <select id="sst-cargo" class="filter-select">
+            ${(() => {
+              const current = r.denominacionCargo || 'Profesional Universitario';
+              const list = cats.cargosOficialesSocio || [];
+              const all = list.includes(current) ? list : [current, ...list];
+              return all.map(cg => `<option value="${escHtml(cg)}" ${current === cg ? 'selected' : ''}>${escHtml(cg)}</option>`).join('');
+            })()}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Cargo *</label>
+          <select id="sst-tipo-cargo" class="filter-select">
+            ${(cats.tiposCargo || []).map(tc => `<option value="${escHtml(tc)}" ${(r.tipoCargo || 'Profesional') === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Vinculación *</label>
+          <select id="sst-vinculacion" class="filter-select">
+            ${(cats.tiposVinculacion || []).map(tv => `<option value="${escHtml(tv)}" ${(r.tipoVinculacion || 'Carrera Administrativa') === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Rango de Ingresos (SMMLV) *</label>
+          <select id="sst-ingresos" class="filter-select">
+            ${(cats.rangosIngresos || []).map(ri => `<option value="${escHtml(ri)}" ${(r.rangoIngresos || 'Entre 3 y 6 SMMLV') === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Antigüedad en el Cargo Actual *</label>
+          <select id="sst-ant-cargo" class="filter-select">
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadCargo || 'Entre 1 y 4 años') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group span-2">
+          <label class="form-label">Antigüedad en la Entidad (años) *</label>
+          <select id="sst-ant-entidad" class="filter-select">
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadEntidad || 'Entre 1 y 4 años') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
           </select>
         </div>
       </div>`;
@@ -2028,30 +2286,44 @@ const SstModule = (() => {
       };
     }
 
+    const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
+    const nombres = document.getElementById('sst-nombres')?.value.trim() || '';
+    let nomComp = nombreCompleto;
+    if (!nomComp && (apellidos || nombres)) {
+      nomComp = `${apellidos} ${nombres}`.trim();
+    }
+
+    const anioNac = parseInt(document.getElementById('sst-anio-nac')?.value) || null;
+    const edad = parseInt(document.getElementById('sst-edad')?.value) || null;
+    const estratoVal = String(document.getElementById('sst-estrato')?.value || '3');
+    const estratoClean = estratoVal.replace(/[^0-9]/g, '') || '3';
+
     return {
-      nombreCompleto,
+      nombreCompleto: nomComp,
+      apellidos: apellidos || (nomComp ? nomComp.split(' ').slice(0, 2).join(' ') : ''),
+      nombres: nombres || (nomComp ? nomComp.split(' ').slice(2).join(' ') : ''),
       documento,
-      tipoIdentificacion: document.getElementById('sst-tipo-id')?.value,
-      sexo: document.getElementById('sst-sexo')?.value,
-      anioNacimiento: document.getElementById('sst-anio-nac')?.value,
-      edad: document.getElementById('sst-edad')?.value,
-      razaEtnia: document.getElementById('sst-raza')?.value,
-      estadoCivil: document.getElementById('sst-estado-civil')?.value,
-      composicionFamiliar: document.getElementById('sst-familia')?.value,
-      tipoVivienda: document.getElementById('sst-vivienda')?.value,
-      estrato: document.getElementById('sst-estrato')?.value,
-      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim(),
-      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim(),
-      escolaridad: document.getElementById('sst-escolaridad')?.value,
-      ocupacionProfesion: document.getElementById('sst-profesion')?.value.trim(),
-      rangoIngresos: document.getElementById('sst-ingresos')?.value,
-      denominacionCargo: document.getElementById('sst-cargo')?.value.trim(),
-      tipoCargo: document.getElementById('sst-tipo-cargo')?.value,
-      tipoVinculacion: document.getElementById('sst-vinculacion')?.value,
-      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value,
-      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value,
-      dependencia: document.getElementById('sst-dep')?.value.trim(),
-      sedeTrabajo: document.getElementById('sst-sede')?.value
+      tipoIdentificacion: document.getElementById('sst-tipo-id')?.value || 'Cédula de Ciudadanía',
+      sexo: document.getElementById('sst-sexo')?.value || 'Masculino',
+      anioNacimiento: anioNac,
+      edad: edad,
+      razaEtnia: document.getElementById('sst-raza')?.value || 'Blanco/Mestizo',
+      estadoCivil: document.getElementById('sst-estado-civil')?.value || 'Soltero (a)',
+      composicionFamiliar: document.getElementById('sst-familia')?.value || 'Conyuge Permanente, Hijos',
+      tipoVivienda: document.getElementById('sst-vivienda')?.value || 'Propia',
+      estrato: estratoClean,
+      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim() || 'Tunja',
+      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim() || 'Tunja',
+      escolaridad: document.getElementById('sst-escolaridad')?.value || 'Profesional',
+      ocupacionProfesion: document.getElementById('sst-profesion')?.value.trim() || '',
+      rangoIngresos: document.getElementById('sst-ingresos')?.value || 'Entre 3 y 6 SMMLV',
+      denominacionCargo: document.getElementById('sst-cargo')?.value.trim() || 'Profesional Universitario',
+      tipoCargo: document.getElementById('sst-tipo-cargo')?.value || 'Profesional',
+      tipoVinculacion: document.getElementById('sst-vinculacion')?.value || 'Carrera Administrativa',
+      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value || 'Entre 1 y 4 años',
+      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value || 'Entre 1 y 4 años',
+      dependencia: document.getElementById('sst-dep')?.value.trim() || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
+      sedeTrabajo: document.getElementById('sst-sede')?.value || 'CASA DE LA TORRE'
     };
   }
 
@@ -2337,16 +2609,40 @@ const SstModule = (() => {
         <div class="detail-modal-card">
           <div class="detail-grid">
             <div class="detail-item"><span class="detail-label">Radicado / Folio</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
-            <div class="detail-item"><span class="detail-label">Sexo & Edad</span><span class="detail-value">${escHtml(r.sexo)} · ${r.edad ? `${r.edad} años` : '—'}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
-            <div class="detail-item"><span class="detail-label">Estado Civil & Etnia</span><span class="detail-value">${escHtml(r.estadoCivil)} · ${escHtml(r.razaEtnia)}</span></div>
-            <div class="detail-item"><span class="detail-label">Vivienda & Estrato</span><span class="detail-value">${escHtml(r.tipoVivienda)} (Estrato ${escHtml(r.estrato)})</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Composición Familiar</span><span class="detail-value">${escHtml(r.composicionFamiliar || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Fecha de Registro</span><span class="detail-value">${formatDate(r.creadoEn || new Date().toISOString())}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">1. INFORMACIÓN DEL SERVIDOR PÚBLICO</strong>
+            </div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (${escHtml(r.tipoIdentificacion)}: ${escHtml(r.documento)})</span></div>
+            <div class="detail-item"><span class="detail-label">Apellidos & Nombres</span><span class="detail-value">${escHtml(r.apellidos || '—')}, ${escHtml(r.nombres || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Sexo & Edad</span><span class="detail-value">${escHtml(r.sexo)} · ${r.edad ? `${r.edad} años (${r.anioNacimiento || ''})` : '—'}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Raza / Etnia</span><span class="detail-value">${escHtml(r.razaEtnia || 'Blanco/Mestizo')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">2. ENTORNO SOCIOFAMILIAR Y VIVIENDA</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Estado Civil</span><span class="detail-value">${escHtml(r.estadoCivil)}</span></div>
+            <div class="detail-item"><span class="detail-label">Composición Familiar</span><span class="detail-value">${escHtml(r.composicionFamiliar || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Vivienda & Estrato</span><span class="detail-value">${escHtml(r.tipoVivienda)} · Estrato ${escHtml(r.estrato)}</span></div>
+            <div class="detail-item"><span class="detail-label">Municipio Residencia</span><span class="detail-value">${escHtml(r.municipioResidencia || 'Tunja')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">3. FORMACIÓN ACADÉMICA Y UBICACIÓN LABORAL</strong>
+            </div>
             <div class="detail-item"><span class="detail-label">Escolaridad</span><span class="detail-value">${escHtml(r.escolaridad)}</span></div>
             <div class="detail-item"><span class="detail-label">Profesión / Ocupación</span><span class="detail-value">${escHtml(r.ocupacionProfesion || '—')}</span></div>
-            <div class="detail-item"><span class="detail-label">Vinculación & Cargo</span><span class="detail-value">${escHtml(r.tipoVinculacion)} (${escHtml(r.tipoCargo)})</span></div>
+            <div class="detail-item"><span class="detail-label">Municipio de Trabajo</span><span class="detail-value">${escHtml(r.municipioTrabajo || 'Tunja')}</span></div>
+            <div class="detail-item"><span class="detail-label">Sede de Trabajo</span><span class="detail-value">${escHtml(r.sedeTrabajo || 'CASA DE LA TORRE')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia donde Trabaja</span><span class="detail-value">${escHtml(r.dependencia)}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">4. CONDICIONES Y VINCULACIÓN LABORAL</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Denominación del Cargo</span><span class="detail-value">${escHtml(r.denominacionCargo || 'Profesional Universitario')}</span></div>
+            <div class="detail-item"><span class="detail-label">Tipo de Cargo & Vinculación</span><span class="detail-value">${escHtml(r.tipoCargo)} · ${escHtml(r.tipoVinculacion)}</span></div>
             <div class="detail-item"><span class="detail-label">Rango Salarial</span><span class="detail-value">${escHtml(r.rangoIngresos)}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Sede</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.sedeTrabajo)}</span></div>
+            <div class="detail-item"><span class="detail-label">Antigüedad Cargo / Entidad</span><span class="detail-value">${escHtml(r.antiguedadCargo || '—')} / ${escHtml(r.antiguedadEntidad || '—')}</span></div>
           </div>
         </div>`;
     }
@@ -2357,7 +2653,7 @@ const SstModule = (() => {
         text: 'Exportar Ficha Excel',
         cls: 'btn-secondary',
         action: () => {
-          if (state.tab === 'epidemiologico') exportSingleProfileExcel(id);
+          if (state.tab === 'epidemiologico' || state.tab === 'sociodemografico') exportSingleProfileExcel(id);
           else exportExcel();
         }
       }
@@ -2539,21 +2835,30 @@ const SstModule = (() => {
     }
     return [
       { header: 'Código', key: 'radicado', width: 16 },
-      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 20 },
+      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 22 },
       { header: 'Documento', key: 'documento', width: 16 },
+      { header: 'Apellidos', key: 'apellidos', width: 20 },
+      { header: 'Nombres', key: 'nombres', width: 20 },
       { header: 'Servidor Público', key: 'nombreCompleto', width: 32 },
       { header: 'Sexo', key: 'sexo', width: 12 },
       { header: 'Año Nacimiento', key: 'anioNacimiento', width: 15 },
       { header: 'Edad', key: 'edad', width: 10 },
       { header: 'Raza / Etnia', key: 'razaEtnia', width: 18 },
       { header: 'Estado Civil', key: 'estadoCivil', width: 16 },
-      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 15 },
+      { header: 'Composición Familiar', key: 'composicionFamiliar', width: 35 },
+      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 16 },
       { header: 'Estrato', key: 'estrato', width: 10 },
-      { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+      { header: 'Municipio Residencia', key: 'municipioResidencia', width: 22 },
+      { header: 'Municipio Trabajo', key: 'municipioTrabajo', width: 20 },
+      { header: 'Escolaridad', key: 'escolaridad', width: 20 },
       { header: 'Ocupación / Profesión', key: 'ocupacionProfesion', width: 25 },
       { header: 'Rango Ingresos', key: 'rangoIngresos', width: 20 },
+      { header: 'Denominación del Cargo', key: 'denominacionCargo', width: 28 },
+      { header: 'Tipo de Cargo', key: 'tipoCargo', width: 18 },
       { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
-      { header: 'Dependencia', key: 'dependencia', width: 35 },
+      { header: 'Antigüedad en el Cargo', key: 'antiguedadCargo', width: 24 },
+      { header: 'Antigüedad en la Entidad', key: 'antiguedadEntidad', width: 24 },
+      { header: 'Dependencia', key: 'dependencia', width: 38 },
       { header: 'Sede de Trabajo', key: 'sedeTrabajo', width: 28 }
     ];
   }
@@ -2589,7 +2894,76 @@ const SstModule = (() => {
     try {
       App.showToast('Generando plantilla oficial de Excel...', 'info');
 
-      // Intentar cargar la plantilla oficial pre-almacenada para máxima fidelidad
+      // CASO A: PERFIL SOCIODEMOGRÁFICO
+      if (state.tab === 'sociodemografico') {
+        let wb = null;
+        try {
+          const resp = await fetch('plantillas/PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx');
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+          }
+        } catch (_) {}
+
+        if (!wb) {
+          wb = buildOfficialSociodemograficoTemplateWorkbook();
+        }
+
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
+        // Escribir fila 8 (B8:Z8)
+        const dataRow = [
+          1, // Col B: No
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.sexo || 'Masculino',
+          r.anioNacimiento ? parseInt(r.anioNacimiento) : '',
+          r.edad ? parseInt(r.edad) : '',
+          r.razaEtnia || 'Blanco/Mestizo',
+          r.estadoCivil || 'Soltero (a)',
+          r.composicionFamiliar || 'Conyuge Permanente, Hijos',
+          r.tipoVivienda || 'Propia',
+          r.estrato ? String(r.estrato) : '3',
+          r.municipioResidencia || 'Tunja',
+          r.municipioTrabajo || 'Tunja',
+          r.escolaridad || 'Profesional',
+          r.ocupacionProfesion || '',
+          r.rangoIngresos || 'Entre 3 y 6 SMMLV',
+          r.denominacionCargo || 'Profesional Universitario',
+          r.tipoCargo || 'Profesional',
+          r.tipoVinculacion || 'Carrera Administrativa',
+          r.antiguedadCargo || 'Entre 1 y 4 años',
+          r.antiguedadEntidad || 'Entre 1 y 4 años',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE'
+        ];
+
+        dataRow.forEach((val, idx) => {
+          const cellRef = XLSX.utils.encode_cell({ r: 7, c: idx + 1 });
+          ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val };
+        });
+
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:Z8');
+        if (range.e.r < 7) range.e.r = 7;
+        if (range.e.c < 25) range.e.c = 25;
+        ws['!ref'] = XLSX.utils.encode_range(range);
+
+        const cleanDoc = String(r.documento || 'perfil').replace(/[^a-zA-Z0-9]/g, '');
+        const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const filename = `PERFIL_SOCIODEMOGRAFICO_${cleanDoc}_${cleanNom}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+        App.showToast(`Perfil sociodemográfico de ${r.nombreCompleto} exportado exitosamente a la plantilla oficial Excel.`, 'success');
+        return;
+      }
+
+      // CASO B: PERFIL EPIDEMIOLÓGICO
       let wb = null;
       try {
         const resp = await fetch('plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx');
@@ -2664,6 +3038,28 @@ const SstModule = (() => {
 
   // ─── 2. Descargar la Plantilla Oficial en Blanco ────────────────────────────
   async function downloadOfficialTemplate() {
+    if (state.tab === 'sociodemografico') {
+      try {
+        const a = document.createElement('a');
+        a.href = 'plantillas/PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx';
+        a.download = 'PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Perfil Sociodemográfico descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      try {
+        const wb = buildOfficialSociodemograficoTemplateWorkbook();
+        XLSX.writeFile(wb, 'PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx');
+        App.showToast('Plantilla oficial de Perfil Sociodemográfico generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+      return;
+    }
+
     if (state.tab === 'epidemiologico') {
       try {
         // Enlace directo si el archivo existe en el servidor
@@ -2686,7 +3082,7 @@ const SstModule = (() => {
         App.showToast('Error al descargar plantilla: ' + err.message, 'error');
       }
     } else {
-      // Para otros submódulos (EPP, Sociodemográfico)
+      // Para otros submódulos (EPP)
       const tabCfg = TABS[state.tab];
       ExcelService.downloadTemplate({
         filename: `Plantilla_${state.tab}`,
@@ -2694,6 +3090,145 @@ const SstModule = (() => {
         columns: getExcelColumns().filter(c => c.key !== 'radicado')
       });
     }
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS para Perfil Sociodemográfico (E-DO-ST-F-011 V5)
+  function buildOfficialSociodemograficoTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // 1. Hoja 1: PERFIL
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 5'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-011'],
+      ['', 'PERFIL SOCIODEMOGRÁFICO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 07/May/2025'],
+      [],
+      [
+        '',
+        'No',
+        'TIPO DE IDENTIFICACIÓN',
+        'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+        'APELLIDOS',
+        'NOMBRES',
+        'SEXO',
+        'AÑO DE NACIMIENTO',
+        'EDAD\n(años)',
+        'RAZA',
+        'ESTADO CIVIL',
+        'COMPOSICIÓN FAMILIAR (Personas con las que comparte vivienda)\nPADRE; MADRE; CONYUGUE PERMANENTE; HIJOS; OTROS(Hermanos, Sobrinos, Ahijados, Hijastros, Entre otros )',
+        'TIPO DE VIVIENDA',
+        'ESTRATO SERVICIOS PÚBLICOS',
+        'CIUDAD / MUNICIPIO DE RESIDENCIA',
+        'CIUDAD / MUNICIPIO DONDE TRABAJA',
+        'ESCOLARIDAD\n(último nivel de estudios)',
+        'OCUPACIÓN O PROFESIÓN',
+        'RANGO INGRESOS',
+        'DENOMINACIÓN DEL CARGO',
+        'TIPO DE CARGO',
+        'TIPO DE VINCULACIÓN',
+        'RANGO DE ANTIGÜEDAD EN EL CARGO ACTUAL',
+        'ANTIGÜEDAD EN LA ENTIDAD (años)',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'SEDE DE TRABAJO'
+      ]
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 4 },   // A
+      { wch: 6 },   // B: No
+      { wch: 25 },  // C: TIPO DE IDENTIFICACIÓN
+      { wch: 20 },  // D: NÚMERO DOCUMENTO
+      { wch: 22 },  // E: APELLIDOS
+      { wch: 22 },  // F: NOMBRES
+      { wch: 12 },  // G: SEXO
+      { wch: 15 },  // H: AÑO DE NACIMIENTO
+      { wch: 12 },  // I: EDAD
+      { wch: 18 },  // J: RAZA
+      { wch: 16 },  // K: ESTADO CIVIL
+      { wch: 40 },  // L: COMPOSICIÓN FAMILIAR
+      { wch: 16 },  // M: TIPO DE VIVIENDA
+      { wch: 12 },  // N: ESTRATO
+      { wch: 22 },  // O: MUNICIPIO RESIDENCIA
+      { wch: 20 },  // P: MUNICIPIO TRABAJA
+      { wch: 22 },  // Q: ESCOLARIDAD
+      { wch: 25 },  // R: OCUPACIÓN / PROFESIÓN
+      { wch: 20 },  // S: RANGO INGRESOS
+      { wch: 28 },  // T: DENOMINACIÓN DEL CARGO
+      { wch: 16 },  // U: TIPO DE CARGO
+      { wch: 22 },  // V: TIPO DE VINCULACIÓN
+      { wch: 24 },  // W: ANTIGÜEDAD CARGO
+      { wch: 24 },  // X: ANTIGÜEDAD ENTIDAD
+      { wch: 48 },  // Y: DEPENDENCIA
+      { wch: 32 }   // Z: SEDE
+    ];
+
+    // 2. Hoja 2: Hoja2 (Catálogos oficiales de validación)
+    const catColsData = [
+      cats.tiposIdentificacion || [],
+      ['Femenino', 'Masculino'],
+      cats.razas || [],
+      cats.estadosCiviles || [],
+      cats.composicionesFamiliares || [],
+      cats.tiposVivienda || [],
+      cats.estratos || [],
+      cats.municipiosTrabajoSugeridos || ['Tunja', 'Bogotá'],
+      cats.escolaridades || [],
+      cats.rangosIngresos || [],
+      cats.cargosOficialesSocio || [],
+      cats.tiposCargo || [],
+      cats.tiposVinculacion || [],
+      cats.rangosAntiguedad || [],
+      cats.rangosAntiguedad || [],
+      cats.dependencias || [],
+      cats.sedes || []
+    ];
+
+    const maxLen = Math.max(...catColsData.map(c => c.length), 10);
+    const ws2Data = [
+      [],
+      [
+        'TIPO DE IDENTIFICACIÓN',
+        'SEXO',
+        'RAZA',
+        'ESTADO CIVIL',
+        'COMPOSICION GRUPO FAMILIAR',
+        'TIPO DE VIVIENDA',
+        'ESTRATO SERVICIOS PÚBLICOS',
+        'MUNICIPIO DONDE TRABAJA',
+        'ESCOLARIDAD',
+        'RANGO INGRESOS',
+        'DENOMINACIÓN DEL CARGO',
+        'TIPO DE CARGO',
+        'TIPO DE VINCULACIÓN',
+        'RANGO DE ANTIGÜEDAD EN EL CARGO ACTUAL',
+        'RANGO DE ANTIGÜEDAD EN LA ENTIDAD.',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'SEDE DE TRABAJO'
+      ],
+      []
+    ];
+
+    for (let r = 0; r < maxLen; r++) {
+      const row = [];
+      for (let c = 0; c < catColsData.length; c++) {
+        row.push(catColsData[c][r] || '');
+      }
+      ws2Data.push(row);
+    }
+
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [
+      { wch: 24 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 36 },
+      { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 20 },
+      { wch: 32 }, { wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 },
+      { wch: 48 }, { wch: 32 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'PERFIL');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja2');
+    return wb;
   }
 
   // Constructor interno de la plantilla oficial SheetJS con todas las columnas y hojas
@@ -2804,6 +3339,62 @@ const SstModule = (() => {
 
   // ─── 3. Modal de Exportar a Excel con Selección de Perfil ────────────────────
   function openExportProfileModal() {
+    if (state.tab === 'sociodemografico') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione el servidor público cuyo perfil sociodemográfico desea exportar a la <strong>Plantilla Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Servidor Público:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.escolaridad || 'Profesional')} · ${escHtml(r.denominacionCargo || 'Cargo N/A')}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica a la plantilla suministrada (Código E-DO-ST-F-011 Versión 5).</li>
+              <li>Poblado de los 24 campos oficiales sociodemográficos, familiares y laborales en la fila de datos.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Plantilla Oficial Excel', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Perfil Seleccionado (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+      return;
+    }
+
     if (state.tab === 'epidemiologico') {
       const records = state.data || [];
       if (!records.length) {
@@ -2867,14 +3458,9 @@ const SstModule = (() => {
   }
 
   // ─── 4. Generación y Descarga de Reporte Anual Consolidado ───────────────────
-  async function generateAnnualReport() {
-    if (typeof XLSX === 'undefined') {
-      App.showToast('La biblioteca SheetJS aún no está cargada.', 'error');
-      return;
-    }
-
+  async function generateEpidemiologicoAnnualReport() {
     try {
-      App.showToast('Generando Reporte Anual Consolidado SST...', 'info');
+      App.showToast('Generando Reporte Anual Consolidado Perfil Epidemiológico...', 'info');
 
       // Obtener todos los registros disponibles
       const res = await API.getSstEpidemiologico({ limit: 5000 });
@@ -3084,12 +3670,506 @@ const SstModule = (() => {
 
       App.showToast(`Reporte anual de ${total} perfiles epidemiológicos generado exitosamente.`, 'success');
     } catch (err) {
-      console.error('[SstModule] generateAnnualReport error:', err);
+      console.error('[SstModule] generateEpidemiologicoAnnualReport error:', err);
       App.showToast('Error al generar reporte anual: ' + err.message, 'error');
     }
   }
 
+  async function generateSociodemograficoAnnualReport() {
+    try {
+      App.showToast('Generando Reporte Anual Consolidado Perfil Sociodemográfico...', 'info');
+
+      // Obtener todos los registros disponibles de sociodemográfico
+      const res = await API.getSstSociodemografico({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de Perfil Sociodemográfico para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+      const total = records.length;
+
+      // Variables y contadores estadísticos
+      let sumEdades = 0;
+      let countConEdad = 0;
+
+      const porSexo = {};
+      const porRangoEdad = {
+        'Menores de 20 años': 0,
+        '20 a 29 años': 0,
+        '30 a 39 años': 0,
+        '40 a 49 años': 0,
+        '50 a 59 años': 0,
+        '60 años o más': 0
+      };
+      const porRaza = {};
+      const porEstadoCivil = {};
+      const porVivienda = {};
+      const porEstrato = {};
+      const porEscolaridad = {};
+      const porVinculacion = {};
+      const porTipoCargo = {};
+      const porAntiguedadCargo = {};
+      const porAntiguedadEntidad = {};
+      const porRangoIngresos = {};
+      const porMunicipioResidencia = {};
+      const porSede = {};
+      const porDependencia = {};
+
+      records.forEach(r => {
+        // Sexo
+        const s = r.sexo || 'No especificado';
+        porSexo[s] = (porSexo[s] || 0) + 1;
+
+        // Edad y Año de Nacimiento
+        const edad = parseInt(r.edad) || (r.anioNacimiento ? anioActual - parseInt(r.anioNacimiento) : null);
+        if (edad != null && !isNaN(edad) && edad > 0) {
+          sumEdades += edad;
+          countConEdad++;
+          if (edad < 20) porRangoEdad['Menores de 20 años']++;
+          else if (edad <= 29) porRangoEdad['20 a 29 años']++;
+          else if (edad <= 39) porRangoEdad['30 a 39 años']++;
+          else if (edad <= 49) porRangoEdad['40 a 49 años']++;
+          else if (edad <= 59) porRangoEdad['50 a 59 años']++;
+          else porRangoEdad['60 años o más']++;
+        }
+
+        // Raza / Etnia
+        const rz = r.razaEtnia || 'Blanco/Mestizo';
+        porRaza[rz] = (porRaza[rz] || 0) + 1;
+
+        // Estado Civil
+        const ec = r.estadoCivil || 'Soltero (a)';
+        porEstadoCivil[ec] = (porEstadoCivil[ec] || 0) + 1;
+
+        // Tipo Vivienda
+        const viv = r.tipoVivienda || 'Arriendo';
+        porVivienda[viv] = (porVivienda[viv] || 0) + 1;
+
+        // Estrato
+        const est = r.estrato ? `Estrato ${r.estrato}` : 'Sin Estrato';
+        porEstrato[est] = (porEstrato[est] || 0) + 1;
+
+        // Escolaridad
+        const esc = r.escolaridad || 'Profesional';
+        porEscolaridad[esc] = (porEscolaridad[esc] || 0) + 1;
+
+        // Modalidad de Vinculación
+        const vinc = r.tipoVinculacion || 'Carrera Administrativa';
+        porVinculacion[vinc] = (porVinculacion[vinc] || 0) + 1;
+
+        // Tipo de Cargo
+        const tc = r.tipoCargo || 'Profesional';
+        porTipoCargo[tc] = (porTipoCargo[tc] || 0) + 1;
+
+        // Antigüedad en el Cargo
+        const ac = r.antiguedadCargo || 'Entre 1 y 4 años';
+        porAntiguedadCargo[ac] = (porAntiguedadCargo[ac] || 0) + 1;
+
+        // Antigüedad en la Entidad
+        const ae = r.antiguedadEntidad || 'Entre 1 y 4 años';
+        porAntiguedadEntidad[ae] = (porAntiguedadEntidad[ae] || 0) + 1;
+
+        // Rango de Ingresos
+        const ri = r.rangoIngresos || 'Entre 3 y 6 SMMLV';
+        porRangoIngresos[ri] = (porRangoIngresos[ri] || 0) + 1;
+
+        // Municipio de Residencia
+        const mr = r.municipioResidencia || 'Tunja';
+        porMunicipioResidencia[mr] = (porMunicipioResidencia[mr] || 0) + 1;
+
+        // Sede de Trabajo
+        const sd = r.sedeTrabajo || 'CASA DE LA TORRE';
+        porSede[sd] = (porSede[sd] || 0) + 1;
+
+        // Dependencia
+        const dep = r.dependencia || 'SGEN - SECRETARIA GENERAL';
+        porDependencia[dep] = (porDependencia[dep] || 0) + 1;
+      });
+
+      const edadPromedio = countConEdad > 0 ? (sumEdades / countConEdad).toFixed(1) : 'N/D';
+
+      // Crear Libro Excel con SheetJS
+      const wb = XLSX.utils.book_new();
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES SOCIODEMOGRÁFICOS
+      // ───────────────────────────────────────────────────────────────────────
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`INFORME ANUAL CONSOLIDADO — PERFIL SOCIODEMOGRÁFICO DE LA POBLACIÓN TRABAJADORA (VIGENCIA ${anioActual})`],
+        [`Código: E-DO-ST-F-011 | Versión: 5 | Fecha de Emisión: ${fechaHoy} | Total Servidores: ${total}`],
+        [],
+        ['1. CARACTERIZACIÓN GENERAL Y DEMOGRÁFICA', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Servidores Caracterizados', total, '100%'],
+        ['Edad Promedio de los Servidores', `${edadPromedio} años`, '-'],
+        [],
+        ['2. DISTRIBUCIÓN POR GÉNERO / SEXO', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porSexo).forEach(([sexo, cant]) => {
+        summaryRows.push([sexo, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. GRUPOS DE EDAD (PIRÁMIDE ETARIA)', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRangoEdad).forEach(([rango, cant]) => {
+        summaryRows.push([rango, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. ESTADO CIVIL', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porEstadoCivil).forEach(([ec, cant]) => {
+        summaryRows.push([ec, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['5. PERTENENCIA ÉTNICA / RAZA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRaza).forEach(([rz, cant]) => {
+        summaryRows.push([rz, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['6. TENENCIA DE VIVIENDA Y ESTRATO SOCIOECONÓMICO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVivienda).forEach(([viv, cant]) => {
+        summaryRows.push([`Vivienda ${viv}`, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+      Object.entries(porEstrato).forEach(([est, cant]) => {
+        summaryRows.push([est, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['7. NIVEL DE ESCOLARIDAD / FORMACIÓN ACADÉMICA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porEscolaridad).forEach(([esc, cant]) => {
+        summaryRows.push([esc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['8. MODALIDAD DE VINCULACIÓN LABORAL', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVinculacion).forEach(([vinc, cant]) => {
+        summaryRows.push([vinc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['9. NIVEL JERÁRQUICO / TIPO DE CARGO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porTipoCargo).forEach(([tc, cant]) => {
+        summaryRows.push([tc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['10. ANTIGÜEDAD EN LA ENTIDAD', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porAntiguedadEntidad).forEach(([ae, cant]) => {
+        summaryRows.push([ae, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['11. RANGO DE INGRESOS MENSUALES', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRangoIngresos).forEach(([ri, cant]) => {
+        summaryRows.push([ri, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['12. SEDES DE TRABAJO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porSede).forEach(([sd, cant]) => {
+        summaryRows.push([sd, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['13. TOP MUNICIPIOS DE RESIDENCIA', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porMunicipioResidencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .forEach(([mun, cant]) => {
+          summaryRows.push([mun, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['14. COBERTURA POR DEPENDENCIAS (TOP)', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porDependencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .forEach(([dep, cant]) => {
+          summaryRows.push([dep, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 24 }, { wch: 20 }];
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 2: BASE CONSOLIDADA DE PERFILES SOCIODEMOGRÁFICOS (24 COLUMNAS OFICIALES)
+      // ───────────────────────────────────────────────────────────────────────
+      const baseRows = [
+        [
+          'N°',
+          'TIPO DE IDENTIFICACIÓN',
+          'No. DOCUMENTO IDENTIFICACIÓN',
+          'APELLIDOS',
+          'NOMBRES',
+          'SEXO',
+          'AÑO DE NACIMIENTO',
+          'EDAD',
+          'RAZA',
+          'ESTADO CIVIL',
+          'COMPOSICIÓN FAMILIAR',
+          'TIPO DE VIVIENDA',
+          'ESTRATO',
+          'MUNICIPIO DE RESIDENCIA',
+          'MUNICIPIO DE TRABAJO',
+          'ESCOLARIDAD',
+          'OCUPACIÓN O PROFESIÓN',
+          'RANGO DE INGRESOS',
+          'DENOMINACIÓN DEL CARGO',
+          'TIPO DE CARGO',
+          'TIPO DE VINCULACIÓN',
+          'RANGO DE ANTIGÜEDAD EN EL CARGO',
+          'ANTIGÜEDAD EN LA ENTIDAD',
+          'DEPENDENCIA',
+          'SEDE DE TRABAJO'
+        ]
+      ];
+
+      records.forEach((r, idx) => {
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+        baseRows.push([
+          idx + 1,
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.sexo || 'Masculino',
+          r.anioNacimiento || '',
+          r.edad || '',
+          r.razaEtnia || 'Blanco/Mestizo',
+          r.estadoCivil || 'Soltero (a)',
+          r.composicionFamiliar || '',
+          r.tipoVivienda || 'Arriendo',
+          r.estrato || '3',
+          r.municipioResidencia || 'Tunja',
+          r.municipioTrabajo || 'Tunja',
+          r.escolaridad || 'Profesional',
+          r.ocupacionProfesion || '',
+          r.rangoIngresos || 'Entre 3 y 6 SMMLV',
+          r.denominacionCargo || 'Profesional Universitario',
+          r.tipoCargo || 'Profesional',
+          r.tipoVinculacion || 'Carrera Administrativa',
+          r.antiguedadCargo || 'Entre 1 y 4 años',
+          r.antiguedadEntidad || 'Entre 1 y 4 años',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE'
+        ]);
+      });
+
+      const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
+      wsBase['!cols'] = [
+        { wch: 6 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 20 },
+        { wch: 28 },
+        { wch: 22 },
+        { wch: 32 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 45 },
+        { wch: 28 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores Sociodemográficos');
+      XLSX.utils.book_append_sheet(wb, wsBase, 'Base Consolidada');
+
+      const filename = `Reporte_Anual_Perfil_Sociodemografico_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} perfiles sociodemográficos generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateSociodemograficoAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual: ' + err.message, 'error');
+    }
+  }
+
+  async function generateAnnualReport() {
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca SheetJS aún no está cargada.', 'error');
+      return;
+    }
+
+    if (state.tab === 'sociodemografico') {
+      await generateSociodemograficoAnnualReport();
+    } else {
+      await generateEpidemiologicoAnnualReport();
+    }
+  }
+
+  // ─── 5. Carga Masiva de Archivos Excel por Submódulo ─────────────────────────
+  function openSociodemograficoImportModal() {
+    const cols = [
+      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 20 },
+      { header: 'Documento', key: 'documento', width: 16 },
+      { header: 'Apellidos', key: 'apellidos', width: 20 },
+      { header: 'Nombres', key: 'nombres', width: 20 },
+      { header: 'Sexo', key: 'sexo', width: 12 },
+      { header: 'Año Nacimiento', key: 'anioNacimiento', width: 14 },
+      { header: 'Edad', key: 'edad', width: 10 },
+      { header: 'Raza / Etnia', key: 'razaEtnia', width: 16 },
+      { header: 'Estado Civil', key: 'estadoCivil', width: 16 },
+      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 16 },
+      { header: 'Estrato', key: 'estrato', width: 10 },
+      { header: 'Municipio Residencia', key: 'municipioResidencia', width: 20 },
+      { header: 'Municipio Trabajo', key: 'municipioTrabajo', width: 20 },
+      { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+      { header: 'Denominación del Cargo', key: 'denominacionCargo', width: 26 },
+      { header: 'Tipo de Cargo', key: 'tipoCargo', width: 16 },
+      { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
+      { header: 'Dependencia', key: 'dependencia', width: 36 },
+      { header: 'Sede de Trabajo', key: 'sedeTrabajo', width: 24 }
+    ];
+
+    ExcelService.openImportModal({
+      title: 'Carga Masiva SST — Perfil Sociodemográfico',
+      subtitle: 'Importe el archivo oficial E-DO-ST-F-011 V5 o una base de datos con los 24 campos sociodemográficos',
+      moduleName: 'perfil_sociodemografico',
+      columns: cols,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
+      sampleRows: [
+        {
+          'TIPO DE IDENTIFICACIÓN': 'Cédula de Ciudadanía',
+          'No. DOCUMENTO IDENTIFICACIÓN': '1049632481',
+          'APELLIDOS': 'GÓMEZ PÉREZ',
+          'NOMBRES': 'ANA MARÍA',
+          'SEXO': 'Femenino',
+          'AÑO DE NACIMIENTO': '1988',
+          'EDAD': '38',
+          'RAZA': 'Blanco/Mestizo',
+          'ESTADO CIVIL': 'Casado (a)',
+          'COMPOSICIÓN FAMILIAR': 'Conyuge Permanente, Hijos',
+          'TIPO DE VIVIENDA': 'Propia',
+          'ESTRATO': '3',
+          'MUNICIPIO DE RESIDENCIA': 'Tunja',
+          'MUNICIPIO DE TRABAJO': 'Tunja',
+          'ESCOLARIDAD': 'Especialización',
+          'OCUPACIÓN O PROFESIÓN': 'Abogado (a)',
+          'RANGO DE INGRESOS': 'Entre 3 y 6 SMMLV',
+          'DENOMINACIÓN DEL CARGO': 'Profesional Universitario',
+          'TIPO DE CARGO': 'Profesional',
+          'TIPO DE VINCULACIÓN': 'Carrera Administrativa',
+          'RANGO DE ANTIGÜEDAD EN EL CARGO': 'Entre 5 y 10 años',
+          'ANTIGÜEDAD EN LA ENTIDAD': 'Entre 5 y 10 años',
+          'DEPENDENCIA': 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
+          'SEDE DE TRABAJO': 'CASA DE LA TORRE'
+        }
+      ],
+      validateRow: (row) => {
+        const documento = String(
+          row['No. DOCUMENTO IDENTIFICACIÓN'] ||
+          row['NÚMERO DOCUMENTO DE IDENTIFICACIÓN'] ||
+          row['No DOCUMENTO IDENTIFICACIÓN'] ||
+          row['DOCUMENTO'] ||
+          row['Documento'] ||
+          row['Cédula'] ||
+          row['Cedula'] ||
+          row.documento || ''
+        ).trim();
+
+        let apellidos = String(row['APELLIDOS'] || row['Apellidos'] || row.apellidos || '').trim();
+        let nombres = String(row['NOMBRES'] || row['Nombres'] || row.nombres || '').trim();
+        let nombreCompleto = String(row['Servidor Público'] || row['Nombre Completo'] || row['Nombres y apellidos'] || row.nombreCompleto || '').trim();
+
+        if (!apellidos && !nombres && nombreCompleto) {
+          const parts = nombreCompleto.split(' ');
+          if (parts.length >= 2) {
+            apellidos = parts.slice(0, 2).join(' ');
+            nombres = parts.slice(2).join(' ') || parts[1];
+          } else {
+            nombres = nombreCompleto;
+            apellidos = '';
+          }
+        }
+        if (!nombreCompleto && (apellidos || nombres)) {
+          nombreCompleto = `${apellidos} ${nombres}`.trim();
+        }
+
+        if (!documento || (!apellidos && !nombreCompleto)) {
+          return { valid: false, error: 'Documento y Apellidos/Nombre del servidor son obligatorios.' };
+        }
+
+        const currentYear = new Date().getFullYear();
+        let anioNac = parseInt(row['AÑO DE NACIMIENTO'] || row['Año de Nacimiento'] || row['Año Nacimiento'] || row.anioNacimiento);
+        let edad = parseInt(row['EDAD'] || row['Edad'] || row.edad);
+
+        if (!edad && anioNac && anioNac > 1920 && anioNac <= currentYear) {
+          edad = currentYear - anioNac;
+        } else if (!anioNac && edad && edad > 0 && edad < 120) {
+          anioNac = currentYear - edad;
+        }
+
+        let estrato = String(row['ESTRATO'] || row['Estrato'] || row.estrato || '3').replace(/[^0-9]/g, '');
+        if (!estrato) estrato = '3';
+
+        return {
+          valid: true,
+          cleanRow: {
+            tipoIdentificacion: String(row['TIPO DE IDENTIFICACIÓN'] || row['Tipo de Identificación'] || row.tipoIdentificacion || 'Cédula de Ciudadanía').trim(),
+            documento,
+            apellidos: apellidos || nombreCompleto,
+            nombres: nombres || nombreCompleto,
+            nombreCompleto,
+            sexo: String(row['SEXO'] || row['Sexo'] || row.sexo || 'Masculino').trim(),
+            anioNacimiento: anioNac || null,
+            edad: edad || null,
+            razaEtnia: String(row['RAZA'] || row['Raza'] || row['Raza / Etnia'] || row['Pertenencia Étnica'] || row.razaEtnia || 'Blanco/Mestizo').trim(),
+            estadoCivil: String(row['ESTADO CIVIL'] || row['Estado Civil'] || row.estadoCivil || 'Soltero (a)').trim(),
+            composicionFamiliar: String(row['COMPOSICIÓN FAMILIAR'] || row['Composición Familiar'] || row.composicionFamiliar || 'Conyuge Permanente, Hijos').trim(),
+            tipoVivienda: String(row['TIPO DE VIVIENDA'] || row['Tipo de Vivienda'] || row['Tipo Vivienda'] || row.tipoVivienda || 'Arriendo').trim(),
+            estrato,
+            municipioResidencia: String(row['MUNICIPIO DE RESIDENCIA'] || row['Municipio de Residencia'] || row['Municipio Residencia'] || row.municipioResidencia || 'Tunja').trim(),
+            municipioTrabajo: String(row['MUNICIPIO DE TRABAJO'] || row['Municipio de Trabajo'] || row['Municipio Trabajo'] || row.municipioTrabajo || 'Tunja').trim(),
+            escolaridad: String(row['ESCOLARIDAD'] || row['Escolaridad'] || row.escolaridad || 'Profesional').trim(),
+            ocupacionProfesion: String(row['OCUPACIÓN O PROFESIÓN'] || row['Ocupación o Profesión'] || row['Ocupación / Profesión'] || row['Profesión'] || row.ocupacionProfesion || '').trim(),
+            rangoIngresos: String(row['RANGO DE INGRESOS'] || row['Rango de Ingresos'] || row['Rango Ingresos'] || row.rangoIngresos || 'Entre 3 y 6 SMMLV').trim(),
+            denominacionCargo: String(row['DENOMINACIÓN DEL CARGO'] || row['Denominación del Cargo'] || row['Cargo'] || row.denominacionCargo || 'Profesional Universitario').trim(),
+            tipoCargo: String(row['TIPO DE CARGO'] || row['Tipo de Cargo'] || row['Tipo Cargo'] || row.tipoCargo || 'Profesional').trim(),
+            tipoVinculacion: String(row['TIPO DE VINCULACIÓN'] || row['Tipo de Vinculación'] || row['Tipo Vinculación'] || row.tipoVinculacion || 'Carrera Administrativa').trim(),
+            antiguedadCargo: String(row['RANGO DE ANTIGÜEDAD EN EL CARGO'] || row['Antigüedad en el Cargo'] || row['Rango Antigüedad en el Cargo'] || row.antiguedadCargo || 'Entre 1 y 4 años').trim(),
+            antiguedadEntidad: String(row['ANTIGÜEDAD EN LA ENTIDAD'] || row['Antigüedad en la Entidad'] || row['Rango Antigüedad en la Entidad'] || row.antiguedadEntidad || 'Entre 1 y 4 años').trim(),
+            dependencia: String(row['DEPENDENCIA'] || row['DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA'] || row['Dependencia'] || row.dependencia || 'SGEN - SECRETARIA GENERAL (Despacho)').trim(),
+            sedeTrabajo: String(row['SEDE DE TRABAJO'] || row['Sede de Trabajo'] || row['SEDE'] || row['Sede'] || row.sedeTrabajo || 'CASA DE LA TORRE').trim()
+          }
+        };
+      },
+      onImport: async (rows) => {
+        const res = await API.bulkCreateSstSociodemografico(rows);
+        App.showToast(res.message || `Se importaron ${rows.length} perfiles sociodemográficos con éxito.`, 'success');
+        loadStats();
+        await load();
+      }
+    });
+  }
+
   function openImportModal() {
+    if (state.tab === 'sociodemografico') {
+      openSociodemograficoImportModal();
+      return;
+    }
+
     const tabCfg = TABS[state.tab];
     const cols = getExcelColumns().filter(c => c.key !== 'radicado');
 
@@ -3170,6 +4250,8 @@ const SstModule = (() => {
     onAtToggle,
     onElToggle,
     onApellidosNombresChange,
+    onSocioAnioNacChange,
+    onSocioEdadChange,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown
