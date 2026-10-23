@@ -126,12 +126,15 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   const sitClean = String(rawSituacion || '').trim();
   const discClean = String(rawDiscapacidad || '').trim();
 
-  if (discClean) {
-    const sitVal = sitClean ? sitClean.toUpperCase() : 'DISCAPACIDAD';
+  const isNinguna = !discClean || ['ninguna', 'ninguno', 'no registra', 'sin especificar', 'null', 'undefined', 'n/a'].includes(discClean.toLowerCase());
+
+  if (!isNinguna) {
+    const sitVal = sitClean ? sitClean.toUpperCase() : 'ACTIVO';
+    const match = DISCAPACIDADES_VALIDAS.find(d => d.toLowerCase() === discClean.toLowerCase());
     return {
       valido: true,
       situacion: sitVal,
-      tipoDiscapacidad: discClean.toLowerCase()
+      tipoDiscapacidad: match || discClean
     };
   }
 
@@ -143,20 +146,24 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   if (sitUpper.includes('DISCAPACIDAD')) {
     let tipo = null;
     if (sitUpper.includes('AUDITIV')) {
-      tipo = 'auditiva';
+      tipo = 'Auditiva';
     } else if (sitUpper.includes('VISUAL')) {
-      tipo = 'visual';
-    } else if (sitUpper.includes('MOTOR')) {
-      tipo = 'motora';
-    } else if (sitUpper.includes('COGNITIV')) {
-      tipo = 'cognitiva';
-    } else if (sitUpper.includes('SORDOMUD')) {
-      tipo = 'sordomuda';
+      tipo = 'Visual';
+    } else if (sitUpper.includes('MOTOR') || sitUpper.includes('FÍSIC') || sitUpper.includes('FISIC')) {
+      tipo = 'Física / Motriz';
+    } else if (sitUpper.includes('COGNITIV') || sitUpper.includes('INTELECT')) {
+      tipo = 'Intelectual';
+    } else if (sitUpper.includes('PSICOSOCIAL') || sitUpper.includes('MENTAL')) {
+      tipo = 'Psicosocial / Mental';
     } else if (sitUpper.includes('SORDOCIEG')) {
-      tipo = 'sordociega';
+      tipo = 'Sordoceguera';
+    } else if (sitUpper.includes('SORDOMUD')) {
+      tipo = 'Auditiva';
+    } else if (sitUpper.includes('MÚLTIPL') || sitUpper.includes('MULTIPL')) {
+      tipo = 'Múltiple';
     } else {
-      const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim().toLowerCase();
-      tipo = rem ? rem : 'auditiva'; // Si sólo dice DISCAPACIDAD pero no detalla
+      const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim();
+      tipo = rem ? rem : 'Otra';
     }
 
     return {
@@ -178,12 +185,14 @@ const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
 const SEXOS_VALIDOS = ['Femenino', 'Masculino', 'Prefiero no decirlo'];
 
 const DISCAPACIDADES_VALIDAS = [
-  'visual',
-  'auditiva',
-  'motora',
-  'cognitiva',
-  'sordomuda',
-  'sordociega'
+  'Física / Motriz',
+  'Visual',
+  'Auditiva',
+  'Intelectual',
+  'Psicosocial / Mental',
+  'Sordoceguera',
+  'Múltiple',
+  'Otra'
 ];
 
 const TIPOS_SANGRE_VALIDOS = [

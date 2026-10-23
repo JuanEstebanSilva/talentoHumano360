@@ -5392,7 +5392,17 @@ tbody tr:last-child td {
   color: var(--color-success);
 }
 
+.ficha-val-cargo-denominacion {
+  color: var(--color-gold, #D1AD2A) !important;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
 /* Dark Mode Overrides for High Legibility & Golden Harmony */
+[data-theme="dark"] .ficha-val-cargo-denominacion {
+  color: #f97316 !important;
+}
+
 [data-theme="dark"] .ficha-val-cedula {
   color: #fbbf24 !important;
   font-weight: 800 !important;

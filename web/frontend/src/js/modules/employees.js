@@ -39,7 +39,16 @@ const EmployeesModule = (() => {
       ],
       estadosServidor: ['Activo', 'Inactivo', 'Pensionado'],
       sexos: ['Femenino', 'Masculino', 'Prefiero no decirlo'],
-      discapacidades: ['visual', 'auditiva', 'motora', 'cognitiva', 'sordomuda', 'sordociega'],
+      discapacidades: [
+        'Física / Motriz',
+        'Visual',
+        'Auditiva',
+        'Intelectual',
+        'Psicosocial / Mental',
+        'Sordoceguera',
+        'Múltiple',
+        'Otra'
+      ],
       diplomados: [
         'Gestión Pública y Buen Gobierno',
         'Contratación Estatal y Secop II',
@@ -1089,7 +1098,7 @@ const EmployeesModule = (() => {
                   <div class="ficha-card-icon">💼</div>
                   <span class="ficha-card-label">Denominación del Cargo Actual</span>
                 </div>
-                <div class="ficha-card-val" style="color: var(--color-gold); font-size:1.02rem;">
+                <div class="ficha-card-val ficha-val-cargo-denominacion">
                   ${escHtml(cleanCargo)}
                 </div>
                 ${emp.cargoBase && emp.cargoBase !== emp.cargoActual ? `
@@ -1652,6 +1661,44 @@ const EmployeesModule = (() => {
                 ${emp.edadCalculada ? `Edad: ${escHtml(emp.edadCalculada)}` : ''}
               </div>
             </div>
+
+            <div class="form-group span-2">
+              <label class="form-label" for="ef-tipo-discapacidad" style="font-weight:700;">
+                ♿ Condición Especial / Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span>
+              </label>
+              <select id="ef-tipo-discapacidad" class="filter-select">
+                <option value="">Ninguna / No registra condición de discapacidad</option>
+                ${(cats.discapacidades || []).map(d => {
+                  const empDisc = (emp.tipoDiscapacidad || '').trim().toLowerCase();
+                  const optDisc = d.trim().toLowerCase();
+                  const isSelected = empDisc && (
+                    empDisc === optDisc ||
+                    (optDisc.includes('física') && (empDisc.includes('fisi') || empDisc.includes('moto'))) ||
+                    (optDisc.includes('auditiva') && empDisc.includes('audit')) ||
+                    (optDisc.includes('visual') && empDisc.includes('visu')) ||
+                    (optDisc.includes('intelectual') && (empDisc.includes('intelect') || empDisc.includes('cognit'))) ||
+                    (optDisc.includes('psicosocial') && (empDisc.includes('psico') || empDisc.includes('mental'))) ||
+                    (optDisc.includes('sordoceguera') && empDisc.includes('sordocieg')) ||
+                    (optDisc.includes('múltiple') && empDisc.includes('multipl'))
+                  );
+                  return `<option value="${escHtml(d)}" ${isSelected ? 'selected' : ''}>${escHtml(d)}</option>`;
+                }).join('')}
+                ${(emp.tipoDiscapacidad && !(cats.discapacidades || []).some(d => {
+                  const empDisc = emp.tipoDiscapacidad.trim().toLowerCase();
+                  const optDisc = d.trim().toLowerCase();
+                  return empDisc === optDisc ||
+                    (optDisc.includes('física') && (empDisc.includes('fisi') || empDisc.includes('moto'))) ||
+                    (optDisc.includes('auditiva') && empDisc.includes('audit')) ||
+                    (optDisc.includes('visual') && empDisc.includes('visu')) ||
+                    (optDisc.includes('intelectual') && (empDisc.includes('intelect') || empDisc.includes('cognit'))) ||
+                    (optDisc.includes('psicosocial') && (empDisc.includes('psico') || empDisc.includes('mental'))) ||
+                    (optDisc.includes('sordoceguera') && empDisc.includes('sordocieg')) ||
+                    (optDisc.includes('múltiple') && empDisc.includes('multipl'));
+                }) && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase()))
+                  ? `<option value="${escHtml(emp.tipoDiscapacidad)}" selected>${escHtml(emp.tipoDiscapacidad)}</option>`
+                  : ''}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1723,15 +1770,6 @@ const EmployeesModule = (() => {
                 <option value="VACACIONES" ${emp.situacion === 'VACACIONES' ? 'selected' : ''}>VACACIONES</option>
                 <option value="DISCAPACIDAD" ${emp.situacion === 'DISCAPACIDAD' ? 'selected' : ''}>DISCAPACIDAD</option>
                 <option value="RETIRADO" ${emp.situacion === 'RETIRADO' ? 'selected' : ''}>RETIRADO</option>
-              </select>
-            </div>
-
-            <!-- Campo condicional de Discapacidad -->
-            <div class="form-group span-2" id="ef-discapacidad-group" style="${emp.situacion === 'DISCAPACIDAD' ? '' : 'display:none;'}">
-              <label class="form-label" for="ef-tipo-discapacidad" style="color:var(--color-gold); font-weight:700;">Tipo de Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
-              <select id="ef-tipo-discapacidad" class="filter-select">
-                <option value="">(Sin especificar / Vacío)</option>
-                ${cats.discapacidades.map(d => `<option value="${escHtml(d)}" ${emp.tipoDiscapacidad === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -2062,14 +2100,8 @@ const EmployeesModule = (() => {
       }
     }
 
-    // 6. Regla 12: Situación y Discapacidad
+    // 6. Regla 12: Situación y Discapacidad (gestión independiente de condición especial y situación)
     const situacionSelect = document.getElementById('ef-situacion');
-    const discGroup = document.getElementById('ef-discapacidad-group');
-    if (situacionSelect && discGroup) {
-      situacionSelect.addEventListener('change', (e) => {
-        discGroup.style.display = e.target.value === 'DISCAPACIDAD' ? 'block' : 'none';
-      });
-    }
 
     // 7. Regla 19: Diplomado / Capacitación SENA
     const diplomadoToggle = document.getElementById('ef-diplomado-toggle');
@@ -2466,10 +2498,10 @@ const EmployeesModule = (() => {
 
     // 10. Situación y Discapacidad (Opcionales)
     const situacion = document.getElementById('ef-situacion')?.value || 'ACTIVO';
-    let tipoDiscapacidad = null;
-    if (situacion === 'DISCAPACIDAD') {
-      tipoDiscapacidad = document.getElementById('ef-tipo-discapacidad')?.value || null;
-    }
+    const tipoDiscapacidadRaw = document.getElementById('ef-tipo-discapacidad')?.value?.trim() || '';
+    const tipoDiscapacidad = (tipoDiscapacidadRaw && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(tipoDiscapacidadRaw.toLowerCase()))
+      ? tipoDiscapacidadRaw
+      : null;
 
     // 11. Periodos de Otro Tiempo con la Gobernación (Experiencia Múltiple, Opcional)
     const periodoRows = document.querySelectorAll('.periodo-row');
