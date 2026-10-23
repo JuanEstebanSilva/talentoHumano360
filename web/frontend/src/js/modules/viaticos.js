@@ -25,7 +25,16 @@ const ViaticosModule = (() => {
     'SECRETARÍA DE SALUD'
   ];
 
-  let state = { data: [], total: 0, page: 1, totalPages: 1, filters: {} };
+  let state = {
+    activeView: 'packages',
+    activePackage: null,
+    packages: [],
+    data: [],
+    total: 0,
+    page: 1,
+    totalPages: 1,
+    filters: {}
+  };
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
 
@@ -256,7 +265,11 @@ const ViaticosModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const res = await API.getViaticos({ page: state.page, limit: 20, ...state.filters });
+      const params = { page: state.page, limit: 20, ...state.filters };
+      if (state.activePackage && state.activePackage.id_paquete) {
+        params.id_paquete = state.activePackage.id_paquete;
+      }
+      const res = await API.getViaticos(params);
       state.data = res.data || [];
       state.total = res.total || 0;
       state.totalPages = res.totalPages || 1;
@@ -1118,6 +1131,7 @@ const ViaticosModule = (() => {
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
       saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
       soporte: currentUploadedFile || null,
+      id_paquete: state.activePackage ? state.activePackage.id_paquete : 5,
     };
   }
 
@@ -1233,6 +1247,7 @@ const ViaticosModule = (() => {
   }
 
   function loadStats() {
+    // 1. Estadísticas Globales del Módulo (siempre visibles arriba)
     API.getViaticosStats().then(s => {
       const strip = document.getElementById('vit-stats-strip');
       if (!strip) return;
@@ -1250,13 +1265,53 @@ const ViaticosModule = (() => {
           <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(s.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
         </div>`;
     }).catch(() => {});
+
+    // 2. Estadísticas Específicas del Paquete Activo
+    if (state.activePackage && state.activePackage.id_paquete) {
+      API.getViaticosStats({ id_paquete: state.activePackage.id_paquete }).then(ps => {
+        const pkgStrip = document.getElementById('vit-pkg-stats-strip');
+        if (!pkgStrip) return;
+        pkgStrip.innerHTML = `
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="stat-info"><span class="stat-value">${parseInt(ps.total)||0}</span><span class="stat-label">Viáticos en este Paquete</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="stat-info"><span class="stat-value">${parseInt(ps.pendientes)||0}</span><span class="stat-label">Pendientes</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
+          </div>`;
+      }).catch(() => {});
+    }
+  }
+
+  async function loadPackages() {
+    try {
+      const pkgs = await API.getViaticosPaquetes();
+      state.packages = pkgs || [];
+      return state.packages;
+    } catch (err) {
+      console.error('[ViaticosModule] Error al cargar paquetes:', err);
+      App.showToast('Error al cargar paquetes de viáticos: ' + err.message, 'error');
+      return [];
+    }
   }
 
   function confirmDelete(id, nombre) {
     App.openModal('Confirmar Eliminación', `<p style="color:var(--text-secondary)">¿Eliminar el viático de <strong style="color:var(--text-primary)">${nombre}</strong>?</p>`, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Eliminar', cls: 'btn-danger', action: async () => {
-        try { await API.deleteViatico(id); App.closeModal(); App.showToast('Viático eliminado.', 'success'); await load(); loadStats(); }
+        try {
+          await API.deleteViatico(id);
+          App.closeModal();
+          App.showToast('Viático eliminado.', 'success');
+          await load();
+          loadStats();
+          loadPackages();
+        }
         catch (err) { App.showToast(err.message, 'error'); }
       }},
     ]);
@@ -1270,17 +1325,25 @@ const ViaticosModule = (() => {
       estado: document.getElementById('vit-estado')?.value || '',
       dependencia: (dep && dep !== 'Todas' && dep !== 'Todos') ? dep : '',
     };
+    if (state.activePackage && state.activePackage.id_paquete) {
+      state.filters.id_paquete = state.activePackage.id_paquete;
+    }
     load();
   }
   function clearFilters() {
     ['vit-q', 'vit-estado'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const depEl = document.getElementById('vit-dependencia');
     if (depEl) depEl.value = 'Todas';
-    state.filters = {}; state.page = 1; load();
+    state.filters = {};
+    if (state.activePackage && state.activePackage.id_paquete) {
+      state.filters.id_paquete = state.activePackage.id_paquete;
+    }
+    state.page = 1;
+    load();
   }
   function goPage(p) { if (p < 1 || p > state.totalPages) return; state.page = p; load(); }
 
-  // ─── Dropdown de Opciones Secundarias (Ley de Hick & WCAG 2.1 AA) ──────────
+  // ─── Dropdown de Opciones Secundarias ─────────────────────────────────────────
   function toggleActionsDropdown(event) {
     if (event) event.stopPropagation();
     const menu = document.getElementById('vit-dropdown-menu');
@@ -1343,6 +1406,609 @@ const ViaticosModule = (() => {
     });
   }
 
+  // ─── Control de Vistas (Paquetes / Detalle) ──────────────────────────────────
+  async function enterPackage(id_paquete) {
+    const pkg = state.packages.find(p => p.id_paquete === id_paquete);
+    if (!pkg) {
+      App.showToast('No se encontró el paquete seleccionado.', 'error');
+      return;
+    }
+    state.activeView = 'detail';
+    state.activePackage = pkg;
+    state.page = 1;
+    state.filters = { id_paquete: pkg.id_paquete };
+    await renderCurrentView();
+  }
+
+  async function backToPackages() {
+    state.activeView = 'packages';
+    state.activePackage = null;
+    state.filters = {};
+    state.page = 1;
+    await renderCurrentView();
+    loadStats();
+  }
+
+  async function renderCurrentView() {
+    const area = document.getElementById('vit-content-area');
+    if (!area) return;
+    if (state.activeView === 'packages') {
+      await renderPackagesView(area);
+    } else {
+      await renderDetailView(area);
+    }
+  }
+
+  async function renderPackagesView(container) {
+    container.innerHTML = `
+      <div class="viaticos-pkg-section">
+        <div class="viaticos-pkg-section-header">
+          <div class="viaticos-pkg-section-title">
+            <span>Vigencias y Carpetas de Viáticos</span>
+            <span class="viaticos-pkg-section-badge" id="vit-pkg-badge-count">Cargando...</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--text-secondary);">
+            Selecciona una vigencia o archivo Excel para gestionar sus viáticos específicos
+          </div>
+        </div>
+        <div class="viaticos-pkg-grid" id="vit-packages-grid">
+          ${Array.from({ length: 4 }).map(() => `
+            <div class="viaticos-pkg-card" style="opacity:0.6;">
+              <div class="skeleton skeleton-line" style="width:50%;height:18px;margin-bottom:12px;"></div>
+              <div class="skeleton skeleton-line" style="width:80%;height:14px;margin-bottom:8px;"></div>
+              <div class="skeleton skeleton-line" style="width:60%;height:12px;margin-bottom:20px;"></div>
+              <div class="skeleton skeleton-line" style="width:100%;height:44px;border-radius:10px;"></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    const packages = await loadPackages();
+    const grid = document.getElementById('vit-packages-grid');
+    const badge = document.getElementById('vit-pkg-badge-count');
+    if (badge) badge.textContent = `${packages.length} vigencias / Excels`;
+
+    if (!grid) return;
+
+    const cardsHtml = packages.map(pkg => `
+      <div class="viaticos-pkg-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
+        <div>
+          <div class="viaticos-pkg-card-top">
+            <div class="viaticos-pkg-icon-wrap" title="Archivo Excel / Vigencia ${pkg.anio}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px;height:22px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+            <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
+          </div>
+
+          <h3 class="viaticos-pkg-name">${escHtml(pkg.nombre)}</h3>
+          <div class="viaticos-pkg-file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            <span>${escHtml(pkg.archivo_origen || `${pkg.nombre}.xlsx`)}</span>
+          </div>
+          ${pkg.descripcion ? `<div class="viaticos-pkg-desc">${escHtml(pkg.descripcion)}</div>` : ''}
+
+          <div class="viaticos-pkg-stats">
+            <div class="viaticos-pkg-stat-item">
+              <span class="viaticos-pkg-stat-val">${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</span>
+              <span class="viaticos-pkg-stat-lbl">Viáticos</span>
+            </div>
+            <div class="viaticos-pkg-stat-item">
+              <span class="viaticos-pkg-stat-val is-pending">${(pkg.pendientes || 0).toLocaleString('es-CO')}</span>
+              <span class="viaticos-pkg-stat-lbl">Pendientes</span>
+            </div>
+            <div class="viaticos-pkg-stat-item">
+              <span class="viaticos-pkg-stat-val is-approved" title="${pkg.valor_aprobado_formatted}">${pkg.valor_aprobado_formatted || '$ 0'}</span>
+              <span class="viaticos-pkg-stat-lbl">Aprobado</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acciones en la base (Boceto: Eliminar a la izquierda, Editar al centro, Entrar a la derecha) -->
+        <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
+          <div class="viaticos-pkg-action-group-left">
+            ${Auth.canEdit() ? `
+            <button
+              type="button"
+              class="viaticos-pkg-btn-delete"
+              onclick="ViaticosModule.confirmDeletePackage(${pkg.id_paquete}, '${escHtml(pkg.nombre)}')"
+              title="Eliminar este Excel y sus viáticos"
+              aria-label="Eliminar ${escHtml(pkg.nombre)}"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+            </button>` : ''}
+            ${Auth.canEdit() ? `
+            <button
+              type="button"
+              class="viaticos-pkg-btn-edit"
+              onclick="ViaticosModule.openEditPackageModal(${pkg.id_paquete})"
+              title="Editar nombre y año"
+              aria-label="Editar ${escHtml(pkg.nombre)}"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              <span>Editar</span>
+            </button>` : ''}
+          </div>
+
+          <button
+            type="button"
+            class="viaticos-pkg-btn-enter"
+            onclick="ViaticosModule.enterPackage(${pkg.id_paquete})"
+            title="Entrar a ver los viáticos de este Excel"
+            aria-label="Entrar a ${escHtml(pkg.nombre)}"
+          >
+            <span>Entrar</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    // Tarjeta para AGREGAR UNO NUEVO (boceto: círculo con + y texto "Agregar uno nuevo")
+    const addCardHtml = `
+      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
+        <div class="viaticos-pkg-add-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:32px;height:32px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </div>
+        <div class="viaticos-pkg-add-title">Agregar uno nuevo</div>
+        <div class="viaticos-pkg-add-desc">Sube un nuevo archivo Excel anual o crea una vigencia limpia</div>
+      </div>
+    `;
+
+    grid.innerHTML = cardsHtml + addCardHtml;
+  }
+
+  async function renderDetailView(container) {
+    const pkg = state.activePackage;
+    if (!pkg) {
+      await backToPackages();
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="viaticos-detail-wrapper">
+        <!-- Barra de Navegación y Acciones del Paquete -->
+        <div class="viaticos-detail-nav">
+          <div class="viaticos-detail-breadcrumb">
+            <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToPackages()" title="Volver al listado general de carpetas de viáticos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              <span>Volver a Paquetes</span>
+            </button>
+            <div class="viaticos-detail-title-wrap">
+              <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
+              <span class="viaticos-detail-title" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</span>
+            </div>
+          </div>
+
+          <div class="viaticos-detail-actions">
+            <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage()" title="Descargar registros de este archivo Excel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Descargar Excel</span>
+            </button>
+            ${Auth.canEdit() ? `
+            <button type="button" class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear viático en esta vigencia">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Nuevo Viático</span>
+            </button>` : ''}
+          </div>
+        </div>
+
+        <!-- Estadísticas Específicas de esta Vigencia / Paquete -->
+        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
+          ${renderStatsSkeletons()}
+        </div>
+
+        <!-- Filtros de Búsqueda para este Paquete -->
+        <div class="filters-card">
+          <div class="filters-row">
+            <div class="filter-group" style="flex:2">
+              <label class="filter-label">Buscar en ${escHtml(pkg.nombre)}</label>
+              <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
+            </div>
+            <div class="filter-group" style="flex:1.5">
+              <label class="filter-label">Dependencia</label>
+              <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
+                ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Estado</label>
+              <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
+                ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Buscar
+            </button>
+            <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
+          </div>
+        </div>
+
+        <!-- Tabla de Registros del Paquete -->
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Registro de Viáticos — ${escHtml(pkg.nombre)}</span>
+            <span class="table-count" id="vit-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Radicado</th><th>Servidor Público</th><th>Dependencia</th><th>Destino</th>
+                <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
+              </tr></thead>
+              <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
+                ${renderSkeletonRows(6)}
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="vit-pagination"></div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('vit-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+    loadStats();
+    await load();
+  }
+
+  // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────
+  function openCreatePackageModal() {
+    if (!Auth.canEdit()) {
+      App.showToast('No tienes permisos para crear paquetes de viáticos.', 'warning');
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    let selectedPackageFile = null;
+
+    const modalBody = `
+      <form id="vit-pkg-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="form-group">
+          <label class="form-label required">Nombre de la Carpeta / Vigencia</label>
+          <input id="vpkg-nombre" class="form-input form-input--no-icon" placeholder="Ej: Ejecución Presupuestal 2026" value="Ejecución Presupuestal ${currentYear}" required />
+          <span class="form-help-text">Nombre con el que se identificará este conjunto de viáticos.</span>
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+          <div class="form-group">
+            <label class="form-label required">Año de Vigencia Fiscal</label>
+            <input id="vpkg-anio" type="number" min="2000" max="2050" class="form-input form-input--no-icon" value="${currentYear}" required />
+            <span class="form-help-text">Por defecto año actual (${currentYear}).</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del Archivo Fuente (Opcional)</label>
+            <input id="vpkg-archivo" class="form-input form-input--no-icon" placeholder="Ej: EJECUCION PRESUPUESTAL ${currentYear}.xlsx" value="EJECUCION PRESUPUESTAL ${currentYear}.xlsx" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Descripción o Notas</label>
+          <input id="vpkg-desc" class="form-input form-input--no-icon" placeholder="Ej: Vigencia fiscal institucional en curso" value="Vigencia fiscal ${currentYear} en curso" />
+        </div>
+
+        <div class="form-group" style="margin-top:4px;">
+          <label class="form-label">Cargar Archivo Excel (.xlsx) para este Paquete (Opcional)</label>
+          <div class="excel-dropzone" id="vpkg-dropzone" style="padding:20px; border-radius:12px; border:2px dashed var(--border); text-align:center; cursor:pointer; background:var(--bg-primary);">
+            <input type="file" id="vpkg-file-input" accept=".xlsx, .xls" style="display:none;" />
+            <div style="margin-bottom:8px; color:#16a34a;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </div>
+            <div id="vpkg-file-name" style="font-size:13px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra tu archivo Excel</div>
+            <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Formatos admitidos: .xlsx, .xls de comisiones y viáticos</div>
+          </div>
+        </div>
+      </form>
+    `;
+
+    App.openModal('Agregar Nuevo Paquete de Viáticos', modalBody, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Guardar Paquete', cls: 'btn-primary-cta', id: 'btn-save-vpkg', action: async () => {
+        const nombre = document.getElementById('vpkg-nombre')?.value.trim();
+        const anio = parseInt(document.getElementById('vpkg-anio')?.value) || currentYear;
+        const archivoOrigen = document.getElementById('vpkg-archivo')?.value.trim() || `${nombre}.xlsx`;
+        const descripcion = document.getElementById('vpkg-desc')?.value.trim();
+
+        if (!nombre) {
+          App.showToast('El nombre del paquete o Excel es requerido.', 'warning');
+          return;
+        }
+
+        const btn = document.getElementById('btn-save-vpkg');
+        if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+        try {
+          // 1. Crear el paquete en base de datos
+          const newPkg = await API.createViaticosPaquete({
+            nombre,
+            anio,
+            archivoOrigen: selectedPackageFile ? selectedPackageFile.name : archivoOrigen,
+            descripcion
+          });
+
+          // 2. Si se adjuntó un archivo Excel, parsearlo e importar sus filas
+          if (selectedPackageFile && typeof XLSX !== 'undefined') {
+            App.showToast('Procesando archivo Excel adjunto...', 'info');
+            await processAndImportPackageExcel(selectedPackageFile, newPkg.id_paquete);
+          }
+
+          App.closeModal();
+          App.showToast(`Paquete "${nombre}" creado exitosamente.`, 'success');
+          await loadPackages();
+          if (state.activeView === 'packages') {
+            await renderCurrentView();
+          }
+          loadStats();
+        } catch (err) {
+          App.showToast(err.message || 'Error al crear paquete.', 'error');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Paquete'; }
+        }
+      }},
+    ]);
+
+    // Setup drag and drop for modal
+    setTimeout(() => {
+      const dropzone = document.getElementById('vpkg-dropzone');
+      const fileInput = document.getElementById('vpkg-file-input');
+      const nameEl = document.getElementById('vpkg-file-name');
+      const nombreInput = document.getElementById('vpkg-nombre');
+      const archivoInput = document.getElementById('vpkg-archivo');
+      const anioInput = document.getElementById('vpkg-anio');
+
+      if (!dropzone || !fileInput) return;
+
+      dropzone.onclick = () => fileInput.click();
+      fileInput.onchange = (e) => {
+        const f = e.target.files[0];
+        if (f) {
+          selectedPackageFile = f;
+          nameEl.innerHTML = `<span style="color:#16a34a;">✓ Archivo seleccionado:</span> <strong>${escHtml(f.name)}</strong> (${(f.size/1024).toFixed(1)} KB)`;
+          if (archivoInput) archivoInput.value = f.name;
+
+          // Deducir año del nombre del archivo si tiene 4 dígitos (e.g. 2024)
+          const m = f.name.match(/\b(20\d\d)\b/);
+          if (m && m[1]) {
+            if (anioInput) anioInput.value = m[1];
+            if (nombreInput && nombreInput.value.includes(String(currentYear))) {
+              nombreInput.value = f.name.replace(/\.[^/.]+$/, '');
+            }
+          }
+        }
+      };
+
+      dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; };
+      dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; };
+      dropzone.ondrop = (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = 'var(--border)';
+        const f = e.dataTransfer.files[0];
+        if (f) {
+          selectedPackageFile = f;
+          nameEl.innerHTML = `<span style="color:#16a34a;">✓ Archivo seleccionado:</span> <strong>${escHtml(f.name)}</strong> (${(f.size/1024).toFixed(1)} KB)`;
+          if (archivoInput) archivoInput.value = f.name;
+          const m = f.name.match(/\b(20\d\d)\b/);
+          if (m && m[1] && anioInput) anioInput.value = m[1];
+        }
+      };
+    }, 50);
+  }
+
+  // ─── Modal para Editar Paquete Existente ──────────────────────────────────────
+  function openEditPackageModal(id_paquete) {
+    if (!Auth.canEdit()) {
+      App.showToast('No tienes permisos para editar paquetes.', 'warning');
+      return;
+    }
+    const pkg = state.packages.find(p => p.id_paquete === id_paquete);
+    if (!pkg) {
+      App.showToast('Paquete no encontrado.', 'error');
+      return;
+    }
+
+    const modalBody = `
+      <form id="vit-pkg-edit-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="form-group">
+          <label class="form-label required">Nombre de la Carpeta / Excel</label>
+          <input id="vedit-nombre" class="form-input form-input--no-icon" value="${escHtml(pkg.nombre)}" required />
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+          <div class="form-group">
+            <label class="form-label required">Año de Vigencia</label>
+            <input id="vedit-anio" type="number" min="2000" max="2050" class="form-input form-input--no-icon" value="${pkg.anio || new Date().getFullYear()}" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del Archivo Origen</label>
+            <input id="vedit-archivo" class="form-input form-input--no-icon" value="${escHtml(pkg.archivo_origen || '')}" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Descripción</label>
+          <input id="vedit-desc" class="form-input form-input--no-icon" value="${escHtml(pkg.descripcion || '')}" />
+        </div>
+      </form>
+    `;
+
+    App.openModal('Editar Carpeta de Viáticos', modalBody, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Guardar Cambios', cls: 'btn-primary-cta', id: 'btn-update-vpkg', action: async () => {
+        const nombre = document.getElementById('vedit-nombre')?.value.trim();
+        const anio = parseInt(document.getElementById('vedit-anio')?.value) || pkg.anio;
+        const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
+        const descripcion = document.getElementById('vedit-desc')?.value.trim();
+
+        if (!nombre) {
+          App.showToast('El nombre es requerido.', 'warning');
+          return;
+        }
+
+        try {
+          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
+          App.closeModal();
+          App.showToast('Carpeta de viáticos actualizada correctamente.', 'success');
+          await loadPackages();
+          if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
+            state.activePackage = state.packages.find(p => p.id_paquete === id_paquete) || state.activePackage;
+          }
+          await renderCurrentView();
+        } catch (err) {
+          App.showToast(err.message || 'Error al actualizar carpeta.', 'error');
+        }
+      }},
+    ]);
+  }
+
+  // ─── Confirmación de Eliminación de Paquete ──────────────────────────────────
+  function confirmDeletePackage(id_paquete, nombre) {
+    if (!Auth.canEdit()) {
+      App.showToast('No tienes permisos para eliminar paquetes.', 'warning');
+      return;
+    }
+
+    App.openModal('Confirmar Eliminación de Carpeta', `
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <p style="color:var(--text-secondary); margin:0;">
+          ¿Estás seguro de que deseas eliminar la carpeta <strong style="color:var(--text-primary);">${escHtml(nombre)}</strong>?
+        </p>
+        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:12px; color:#ef4444; font-size:12.5px;">
+          ⚠️ <strong>Advertencia:</strong> Esta acción eliminará permanentemente la carpeta y todos los viáticos asociados a este archivo Excel. Esta operación no se puede deshacer.
+        </div>
+      </div>
+    `, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Sí, Eliminar Todo', cls: 'btn-danger', action: async () => {
+        try {
+          await API.deleteViaticosPaquete(id_paquete);
+          App.closeModal();
+          App.showToast(`Carpeta "${nombre}" eliminada exitosamente.`, 'success');
+          if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
+            state.activeView = 'packages';
+            state.activePackage = null;
+          }
+          await loadPackages();
+          await renderCurrentView();
+          loadStats();
+        } catch (err) {
+          App.showToast(err.message || 'Error al eliminar carpeta.', 'error');
+        }
+      }},
+    ]);
+  }
+
+  // ─── Exportar Excel exclusivo del Paquete Activo ─────────────────────────────
+  async function exportExcelPackage() {
+    if (!state.activePackage) return exportExcel();
+    try {
+      App.showToast(`Generando Excel para "${state.activePackage.nombre}"...`, 'info');
+      const res = await API.getViaticos({ id_paquete: state.activePackage.id_paquete, page: 1, limit: 20000 });
+      const records = res.data || [];
+      const cleanName = (state.activePackage.nombre || 'Viaticos').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      ExcelService.exportToExcel({
+        filename: cleanName,
+        sheetName: 'Viáticos',
+        columns: EXCEL_COLUMNS,
+        data: records
+      });
+      App.showToast(`Se exportaron ${records.length.toLocaleString('es-CO')} registros exitosamente.`, 'success');
+    } catch (err) {
+      App.showToast('Error al exportar: ' + err.message, 'error');
+    }
+  }
+
+  // ─── Procesar e Importar Excel vinculado a un Paquete ────────────────────────
+  async function processAndImportPackageExcel(file, id_paquete) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const allRows = [];
+          for (const sheetName of workbook.SheetNames) {
+            const sheet = workbook.Sheets[sheetName];
+            const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (!sheetData || sheetData.length < 2) continue;
+
+            let headerIdx = -1;
+            for (let i = 0; i < Math.min(sheetData.length, 12); i++) {
+              const r = sheetData[i] || [];
+              const str = r.map(c => String(c).toUpperCase()).join(' ');
+              if (str.includes('NOMBRE') || str.includes('SERVIDOR') || str.includes('FECHA')) {
+                headerIdx = i;
+                break;
+              }
+            }
+            if (headerIdx === -1) headerIdx = 0;
+            const headerRow = sheetData[headerIdx] || [];
+            let colNom = -1, colFecha = -1, colDest = -1, colVal = -1, colRes = -1, colSaldo = -1, colObs = -1;
+            headerRow.forEach((c, idx) => {
+              const u = String(c).toUpperCase();
+              if (u.includes('NOMBRE') || u.includes('SERVIDOR')) colNom = idx;
+              else if (u.includes('FECHA')) colFecha = idx;
+              else if (u.includes('LUGAR') || u.includes('DESTINO')) colDest = idx;
+              else if (u.includes('VALOR') || u.includes('TOTAL')) colVal = idx;
+              else if (u.includes('RESOL') || u.includes('ACTO')) colRes = idx;
+              else if (u.includes('SALDO')) colSaldo = idx;
+              else if (u.includes('OBS')) colObs = idx;
+            });
+            if (colNom === -1) colNom = 0;
+            if (colFecha === -1) colFecha = colNom + 1;
+            if (colDest === -1) colDest = colFecha + 1;
+            if (colVal === -1) colVal = colDest + 1;
+
+            for (let rIdx = headerIdx + 1; rIdx < sheetData.length; rIdx++) {
+              const row = sheetData[rIdx] || [];
+              const nom = row[colNom];
+              if (!nom) continue;
+              const nomStr = String(nom).trim();
+              if (['TOTAL', 'SUBTOTAL', 'SALDO', 'FIRMA'].includes(nomStr.toUpperCase())) continue;
+              const rawFecha = row[colFecha];
+              const resolVal = colRes !== -1 && row[colRes] ? String(row[colRes]).trim() : '';
+              const destVal = colDest !== -1 && row[colDest] ? String(row[colDest]).trim() : 'SIN ESPECIFICAR';
+              const valNum = colVal !== -1 && row[colVal] != null ? Number(row[colVal]) : 0;
+              const valor = isNaN(valNum) ? 0 : valNum;
+              const saldoVal = colSaldo !== -1 && row[colSaldo] != null && !isNaN(Number(row[colSaldo])) ? Number(row[colSaldo]) : null;
+              const obsVal = colObs !== -1 && row[colObs] ? String(row[colObs]).trim() : '';
+
+              const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal) : { start: '01/01/2026', end: '01/01/2026', dias: 1 };
+
+              allRows.push({
+                persona: nomStr,
+                dependencia: sheetName,
+                destino: destVal,
+                motivo: 'Comisión institucional de servicios',
+                fechaInicio: dInfo.start,
+                fechaFin: dInfo.end,
+                dias: dInfo.dias || 1,
+                valorDiario: (dInfo.dias > 0 && valor > 0) ? parseFloat((valor / dInfo.dias).toFixed(2)) : 0,
+                valorTotal: valor,
+                estado: (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada',
+                observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+                numeroResolucion: resolVal,
+                saldo: saldoVal,
+                id_paquete
+              });
+            }
+          }
+
+          if (allRows.length > 0) {
+            await API.bulkCreateViaticos({ rows: allRows, id_paquete });
+            App.showToast(`Se importaron ${allRows.length.toLocaleString('es-CO')} viáticos en esta vigencia.`, 'success');
+          }
+          resolve(allRows.length);
+        } catch (parseErr) {
+          console.error('[processAndImportPackageExcel] Error:', parseErr);
+          reject(parseErr);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // ─── Render General de Viáticos ───────────────────────────────────────────────
   async function render(container) {
     container.innerHTML = `
       <div class="module-enter">
@@ -1352,7 +2018,7 @@ const ViaticosModule = (() => {
             <p class="page-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos del personal institucional</p>
           </div>
           <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown de Opciones Secundarias (Hick's Law) -->
+            <!-- Dropdown de Opciones Secundarias -->
             <div class="actions-dropdown-wrap">
               <button
                 type="button"
@@ -1385,8 +2051,8 @@ const ViaticosModule = (() => {
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <div>
-                    <strong>Exportar a Excel</strong>
-                    <small>Descargar listado filtrado (.xlsx)</small>
+                    <strong>Exportar Todos los Viáticos</strong>
+                    <small>Descargar base de datos completa (.xlsx)</small>
                   </div>
                 </button>
                 <button
@@ -1399,7 +2065,7 @@ const ViaticosModule = (() => {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
                   <div>
                     <strong>Descargar Plantilla Oficial</strong>
-                    <small>Formato oficial institucional (.xlsx)</small>
+                    <small>Formato institucional de 17 secretarías (.xlsx)</small>
                   </div>
                 </button>
                 ${Auth.canEdit() ? `
@@ -1408,82 +2074,32 @@ const ViaticosModule = (() => {
                   class="actions-dropdown-item"
                   role="menuitem"
                   tabindex="-1"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openImportModal();"
+                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal();"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                   <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde plantilla institucional</small>
+                    <strong>Nueva Carpeta / Importar Excel</strong>
+                    <small>Crear nueva vigencia o cargar archivo Excel</small>
                   </div>
                 </button>` : ''}
               </div>
             </div>
-
-            <!-- Acción Primaria (CTA - Visual Salience) -->
-            ${Auth.canEdit() ? `
-            <button class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear nuevo viático">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Nuevo Viático</span>
-            </button>` : ''}
           </div>
         </div>
 
+        <!-- Estadísticas Globales (Siempre visibles en la parte superior) -->
         <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
           ${renderStatsSkeletons()}
         </div>
 
-        <div class="filters-card">
-          <div class="filters-row">
-            <div class="filter-group" style="flex:2">
-              <label class="filter-label">Buscar</label>
-              <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
-            </div>
-            <div class="filter-group" style="flex:1.5">
-              <label class="filter-label">Dependencia</label>
-              <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
-              </select>
-            </div>
-            <div class="filter-group">
-              <label class="filter-label">Estado</label>
-              <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
-              </select>
-            </div>
-            <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Buscar
-            </button>
-            <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
-          </div>
-        </div>
+        <!-- Área Dinámica de Contenido (Grilla de Paquetes o Detalle de un Paquete) -->
+        <div id="vit-content-area"></div>
+      </div>
+    `;
 
-        <div class="table-card">
-          <div class="table-header">
-            <span class="table-title">Registro de Viáticos</span>
-            <span class="table-count" id="vit-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th>Radicado</th><th>Servidor Público</th><th>Dependencia</th><th>Destino</th>
-                <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
-              </tr></thead>
-              <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
-                ${renderSkeletonRows(6)}
-              </tbody>
-            </table>
-          </div>
-          <div class="pagination" id="vit-pagination"></div>
-        </div>
-      </div>`;
-
-    document.getElementById('vit-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
     bindDropdownOutsideClick();
-
     loadStats();
-    state.page = 1; state.filters = {};
-    await load();
+    await renderCurrentView();
   }
 
   const EXCEL_COLUMNS = [
@@ -2173,6 +2789,12 @@ const ViaticosModule = (() => {
 
   return {
     render,
+    enterPackage,
+    backToPackages,
+    openCreatePackageModal,
+    openEditPackageModal,
+    confirmDeletePackage,
+    exportExcelPackage,
     openCreate,
     openView,
     openEdit,

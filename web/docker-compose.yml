@@ -135,6 +135,9 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - ./services/viaticos-service:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
