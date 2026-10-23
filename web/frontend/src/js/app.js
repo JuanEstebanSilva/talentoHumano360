@@ -1187,6 +1187,8 @@ const App = (() => {
       } else {
         showLogin();
       }
+    }
+
     // Garantizar que Flatpickr sea el calendario universal y único en toda la plataforma
     if (typeof MutationObserver !== 'undefined' && document.body) {
       const dateObserver = new MutationObserver((mutations) => {
