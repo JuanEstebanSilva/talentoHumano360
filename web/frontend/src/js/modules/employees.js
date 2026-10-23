@@ -3425,14 +3425,14 @@ const EmployeesModule = (() => {
             <div class="filter-group" style="flex:1.5; min-width:200px;">
               <label class="filter-label" for="emp-filter-dep">Dependencia</label>
               <select id="emp-filter-dep" class="filter-select" onchange="EmployeesModule.search()" aria-label="Filtrar por dependencia institucional">
-                <option value="">Todas las Dependencias</option>
+                <option value="">TODAS</option>
                 ${(state.catalogs.dependencias || []).map(d => `<option value="${escHtml(d)}" ${d === state.dependencia ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
             </div>
             <div class="filter-group" style="flex:1.5; min-width:200px;">
               <label class="filter-label" for="emp-filter-cargo">Cargo</label>
               <select id="emp-filter-cargo" class="filter-select" onchange="EmployeesModule.search()" aria-label="Filtrar por cargo">
-                <option value="">Todos los Cargos</option>
+                <option value="">TODOS</option>
                 ${(state.catalogs.cargos || []).map(c => `<option value="${escHtml(c.cargo)}" ${c.cargo === state.cargo ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
               </select>
             </div>

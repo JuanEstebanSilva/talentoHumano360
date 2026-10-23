@@ -4932,8 +4932,13 @@ tbody tr:last-child td {
   background: rgba(0, 0, 0, 0.04);
 }
 
+[data-theme="dark"] .ficha-tab-btn {
+  color: #94a3b8;
+}
+
 [data-theme="dark"] .ficha-tab-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ficha-tab-btn.active {
@@ -4945,8 +4950,14 @@ tbody tr:last-child td {
 
 [data-theme="dark"] .ficha-tab-btn.active {
   background: #1e293b;
-  color: #4ade80;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #F472B6 !important;
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.25);
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+[data-theme="dark"] .ficha-tab-btn.active svg {
+  color: #F472B6 !important;
+  stroke: #F472B6 !important;
 }
 
 /* ─── Tab Panes & Animations ─── */
@@ -5633,8 +5644,13 @@ tbody tr:last-child td {
   background: rgba(0, 0, 0, 0.04);
 }
 
+[data-theme="dark"] .form-tab-btn {
+  color: #94a3b8;
+}
+
 [data-theme="dark"] .form-tab-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .form-tab-btn.active {
