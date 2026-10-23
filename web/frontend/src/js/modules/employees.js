@@ -754,6 +754,30 @@ const EmployeesModule = (() => {
     return sanitizeText(val);
   }
 
+  function formatDiscapacidadBadge(tipoDiscapacidad) {
+    if (!tipoDiscapacidad || ['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(String(tipoDiscapacidad).trim().toLowerCase())) {
+      return '<span class="ficha-discapacidad-none">No registra condición de discapacidad</span>';
+    }
+    const clean = String(tipoDiscapacidad).trim();
+    const lower = clean.toLowerCase();
+    let label = clean;
+    if (lower === 'fisica' || lower === 'motora') label = 'Física / Motriz';
+    else if (lower === 'visual') label = 'Visual';
+    else if (lower === 'auditiva') label = 'Auditiva';
+    else if (lower === 'cognitiva' || lower === 'intelectual') label = 'Intelectual';
+    else if (lower === 'sordomuda') label = 'Auditiva (Sordomuda)';
+    else if (lower === 'sordociega') label = 'Sordoceguera';
+    else if (lower === 'psicosocial' || lower === 'mental') label = 'Psicosocial / Mental';
+    else if (label.length > 0) label = label.charAt(0).toUpperCase() + label.slice(1);
+
+    return `
+      <div class="ficha-badge-discapacidad" role="status">
+        <span class="ficha-badge-discapacidad-icon">♿</span>
+        <span class="ficha-badge-discapacidad-text">${escHtml(label)}</span>
+      </div>
+    `;
+  }
+
   function switchFichaTab(tabId) {
     const container = document.querySelector('.ficha-wrapper');
     if (!container) return;
@@ -1064,16 +1088,18 @@ const EmployeesModule = (() => {
                 </div>
               </div>
 
-              <div class="ficha-card ficha-grid--full">
+              <div class="ficha-card ficha-grid--full ${emp.tipoDiscapacidad ? 'ficha-card--discapacidad' : ''}">
                 <div class="ficha-card-top">
-                  <div class="ficha-card-icon">♿</div>
-                  <span class="ficha-card-label">Condición Especial / Discapacidad</span>
+                  <div class="ficha-card-icon" style="${emp.tipoDiscapacidad ? 'background: rgba(14, 165, 233, 0.2); color: #0284c7;' : ''}">♿</div>
+                  <span class="ficha-card-label" style="font-weight:700;">Condición Especial / Discapacidad</span>
                 </div>
                 <div class="ficha-card-val">
+                  ${formatDiscapacidadBadge(emp.tipoDiscapacidad)}
+                </div>
+                <div class="ficha-card-sub ficha-sub-discapacidad">
                   ${emp.tipoDiscapacidad
-          ? `<span class="badge badge--revision" style="text-transform: capitalize; font-size:12px; font-weight:700;">♿ ${escHtml(emp.tipoDiscapacidad)}</span>`
-          : '<span style="color:var(--text-muted); font-size:0.9rem; font-weight:500;">No registra condición de discapacidad</span>'
-        }
+                    ? 'Servidor público con condición especial o de discapacidad registrada'
+                    : 'Sin registro oficial de condición especial o discapacidad'}
                 </div>
               </div>
             </div>
@@ -1193,7 +1219,7 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-sub">Inicio de vinculación administrativa</div>
               </div>
 
-              <div class="ficha-card ficha-card--emerald">
+              <div class="ficha-card ficha-card--gold">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">⏱️</div>
                   <span class="ficha-card-label">Tiempo de Servicio Actual</span>
