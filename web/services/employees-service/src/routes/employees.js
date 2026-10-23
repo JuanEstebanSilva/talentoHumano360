@@ -77,9 +77,129 @@ router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, r
   });
 });
 
+// ─── GET /api/employees/buscar (Búsqueda institucional ligera para formularios) ──
+// Trae ÚNICAMENTE la información estrictamente requerida (identificación y cargo institucional):
+// - Cédula / Documento
+// - Nombre completo
+// - Cargo
+// - Código del cargo
+// - Grado salarial
+// - Dependencia
+// - Secretaría
+router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) => {
+  const { q = '', cedula = '', limit = 8 } = req.query;
+  const searchLimit = Math.min(Math.max(1, parseInt(limit, 10) || 8), 25);
+
+  try {
+    const rawTerm = (q || cedula || '').trim();
+    if (!rawTerm) {
+      return res.json({ data: [] });
+    }
+
+    const cleanCedula = rawTerm.replace(/[.,\s]/g, '');
+    const digitsOnly = rawTerm.replace(/\D/g, '');
+
+    let normCedula = '';
+    if (cleanCedula !== rawTerm && cleanCedula.length > 0) {
+      normCedula = cleanCedula;
+    } else if (digitsOnly.length >= 3 && digitsOnly !== rawTerm) {
+      normCedula = digitsOnly;
+    }
+
+    const params = [`%${rawTerm}%`];
+    let whereQuery = `
+      WHERE (COALESCE(p.es_vacante, false) = false AND COALESCE(p.primer_apellido, '') != 'VACANTE')
+        AND (
+          LOWER(p.nombre_completo) LIKE LOWER($1)
+          OR p.cedula LIKE $1
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
+    `;
+
+    if (normCedula) {
+      params.push(`%${normCedula}%`);
+      whereQuery += `
+          OR p.cedula LIKE $2
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $2
+      `;
+    }
+
+    whereQuery += `)`;
+
+    params.push(searchLimit);
+    const limitParam = `$${params.length}`;
+
+    const sql = `
+      SELECT 
+        COALESCE(p.cedula, '') AS cedula,
+        COALESCE(p.nombre_completo, TRIM(CONCAT(p.primer_apellido, ' ', p.segundo_apellido, ' ', p.nombres))) AS nombre_completo,
+        COALESCE(ca.cargo, cb.cargo, 'PROFESIONAL UNIVERSITARIO') AS cargo,
+        COALESCE(ca.codigo, cb.codigo, '') AS codigo,
+        COALESCE(ca.grado, cb.grado, '') AS grado,
+        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia
+      FROM rel_principal r
+      JOIN personas p ON p.id_persona = r.id_persona
+      LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
+      LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
+      LEFT JOIN cargos cb ON cb.id_cargo = r.id_cargo_base
+      LEFT JOIN estados e ON e.id_estado = r.id_estado
+      ${whereQuery}
+      ORDER BY 
+        CASE WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo' THEN 1 ELSE 2 END,
+        CASE 
+          WHEN p.cedula = '${rawTerm.replace(/'/g, "''")}' OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = '${cleanCedula.replace(/'/g, "''")}' THEN 1 
+          ELSE 2 
+        END,
+        p.nombre_completo ASC
+      LIMIT ${limitParam}
+    `;
+
+    const result = await pool.query(sql, params);
+
+    const data = result.rows.map(row => {
+      const depUpper = (row.dependencia || '').toUpperCase().trim();
+      let sec = depUpper;
+      if (depUpper.includes('SECRETARÍA') || depUpper.includes('SECRETARIA')) {
+        sec = depUpper;
+      } else if (depUpper.includes('TALENTO HUMANO') || depUpper.includes('SISTEMAS') || depUpper.includes('SERVICIOS GENERALES')) {
+        sec = 'SECRETARÍA GENERAL';
+      } else if (depUpper.includes('GOBERNADOR') || depUpper.includes('DESPACHO')) {
+        sec = 'DESPACHO DEL GOBERNADOR';
+      } else if (depUpper.includes('JURÍDICA') || depUpper.includes('JURIDICA')) {
+        sec = 'OFICINA ASESORA JURÍDICA';
+      } else {
+        sec = depUpper || 'SECRETARÍA GENERAL';
+      }
+
+      return {
+        cedula: row.cedula,
+        documento: row.cedula,
+        nombre_completo: row.nombre_completo,
+        nombreCompleto: row.nombre_completo,
+        persona: row.nombre_completo,
+        cargo: row.cargo,
+        cargoActual: row.cargo,
+        cargo_actual: row.cargo,
+        codigo: row.codigo,
+        codigoActual: row.codigo,
+        codigo_actual: row.codigo,
+        grado: row.grado,
+        gradoActual: row.grado,
+        grado_actual: row.grado,
+        dependencia: row.dependencia,
+        secretaria: sec,
+      };
+    });
+
+    return res.json({ data, total: data.length });
+  } catch (err) {
+    console.error('[employees] buscar error:', err.message);
+    return res.status(500).json({ error: 'Error en búsqueda rápida de servidores.', details: err.message });
+  }
+});
+
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q = '', page = 1, limit = 30 } = req.query;
+  const { q = '', dependencia = '', cargo = '', page = 1, limit = 30 } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
   try {
     const trimmedQ = (q || '').trim();
@@ -93,33 +213,58 @@ router.get('/', auth, async (req, res) => {
       normCedula = digitsOnly;
     }
 
-    let whereClause = '';
+    const whereConditions = [];
     const params = [];
+
     if (trimmedQ) {
-      params.push(`%${trimmedQ}%`); // $1
+      params.push(`%${trimmedQ}%`);
+      const qIdx = params.length;
       if (normCedula) {
-        params.push(`%${normCedula}%`); // $2
-        whereClause = `WHERE (
-          LOWER(p.nombre_completo) LIKE LOWER($1)
-          OR p.cedula LIKE $1
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
-          OR p.cedula LIKE $2
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $2
-          OR LOWER(d.dependencia) LIKE LOWER($1)
-          OR LOWER(ca.cargo) LIKE LOWER($1)
-          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
-        )`;
+        params.push(`%${normCedula}%`);
+        const cIdx = params.length;
+        whereConditions.push(`(
+          LOWER(p.nombre_completo) LIKE LOWER($${qIdx})
+          OR p.cedula LIKE $${qIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${qIdx}
+          OR p.cedula LIKE $${cIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${cIdx}
+          OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
+          OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
+        )`);
       } else {
-        whereClause = `WHERE (
-          LOWER(p.nombre_completo) LIKE LOWER($1)
-          OR p.cedula LIKE $1
-          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $1
-          OR LOWER(d.dependencia) LIKE LOWER($1)
-          OR LOWER(ca.cargo) LIKE LOWER($1)
-          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $1)
-        )`;
+        whereConditions.push(`(
+          LOWER(p.nombre_completo) LIKE LOWER($${qIdx})
+          OR p.cedula LIKE $${qIdx}
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${qIdx}
+          OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
+          OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
+        )`);
       }
     }
+
+    const trimmedDep = (dependencia || '').trim();
+    if (trimmedDep && trimmedDep !== 'Todas' && trimmedDep !== 'Todas las Dependencias') {
+      params.push(trimmedDep);
+      const depIdx = params.length;
+      whereConditions.push(`(
+        LOWER(d.dependencia) = LOWER($${depIdx})
+        OR LOWER(d.dependencia) LIKE '%' || LOWER($${depIdx}) || '%'
+      )`);
+    }
+
+    const trimmedCargo = (cargo || '').trim();
+    if (trimmedCargo && trimmedCargo !== 'Todos' && trimmedCargo !== 'Todos los Cargos') {
+      params.push(trimmedCargo);
+      const cargoIdx = params.length;
+      whereConditions.push(`(
+        LOWER(ca.cargo) = LOWER($${cargoIdx})
+        OR LOWER(cb.cargo) = LOWER($${cargoIdx})
+      )`);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const limitParam = `$${params.length + 1}`;
     const offsetParam = `$${params.length + 2}`;
 
@@ -284,6 +429,8 @@ router.get('/', auth, async (req, res) => {
           cedula: cedulaPura,
           cedulaVisual: cedulaVisual,
           nombreCompleto: clean(r.nombre_completo),
+          nombre_completo: clean(r.nombre_completo),
+          persona: clean(r.nombre_completo),
           primerApellido: esVacante ? 'VACANTE' : clean(r.primer_apellido),
           segundoApellido: esVacante ? '' : clean(r.segundo_apellido),
           apellidos: esVacante ? 'VACANTE' : (apellidosJuntos || clean(r.primer_apellido)),
@@ -297,10 +444,16 @@ router.get('/', auth, async (req, res) => {
           fechaNacimiento: esVacante ? null : r.fecha_nacimiento,
           edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
           edadAnios: esVacante ? null : (edadCalc ? edadCalc.anios : null),
-           dependencia: clean(r.dependencia),
+          dependencia: clean(r.dependencia),
           cargoActual: clean(r.cargo_actual),
+          cargo_actual: clean(r.cargo_actual),
+          cargo: clean(r.cargo_actual || r.cargo_base),
           codigoActual: clean(r.codigo_actual),
+          codigo_actual: clean(r.codigo_actual),
+          codigo: clean(r.codigo_actual || r.codigo_base),
           gradoActual: clean(r.grado_actual),
+          grado_actual: clean(r.grado_actual),
+          grado: clean(r.grado_actual || r.grado_base),
           nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           cargoBase: clean(r.cargo_base),
@@ -355,7 +508,7 @@ router.get('/', auth, async (req, res) => {
 // ─── GET /api/employees/catalogs ─────────────────────────────────────────────
 router.get('/catalogs', auth, async (_, res) => {
   try {
-    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes] = await Promise.all([
+    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes, discRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
       pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
       pool.query(`
@@ -366,22 +519,79 @@ router.get('/catalogs', auth, async (_, res) => {
         WHERE d.dependencia IS NOT NULL AND c.cargo IS NOT NULL
         ORDER BY d.dependencia, c.cargo
       `),
-      pool.query('SELECT departamento, municipio FROM divipola ORDER BY departamento, municipio')
+      pool.query('SELECT departamento, municipio FROM divipola ORDER BY departamento, municipio'),
+      pool.query('SELECT DISTINCT estudios FROM educacion WHERE estudios IS NOT NULL AND TRIM(estudios) <> \'\' ORDER BY estudios'),
+      pool.query('SELECT DISTINCT institucion_estudios FROM educacion WHERE institucion_estudios IS NOT NULL AND TRIM(institucion_estudios) <> \'\' ORDER BY institucion_estudios'),
+      pool.query('SELECT DISTINCT tipo_discapacidad FROM personas WHERE tipo_discapacidad IS NOT NULL AND TRIM(tipo_discapacidad) <> \'\' ORDER BY tipo_discapacidad')
     ]);
 
-    // Mapeo dinámico: Dependencia -> Lista de Cargos
+    // Dependencias únicas institucionales (sin duplicados, sin registros espurios y ordenadas naturalmente)
+    const normalizedMap = new Map();
+    for (const r of depsRes.rows) {
+      const dep = clean(r.dependencia)?.toUpperCase();
+      if (!dep || ['HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA'].includes(dep)) continue;
+      
+      // Clave normalizada eliminando prefijos numéricos ("1. ", "10. ", etc.)
+      const normKey = dep.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+      if (!normKey) continue;
+
+      if (!normalizedMap.has(normKey)) {
+        normalizedMap.set(normKey, dep);
+      }
+    }
+    const dependenciasList = Array.from(normalizedMap.values());
+    dependenciasList.sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+
+    // Mapeo dinámico: Dependencia -> Lista de Cargos (deduplicados por cargo)
     const cargosPorDependencia = {};
     for (const row of cargosPorDepRes.rows) {
-      const dep = clean(row.dependencia);
+      const dep = clean(row.dependencia)?.toUpperCase();
+      if (!dep) continue;
       if (!cargosPorDependencia[dep]) cargosPorDependencia[dep] = [];
-      cargosPorDependencia[dep].push({
-        cargo: clean(row.cargo),
-        codigo: clean(row.codigo),
-        grado: clean(row.grado),
-        asignacion: row.asignacion_sueldo,
-        nivel: inferirNivelCargo(row.cargo, row.codigo, row.nivel)
-      });
+      const cargoName = clean(row.cargo);
+      if (cargoName && !cargosPorDependencia[dep].some(c => c.cargo.toUpperCase() === cargoName.toUpperCase())) {
+        cargosPorDependencia[dep].push({
+          cargo: cargoName.toUpperCase(),
+          codigo: clean(row.codigo),
+          grado: clean(row.grado),
+          asignacion: row.asignacion_sueldo,
+          nivel: inferirNivelCargo(row.cargo, row.codigo, row.nivel)
+        });
+      }
     }
+
+    // Cargos generales deduplicados por nombre
+    const cargosList = [];
+    const cargosSet = new Set();
+    for (const r of cargosRes.rows) {
+      const cName = clean(r.cargo)?.toUpperCase();
+      if (cName && !cargosSet.has(cName)) {
+        cargosSet.add(cName);
+        cargosList.push({
+          cargo: cName,
+          codigo: clean(r.codigo),
+          grado: clean(r.grado),
+          asignacion: r.asignacion_sueldo,
+          nivel: inferirNivelCargo(r.cargo, r.codigo, r.nivel)
+        });
+      }
+    }
+    cargosList.sort((a, b) => a.cargo.localeCompare(b.cargo, 'es'));
+
+    // Estudios e Instituciones existentes deduplicados
+    const estudiosSet = new Set();
+    for (const r of (estudiosRes.rows || [])) {
+      const est = clean(r.estudios)?.toUpperCase();
+      if (est && est !== 'NO REGISTRADO' && est !== 'NINGUNO') estudiosSet.add(est);
+    }
+    const estudiosList = Array.from(estudiosSet).sort((a, b) => a.localeCompare(b, 'es'));
+
+    const instSet = new Set();
+    for (const r of (instRes.rows || [])) {
+      const inst = clean(r.institucion_estudios)?.toUpperCase();
+      if (inst && inst !== 'NO REGISTRADO' && inst !== 'NINGUNA') instSet.add(inst);
+    }
+    const instList = Array.from(instSet).sort((a, b) => a.localeCompare(b, 'es'));
 
     // DIVIPOLA: Departamentos y Municipios dependientes
     const departamentosSet = new Set();
@@ -394,17 +604,29 @@ router.get('/catalogs', auth, async (_, res) => {
       municipiosPorDepto[depto].push(mpio);
     }
 
+    // Discapacidades canónicas y existentes en BD (todas en MAYÚSCULAS)
+    const discSet = new Set((DISCAPACIDADES_VALIDAS || []).map(d => d.toUpperCase()));
+    for (const r of (discRes?.rows || [])) {
+      let disc = clean(r.tipo_discapacidad)?.toUpperCase();
+      if (!disc) continue;
+      if (disc === 'MOTORA' || disc === 'FISICA' || disc === 'FÍSICA') disc = 'FÍSICA / MOTRIZ';
+      else if (disc === 'COGNITIVA' || disc === 'INTELECTUAL') disc = 'INTELECTUAL / COGNITIVA';
+      else if (disc === 'MENTAL' || disc === 'PSICOSOCIAL') disc = 'PSICOSOCIAL / MENTAL';
+      else if (disc === 'SORDOCIEGUERA') disc = 'SORDOCIEGA';
+
+      if (!['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR', 'NULL', 'UNDEFINED', 'N/A', 'OTRA'].includes(disc)) {
+        discSet.add(disc);
+      }
+    }
+    const discapacidadesList = Array.from(discSet).sort((a, b) => a.localeCompare(b, 'es'));
+
     res.json({
-      dependencias: depsRes.rows.map(r => clean(r.dependencia)).filter(Boolean),
-      departamentos: depsRes.rows.map(r => clean(r.dependencia)).filter(Boolean),
-      cargos: cargosRes.rows.map(r => ({
-        cargo: clean(r.cargo),
-        codigo: clean(r.codigo),
-        grado: clean(r.grado),
-        asignacion: r.asignacion_sueldo,
-        nivel: inferirNivelCargo(r.cargo, r.codigo, r.nivel)
-      })).filter(c => Boolean(c.cargo)),
+      dependencias: dependenciasList,
+      departamentos: dependenciasList,
+      cargos: cargosList,
       cargosPorDependencia,
+      estudios: estudiosList,
+      institucionesEstudios: instList,
       divipola: {
         departamentos: Array.from(departamentosSet).sort((a, b) => {
           if (a === 'BOYACÁ') return -1;
@@ -417,7 +639,7 @@ router.get('/catalogs', auth, async (_, res) => {
       clasificaciones: CLASIFICACIONES_EMPLEO,
       estadosServidor: ESTADOS_SERVIDOR,
       sexos: SEXOS_VALIDOS,
-      discapacidades: DISCAPACIDADES_VALIDAS,
+      discapacidades: discapacidadesList,
       tiposSangre: TIPOS_SANGRE_VALIDOS,
       diplomados: DIPLOMADOS_OPCIONES
     });
@@ -564,8 +786,21 @@ router.post('/', auth, async (req, res) => {
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
       const cleanName = clean(name) || 'NO REGISTRADO';
-      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
+      let existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
       if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+
+      // Fallback para dependencias: buscar sin prefijo numérico "1. ", "3. ", etc.
+      if (table === 'dependencias') {
+        const unnumbered = cleanName.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+        if (unnumbered) {
+          existing = await client.query(
+            `SELECT ${idCol} FROM ${table} WHERE REGEXP_REPLACE(LOWER(${nameCol}), '^[0-9]+(\\.[0-9]+)*\\.?\\s*', '') = LOWER($1) LIMIT 1`,
+            [unnumbered]
+          );
+          if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+        }
+      }
+
       const id = await nextId(table, idCol, prefix, width);
       await insertFn(id, cleanName);
       return id;
@@ -577,18 +812,20 @@ router.post('/', auth, async (req, res) => {
     const statusId = await nextId('estados', 'id_estado', 'EST', 4);
     const recordId = await nextId('rel_principal', 'id_registro', 'REL', 4);
 
-    const deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, dependencia || 'NO REGISTRADO', async (id, name) =>
+    const cleanDep = clean(dependencia)?.toUpperCase() || 'NO REGISTRADO';
+    const deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, cleanDep, async (id, name) =>
       client.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1,$2)', [id, name]));
 
-    const cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual || 'NO REGISTRADO', async (id, name) =>
+    const cleanCargo = clean(cargoActual)?.toUpperCase() || 'NO REGISTRADO';
+    const cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cleanCargo, async (id, name) =>
       client.query(
         "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
         [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
       ));
 
     // Inserción en personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA');
-    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ');
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA')?.toUpperCase();
+    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ')?.toUpperCase();
     const expedidaLugar = `${mpioExp}, ${deptoExp}`;
     await client.query(
       `INSERT INTO personas (
@@ -611,7 +848,7 @@ router.post('/', auth, async (req, res) => {
         tipoSangreValidado.valor,
         fechaNacimiento || null,
         fechaNacimiento ? calcularDiferenciaFechasExacta(parseExcelDate(fechaNacimiento)).texto : null,
-        sexoValidado.valor,
+        sexoValidado.valor ? clean(sexoValidado.valor).toUpperCase() : null,
         documentoPendiente
       ]
     );
@@ -625,8 +862,8 @@ router.post('/', auth, async (req, res) => {
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         contactId,
-        clean(direccion) || 'NO REGISTRADO',
-        clean(ciudad) || 'TUNJA, BOYACÁ',
+        clean(direccion)?.toUpperCase() || 'NO REGISTRADO',
+        clean(ciudad)?.toUpperCase() || 'TUNJA, BOYACÁ',
         telFijoValidado.valor || null,
         primaryCelular,
         celularesValidados.celulares,
@@ -645,12 +882,12 @@ router.post('/', auth, async (req, res) => {
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         educationId,
-        clean(estudios) || 'NO REGISTRADO',
+        clean(estudios)?.toUpperCase() || 'NO REGISTRADO',
         matriculaValidada.valor,
-        clean(institucionEstudios) || 'NO REGISTRADO',
-        clean(postgrado) || null,
-        clean(institucionPostgrado) || null,
-        clean(diplomadoCapSena) || null,
+        clean(institucionEstudios)?.toUpperCase() || 'NO REGISTRADO',
+        clean(postgrado)?.toUpperCase() || null,
+        clean(institucionPostgrado)?.toUpperCase() || null,
+        clean(diplomadoCapSena)?.toUpperCase() || null,
         tieneDip,
         correoInstValidado.valor
       ]
@@ -666,11 +903,11 @@ router.post('/', auth, async (req, res) => {
         statusId,
         normalizarClasificacionEmpleo(clasificacionEmpleo),
         situacionValidada.situacion,
-        funcionesValidadas.valor,
-        clean(novedades) || '',
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null,
+        clean(novedades)?.toUpperCase() || '',
         opec || null,
-        estadoServidorValidado.valor,
-        funcionesValidadas.valor
+        estadoServidorValidado.valor ? clean(estadoServidorValidado.valor).toUpperCase() : 'ACTIVO',
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null
       ]
     );
 
@@ -855,6 +1092,8 @@ router.get('/:cedula', auth, async (req, res) => {
       cedula: cedulaPura,
       cedulaVisual,
       nombreCompleto: clean(r.nombre_completo),
+      nombre_completo: clean(r.nombre_completo),
+      persona: clean(r.nombre_completo),
       primerApellido: esVacante ? 'VACANTE' : clean(r.primer_apellido),
       segundoApellido: esVacante ? '' : clean(r.segundo_apellido),
       nombres: esVacante ? 'PLAZA VACANTE' : clean(r.nombres),
@@ -869,8 +1108,14 @@ router.get('/:cedula', auth, async (req, res) => {
       edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
       dependencia: clean(r.dependencia),
       cargoActual: clean(r.cargo_actual),
+      cargo_actual: clean(r.cargo_actual),
+      cargo: clean(r.cargo_actual || r.cargo_base),
       codigoActual: clean(r.codigo_actual),
+      codigo_actual: clean(r.codigo_actual),
+      codigo: clean(r.codigo_actual || r.codigo_base),
       gradoActual: clean(r.grado_actual),
+      grado_actual: clean(r.grado_actual),
+      grado: clean(r.grado_actual || r.grado_base),
       nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
       nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
       cargoBase: clean(r.cargo_base),
@@ -1055,8 +1300,8 @@ router.put('/:cedula', auth, async (req, res) => {
     }
 
     // Actualizar personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion);
-    const deptoExp = clean(departamentoExpedicion);
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
+    const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
     const expedidaLugar = mpioExp ? `${mpioExp}${deptoExp ? ', ' + deptoExp : ''}` : null;
     await client.query(
       `UPDATE personas
@@ -1074,7 +1319,7 @@ router.put('/:cedula', auth, async (req, res) => {
         nombreValidado.primerApellido,
         nombreValidado.segundoApellido,
         nombreValidado.nombres,
-        sexoValidado.valor,
+        sexoValidado.valor ? clean(sexoValidado.valor).toUpperCase() : null,
         tipoSangreValidado ? tipoSangreValidado.valor : null,
         fechaNacimiento || null,
         deptoExp || null,
@@ -1098,8 +1343,8 @@ router.put('/:cedula', auth, async (req, res) => {
         primaryCelular,
         celularesValidados.celulares,
         telFijoValidado.valor,
-        clean(direccion) || null,
-        clean(ciudad) || null,
+        clean(direccion)?.toUpperCase() || null,
+        clean(ciudad)?.toUpperCase() || null,
         id_contacto
       ]
     );
@@ -1115,12 +1360,12 @@ router.put('/:cedula', auth, async (req, res) => {
            correo_institucional=$8
        WHERE id_educacion=$9`,
       [
-        clean(estudios) || null,
+        clean(estudios)?.toUpperCase() || null,
         matriculaValidada.valor,
-        clean(institucionEstudios) || null,
-        clean(postgrado) || null,
-        clean(institucionPostgrado) || null,
-        clean(diplomadoCapSena) || null,
+        clean(institucionEstudios)?.toUpperCase() || null,
+        clean(postgrado)?.toUpperCase() || null,
+        clean(institucionPostgrado)?.toUpperCase() || null,
+        clean(diplomadoCapSena)?.toUpperCase() || null,
         tieneDip,
         correoInstValidado.valor,
         id_educacion
@@ -1138,10 +1383,10 @@ router.put('/:cedula', auth, async (req, res) => {
       [
         normalizarClasificacionEmpleo(clasificacionEmpleo),
         situacionValidada.situacion,
-        funcionesValidadas.valor,
-        clean(novedades) || null,
+        funcionesValidadas.valor ? clean(funcionesValidadas.valor).toUpperCase() : null,
+        clean(novedades)?.toUpperCase() || null,
         opec || null,
-        estadoServidorValidado.valor,
+        estadoServidorValidado.valor ? clean(estadoServidorValidado.valor).toUpperCase() : 'ACTIVO',
         id_estado
       ]
     );
@@ -1158,9 +1403,22 @@ router.put('/:cedula', auth, async (req, res) => {
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
-      const cleanName = clean(name) || 'NO REGISTRADO';
-      const existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE LOWER(${nameCol}) = LOWER($1) LIMIT 1`, [cleanName]);
+      const cleanName = clean(name)?.toUpperCase() || 'NO REGISTRADO';
+      let existing = await client.query(`SELECT ${idCol} FROM ${table} WHERE UPPER(${nameCol}) = UPPER($1) LIMIT 1`, [cleanName]);
       if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+
+      // Fallback para dependencias: buscar sin prefijo numérico
+      if (table === 'dependencias') {
+        const unnumbered = cleanName.replace(/^\d+(\.\d+)*\.?\s*/, '').trim();
+        if (unnumbered) {
+          existing = await client.query(
+            `SELECT ${idCol} FROM ${table} WHERE REGEXP_REPLACE(UPPER(${nameCol}), '^[0-9]+(\\.[0-9]+)*\\.?\\s*', '') = UPPER($1) LIMIT 1`,
+            [unnumbered]
+          );
+          if (existing.rows.length > 0) return existing.rows[0][idCol.toLowerCase()];
+        }
+      }
+
       const id = await nextId(table, idCol, prefix, width);
       await insertFn(id, cleanName);
       return id;
@@ -1168,13 +1426,13 @@ router.put('/:cedula', auth, async (req, res) => {
 
     let deptId = null;
     if (dependencia) {
-      deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, dependencia, async (id, name) =>
+      deptId = await findOrCreate('dependencias', 'id_dependencia', 'dependencia', 'DEP', 3, clean(dependencia).toUpperCase(), async (id, name) =>
         client.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1,$2)', [id, name]));
     }
 
     let cargoId = null;
     if (cargoActual) {
-      cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, cargoActual, async (id, name) =>
+      cargoId = await findOrCreate('cargos', 'id_cargo', 'cargo', 'CAR', 3, clean(cargoActual).toUpperCase(), async (id, name) =>
         client.query(
           "INSERT INTO cargos(id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1,'PLANTA',$2,$3,$4,$5,$6)",
           [id, name, codigoValidado.valor, gradoValidado.valor, asignacion || '$0', inferirNivelCargo(name, codigoValidado.valor)]
@@ -1254,6 +1512,58 @@ router.put('/:cedula', auth, async (req, res) => {
     await client.query('ROLLBACK');
     console.error('[employees] update error:', err.message);
     res.status(500).json({ error: 'Error al actualizar el servidor: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── PATCH /api/employees/:cedula/status ─────────────────────────────────────
+router.patch('/:cedula/status', auth, async (req, res) => {
+  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const { cedula } = req.params;
+  const { estadoServidor } = req.body;
+  if (!estadoServidor) return res.status(400).json({ error: 'estadoServidor es requerido.' });
+
+  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
+
+  const client = await pool.connect();
+  try {
+    const cleanTarget = (cedula || '').trim();
+    const numericTarget = cleanTarget.replace(/\D/g, '');
+
+    const r = await client.query(
+      `SELECT r.id_estado, p.nombre_completo 
+       FROM rel_principal r 
+       LEFT JOIN personas p ON p.id_persona = r.id_persona 
+       WHERE r.id_registro = $1 
+          OR r.id_persona = $1 
+          OR p.id_persona = $1 
+          OR p.cedula = $1 
+          OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $1 
+          OR ($2 <> '' AND (p.cedula = $2 OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = $2)) 
+       LIMIT 1`,
+      [cleanTarget, numericTarget]
+    );
+
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: 'Servidor no encontrado.' });
+    }
+
+    const { id_estado, nombre_completo } = r.rows[0];
+    await client.query(
+      `UPDATE estados SET estado_servidor = $1 WHERE id_estado = $2`,
+      [estadoServidorValidado.valor, id_estado]
+    );
+
+    res.json({
+      success: true,
+      message: `Estado actualizado a ${estadoServidorValidado.valor}`,
+      estadoServidor: estadoServidorValidado.valor
+    });
+  } catch (err) {
+    console.error('[employees-service] error updating status:', err.message);
+    res.status(500).json({ error: 'Error al actualizar el estado: ' + err.message });
   } finally {
     client.release();
   }

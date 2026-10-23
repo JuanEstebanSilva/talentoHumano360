@@ -376,44 +376,70 @@ const FX = (() => {
   }
 
   // ─── Modal Animations ─────────────────────────────────────────────────────
-  function animateModalOpen(overlay, box) {
+  function animateModalOpen(overlay, box, isAlreadyOpen = false) {
     if (!window.anime) return;
     Sound.modalOpen();
 
-    anime({
-      targets: overlay,
-      opacity: [0, 1],
-      duration: 250,
-      easing: 'easeOutQuad',
-    });
-    anime({
-      targets: box,
-      scale: [0.85, 1],
-      translateY: [30, 0],
-      opacity: [0, 1],
-      duration: 420,
-      easing: 'spring(1, 100, 14, 0)',
-    });
+    if (window.anime.remove) {
+      if (overlay) window.anime.remove(overlay);
+      if (box) window.anime.remove(box);
+    }
+
+    if (!isAlreadyOpen) {
+      if (overlay) {
+        anime({
+          targets: overlay,
+          opacity: [0, 1],
+          duration: 250,
+          easing: 'easeOutQuad',
+        });
+      }
+    } else if (overlay) {
+      overlay.style.opacity = '1';
+    }
+
+    if (box) {
+      anime({
+        targets: box,
+        scale: isAlreadyOpen ? [0.97, 1] : [0.85, 1],
+        translateY: isAlreadyOpen ? [10, 0] : [30, 0],
+        opacity: isAlreadyOpen ? [0.6, 1] : [0, 1],
+        duration: isAlreadyOpen ? 240 : 420,
+        easing: isAlreadyOpen ? 'easeOutQuad' : 'spring(1, 100, 14, 0)',
+      });
+    }
   }
 
   function animateModalClose(overlay, box, done) {
     if (!window.anime) { done?.(); return; }
     Sound.modalClose();
 
-    anime({
-      targets: box,
-      scale: [1, 0.92],
-      opacity: [1, 0],
-      duration: 220,
-      easing: 'easeInExpo',
-    });
-    anime({
-      targets: overlay,
-      opacity: [1, 0],
-      duration: 240,
-      easing: 'easeInQuad',
-      complete: done,
-    });
+    if (window.anime.remove) {
+      if (overlay) window.anime.remove(overlay);
+      if (box) window.anime.remove(box);
+    }
+
+    if (box) {
+      anime({
+        targets: box,
+        scale: [1, 0.92],
+        opacity: [1, 0],
+        duration: 220,
+        easing: 'easeInExpo',
+      });
+    }
+
+    if (overlay) {
+      anime({
+        targets: overlay,
+        opacity: [1, 0],
+        duration: 240,
+        easing: 'easeInQuad',
+        complete: done,
+      });
+    } else {
+      done?.();
+    }
   }
 
   // ─── Nav Item Animations ──────────────────────────────────────────────────

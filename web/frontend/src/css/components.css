@@ -285,6 +285,7 @@
   padding: 1.5px;
   background: var(--iris-border);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
@@ -595,9 +596,13 @@ tbody tr:last-child td {
 
 .td-radicado {
   font-size: var(--text-xs) !important;
-  color: var(--color-green-dark) !important;
+  color: var(--color-primary-600, #0284c7) !important;
   font-weight: 700;
   letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .td-radicado {
+  color: #38bdf8 !important;
 }
 
 .td-actions {
@@ -1616,7 +1621,7 @@ tbody tr:last-child td {
   height: 38px;
   min-width: 38px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-forest, #355833) 0%, var(--color-green-dark, #287522) 100%);
+  background: #355833 !important;
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 800;
@@ -1624,13 +1629,19 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   letter-spacing: -0.5px;
-  box-shadow: 0 2px 6px rgba(40, 117, 34, 0.25);
+  box-shadow: 0 2px 6px rgba(53, 88, 51, 0.35);
   flex-shrink: 0;
 }
 
 .user-row-avatar--vacante {
   background: linear-gradient(135deg, var(--color-taupe, #857352) 0%, var(--color-rust, #A5451B) 100%);
   color: #ffffff;
+}
+
+[data-theme="dark"] .user-row-avatar:not(.user-row-avatar--vacante) {
+  background: #D1AD2A !important;
+  color: #111827 !important;
+  box-shadow: 0 2px 8px rgba(209, 173, 42, 0.4) !important;
 }
 
 /* ─── Indicador de Progreso Accesible en Botones (Sin Spinners Tradicionales) ─ */
@@ -2294,6 +2305,63 @@ tbody tr:last-child td {
 .file-chip-remove:hover {
   color: var(--color-red);
   transform: scale(1.15);
+}
+
+/* Dark Mode Overrides for Destination & File Upload */
+[data-theme="dark"] .dest-toggle-group {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .dest-toggle-pill {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .dest-toggle-opt input[type="radio"]:checked+.dest-toggle-pill {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.45);
+}
+
+[data-theme="dark"] .dest-preview-box {
+  background: rgba(30, 58, 138, 0.25);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+[data-theme="dark"] .dest-preview-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .dest-preview-val {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .file-upload-zone {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: #0b1926;
+}
+
+[data-theme="dark"] .file-upload-zone:hover {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.1);
+}
+
+[data-theme="dark"] .file-upload-title {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .file-upload-desc {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .file-upload-icon {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .file-chip {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
 }
 
 /* ─── Responsive Charts ──────────────────────────────────────────────────── */
@@ -4044,6 +4112,49 @@ tbody tr:last-child td {
   white-space: nowrap !important;
 }
 
+.td-tiempo-total {
+  color: #914169 !important;
+  font-weight: 700 !important;
+  font-size: 12.5px;
+}
+
+[data-theme="dark"] .td-tiempo-total {
+  color: #E879F9 !important;
+}
+
+.emp-tiempo-otros {
+  font-size: 11px;
+  color: #1D8096;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+[data-theme="dark"] .emp-tiempo-otros,
+[data-theme="dark"] .emp-tiempo-otros span {
+  color: #38BDF8 !important;
+}
+
+.badge--clickable {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.badge--clickable:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.03);
+  filter: brightness(1.06);
+}
+.badge--clickable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.badge--countdown {
+  animation: pulse-countdown 1s ease-in-out infinite;
+}
+@keyframes pulse-countdown {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.88; transform: scale(1.02); }
+}
+
 .user-table-title {
   font-weight: 600;
   font-size: 12.5px;
@@ -4560,9 +4671,13 @@ tbody tr:last-child td {
 }
 
 [data-theme="dark"] .ficha-hero {
-  background: linear-gradient(135deg, #030712 0%, #064e3b 60%, #022c22 100%);
-  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #181303 0%, #352403 40%, #523704 80%, #6e4906 100%);
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(209, 173, 42, 0.35);
+}
+
+[data-theme="dark"] .ficha-hero::before {
+  background: radial-gradient(circle, rgba(209, 173, 42, 0.35) 0%, transparent 70%);
 }
 
 .ficha-hero::before {
@@ -4608,6 +4723,17 @@ tbody tr:last-child td {
 
 .ficha-avatar.avatar--vacante {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+[data-theme="dark"] .ficha-avatar:not(.avatar--vacante) {
+  background: #D1AD2A !important;
+  color: #111827 !important;
+  border: 3px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 6px 16px rgba(209, 173, 42, 0.45) !important;
+}
+
+[data-theme="dark"] .ficha-avatar-badge {
+  border-color: #181303 !important;
 }
 
 .ficha-avatar-badge {
@@ -4806,8 +4932,13 @@ tbody tr:last-child td {
   background: rgba(0, 0, 0, 0.04);
 }
 
+[data-theme="dark"] .ficha-tab-btn {
+  color: #94a3b8;
+}
+
 [data-theme="dark"] .ficha-tab-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ficha-tab-btn.active {
@@ -4819,8 +4950,14 @@ tbody tr:last-child td {
 
 [data-theme="dark"] .ficha-tab-btn.active {
   background: #1e293b;
-  color: #4ade80;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #F472B6 !important;
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.25);
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+[data-theme="dark"] .ficha-tab-btn.active svg {
+  color: #F472B6 !important;
+  stroke: #F472B6 !important;
 }
 
 /* ─── Tab Panes & Animations ─── */
@@ -5218,9 +5355,381 @@ tbody tr:last-child td {
 }
 
 
+/* ─── Ficha Semantics & High Contrast Dark Mode ─── */
+.ficha-val-cedula {
+  color: var(--color-green-dark, #287522) !important;
+  font-weight: 800 !important;
+}
+
+.ficha-label-edad {
+  color: var(--color-navy);
+}
+
+.ficha-val-edad {
+  color: var(--color-navy) !important;
+}
+
+.ficha-sub-edad {
+  color: var(--color-info);
+}
+
+.ficha-val-situacion {
+  color: var(--color-primary);
+}
+
+.ficha-card-tiempo-total {
+  background: linear-gradient(135deg, rgba(0, 123, 199, 0.08) 0%, rgba(40, 135, 27, 0.08) 100%);
+  border: 1.5px solid rgba(0, 123, 199, 0.35);
+}
+
+.ficha-label-tiempo-total {
+  color: var(--color-navy);
+}
+
+.ficha-val-tiempo-total {
+  color: var(--color-navy);
+}
+
+.ficha-sub-tiempo-total {
+  color: var(--color-info);
+  background: rgba(0, 123, 199, 0.08);
+}
+
+.ficha-val-tiempo-servicio {
+  color: #b45309;
+}
+
+.ficha-val-otro-tiempo {
+  color: var(--color-success);
+}
+
+.ficha-val-cargo-denominacion {
+  color: var(--color-gold, #D1AD2A) !important;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+/* Discapacidad / Condición Especial en Ficha Integral (Alta Visibilidad) */
+.ficha-badge-discapacidad {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 2px solid #38bdf8;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+}
+
+.ficha-badge-discapacidad-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ficha-badge-discapacidad-text {
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+#ef-tipo-discapacidad,
+#ef-tipo-discapacidad option,
+#ef-tipo-discapacidad-custom {
+  text-transform: uppercase !important;
+}
+
+.ficha-discapacidad-none {
+  color: var(--text-muted, #64748b);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.ficha-card--discapacidad {
+  background: linear-gradient(135deg, rgba(224, 242, 254, 0.45) 0%, rgba(186, 230, 253, 0.25) 100%) !important;
+  border: 1.5px solid rgba(2, 132, 199, 0.35) !important;
+}
+
+.ficha-sub-discapacidad {
+  font-size: 0.82rem;
+  color: var(--text-muted, #64748b);
+}
+
+/* Dark Mode Overrides for High Legibility & Golden Harmony */
+[data-theme="dark"] .ficha-val-cargo-denominacion {
+  color: #f97316 !important;
+}
+
+[data-theme="dark"] .ficha-badge-discapacidad {
+  background: rgba(14, 165, 233, 0.22) !important;
+  color: #38bdf8 !important;
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35) !important;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+[data-theme="dark"] .ficha-card--discapacidad {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(30, 58, 138, 0.22) 100%) !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+}
+
+[data-theme="dark"] .ficha-discapacidad-none {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ficha-sub-discapacidad {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ficha-val-cedula {
+  color: #fbbf24 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .ficha-val-situacion,
+[data-theme="dark"] .ficha-val-tiempo-servicio,
+[data-theme="dark"] .ficha-val-otro-tiempo {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .ficha-label-edad {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ficha-val-edad {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .ficha-sub-edad {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .ficha-card-tiempo-total {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(30, 58, 138, 0.3) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+[data-theme="dark"] .ficha-label-tiempo-total {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ficha-val-tiempo-total {
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .ficha-sub-tiempo-total {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .ficha-tfoot-otro-tiempo {
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+
+/* ─── Ficha Integral de Horarios — Estilos de Alto Contraste & Armonía Visual ─── */
+.ficha-val-cedula {
+  color: #059669;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .ficha-val-cedula {
+  color: #fbbf24 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="dark"] .ficha-val-modalidad {
+  color: #f97316 !important;
+  font-weight: 800 !important;
+}
+
+.ficha-val-duracion-computo {
+  color: #0284c7;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .ficha-val-duracion-computo {
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+}
+
+/* En Modo Claro: Fechas de vigencia, soporte documental y bordecito en VERDE */
+.ficha-val-fecha-vigencia {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.ficha-soporte-titulo {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.ficha-soporte-thumb {
+  border: 2px solid #16a34a !important;
+  border-radius: 6px;
+}
+
+/* En Modo Oscuro: se mantienen en amarillo/dorado (#fbbf24) */
+[data-theme="dark"] .ficha-val-fecha-vigencia {
+  color: #fbbf24 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .ficha-soporte-titulo {
+  color: #fbbf24 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .ficha-soporte-thumb {
+  border: 2px solid rgba(251, 191, 36, 0.6) !important;
+}
+
+.ficha-val-cargo-denominacion {
+  color: #ea580c;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .ficha-val-cargo-denominacion {
+  color: #f97316 !important;
+  font-weight: 800 !important;
+}
+
+/* ─── Grid de 4 Métricas (Horarios y Módulos con 4 Tarjetas) ─── */
+#horarios-stats-grid,
+.stats-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 1024px) {
+  #horarios-stats-grid,
+  .stats-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #horarios-stats-grid,
+  .stats-grid--4 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── Stat Cards Interactivas (Filtro Rápido con Toggle) ─── */
+.stat-card.clickable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Selección elegante: no inunda el fondo de morado ni naranja */
+.stat-card.clickable.active {
+  border-color: #16a34a !important;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.18), 0 0 0 2px #16a34a !important;
+  background: var(--color-surface, #ffffff) !important;
+  transform: translateY(-2px);
+}
+
+.stat-card.clickable.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #16a34a;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* Modo oscuro: selección con borde y acento dorado sutil */
+[data-theme="dark"] .stat-card.clickable.active {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 0 1.5px #fbbf24 !important;
+  background: var(--color-surface) !important;
+}
+
+[data-theme="dark"] .stat-card.clickable.active::after {
+  background: #fbbf24 !important;
+}
+
+.stat-card--active-blue.active,
+.stat-card--active-purple.active,
+.stat-card--active-orange.active,
+.stat-card--active-teal.active {
+  background: var(--color-surface) !important;
+}
+
+/* ─── Barra de Desplazamiento Personalizada y Elegante para Modales ─── */
+.modal-box .modal-body,
+.modal-box.modal-ficha .modal-body,
+.modal-box.modal-schedule .modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.modal-box .modal-body::-webkit-scrollbar,
+.modal-box.modal-ficha .modal-body::-webkit-scrollbar,
+.modal-box.modal-schedule .modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-box .modal-body::-webkit-scrollbar-track,
+.modal-box.modal-ficha .modal-body::-webkit-scrollbar-track,
+.modal-box.modal-schedule .modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-box .modal-body::-webkit-scrollbar-thumb,
+.modal-box.modal-ficha .modal-body::-webkit-scrollbar-thumb,
+.modal-box.modal-schedule .modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.modal-box .modal-body::-webkit-scrollbar-thumb:hover,
+.modal-box.modal-ficha .modal-body::-webkit-scrollbar-thumb:hover,
+.modal-box.modal-schedule .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+[data-theme="dark"] .modal-box .modal-body,
+[data-theme="dark"] .modal-box.modal-ficha .modal-body,
+[data-theme="dark"] .modal-box.modal-schedule .modal-body {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+[data-theme="dark"] .modal-box .modal-body::-webkit-scrollbar-thumb,
+[data-theme="dark"] .modal-box.modal-ficha .modal-body::-webkit-scrollbar-thumb,
+[data-theme="dark"] .modal-box.modal-schedule .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .modal-box .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .modal-box.modal-ficha .modal-body::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] .modal-box.modal-schedule .modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.modal-box.modal-schedule,
+.modal-box.modal-ficha,
+.modal-box.modal-lg {
+  max-width: 900px !important;
+  width: 92vw !important;
+}
+
 /* ─── Form Tabs & Single Horizontal Bar ─── */
 .modal-box.modal-form-emp {
-  max-width: 860px !important;
+  max-width: 900px !important;
   width: 92vw !important;
   max-height: 90vh !important;
   display: flex !important;
@@ -5229,7 +5738,7 @@ tbody tr:last-child td {
 }
 
 .modal-box.modal-form-emp .modal-body {
-  padding: 18px 24px 24px 24px !important;
+  padding: 0 24px 24px 24px !important;
   max-height: calc(90vh - 130px) !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
@@ -5270,6 +5779,23 @@ tbody tr:last-child td {
   overflow: visible !important;
 }
 
+.emp-form-tabs-container {
+  position: sticky;
+  top: 0;
+  margin: 0 -24px 16px -24px;
+  padding: 16px 24px 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  z-index: 30;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .emp-form-tabs-container {
+  background: var(--color-surface, #1e293b) !important;
+  border-bottom-color: var(--color-border) !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+}
+
 .form-tabs {
   display: flex;
   gap: 6px;
@@ -5278,10 +5804,9 @@ tbody tr:last-child td {
   border-radius: 12px;
   border: 1px solid var(--color-border);
   overflow-x: auto;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   flex-shrink: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -5320,8 +5845,13 @@ tbody tr:last-child td {
   background: rgba(0, 0, 0, 0.04);
 }
 
+[data-theme="dark"] .form-tab-btn {
+  color: #94a3b8;
+}
+
 [data-theme="dark"] .form-tab-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .form-tab-btn.active {
@@ -5333,8 +5863,14 @@ tbody tr:last-child td {
 
 [data-theme="dark"] .form-tab-btn.active {
   background: #1e293b;
-  color: #4ade80;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  color: #F472B6 !important;
+  box-shadow: 0 4px 12px rgba(244, 114, 182, 0.25);
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+[data-theme="dark"] .form-tab-btn.active svg {
+  color: #F472B6 !important;
+  stroke: #F472B6 !important;
 }
 
 .form-tab-pane {
@@ -5344,6 +5880,97 @@ tbody tr:last-child td {
 .form-tab-pane.active {
   display: block;
   animation: fichaFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Selects con flecha/chevron garantizada ─── */
+.form-grid select.filter-select,
+.modal-form-emp select.filter-select,
+select.filter-select {
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23007bc7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+}
+
+[data-theme="dark"] .form-grid select.filter-select,
+[data-theme="dark"] .modal-form-emp select.filter-select,
+[data-theme="dark"] select.filter-select,
+[data-theme="dark"] select.form-select,
+[data-theme="dark"] select {
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #0f172a !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+  color: #f8fafc !important;
+}
+
+/* ─── Calendario / Fechas con área de clic ampliada ─── */
+.modal-form-emp input[type="date"],
+.form-grid input[type="date"] {
+  cursor: pointer;
+  position: relative;
+}
+
+.modal-form-emp input[type="date"]::-webkit-calendar-picker-indicator,
+.form-grid input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  filter: invert(0.35) sepia(1) saturate(5) hue-rotate(175deg);
+}
+
+.modal-form-emp input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.form-grid input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background: rgba(0, 123, 199, 0.12);
+  transform: scale(1.18);
+}
+
+/* ─── Botón Eliminar Periodo Rojo Líquido (Acción) ─── */
+.btn-del-periodo {
+  background: linear-gradient(180deg, #ff453a 0%, #d32f2f 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 3px 10px rgba(255, 69, 58, 0.35) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.btn-del-periodo:hover {
+  transform: translateY(-2px) scale(1.08) !important;
+  background: linear-gradient(180deg, #ff5b52 0%, #e53935 100%) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85), 0 6px 18px rgba(255, 69, 58, 0.5) !important;
+}
+
+.btn-del-periodo svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+  stroke-width: 2.2 !important;
+  pointer-events: none;
 }
 
 /* ─── Input Error Highlight Animation ─── */
@@ -6038,3 +6665,566 @@ body.error-404-active #login-screen {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
+   CALENDARIO MODERNO INSTITUCIONAL (FLATPICKR PREMIUM THEME)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.flatpickr-calendar {
+  width: 338px !important;
+  font-family: 'Nunito Sans', var(--font-base), -apple-system, sans-serif !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(40, 135, 27, 0.25) !important;
+  background: #ffffff !important;
+  padding: 10px 10px 8px 10px !important;
+  overflow: hidden !important;
+  animation: fpFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 999999 !important;
+}
+
+@keyframes fpFadeIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ─── Encabezado Verde Institucional con Flexbox Centrado ─── */
+.flatpickr-months {
+  position: relative !important;
+  background: linear-gradient(135deg, #1d6a1b 0%, #28871b 100%) !important;
+  border-radius: 10px !important;
+  margin-bottom: 8px !important;
+  padding: 6px 8px !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 48px !important;
+  box-sizing: border-box !important;
+}
+
+.flatpickr-months .flatpickr-month {
+  position: static !important;
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.flatpickr-current-month {
+  position: static !important;
+  width: auto !important;
+  left: auto !important;
+  padding: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transform: none !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+/* Selector desplegable de mes y selector de año cómodos y nítidos */
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month .flatpickr-year-dropdown {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: calc(100% - 9px) center !important;
+  background-size: 11px 11px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.42) !important;
+  border-radius: 8px !important;
+  padding: 4px 28px 4px 10px !important;
+  cursor: pointer !important;
+  font-size: 0.92rem !important;
+  height: 34px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+}
+
+.flatpickr-current-month .flatpickr-year-dropdown {
+  min-width: 88px !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+.flatpickr-current-month .flatpickr-year-dropdown:hover {
+  background-color: rgba(255, 255, 255, 0.32) !important;
+  border-color: rgba(255, 255, 255, 0.75) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16) !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:focus,
+.flatpickr-current-month .flatpickr-year-dropdown:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4) !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months option,
+.flatpickr-current-month .flatpickr-year-dropdown option {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+}
+
+/* Ocultar el stepper numérico por defecto para usar el nuevo dropdown de año cómodo */
+.flatpickr-current-month .numInputWrapper {
+  display: none !important;
+}
+
+.flatpickr-current-month input.cur-year {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  padding: 0 24px 0 8px !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+}
+
+.flatpickr-current-month .numInputWrapper span {
+  position: absolute !important;
+  right: 2px !important;
+  width: 20px !important;
+  height: 13px !important;
+  opacity: 0.85 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  border: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.flatpickr-current-month .numInputWrapper span:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowUp {
+  top: 2px !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowDown {
+  bottom: 2px !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowUp:after {
+  border-left: 5px solid transparent !important;
+  border-right: 5px solid transparent !important;
+  border-bottom: 5px solid #ffffff !important;
+  top: 3px !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowDown:after {
+  border-left: 5px solid transparent !important;
+  border-right: 5px solid transparent !important;
+  border-top: 5px solid #ffffff !important;
+  top: 4px !important;
+}
+
+/* Flechas de navegación de mes perfectamente centradas */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  position: static !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  transform: scale(1.08) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month svg,
+.flatpickr-months .flatpickr-next-month svg {
+  width: 14px !important;
+  height: 14px !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Botón 'X' institucional para cerrar el calendario */
+.flatpickr-custom-close {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin-left: 4px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  background: rgba(239, 68, 68, 0.35) !important;
+  border: 1px solid rgba(239, 68, 68, 0.6) !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.flatpickr-custom-close:hover {
+  background: #ef4444 !important;
+  border-color: #dc2626 !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* Días de la semana */
+.flatpickr-weekdays {
+  margin-top: 6px !important;
+  margin-bottom: 4px !important;
+}
+
+span.flatpickr-weekday {
+  color: #475569 !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.flatpickr-days {
+  width: 318px !important;
+}
+
+.dayContainer {
+  width: 318px !important;
+  min-width: 318px !important;
+  max-width: 318px !important;
+}
+
+.flatpickr-day {
+  max-width: 43px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  margin: 1px !important;
+  color: #1e293b !important;
+  transition: all 0.15s ease !important;
+}
+
+.flatpickr-day:hover {
+  background: rgba(40, 135, 27, 0.12) !important;
+  color: #1d6a1b !important;
+  border-color: transparent !important;
+}
+
+.flatpickr-day.today {
+  border: 2px solid #d1ad2a !important;
+  color: #b8860b !important;
+  font-weight: 800 !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: linear-gradient(135deg, #1d6a1b 0%, #28871b 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 10px rgba(40, 135, 27, 0.35) !important;
+}
+
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: #94a3b8 !important;
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.disabled:hover {
+  color: #cbd5e1 !important;
+  cursor: not-allowed !important;
+}
+
+/* Pie de acciones rápidas (Hoy / Limpiar) */
+.flatpickr-custom-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 6px 2px 6px !important;
+  margin-top: 6px !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.flatpickr-custom-footer button {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  padding: 4px 12px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.18s ease !important;
+}
+
+.flatpickr-custom-footer .fp-btn-today {
+  color: #0284c7 !important;
+  background: rgba(2, 132, 199, 0.12) !important;
+  border-color: rgba(2, 132, 199, 0.38) !important;
+}
+
+.flatpickr-custom-footer .fp-btn-today:hover {
+  background: #0284c7 !important;
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35) !important;
+}
+
+.flatpickr-custom-footer .fp-btn-clear {
+  color: #64748b !important;
+}
+
+.flatpickr-custom-footer .fp-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+}
+
+/* ─── Modo Oscuro (Dark Theme) ─── */
+[data-theme="dark"] .flatpickr-calendar {
+  background: #0b1926 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Encabezado y controles en Amarillo / Dorado en Modo Oscuro (Solicitud Usuario) */
+[data-theme="dark"] .flatpickr-months {
+  background: linear-gradient(135deg, #2b1f07 0%, #3d2c0a 100%) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.14) !important;
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
+  color: #fbbf24 !important;
+  fill: #fbbf24 !important;
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month:hover {
+  background: rgba(245, 158, 11, 0.35) !important;
+  border-color: #fbbf24 !important;
+  color: #fef08a !important;
+  fill: #fef08a !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35) !important;
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month svg,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month svg {
+  fill: #fbbf24 !important;
+  stroke: #fbbf24 !important;
+}
+
+[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown {
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fbbf24' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  border: 1.5px solid rgba(245, 158, 11, 0.5) !important;
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown:hover {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months:focus,
+[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown:focus {
+  border-color: #fde047 !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4) !important;
+}
+
+[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option,
+[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .flatpickr-current-month .numInputWrapper {
+  display: none !important;
+}
+
+[data-theme="dark"] span.flatpickr-weekday {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .flatpickr-day {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .flatpickr-day:hover {
+  background: rgba(40, 180, 50, 0.2) !important;
+  color: #4ade80 !important;
+}
+
+[data-theme="dark"] .flatpickr-day.today {
+  border-color: #facc15 !important;
+  color: #fde047 !important;
+}
+
+[data-theme="dark"] .flatpickr-day.selected {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45) !important;
+}
+
+[data-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-theme="dark"] .flatpickr-day.nextMonthDay {
+  color: #475569 !important;
+}
+
+[data-theme="dark"] .flatpickr-custom-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .flatpickr-custom-footer .fp-btn-today {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.16) !important;
+  border-color: rgba(56, 189, 248, 0.42) !important;
+}
+
+[data-theme="dark"] .flatpickr-custom-footer .fp-btn-today:hover {
+  background: #0284c7 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45) !important;
+}
+
+[data-theme="dark"] .flatpickr-custom-footer .fp-btn-clear {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .flatpickr-custom-footer .fp-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+}
+
+/* ─── Icono de Calendario SVG Nítido en todos los inputs de Fecha ─── */
+.flatpickr-input-custom,
+input.flatpickr-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23007bc7' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='3' ry='3'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3Cpath d='M8 14h.01'%3E%3C/path%3E%3Cpath d='M12 14h.01'%3E%3C/path%3E%3Cpath d='M16 14h.01'%3E%3C/path%3E%3Cpath d='M8 18h.01'%3E%3C/path%3E%3Cpath d='M12 18h.01'%3E%3C/path%3E%3Cpath d='M16 18h.01'%3E%3C/path%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: calc(100% - 12px) center !important;
+  background-size: 18px 18px !important;
+  padding-right: 38px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.flatpickr-input-custom:hover,
+input.flatpickr-input:hover {
+  border-color: #007bc7 !important;
+}
+
+[data-theme="dark"] .flatpickr-input-custom,
+[data-theme="dark"] input.flatpickr-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='3' ry='3'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3Cpath d='M8 14h.01'%3E%3C/path%3E%3Cpath d='M12 14h.01'%3E%3C/path%3E%3Cpath d='M16 14h.01'%3E%3C/path%3E%3Cpath d='M8 18h.01'%3E%3C/path%3E%3Cpath d='M12 18h.01'%3E%3C/path%3E%3Cpath d='M16 18h.01'%3E%3C/path%3E%3C/svg%3E") !important;
+}
+
+/* ─── Cálculos Dinámicos en Formularios (Edad, Tiempo de Servicio, Otro Tiempo) ─── */
+.ef-calc-display-val {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: #16a34a;
+  transition: color 0.2s ease;
+}
+
+.ef-periodo-duracion {
+  font-size: 13.5px;
+  font-weight: 700;
+  padding-top: 14px;
+  text-align: right;
+  color: #16a34a;
+  transition: color 0.2s ease;
+}
+
+.ef-periodo-duracion.is-error {
+  color: var(--color-danger) !important;
+}
+
+.ef-periodos-total {
+  font-size: 12px;
+  font-weight: 700;
+  color: #16a34a;
+  transition: color 0.2s ease;
+}
+
+/* En Modo Oscuro: ningún cálculo en verde, todo en amarillo (#fbbf24) */
+[data-theme="dark"] .ef-calc-display-val,
+[data-theme="dark"] #ef-edad-calc-display,
+[data-theme="dark"] #ef-tiempo-calc-display {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .ef-periodo-duracion:not(.is-error) {
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .ef-periodos-total,
+[data-theme="dark"] #ef-periodos-total-display {
+  color: #fbbf24 !important;
+}
+
+/* ─── Íconos de Acciones Excel (Descargar, Importar, Plantilla) en Amarillo para Modo Oscuro ─── */
+/* Aplica a Servidores Públicos (.emp-dropdown-item), Horarios y Viáticos (.actions-dropdown-item) */
+[data-theme="dark"] .emp-dropdown-item svg,
+[data-theme="dark"] .actions-dropdown-item svg,
+[data-theme="dark"] .excel-step-banner svg,
+[data-theme="dark"] .excel-dropzone-icon svg,
+[data-theme="dark"] #btn-download-excel-template svg {
+  color: #fbbf24 !important;
+  stroke: #fbbf24 !important;
+}
+
+[data-theme="dark"] .emp-dropdown-item:hover svg,
+[data-theme="dark"] .actions-dropdown-item:hover svg,
+[data-theme="dark"] #btn-download-excel-template:hover svg {
+  color: #fde047 !important;
+  stroke: #fde047 !important;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.45));
+}
+

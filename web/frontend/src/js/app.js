@@ -36,6 +36,8 @@ const App = (() => {
   }
 
   // ─── Modal System ──────────────────────────────────────────────────────────
+  let modalCloseSeq = 0;
+
   function openModal(title, bodyHtml, footerButtons = [], customClass = '') {
     const overlay = document.getElementById('modal-overlay');
     const titleEl = document.getElementById('modal-title');
@@ -44,8 +46,21 @@ const App = (() => {
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
 
+    modalCloseSeq++; // Invalidate any running closeModal animation callbacks
+
+    if (window.anime && window.anime.remove) {
+      window.anime.remove(overlay);
+      if (box) window.anime.remove(box);
+    }
+
+    const isAlreadyOpen = overlay.style.display === 'flex' && window.getComputedStyle(overlay).opacity > 0.1;
+
     if (box) {
       box.className = 'modal-box' + (customClass ? ' ' + customClass : '');
+      box.style.maxWidth = '';
+      box.style.width = '';
+      box.style.transform = 'none';
+      box.style.opacity = '1';
     }
 
     titleEl.textContent = title;
@@ -61,21 +76,162 @@ const App = (() => {
     });
 
     overlay.style.display = 'flex';
-    overlay.style.opacity = '0';
     document.body.style.overflow = 'hidden';
+
+    // Inicializar selectores de fecha mejorados (Flatpickr institucional)
+    setTimeout(() => initDatePickers(bodyEl), 30);
 
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
-      FX.animateModalOpen(overlay, box);
+      FX.animateModalOpen(overlay, box, isAlreadyOpen);
     } else {
       overlay.style.opacity = '1';
     }
   }
 
+  function initDatePickers(container = document) {
+    if (typeof flatpickr === 'undefined') return;
+    try {
+      const inputs = [];
+      if (container && container.matches && (container.matches('input[type="date"], input[data-datepicker], input.datepicker-input'))) {
+        inputs.push(container);
+      } else if (container && container.querySelectorAll) {
+        inputs.push(...container.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input'));
+      }
+      inputs.forEach(input => {
+        if (input._flatpickr) return;
+        const currentVal = input.value || '';
+        flatpickr(input, {
+          locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'd/m/Y',
+          altInputClass: ((input.className || 'form-input').replace(/\bflatpickr-input\b/g, '') + ' flatpickr-input-custom').trim(),
+          defaultDate: currentVal || null,
+          allowInput: true,
+          disableMobile: true,
+          monthSelectorType: 'dropdown',
+          onReady: function(selectedDates, dateStr, instance) {
+            if (!instance.calendarContainer) return;
+            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
+            const monthsBar = instance.calendarContainer.querySelector('.flatpickr-months');
+            if (monthsBar && !instance.calendarContainer.querySelector('.flatpickr-custom-close')) {
+              const closeBtn = document.createElement('button');
+              closeBtn.type = 'button';
+              closeBtn.className = 'flatpickr-custom-close';
+              closeBtn.title = 'Cerrar calendario (sin cambios)';
+              closeBtn.setAttribute('aria-label', 'Cerrar calendario');
+              closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+              closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.close();
+              });
+              monthsBar.appendChild(closeBtn);
+            }
+
+            // 2. Selector Desplegable de Año (fácil de usar, rango 1920 a 2050)
+            const currentMonthEl = instance.calendarContainer.querySelector('.flatpickr-current-month');
+            const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
+            if (currentMonthEl && numInput && !currentMonthEl.querySelector('.flatpickr-year-dropdown')) {
+              numInput.style.display = 'none';
+
+              const yearSelect = document.createElement('select');
+              yearSelect.className = 'flatpickr-year-dropdown';
+              yearSelect.setAttribute('aria-label', 'Seleccionar año');
+              yearSelect.title = 'Seleccionar año';
+
+              const minYear = 1920;
+              const maxYear = 2050;
+              const currentY = instance.currentYear || (instance.latestSelectedDateObj ? instance.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
+
+              let optionsHtml = '';
+              for (let y = minYear; y <= maxYear; y++) {
+                optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
+              }
+              yearSelect.innerHTML = optionsHtml;
+              yearSelect.value = currentY.toString();
+
+              yearSelect.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const newY = parseInt(e.target.value, 10);
+                if (!isNaN(newY)) {
+                  instance.changeYear(newY);
+                }
+              });
+
+              numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
+              instance._customYearSelect = yearSelect;
+            }
+
+            // 3. Tooltip accesible en desplegable de mes
+            const monthSelect = instance.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+            if (monthSelect) {
+              monthSelect.title = 'Seleccionar mes';
+            }
+
+            // 4. Footer institucional rápido (Hoy / Limpiar)
+            if (!instance.calendarContainer.querySelector('.flatpickr-custom-footer')) {
+              const footer = document.createElement('div');
+              footer.className = 'flatpickr-custom-footer';
+              footer.innerHTML = `
+                <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
+                <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
+              `;
+              footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.setDate(new Date(), true);
+                instance.close();
+              });
+              footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.clear();
+                instance.close();
+              });
+              instance.calendarContainer.appendChild(footer);
+            }
+          },
+          onYearChange: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onMonthChange: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onOpen: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onValueUpdate: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onChange: function(selectedDates, dateStr) {
+            input.value = dateStr;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+      });
+    } catch (e) {
+      console.warn('[Flatpickr] Fallback to native datepicker:', e);
+    }
+  }
+
   function closeModal() {
+    const currentSeq = ++modalCloseSeq;
     const overlay = document.getElementById('modal-overlay');
     const box = document.querySelector('.modal-box');
     if (!overlay) return;
+
+    document.querySelector('.modal-header-consecutivo')?.remove();
 
     if (box) {
       box.className = 'modal-box';
@@ -85,6 +241,7 @@ const App = (() => {
 
     if (typeof FX !== 'undefined') {
       FX.animateModalClose(overlay, box, () => {
+        if (modalCloseSeq !== currentSeq) return;
         overlay.style.display = 'none';
         document.body.style.overflow = '';
       });
@@ -1100,11 +1257,50 @@ const App = (() => {
       }
     }
 
+    // Garantizar que Flatpickr sea el calendario universal y único en toda la plataforma
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+      const dateObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.addedNodes && m.addedNodes.length) {
+            for (const node of m.addedNodes) {
+              if (node.nodeType === 1) {
+                if (node.matches && node.matches('input[type="date"], input[data-datepicker], input.datepicker-input')) {
+                  initDatePickers(node);
+                } else if (node.querySelectorAll) {
+                  const dates = node.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input');
+                  if (dates.length) initDatePickers(node);
+                }
+              }
+            }
+          }
+        }
+      });
+      dateObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (typeof HTMLInputElement !== 'undefined' && HTMLInputElement.prototype.showPicker) {
+      const origShowPicker = HTMLInputElement.prototype.showPicker;
+      HTMLInputElement.prototype.showPicker = function() {
+        if (this._flatpickr) {
+          this._flatpickr.open();
+          return;
+        }
+        if (this.type === 'date' || this.hasAttribute('data-datepicker')) {
+          initDatePickers(this);
+          if (this._flatpickr) {
+            this._flatpickr.open();
+            return;
+          }
+        }
+        return origShowPicker.apply(this, arguments);
+      };
+    }
+
     // FX: init effects engine
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

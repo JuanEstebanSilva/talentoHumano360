@@ -26,9 +26,52 @@ function auth(req, res, next) {
   catch { res.status(401).json({ error: 'Token inválido.' }); }
 }
 function canEdit(role) {
-  return role && (role.toLowerCase().includes('administrador') || role.toLowerCase().includes('coordinador'));
+  if (!role) return false;
+  const r = String(role).toLowerCase();
+  return r.includes('administrador') || r.includes('coordinador') || r.includes('admin');
 }
+
+// Garantizar columnas numero_resolucion y saldo en tabla viaticos
+async function ensureViaticosColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS numero_resolucion VARCHAR(120);
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS saldo NUMERIC(15,2);
+      CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion ON viaticos(numero_resolucion);
+    `);
+    console.log('[viaticos-service] Columnas garantizadas (numero_resolucion, saldo).');
+  } catch (err) {
+    console.warn('[viaticos-service] ensureViaticosColumns aviso:', err.message);
+  }
+}
+ensureViaticosColumns();
+
+function excelSerialToDate(serial) {
+  const s = Number(serial);
+  if (isNaN(s) || s < 1) return null;
+  const days = s > 60 ? s - 1 : s;
+  const epoch = new Date(Date.UTC(1899, 11, 31));
+  const ms = epoch.getTime() + days * 86400000;
+  const d = new Date(ms);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${day}/${month}/${year}`;
+}
+
 function upper(v) { return v == null ? '' : v.trim().replace(/\s+/g,' ').toUpperCase(); }
+function normalizeTokens(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+}
 function normalizeStatus(s) {
   if (!s) return 'Pendiente';
   const e = s.trim().toLowerCase();
@@ -45,11 +88,12 @@ function formatCurrency(v) {
 
 // ─── GET /api/viaticos ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q='', estado='', departamento='', page=1, limit=20 } = req.query;
+  const { q='', estado='', departamento='', dependencia='', page=1, limit=20 } = req.query;
+  const depFilter = dependencia || departamento || '';
   try {
     const conditions = ['1=1']; const params = []; let idx = 1;
     if (estado && estado !== 'Todos') { conditions.push(`estado = $${idx++}`); params.push(normalizeStatus(estado)); }
-    if (departamento && departamento !== 'Todas') { conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`); params.push(`%${departamento}%`); }
+    if (depFilter && depFilter !== 'Todas' && depFilter !== 'Todos') { conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`); params.push(`%${depFilter}%`); }
     if (q) { conditions.push(`(LOWER(apellidos_nombres) LIKE LOWER($${idx}) OR documento LIKE $${idx} OR LOWER(destino) LIKE LOWER($${idx}))`); params.push(`%${q}%`); idx++; }
 
     const where = conditions.join(' AND ');
@@ -75,6 +119,9 @@ router.get('/', auth, async (req, res) => {
         estado: normalizeStatus(r.estado), observaciones: r.observaciones,
         fechaSolicitud: r.fecha_solicitud, aprobadoPor: r.aprobado_por,
         tipoDestino: r.tipo_destino || 'Nacional', soporte: r.soporte || null,
+        numeroResolucion: r.numero_resolucion || '',
+        saldo: parseFloat(r.saldo) || 0,
+        saldoFormatted: formatCurrency(r.saldo),
       })),
       total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit))
     });
@@ -99,19 +146,20 @@ router.get('/stats', auth, async (_, res) => {
 
 // ─── POST /api/viaticos ───────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte } = req.body;
-  if (!persona || !documento || !destino) return res.status(400).json({ error: 'Persona, documento y destino son requeridos.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte, numeroResolucion, saldo } = req.body;
+  if (!persona || !destino) return res.status(400).json({ error: 'Persona y destino son requeridos.' });
 
   const d = new Date();
   const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   try {
     const r = await pool.query(
-      `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id_viatico`,
-      [upper(dependencia), upper(persona), documento, upper(cargo), upper(destino), motivo||'',
-       fechaInicio||'', fechaFin||'', parseInt(dias)||1, parseFloat(valorDiario)||0,
-       normalizeStatus(estado), observaciones||'', today, aprobadoPor||'', tipoDestino||'Nacional', soporte||null]);
+      `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id_viatico`,
+      [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo)||'FUNCIONARIO PÚBLICO', upper(destino), motivo||'',
+       fechaInicio||today, fechaFin||today, parseInt(dias)||1, parseFloat(valorDiario)||0,
+       normalizeStatus(estado), observaciones||'', today, aprobadoPor||'', tipoDestino||'Nacional', soporte||null,
+       (numeroResolucion||'').trim()||null, parseFloat(saldo)||null]);
 
     const newId = r.rows[0].id_viatico;
     await pool.query(
@@ -127,13 +175,16 @@ router.post('/', auth, async (req, res) => {
 
 // ─── POST /api/viaticos/bulk (Carga Masiva) ──────────────────────────────────
 router.post('/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : Array.isArray(req.body) ? req.body : [];
+  const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) ? req.body.hojasProcesadas : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });
 
   const client = await pool.connect();
   let inserted = 0;
+  let updated = 0;
   let skipped = 0;
+  let totalValor = 0;
   const errors = [];
 
   try {
@@ -141,55 +192,166 @@ router.post('/bulk', auth, async (req, res) => {
     const d = new Date();
     const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
+    // 1. Cargar catálogo de personas en memoria para asignación inteligente de cédula y cargo
+    const peopleTokenMap = new Map();
+    const peopleExactMap = new Map();
+    try {
+      const pRes = await client.query(`
+        SELECT p.cedula, p.nombre_completo, ca.cargo, d.dependencia
+        FROM personas p
+        LEFT JOIN rel_principal r ON p.id_persona = r.id_persona
+        LEFT JOIN cargos ca ON COALESCE(r.id_cargo_actual, r.id_cargo_base) = ca.id_cargo
+        LEFT JOIN dependencias d ON r.id_dependencia = d.id_dependencia
+        WHERE p.cedula IS NOT NULL AND p.cedula != ''
+      `);
+      for (const p of pRes.rows) {
+        const fullUpper = upper(p.nombre_completo);
+        const tokens = normalizeTokens(fullUpper);
+        const empData = {
+          cedula: p.cedula.trim(),
+          nombreCompleto: fullUpper,
+          cargo: upper(p.cargo) || 'FUNCIONARIO PÚBLICO',
+          dependencia: upper(p.dependencia) || ''
+        };
+        if (tokens && !peopleTokenMap.has(tokens)) peopleTokenMap.set(tokens, empData);
+        if (fullUpper && !peopleExactMap.has(fullUpper)) peopleExactMap.set(fullUpper, empData);
+      }
+    } catch (pErr) {
+      console.warn('[viaticos-bulk] Warning cargando personas:', pErr.message);
+    }
+
+    // 2. Cargar viáticos existentes para deduplicación y actualización segura
+    const existingMap = new Map();
+    try {
+      const existRes = await client.query(`
+        SELECT id_viatico, UPPER(apellidos_nombres) AS nom, fecha_inicio, UPPER(destino) AS dest, numero_resolucion
+        FROM viaticos
+      `);
+      for (const ex of existRes.rows) {
+        const key = `${ex.nom}|${ex.fecha_inicio || ''}|${ex.dest || ''}`;
+        existingMap.set(key, ex.id_viatico);
+        if (ex.numero_resolucion) {
+          existingMap.set(`RESOL:${ex.numero_resolucion.replace(/\\s+/g, '').toUpperCase()}`, ex.id_viatico);
+        }
+      }
+    } catch (exErr) {
+      console.warn('[viaticos-bulk] Warning cargando viáticos existentes:', exErr.message);
+    }
+
+    // 3. Procesar e insertar / actualizar filas
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const documento = (row.documento || row.cedula || row['Cédula'] || row['Documento'] || '').toString().trim();
-      const persona = (row.persona || row.nombreCompleto || row.nombre || row['Servidor Público'] || row['Nombre Completo'] || '').toString().trim();
-      const dependencia = (row.dependencia || row['Dependencia'] || '').toString().trim();
-      const cargo = (row.cargo || row.cargoActual || row['Cargo'] || '').toString().trim();
-      const destino = (row.destino || row['Destino'] || 'SIN ESPECIFICAR').toString().trim();
-      const motivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || '').toString().trim();
-      const fechaInicio = (row.fechaInicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || '').toString().trim();
+      let persona = (row.persona || row.nombreCompleto || row.nombre || row['Servidor Público'] || row['Nombre Completo'] || row['NOMBRE'] || '').toString().trim();
+      let documento = (row.documento || row.cedula || row['Cédula'] || row['Documento'] || '').toString().trim();
+      let dependencia = (row.dependencia || row['Dependencia'] || row.secretaria || '').toString().trim();
+      let cargo = (row.cargo || row.cargoActual || row['Cargo'] || '').toString().trim();
+      const destino = (row.destino || row['Destino'] || row['LUGAR COMISION'] || 'SIN ESPECIFICAR').toString().trim();
+      const motivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || 'Comisión de servicios').toString().trim();
+      const fechaInicio = (row.fechaInicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim();
       const fechaFin = (row.fechaFin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || fechaInicio || '').toString().trim();
       const dias = parseInt(row.dias || row['Días'] || 1) || 1;
-      const valorDiario = parseFloat(row.valorDiario || row['Valor Diario'] || 0) || 0;
-      const estado = normalizeStatus(row.estado || row['Estado'] || 'Pendiente');
+      const estado = normalizeStatus(row.estado || row['Estado'] || 'Aprobada');
       const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
+      const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
+      const saldo = parseFloat(row.saldo || row['SALDO']) || null;
+      const rowValorTotal = parseFloat(row.valorTotal != null ? row.valorTotal : (row.valor != null ? row.valor : 0)) || 0;
+      const valorDiario = dias > 0 && rowValorTotal > 0 ? parseFloat((rowValorTotal / dias).toFixed(2)) : (parseFloat(row.valorDiario || row['Valor Diario'] || 0) || 0);
+      totalValor += rowValorTotal;
 
-      if (!persona || !documento || !destino) {
-        errors.push(`Fila ${i + 1}: Documento, servidor y destino son requeridos.`);
+      if (!persona) {
+        errors.push(`Fila ${i + 1}: Nombre de servidor no especificado.`);
         skipped++;
         continue;
       }
 
-      const r = await client.query(
-        `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id_viatico`,
-        [upper(dependencia), upper(persona), documento, upper(cargo)||'NO REGISTRADO', upper(destino), motivo||'Carga masiva Excel',
-         fechaInicio||today, fechaFin||today, dias, valorDiario,
-         estado, observaciones||'Importado desde Excel', today, '', tipoDestino]);
+      // Enriquecer cédula y cargo mediante cotejo institucional de nombres si no vienen provistos
+      if (!documento || !cargo) {
+        const pUpper = upper(persona);
+        const pTokens = normalizeTokens(pUpper);
+        const matched = peopleTokenMap.get(pTokens) || peopleExactMap.get(pUpper);
+        if (matched) {
+          if (!documento) documento = matched.cedula;
+          if (!cargo) cargo = matched.cargo;
+          if (!dependencia && matched.dependencia) dependencia = matched.dependencia;
+        } else {
+          if (!cargo) cargo = 'FUNCIONARIO PÚBLICO';
+        }
+      }
 
-      const newId = r.rows[0].id_viatico;
-      await client.query(
-        'INSERT INTO historial_viaticos(id_viatico,estado_nuevo,nota,actualizado_por) VALUES($1,$2,$3,$4)',
-        [newId, estado, 'Importado masivamente vía Excel', req.user.username||'web']);
+      const pUpper = upper(persona);
+      const destUpper = upper(destino);
+      const keyPrimary = `${pUpper}|${fechaInicio}|${destUpper}`;
+      const resolKey = numeroResolucion ? `RESOL:${numeroResolucion.replace(/\s+/g, '').toUpperCase()}` : null;
+      const existingId = existingMap.get(keyPrimary) || (resolKey ? existingMap.get(resolKey) : null);
 
-      inserted++;
+      if (existingId) {
+        await client.query(
+          `UPDATE viaticos SET
+             dependencia = COALESCE(NULLIF($1, ''), dependencia),
+             apellidos_nombres = $2,
+             documento = COALESCE($3, documento),
+             cargo = COALESCE(NULLIF($4, ''), cargo),
+             destino = $5,
+             motivo = $6,
+             fecha_inicio = $7,
+             fecha_fin = $8,
+             dias = $9,
+             valor_diario = $10,
+             estado = $11,
+             observaciones = $12,
+             tipo_destino = $13,
+             numero_resolucion = COALESCE($14, numero_resolucion),
+             saldo = COALESCE($15, saldo)
+           WHERE id_viatico = $16`,
+          [upper(dependencia), pUpper, documento || null, upper(cargo) || 'FUNCIONARIO PÚBLICO',
+           destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
+           estado, observaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
+           numeroResolucion || null, saldo, existingId]
+        );
+        updated++;
+      } else {
+        const r = await client.query(
+          `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
+                                fecha_inicio, fecha_fin, dias, valor_diario, estado, observaciones,
+                                fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+           RETURNING id_viatico`,
+          [upper(dependencia), pUpper, documento || null, upper(cargo) || 'FUNCIONARIO PÚBLICO',
+           destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
+           estado, observaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
+           numeroResolucion || null, saldo]
+        );
+        const newId = r.rows[0].id_viatico;
+        existingMap.set(keyPrimary, newId);
+        if (resolKey) existingMap.set(resolKey, newId);
+
+        await client.query(
+          'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
+          [newId, estado, 'Importado masivamente vía Excel', req.user.username || 'web']
+        );
+        inserted++;
+      }
     }
 
     await client.query('COMMIT');
     res.json({
-      message: `Carga masiva completada: ${inserted} viáticos importados, ${skipped} omitidos.`,
-      inserted,
-      skipped,
-      total: rows.length,
-      errors
+      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${updated} actualizados.`,
+      resumen: {
+        totalFilas: rows.length,
+        insertados: inserted,
+        actualizados: updated,
+        omitidos: skipped,
+        totalValor,
+        hojasProcesadas: hojasProcesadas.length
+      },
+      hojasProcesadas,
+      errores: errors
     });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[viaticos] bulk error:', err.message);
-    res.status(500).json({ error: 'Error durante la carga masiva de viáticos.' });
+    res.status(500).json({ error: 'Error durante la carga masiva de viáticos: ' + err.message });
   } finally {
     client.release();
   }
@@ -197,18 +359,20 @@ router.post('/bulk', auth, async (req, res) => {
 
 // ─── PUT /api/viaticos/:id ────────────────────────────────────────────────────
 router.put('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
-  const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte } = req.body;
+  const { persona, documento, dependencia, cargo, destino, motivo, fechaInicio, fechaFin, dias, valorDiario, estado, observaciones, aprobadoPor, tipoDestino, soporte, numeroResolucion, saldo } = req.body;
   try {
     const r = await pool.query(
       `UPDATE viaticos SET dependencia=$1,apellidos_nombres=$2,documento=$3,cargo=$4,destino=$5,motivo=$6,
         fecha_inicio=$7,fecha_fin=$8,dias=$9,valor_diario=$10,estado=$11,observaciones=$12,aprobado_por=$13,
-        tipo_destino=COALESCE($14,tipo_destino), soporte=COALESCE($15,soporte)
-       WHERE id_viatico=$16 RETURNING id_viatico`,
-      [upper(dependencia), upper(persona), documento, upper(cargo), upper(destino), motivo||'',
+        tipo_destino=COALESCE($14,tipo_destino), soporte=COALESCE($15,soporte),
+        numero_resolucion=COALESCE($16,numero_resolucion), saldo=COALESCE($17,saldo)
+       WHERE id_viatico=$18 RETURNING id_viatico`,
+      [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo), upper(destino), motivo||'',
        fechaInicio||'', fechaFin||'', parseInt(dias)||1, parseFloat(valorDiario)||0,
-       normalizeStatus(estado), observaciones||'', aprobadoPor||'', tipoDestino||'Nacional', soporte||null, parseInt(id)]);
+       normalizeStatus(estado), observaciones||'', aprobadoPor||'', tipoDestino||'Nacional', soporte||null,
+       numeroResolucion||null, parseFloat(saldo)||null, parseInt(id)]);
     if (r.rowCount === 0) return res.status(404).json({ error: 'Viático no encontrado.' });
     await pool.query(
       'INSERT INTO historial_viaticos(id_viatico,estado_nuevo,nota,actualizado_por) VALUES($1,$2,$3,$4)',
@@ -222,7 +386,7 @@ router.put('/:id', auth, async (req, res) => {
 
 // ─── PATCH /api/viaticos/:id/status ──────────────────────────────────────────
 router.patch('/:id/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
   const { estado, observaciones } = req.body;
   if (!estado) return res.status(400).json({ error: 'El estado es requerido.' });
@@ -247,7 +411,7 @@ router.patch('/:id/status', auth, async (req, res) => {
 
 // ─── DELETE /api/viaticos/:id ─────────────────────────────────────────────────
 router.delete('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user.role || req.user.rol)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const numId = parseInt(req.params.id);
   if (!numId || numId <= 0) return res.status(400).json({ error: 'ID inválido.' });
   try {

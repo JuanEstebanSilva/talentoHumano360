@@ -54,7 +54,7 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   let esDocumentoPendiente = Boolean(documentoPendiente || (cedula && String(cedula).startsWith('PROV-')));
 
   if (cedulaFinal === undefined) {
-    const evaluacion = evaluarCedula(row['CEDULA'] || row['CÉDULA'] || row['DOCUMENTO'], row, rowNumber, sheetName);
+    const evaluacion = evaluarCedula(row['NUMERO DE CEDULA'] || row['NÚMERO DE CÉDULA'] || row['NUMERO CEDULA'] || row['CEDULA'] || row['CÉDULA'] || row['DOCUMENTO'], row, rowNumber, sheetName);
     if (!evaluacion.esValida) {
       throw new Error(evaluacion.motivoRechazo || `Fila sin datos de servidor ni cédula en la fila ${rowNumber}.`);
     }
@@ -63,9 +63,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   }
 
   // 2. Parseo estricto de fechas
-  const fechaNacimiento = parseExcelDate(row['NACIMIENTO'] || row['FECHA NACIMIENTO']);
-  const fechaIngreso = parseExcelDate(row['INGRESO'] || row['FECHA INGRESO']);
-  const fechaEncargo = parseExcelDate(row['FECHA ENCARGO']);
+  const fechaNacimiento = parseExcelDate(row['FECHA DE NACIMIENTO'] || row['FECHA NACIMIENTO'] || row['NACIMIENTO']);
+  const fechaIngreso = parseExcelDate(row['INGRESO'] || row['FECHA DE INGRESO'] || row['FECHA INGRESO']);
+  const fechaEncargo = parseExcelDate(row['FECHA DE ENCARGO'] || row['FECHA ENCARGO']);
 
   // 3. Cálculo dinámico de Edad y Tiempo de Servicio (Reglas 13 y 14: "X años, Y meses, Z días")
   const edadObj = fechaNacimiento ? calcularDiferenciaFechasExacta(fechaNacimiento) : null;
@@ -143,7 +143,7 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   }
 
   // 7. Diplomado / Capacitación SENA (Regla 19)
-  const rawDiplomado = sanitizeString(row['DIPLOMADO O CAP SENA']);
+  const rawDiplomado = sanitizeString(row['DIPLOMADO O CAP SENA'] || row['DIPLOMADO'] || row['CAPACITACION SENA']);
   const tieneDiplomado = Boolean(rawDiplomado && !['NO', 'NINGUNO', 'N/A', 'NONE'].includes(rawDiplomado.toUpperCase()));
 
   // 8. Expedición de documento y DIVIPOLA (Regla 10)
@@ -154,14 +154,16 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   const discapacidadRaw = row['TIPO DE DISCAPACIDAD'] || row['DISCAPACIDAD'] || row['TIPO DISCAPACIDAD'];
   const parsedSituacion = parseSituacionYDiscapacidad(situacionRaw, discapacidadRaw);
 
-  // Procesar Clasificación de Empleo (Columna V: CLASIFICACION EMPLEO)
-  const clasifRaw = row['CLASIFICACION EMPLEO'] || row['CLASIFICACIÓN EMPLEO'] || row['CLASIFICACION'] || row['CLASIFICACIÓN'] || row['TIPO DE VINCULACION'] || row['TIPO DE VINCULACIÓN'];
+  // Procesar Clasificación de Empleo (Columna V: CLASIFICACION DE EMPLEO)
+  const clasifRaw = row['CLASIFICACION DE EMPLEO'] || row['CLASIFICACIÓN DE EMPLEO'] || row['CLASIFICACION EMPLEO'] || row['CLASIFICACIÓN EMPLEO'] || row['CLASIFICACION'] || row['CLASIFICACIÓN'] || row['TIPO DE VINCULACION'] || row['TIPO DE VINCULACIÓN'];
   const clasificacionFinal = esVacante
     ? (clasifRaw ? normalizarClasificacionEmpleo(clasifRaw) : 'Vacante Definitiva')
     : normalizarClasificacionEmpleo(clasifRaw);
 
-  // Procesar Funciones del Cargo (Columna X: FUNCIONES PAG.)
+  // Procesar Funciones del Cargo (Columna: FUNCIONES PAD.)
   const funcionesPagRaw = sanitizeString(
+    row['FUNCIONES PAD.'] ||
+    row['FUNCIONES PAD'] ||
     row['FUNCIONES PAG.'] ||
     row['FUNCIONES PAG'] ||
     row['FUNCIONES PÁG.'] ||
@@ -221,20 +223,20 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       funcionesPag: esVacante ? null : funcionesPagRaw,
       opec: esVacante ? null : sanitizeString(row['OPEC']),
       novedades: esVacante ? 'PLAZA VACANTE' : sanitizeString(row['NOVEDADES']),
-      otroTiempoGober: esVacante ? null : sanitizeString(row['OTRO TIEMPO CON LA GOBER']),
+      otroTiempoGober: esVacante ? null : sanitizeString(row['OTRO TIEMPO DE LA GOBERNACION'] || row['OTRO TIEMPO DE LA GOBERNACIÓN'] || row['OTRO TIEMPO CON LA GOBER']),
       tiempoTotalGobernacion: esVacante ? null : (
         sumarTiemposExactos(
           tiempoServicioObj,
-          sanitizeString(row['OTRO TIEMPO CON LA GOBER'])
+          sanitizeString(row['OTRO TIEMPO DE LA GOBERNACION'] || row['OTRO TIEMPO DE LA GOBERNACIÓN'] || row['OTRO TIEMPO CON LA GOBER'])
         )?.texto || null
       )
     },
     academico: {
       estudios: esVacante ? null : sanitizeString(row['ESTUDIOS']),
-      matriculaProf: esVacante ? null : sanitizeString(row['MATRICULA PROF.'] || row['MATRICULA PROFESIONAL']),
-      institucionPregrado: esVacante ? null : sanitizeString(row['INSTITUCION']),
+      matriculaProf: esVacante ? null : sanitizeString(row['MATRICULA PROFECIONAL'] || row['MATRICULA PROFESIONAL'] || row['MATRICULA PROF.']),
+      institucionPregrado: esVacante ? null : sanitizeString(row['INSTITUCION'] || row['INSTITUCIÓN']),
       postgrado: esVacante ? null : sanitizeString(row['POSTGRADO']),
-      institucionPostgrado: esVacante ? null : sanitizeString(row['INSTITUCIÓN']),
+      institucionPostgrado: esVacante ? null : sanitizeString(row['INSTITUCION POST'] || row['INSTITUCIÓN POST'] || row['INSTITUCION POSTGRADO'] || row['INSTITUCIÓN']),
       diplomadoCapSena: esVacante ? null : rawDiplomado,
       tieneDiplomado: esVacante ? false : tieneDiplomado
     },

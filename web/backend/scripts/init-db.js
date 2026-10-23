@@ -33,6 +33,8 @@ const SQL_FILES = [
   '08_full_divipola_update.sql',
   '09_cargos_nivel_update.sql',
   '10_sst_module.sql',
+  '11_stress_test_data.sql',
+  '12_performance_indexes.sql',
 ];
 
 function findDatabaseDir() {

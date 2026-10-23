@@ -220,10 +220,7 @@ const RequestsModule = (() => {
       actions.push({
         text: 'Editar Solicitud',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(id);
-        }
+        action: () => openEdit(id)
       });
     }
     App.openModal(`Detalles de Solicitud · ${r.radicado || ''}`, content, actions);
@@ -273,7 +270,7 @@ const RequestsModule = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Fecha Inicio</label>
-          <input id="rf-fecha" class="form-input" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaInicio||'')}" ${dis} />
+          <input id="rf-fecha" class="form-input" data-datepicker="true" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaInicio||'')}" ${dis} />
         </div>
         <div class="form-group">
           <label class="form-label">Días Totales</label>

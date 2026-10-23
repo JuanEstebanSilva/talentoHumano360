@@ -7,7 +7,7 @@
 const GRADOS_VALIDOS = [
   '01', '02', '03', '04', '05', '06', '07', '08', '09', '10',
   '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-  'N/a', 'NE'
+  'N/A', 'NE'
 ];
 
 const CLASIFICACIONES_EMPLEO = [
@@ -126,12 +126,15 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   const sitClean = String(rawSituacion || '').trim();
   const discClean = String(rawDiscapacidad || '').trim();
 
-  if (discClean) {
-    const sitVal = sitClean ? sitClean.toUpperCase() : 'DISCAPACIDAD';
+  const isNinguna = !discClean || ['ninguna', 'ninguno', 'no registra', 'sin especificar', 'null', 'undefined', 'n/a'].includes(discClean.toLowerCase());
+
+  if (!isNinguna) {
+    const sitVal = sitClean ? sitClean.toUpperCase() : 'ACTIVO';
+    const match = DISCAPACIDADES_VALIDAS.find(d => d.toLowerCase() === discClean.toLowerCase());
     return {
       valido: true,
       situacion: sitVal,
-      tipoDiscapacidad: discClean.toLowerCase()
+      tipoDiscapacidad: (match || discClean).toUpperCase()
     };
   }
 
@@ -142,21 +145,27 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   const sitUpper = sitClean.toUpperCase();
   if (sitUpper.includes('DISCAPACIDAD')) {
     let tipo = null;
-    if (sitUpper.includes('AUDITIV')) {
-      tipo = 'auditiva';
+    if (sitUpper.includes('AUDITIV') && sitUpper.includes('SORDOMUD')) {
+      tipo = 'SORDOMUDA';
+    } else if (sitUpper.includes('AUDITIV')) {
+      tipo = 'AUDITIVA';
     } else if (sitUpper.includes('VISUAL')) {
-      tipo = 'visual';
-    } else if (sitUpper.includes('MOTOR')) {
-      tipo = 'motora';
-    } else if (sitUpper.includes('COGNITIV')) {
-      tipo = 'cognitiva';
-    } else if (sitUpper.includes('SORDOMUD')) {
-      tipo = 'sordomuda';
+      tipo = 'VISUAL';
+    } else if (sitUpper.includes('MOTOR') || sitUpper.includes('FÍSIC') || sitUpper.includes('FISIC')) {
+      tipo = 'FÍSICA / MOTRIZ';
+    } else if (sitUpper.includes('COGNITIV') || sitUpper.includes('INTELECT')) {
+      tipo = 'INTELECTUAL / COGNITIVA';
+    } else if (sitUpper.includes('PSICOSOCIAL') || sitUpper.includes('MENTAL')) {
+      tipo = 'PSICOSOCIAL / MENTAL';
     } else if (sitUpper.includes('SORDOCIEG')) {
-      tipo = 'sordociega';
+      tipo = 'SORDOCIEGA';
+    } else if (sitUpper.includes('SORDOMUD')) {
+      tipo = 'SORDOMUDA';
+    } else if (sitUpper.includes('MÚLTIPL') || sitUpper.includes('MULTIPL')) {
+      tipo = 'MÚLTIPLE';
     } else {
-      const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim().toLowerCase();
-      tipo = rem ? rem : 'auditiva'; // Si sólo dice DISCAPACIDAD pero no detalla
+      const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim();
+      tipo = rem ? rem.toUpperCase() : 'OTRA';
     }
 
     return {
@@ -178,12 +187,14 @@ const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
 const SEXOS_VALIDOS = ['Femenino', 'Masculino', 'Prefiero no decirlo'];
 
 const DISCAPACIDADES_VALIDAS = [
-  'visual',
-  'auditiva',
-  'motora',
-  'cognitiva',
-  'sordomuda',
-  'sordociega'
+  'FÍSICA / MOTRIZ',
+  'VISUAL',
+  'AUDITIVA',
+  'INTELECTUAL / COGNITIVA',
+  'PSICOSOCIAL / MENTAL',
+  'SORDOMUDA',
+  'SORDOCIEGA',
+  'MÚLTIPLE'
 ];
 
 const TIPOS_SANGRE_VALIDOS = [
@@ -222,7 +233,8 @@ function validateGrado(val) {
   if (val === null || val === undefined || String(val).trim() === '') {
     return { valido: true, valor: null };
   }
-  const str = String(val).trim();
+  let str = String(val).trim();
+  if (/^\d$/.test(str)) str = '0' + str;
   const match = GRADOS_VALIDOS.find(g => g.toLowerCase() === str.toLowerCase());
   if (match) {
     return { valido: true, valor: match };
@@ -475,10 +487,10 @@ function validateCelulares(input) {
   for (let i = 0; i < arr.length; i++) {
     const raw = String(arr[i] || '').trim().replace(/[\s\-\.]/g, '');
     if (!raw) continue;
-    if (!/^\d{9,10}$/.test(raw)) {
+    if (!/^[3]\d{8,9}$/.test(raw)) {
       return {
         valido: false,
-        error: `El número de celular "${arr[i]}" no es válido. Debe tener entre 9 y 10 dígitos numéricos.`
+        error: `El número de celular "${arr[i]}" debe iniciar con el dígito 3 y contener entre 9 y 10 dígitos numéricos.`
       };
     }
     cleaned.push(raw);
