@@ -5346,7 +5346,8 @@ tbody tr:last-child td {
 
 /* ─── Ficha Semantics & High Contrast Dark Mode ─── */
 .ficha-val-cedula {
-  color: var(--color-primary);
+  color: var(--color-green-dark, #287522) !important;
+  font-weight: 800 !important;
 }
 
 .ficha-label-edad {
@@ -5354,7 +5355,7 @@ tbody tr:last-child td {
 }
 
 .ficha-val-edad {
-  color: var(--color-success);
+  color: var(--color-navy) !important;
 }
 
 .ficha-sub-edad {
@@ -5392,8 +5393,11 @@ tbody tr:last-child td {
 }
 
 /* Dark Mode Overrides for High Legibility & Golden Harmony */
-[data-theme="dark"] .ficha-val-cedula,
-[data-theme="dark"] .ficha-val-edad,
+[data-theme="dark"] .ficha-val-cedula {
+  color: #fbbf24 !important;
+  font-weight: 800 !important;
+}
+
 [data-theme="dark"] .ficha-val-situacion,
 [data-theme="dark"] .ficha-val-tiempo-servicio,
 [data-theme="dark"] .ficha-val-otro-tiempo {
@@ -5402,6 +5406,10 @@ tbody tr:last-child td {
 
 [data-theme="dark"] .ficha-label-edad {
   color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ficha-val-edad {
+  color: #38bdf8 !important;
 }
 
 [data-theme="dark"] .ficha-sub-edad {
