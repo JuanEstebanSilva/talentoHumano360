@@ -35,6 +35,7 @@ const ViaticosModule = (() => {
     totalPages: 1,
     filters: {}
   };
+  let mainContainer = null;
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
 
@@ -352,6 +353,18 @@ const ViaticosModule = (() => {
   }
 
   // ─── Construcción de Formulario Inteligente ──────────────────────────────────
+  function switchFormTab(tabId) {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.click();
+    const modalBody = document.getElementById('modal-body');
+    if (!modalBody) return;
+    modalBody.querySelectorAll('.form-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    modalBody.querySelectorAll('.form-tab-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.id === tabId);
+    });
+  }
+
   function buildForm(r = {}) {
     const dis = Auth.canEdit() ? '' : 'disabled';
     currentUploadedFile = r.soporte || null;
@@ -360,160 +373,198 @@ const ViaticosModule = (() => {
     const defaultDepto = 'Boyacá';
 
     return `
-      <div class="form-grid">
-        <!-- Servidor con Autocompletado -->
-        <div class="form-group span-2 autocomplete-wrapper">
-          <label class="form-label">Nombre Completo del Servidor * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar cédula, cargo y dependencia)</span></label>
-          <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
-          <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Documento de Identidad (C.C.)</label>
-          <input id="vf-doc" class="form-input" placeholder="Número de cédula" value="${escHtml(r.documento||'')}" ${dis} />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Cargo Actual</label>
-          <input id="vf-cargo" class="form-input" placeholder="Cargo del servidor..." value="${escHtml(r.cargo||'')}" ${dis} />
-        </div>
-
-        <div class="form-group span-2">
-          <label class="form-label">Dependencia / Secretaría</label>
-          <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." value="${escHtml(r.dependencia||'')}" ${dis} />
-        </div>
-
-        <!-- Selector de Destino: Nacional vs Internacional -->
-        <div class="form-group span-2">
-          <label class="form-label">Tipo de Desplazamiento *</label>
-          <div class="dest-toggle-group">
-            <label class="dest-toggle-opt">
-              <input type="radio" name="vf-tipo-dest" value="Nacional" ${!isIntl ? 'checked' : ''} onchange="ViaticosModule.onTipoDestinoChange('Nacional')" ${dis}>
-              <span class="dest-toggle-pill">🇨🇴 Destino Nacional (Colombia)</span>
-            </label>
-            <label class="dest-toggle-opt">
-              <input type="radio" name="vf-tipo-dest" value="Internacional" ${isIntl ? 'checked' : ''} onchange="ViaticosModule.onTipoDestinoChange('Internacional')" ${dis}>
-              <span class="dest-toggle-pill">🌐 Destino Internacional</span>
-            </label>
+      <div class="emp-form-wrapper">
+        <!-- Barra de Pestañas de Navegación -->
+        <div class="emp-form-tabs-container">
+          <div class="form-tabs">
+            <button type="button" class="form-tab-btn active" data-tab="tab-vit-servidor" onclick="ViaticosModule.switchFormTab('tab-vit-servidor')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Servidor Público
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-vit-comision" onclick="ViaticosModule.switchFormTab('tab-vit-comision')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Destino & Comisión
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-vit-liquidacion" onclick="ViaticosModule.switchFormTab('tab-vit-liquidacion')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Liquidación & Valores
+            </button>
+            <button type="button" class="form-tab-btn" data-tab="tab-vit-soporte" onclick="ViaticosModule.switchFormTab('tab-vit-soporte')">
+              <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Soporte & Estado
+            </button>
           </div>
         </div>
 
-        <!-- Destino Nacional -->
-        <div id="vf-dest-nacional" class="form-subgrid span-2" style="display:${!isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
-          <div class="form-group">
-            <label class="form-label">Departamento *</label>
-            <select id="vf-depto" class="filter-select" onchange="ViaticosModule.onDeptoChange()" ${dis}>
-              ${Object.keys(COLOMBIA_GEO).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Municipio / Ciudad *</label>
-            <select id="vf-muni" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
-              <!-- Poblado dinámicamente -->
-            </select>
-          </div>
-        </div>
+        <!-- ─── PESTAÑA 1: SERVIDOR PÚBLICO ─── -->
+        <div id="tab-vit-servidor" class="form-tab-pane active" style="padding-top: 6px;">
+          <div class="form-grid">
+            <div class="form-group span-2 autocomplete-wrapper">
+              <label class="form-label">Nombre Completo del Servidor * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar cédula, cargo y dependencia)</span></label>
+              <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
+              <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
+            </div>
 
-        <!-- Destino Internacional -->
-        <div id="vf-dest-internacional" class="form-subgrid span-2" style="display:${isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
-          <div class="form-group">
-            <label class="form-label">País de Destino *</label>
-            <select id="vf-pais" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
-              ${PAISES_INTERNACIONAL.map(p => `<option value="${p}">${p}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ciudad Internacional *</label>
-            <input id="vf-ciudad-int" class="form-input" placeholder="Ej: Washington D.C., Madrid..." oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
+            <div class="form-group">
+              <label class="form-label">Documento de Identidad (C.C.)</label>
+              <input id="vf-doc" class="form-input font-mono" placeholder="Número de cédula" value="${escHtml(r.documento||'')}" ${dis} />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Cargo Actual</label>
+              <input id="vf-cargo" class="form-input" placeholder="Cargo del servidor..." value="${escHtml(r.cargo||'')}" ${dis} />
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Dependencia / Secretaría</label>
+              <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." value="${escHtml(r.dependencia||'')}" ${dis} />
+            </div>
           </div>
         </div>
 
-        <input type="hidden" id="vf-destino" value="${escHtml(r.destino || 'Tunja, Boyacá')}" />
+        <!-- ─── PESTAÑA 2: DESTINO & COMISIÓN ─── -->
+        <div id="tab-vit-comision" class="form-tab-pane" style="padding-top: 6px;">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label class="form-label">Tipo de Desplazamiento *</label>
+              <div class="dest-toggle-group">
+                <label class="dest-toggle-opt">
+                  <input type="radio" name="vf-tipo-dest" value="Nacional" ${!isIntl ? 'checked' : ''} onchange="ViaticosModule.onTipoDestinoChange('Nacional')" ${dis}>
+                  <span class="dest-toggle-pill">🇨🇴 Destino Nacional (Colombia)</span>
+                </label>
+                <label class="dest-toggle-opt">
+                  <input type="radio" name="vf-tipo-dest" value="Internacional" ${isIntl ? 'checked' : ''} onchange="ViaticosModule.onTipoDestinoChange('Internacional')" ${dis}>
+                  <span class="dest-toggle-pill">🌐 Destino Internacional</span>
+                </label>
+              </div>
+            </div>
 
-        <div class="form-group span-2">
-          <div class="dest-preview-box">
-            <span class="dest-preview-icon">📍</span>
-            <span class="dest-preview-label">Destino Consolidado:</span>
-            <strong id="vf-dest-preview-text" class="dest-preview-val">${escHtml(r.destino || 'Tunja, Boyacá')}</strong>
+            <!-- Destino Nacional -->
+            <div id="vf-dest-nacional" class="form-subgrid span-2" style="display:${!isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">Departamento *</label>
+                <select id="vf-depto" class="filter-select" onchange="ViaticosModule.onDeptoChange()" ${dis}>
+                  ${Object.keys(COLOMBIA_GEO).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Municipio / Ciudad *</label>
+                <select id="vf-muni" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
+                  <!-- Poblado dinámicamente -->
+                </select>
+              </div>
+            </div>
+
+            <!-- Destino Internacional -->
+            <div id="vf-dest-internacional" class="form-subgrid span-2" style="display:${isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
+              <div class="form-group">
+                <label class="form-label">País de Destino *</label>
+                <select id="vf-pais" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
+                  ${PAISES_INTERNACIONAL.map(p => `<option value="${p}">${p}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ciudad Internacional *</label>
+                <input id="vf-ciudad-int" class="form-input" placeholder="Ej: Washington D.C., Madrid..." oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
+              </div>
+            </div>
+
+            <input type="hidden" id="vf-destino" value="${escHtml(r.destino || 'Tunja, Boyacá')}" />
+
+            <div class="form-group span-2">
+              <div class="dest-preview-box">
+                <span class="dest-preview-icon">📍</span>
+                <span class="dest-preview-label">Destino Consolidado:</span>
+                <strong id="vf-dest-preview-text" class="dest-preview-val">${escHtml(r.destino || 'Tunja, Boyacá')}</strong>
+              </div>
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Motivo o Justificación del Desplazamiento</label>
+              <input id="vf-motivo" class="form-input" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." value="${escHtml(r.motivo||'')}" ${dis} />
+            </div>
           </div>
         </div>
 
-        <div class="form-group span-2">
-          <label class="form-label">Motivo o Justificación del Desplazamiento</label>
-          <input id="vf-motivo" class="form-input" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." value="${escHtml(r.motivo||'')}" ${dis} />
-        </div>
+        <!-- ─── PESTAÑA 3: LIQUIDACIÓN & VALORES ─── -->
+        <div id="tab-vit-liquidacion" class="form-tab-pane" style="padding-top: 6px;">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Fecha de Inicio *</label>
+              <input id="vf-fi" type="date" class="form-input" value="${toIsoDate(r.fechaInicio)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
+            </div>
 
-        <!-- Fechas y Cálculo de Días -->
-        <div class="form-group">
-          <label class="form-label">Fecha de Inicio *</label>
-          <input id="vf-fi" type="date" class="form-input" value="${toIsoDate(r.fechaInicio)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
-        </div>
+            <div class="form-group">
+              <label class="form-label">Fecha de Finalización *</label>
+              <input id="vf-ff" type="date" class="form-input" value="${toIsoDate(r.fechaFin)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Fecha de Finalización *</label>
-          <input id="vf-ff" type="date" class="form-input" value="${toIsoDate(r.fechaFin)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
-        </div>
+            <div class="form-group">
+              <label class="form-label">Número de Días (calculado)</label>
+              <input id="vf-dias" class="form-input" type="number" min="1" value="${escHtml(r.dias||'1')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Número de Días (calculado automáticamente)</label>
-          <input id="vf-dias" class="form-input" type="number" min="1" value="${escHtml(r.dias||'1')}" oninput="ViaticosModule.calcTotal()" ${dis} />
-        </div>
+            <div class="form-group">
+              <label class="form-label">Valor Diario ($ COP)</label>
+              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" value="${escHtml(r.valorDiario||'0')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Valor Diario ($ COP)</label>
-          <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" value="${escHtml(r.valorDiario||'0')}" oninput="ViaticosModule.calcTotal()" ${dis} />
-        </div>
+            <div class="form-group span-2">
+              <label class="form-label">Valor Total del Viático (Cálculo automático)</label>
+              <input id="vf-vtotal" class="form-input" placeholder="Calculado automáticamente" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${formatCOP(r.valorTotal||0)}" />
+            </div>
 
-        <div class="form-group span-2">
-          <label class="form-label">Valor Total del Viático</label>
-          <input id="vf-vtotal" class="form-input" placeholder="Calculado automáticamente" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${formatCOP(r.valorTotal||0)}" />
-        </div>
+            <div class="form-group">
+              <label class="form-label">N° Resolución / Acto</label>
+              <input id="vf-resolucion" class="form-input font-mono" placeholder="Ej: 0053/18/01/2024" value="${escHtml(r.numeroResolucion||'')}" ${dis} />
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Estado de la Solicitud</label>
-          <select id="vf-estado" class="filter-select" onchange="ViaticosModule.onEstadoChange()" ${dis}>
-            ${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${r.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </div>
+            <div class="form-group">
+              <label class="form-label">Saldo Presupuestal ($ COP)</label>
+              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" value="${escHtml(r.saldo||'')}" ${dis} />
+            </div>
 
-        <div class="form-group">
-          <label class="form-label">Aprobado Por</label>
-          <input id="vf-aprobado" class="form-input" placeholder="Nombre del aprobador..." value="${escHtml(r.aprobadoPor||'')}" ${dis} />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">N° Resolución / Acto</label>
-          <input id="vf-resolucion" class="form-input font-mono" placeholder="Ej: 0053/18/01/2024" value="${escHtml(r.numeroResolucion||'')}" ${dis} />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Saldo Presupuestal ($ COP)</label>
-          <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" value="${escHtml(r.saldo||'')}" ${dis} />
-        </div>
-
-        <!-- Carga de Soportes / Facturas -->
-        <div class="form-group span-2">
-          <label class="form-label">Soporte, Factura o Documento de Comisión (Opcional)</label>
-          <div class="file-upload-zone" onclick="document.getElementById('vf-file-input')?.click()">
-            <svg class="file-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <div class="file-upload-title">Haz clic o arrastra aquí la factura / soporte</div>
-            <div class="file-upload-desc">Formatos permitidos: PDF, PNG, JPG (Máx. 5MB)</div>
-            <input id="vf-file-input" type="file" accept=".pdf,image/png,image/jpeg" onchange="ViaticosModule.onFileSelected(event)" ${dis} />
-          </div>
-          <div id="vf-file-preview-area">
-            ${r.soporte ? `
-              <div class="file-chip">
-                <span>📄 Soporte adjunto cargado</span>
-                <button type="button" class="file-chip-remove" onclick="ViaticosModule.removeUploadedFile()" title="Remover soporte">✕</button>
-              </div>` : ''}
+            <div class="form-group span-2">
+              <label class="form-label">Aprobado Por</label>
+              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+            </div>
           </div>
         </div>
 
-        <div class="form-group span-2">
-          <label class="form-label">Observaciones Adicionales</label>
-          <input id="vf-obs" class="form-input" placeholder="Anotaciones de gestión o trámite..." value="${escHtml(r.observaciones||'')}" ${dis} />
+        <!-- ─── PESTAÑA 4: SOPORTE & ESTADO ─── -->
+        <div id="tab-vit-soporte" class="form-tab-pane" style="padding-top: 6px;">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label class="form-label">Estado de la Solicitud</label>
+              <select id="vf-estado" class="filter-select" onchange="ViaticosModule.onEstadoChange()" ${dis}>
+                ${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${r.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Soporte, Factura o Documento de Comisión (Opcional)</label>
+              <div class="file-upload-zone" onclick="document.getElementById('vf-file-input')?.click()">
+                <svg class="file-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <div class="file-upload-title">Haz clic o arrastra aquí la factura / soporte</div>
+                <div class="file-upload-desc">Formatos permitidos: PDF, PNG, JPG (Máx. 5MB)</div>
+                <input id="vf-file-input" type="file" accept=".pdf,image/png,image/jpeg" onchange="ViaticosModule.onFileSelected(event)" ${dis} />
+              </div>
+              <div id="vf-file-preview-area">
+                ${r.soporte ? `
+                  <div class="file-chip">
+                    <span>📄 Soporte adjunto cargado</span>
+                    <button type="button" class="file-chip-remove" onclick="ViaticosModule.removeUploadedFile()" title="Remover soporte">✕</button>
+                  </div>` : ''}
+              </div>
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Observaciones Adicionales</label>
+              <input id="vf-obs" class="form-input" placeholder="Anotaciones de gestión o trámite..." value="${escHtml(r.observaciones||'')}" ${dis} />
+            </div>
+          </div>
         </div>
       </div>`;
   }
@@ -1041,6 +1092,7 @@ const ViaticosModule = (() => {
 
   // ─── Acciones de Creación y Edición ───────────────────────────────────────
   function openCreate() {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
     App.openModal('Nuevo Viático Institucional', buildForm(), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Crear Viático', cls: 'btn-primary', id: 'vit-save-btn', action: saveCreate },
@@ -1058,6 +1110,7 @@ const ViaticosModule = (() => {
   function openEdit(id) {
     const r = state.data.find(x => x.id === id);
     if (!r) return;
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
     App.openModal(`Editar Viático ${r.radicado}`, buildForm(r), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Actualizar Viático', cls: 'btn-gold', id: 'vit-save-btn', action: () => saveEdit(id) },
@@ -1079,6 +1132,7 @@ const ViaticosModule = (() => {
     if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
     try {
       const res = await API.createViatico(body);
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.closeModal();
       App.showToast(`Viático creado exitosamente. Radicado: ${res.radicado || ''}`, 'success');
       await load();
@@ -1094,6 +1148,7 @@ const ViaticosModule = (() => {
     if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
     try {
       await API.updateViatico(id, body);
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.closeModal();
       App.showToast('Viático actualizado exitosamente.', 'success');
       await load();
@@ -1181,6 +1236,7 @@ const ViaticosModule = (() => {
     }
     const r = state.data.find(x => x.id === id);
     if (!r) return;
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const cardsHtml = STATUS_CONFIG.map(opt => {
       const isCurrent = r.estado === opt.name;
@@ -1237,6 +1293,7 @@ const ViaticosModule = (() => {
     const obs = document.getElementById('quick-status-obs')?.value.trim();
     try {
       await API.updateViaticoStatus(id, newStatus, obs);
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.closeModal();
       App.showToast(`Estado de viático actualizado a "${newStatus}".`, 'success');
       await load();
@@ -1247,45 +1304,51 @@ const ViaticosModule = (() => {
   }
 
   function loadStats() {
-    // 1. Estadísticas Globales del Módulo (siempre visibles arriba)
+    if (state.activeView === 'packages') {
+      loadStatsGlobal();
+    } else if (state.activePackage && state.activePackage.id_paquete) {
+      loadStatsPackage(state.activePackage.id_paquete);
+    }
+  }
+
+  function loadStatsGlobal() {
     API.getViaticosStats().then(s => {
       const strip = document.getElementById('vit-stats-strip');
       if (!strip) return;
       strip.innerHTML = `
         <div class="stat-card">
           <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${parseInt(s.total)||0}</span><span class="stat-label">Viáticos Totales</span></div>
+          <div class="stat-info"><span class="stat-value">${(parseInt(s.total)||0).toLocaleString('es-CO')}</span><span class="stat-label">Viáticos Totales</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${parseInt(s.pendientes)||0}</span><span class="stat-label">Pendientes</span></div>
+          <div class="stat-info"><span class="stat-value">${(parseInt(s.pendientes)||0).toLocaleString('es-CO')}</span><span class="stat-label">Pendientes</span></div>
         </div>
         <div class="stat-card">
           <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
           <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(s.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
         </div>`;
     }).catch(() => {});
+  }
 
-    // 2. Estadísticas Específicas del Paquete Activo
-    if (state.activePackage && state.activePackage.id_paquete) {
-      API.getViaticosStats({ id_paquete: state.activePackage.id_paquete }).then(ps => {
-        const pkgStrip = document.getElementById('vit-pkg-stats-strip');
-        if (!pkgStrip) return;
-        pkgStrip.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-            <div class="stat-info"><span class="stat-value">${parseInt(ps.total)||0}</span><span class="stat-label">Viáticos en este Paquete</span></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-            <div class="stat-info"><span class="stat-value">${parseInt(ps.pendientes)||0}</span><span class="stat-label">Pendientes</span></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
-          </div>`;
-      }).catch(() => {});
-    }
+  function loadStatsPackage(id_paquete) {
+    API.getViaticosStats({ id_paquete }).then(ps => {
+      const pkgStrip = document.getElementById('vit-pkg-stats-strip');
+      if (!pkgStrip) return;
+      pkgStrip.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div class="stat-info"><span class="stat-value">${(parseInt(ps.total)||0).toLocaleString('es-CO')}</span><span class="stat-label">Viáticos en este Paquete</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div class="stat-info"><span class="stat-value">${(parseInt(ps.pendientes)||0).toLocaleString('es-CO')}</span><span class="stat-label">Pendientes</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
+        </div>`;
+    }).catch(() => {});
   }
 
   async function loadPackages() {
@@ -1301,11 +1364,13 @@ const ViaticosModule = (() => {
   }
 
   function confirmDelete(id, nombre) {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
     App.openModal('Confirmar Eliminación', `<p style="color:var(--text-secondary)">¿Eliminar el viático de <strong style="color:var(--text-primary)">${nombre}</strong>?</p>`, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Eliminar', cls: 'btn-danger', action: async () => {
         try {
           await API.deleteViatico(id);
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           App.closeModal();
           App.showToast('Viático eliminado.', 'success');
           await load();
@@ -1408,6 +1473,7 @@ const ViaticosModule = (() => {
 
   // ─── Control de Vistas (Paquetes / Detalle) ──────────────────────────────────
   async function enterPackage(id_paquete) {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
     const pkg = state.packages.find(p => p.id_paquete === id_paquete);
     if (!pkg) {
       App.showToast('No se encontró el paquete seleccionado.', 'error');
@@ -1421,22 +1487,12 @@ const ViaticosModule = (() => {
   }
 
   async function backToPackages() {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
     state.activeView = 'packages';
     state.activePackage = null;
     state.filters = {};
     state.page = 1;
     await renderCurrentView();
-    loadStats();
-  }
-
-  async function renderCurrentView() {
-    const area = document.getElementById('vit-content-area');
-    if (!area) return;
-    if (state.activeView === 'packages') {
-      await renderPackagesView(area);
-    } else {
-      await renderDetailView(area);
-    }
   }
 
   async function renderPackagesView(container) {
@@ -1504,29 +1560,28 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Acciones en la base (Boceto: Eliminar a la izquierda, Editar al centro, Entrar a la derecha) -->
+        <!-- Acciones en la base (Botones circulares según diseño del sistema) -->
         <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
           <div class="viaticos-pkg-action-group-left">
             ${Auth.canEdit() ? `
             <button
               type="button"
-              class="viaticos-pkg-btn-delete"
+              class="btn-action-delete"
               onclick="ViaticosModule.confirmDeletePackage(${pkg.id_paquete}, '${escHtml(pkg.nombre)}')"
-              title="Eliminar este Excel y sus viáticos"
+              title="Eliminar esta vigencia y sus viáticos"
               aria-label="Eliminar ${escHtml(pkg.nombre)}"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
             ${Auth.canEdit() ? `
             <button
               type="button"
-              class="viaticos-pkg-btn-edit"
+              class="btn-action-edit"
               onclick="ViaticosModule.openEditPackageModal(${pkg.id_paquete})"
-              title="Editar nombre y año"
+              title="Editar vigencia o nombre"
               aria-label="Editar ${escHtml(pkg.nombre)}"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-              <span>Editar</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>` : ''}
           </div>
 
@@ -1544,7 +1599,7 @@ const ViaticosModule = (() => {
       </div>
     `).join('');
 
-    // Tarjeta para AGREGAR UNO NUEVO (boceto: círculo con + y texto "Agregar uno nuevo")
+    // Tarjeta para AGREGAR UNO NUEVO (círculo con + y texto "Agregar uno nuevo")
     const addCardHtml = `
       <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
         <div class="viaticos-pkg-add-circle">
@@ -1558,98 +1613,204 @@ const ViaticosModule = (() => {
     grid.innerHTML = cardsHtml + addCardHtml;
   }
 
-  async function renderDetailView(container) {
-    const pkg = state.activePackage;
-    if (!pkg) {
-      await backToPackages();
-      return;
+  async function renderCurrentView() {
+    const root = mainContainer || document.getElementById('main-content') || document.querySelector('.main-content');
+    if (!root) return;
+
+    if (state.activeView === 'packages') {
+      root.innerHTML = `
+        <div class="module-enter" id="vit-root-packages">
+          <!-- Encabezado General del Módulo Viáticos -->
+          <div class="page-header">
+            <div class="page-header-info">
+              <h1 class="page-heading">Viáticos</h1>
+              <p class="page-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos del personal institucional</p>
+            </div>
+            <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <!-- Dropdown de Opciones Secundarias -->
+              <div class="actions-dropdown-wrap">
+                <button
+                  type="button"
+                  class="btn btn-secondary actions-dropdown-btn"
+                  id="vit-dropdown-toggle"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="vit-dropdown-menu"
+                  onclick="ViaticosModule.toggleActionsDropdown(event)"
+                  onkeydown="ViaticosModule.handleDropdownKeydown(event)"
+                  title="Opciones secundarias (Excel y plantillas)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                  <span>Acciones</span>
+                  <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div
+                  class="actions-dropdown-menu"
+                  id="vit-dropdown-menu"
+                  role="menu"
+                  aria-labelledby="vit-dropdown-toggle"
+                  hidden
+                >
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <div>
+                      <strong>Exportar Todos los Viáticos</strong>
+                      <small>Descargar base de datos completa (.xlsx)</small>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    <div>
+                      <strong>Descargar Plantilla Oficial</strong>
+                      <small>Formato institucional de 17 secretarías (.xlsx)</small>
+                    </div>
+                  </button>
+                  ${Auth.canEdit() ? `
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal();"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <div>
+                      <strong>Nueva Carpeta / Importar Excel</strong>
+                      <small>Crear nueva vigencia o cargar archivo Excel</small>
+                    </div>
+                  </button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estadísticas Globales (Solo en vista de paquetes) -->
+          <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
+            ${renderStatsSkeletons()}
+          </div>
+
+          <!-- Contenedor de Vigencias y Carpetas de Viáticos -->
+          <div id="vit-packages-container"></div>
+        </div>
+      `;
+
+      bindDropdownOutsideClick();
+      loadStatsGlobal();
+      const pkgContainer = document.getElementById('vit-packages-container');
+      if (pkgContainer) {
+        await renderPackagesView(pkgContainer);
+      }
+    } else {
+      // ─── Vista Detalle del Paquete ───
+      const pkg = state.activePackage;
+      if (!pkg) {
+        await backToPackages();
+        return;
+      }
+
+      root.innerHTML = `
+        <div class="module-enter" id="vit-root-detail">
+          <!-- Cabecera Superior del Paquete (Reemplaza por completo el encabezado general) -->
+          <div class="viaticos-header-detail">
+            <div class="viaticos-detail-nav-left">
+              <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToPackages()" title="Volver al listado general de carpetas de viáticos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <span>Volver a Paquetes</span>
+              </button>
+              <div class="viaticos-detail-title-wrap">
+                <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
+                <h1 class="viaticos-detail-heading" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
+              </div>
+            </div>
+
+            <div class="viaticos-detail-actions">
+              <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage()" title="Descargar registros de este archivo Excel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Descargar Excel</span>
+              </button>
+              ${Auth.canEdit() ? `
+              <button type="button" class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear viático en esta vigencia">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Nuevo Viático</span>
+              </button>` : ''}
+            </div>
+          </div>
+
+          <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete -->
+          <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
+            ${renderStatsSkeletons()}
+          </div>
+
+          <!-- Filtros de Búsqueda para este Paquete -->
+          <div class="filters-card">
+            <div class="filters-row">
+              <div class="filter-group" style="flex:2">
+                <label class="filter-label">Buscar en ${escHtml(pkg.nombre)}</label>
+                <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
+              </div>
+              <div class="filter-group" style="flex:1.5">
+                <label class="filter-label">Dependencia</label>
+                <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
+                  ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
+                </select>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Estado</label>
+                <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
+                  ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar
+              </button>
+              <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
+            </div>
+          </div>
+
+          <!-- Tabla de Registros del Paquete -->
+          <div class="table-card">
+            <div class="table-header">
+              <span class="table-title">Registro de Viáticos — ${escHtml(pkg.nombre)}</span>
+              <span class="table-count" id="vit-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Radicado</th><th>Servidor Público</th><th>Dependencia</th><th>Destino</th>
+                  <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
+                </tr></thead>
+                <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
+                  ${renderSkeletonRows(6)}
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination" id="vit-pagination"></div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('vit-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+      loadStatsPackage(pkg.id_paquete);
+      await load();
     }
+  }
 
-    container.innerHTML = `
-      <div class="viaticos-detail-wrapper">
-        <!-- Barra de Navegación y Acciones del Paquete -->
-        <div class="viaticos-detail-nav">
-          <div class="viaticos-detail-breadcrumb">
-            <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToPackages()" title="Volver al listado general de carpetas de viáticos">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              <span>Volver a Paquetes</span>
-            </button>
-            <div class="viaticos-detail-title-wrap">
-              <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
-              <span class="viaticos-detail-title" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</span>
-            </div>
-          </div>
-
-          <div class="viaticos-detail-actions">
-            <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage()" title="Descargar registros de este archivo Excel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Descargar Excel</span>
-            </button>
-            ${Auth.canEdit() ? `
-            <button type="button" class="btn btn-primary-cta" onclick="ViaticosModule.openCreate()" id="btn-nuevo-viatico" aria-label="Crear viático en esta vigencia">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Nuevo Viático</span>
-            </button>` : ''}
-          </div>
-        </div>
-
-        <!-- Estadísticas Específicas de esta Vigencia / Paquete -->
-        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-          ${renderStatsSkeletons()}
-        </div>
-
-        <!-- Filtros de Búsqueda para este Paquete -->
-        <div class="filters-card">
-          <div class="filters-row">
-            <div class="filter-group" style="flex:2">
-              <label class="filter-label">Buscar en ${escHtml(pkg.nombre)}</label>
-              <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
-            </div>
-            <div class="filter-group" style="flex:1.5">
-              <label class="filter-label">Dependencia</label>
-              <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
-              </select>
-            </div>
-            <div class="filter-group">
-              <label class="filter-label">Estado</label>
-              <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
-              </select>
-            </div>
-            <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Buscar
-            </button>
-            <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
-          </div>
-        </div>
-
-        <!-- Tabla de Registros del Paquete -->
-        <div class="table-card">
-          <div class="table-header">
-            <span class="table-title">Registro de Viáticos — ${escHtml(pkg.nombre)}</span>
-            <span class="table-count" id="vit-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th>Radicado</th><th>Servidor Público</th><th>Dependencia</th><th>Destino</th>
-                <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
-              </tr></thead>
-              <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
-                ${renderSkeletonRows(6)}
-              </tbody>
-            </table>
-          </div>
-          <div class="pagination" id="vit-pagination"></div>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('vit-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
-    loadStats();
-    await load();
+  async function render(container) {
+    if (container) mainContainer = container;
+    await renderCurrentView();
   }
 
   // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────
@@ -1658,6 +1819,8 @@ const ViaticosModule = (() => {
       App.showToast('No tienes permisos para crear paquetes de viáticos.', 'warning');
       return;
     }
+
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const currentYear = new Date().getFullYear();
     let selectedPackageFile = null;
@@ -1732,6 +1895,7 @@ const ViaticosModule = (() => {
             await processAndImportPackageExcel(selectedPackageFile, newPkg.id_paquete);
           }
 
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           App.closeModal();
           App.showToast(`Paquete "${nombre}" creado exitosamente.`, 'success');
           await loadPackages();
@@ -1806,29 +1970,65 @@ const ViaticosModule = (() => {
       return;
     }
 
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
+
     const modalBody = `
-      <form id="vit-pkg-edit-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
-        <div class="form-group">
-          <label class="form-label required">Nombre de la Carpeta / Excel</label>
-          <input id="vedit-nombre" class="form-input form-input--no-icon" value="${escHtml(pkg.nombre)}" required />
+      <div class="vpkg-edit-modal-wrapper">
+        <!-- Hero Card de la Carpeta -->
+        <div class="vpkg-modal-hero">
+          <div class="vpkg-modal-hero-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="vpkg-modal-hero-info">
+            <div class="vpkg-modal-hero-title-row">
+              <h3 class="vpkg-modal-hero-title">${escHtml(pkg.nombre)}</h3>
+              <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
+            </div>
+            <div class="vpkg-modal-hero-file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+              <span>${escHtml(pkg.archivo_origen || `${pkg.nombre}.xlsx`)}</span>
+            </div>
+            <div class="vpkg-modal-hero-badges">
+              <span class="vpkg-badge-metric">📊 <strong>${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</strong> viáticos</span>
+              <span class="vpkg-badge-metric is-pending">⏳ <strong>${(pkg.pendientes || 0).toLocaleString('es-CO')}</strong> pendientes</span>
+              <span class="vpkg-badge-metric is-approved">💰 <strong>${pkg.valor_aprobado_formatted || '$ 0'}</strong> aprobado</span>
+            </div>
+          </div>
         </div>
 
-        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+        <!-- Formulario estilizado -->
+        <form id="vit-pkg-edit-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
           <div class="form-group">
-            <label class="form-label required">Año de Vigencia</label>
-            <input id="vedit-anio" type="number" min="2000" max="2050" class="form-input form-input--no-icon" value="${pkg.anio || new Date().getFullYear()}" required />
+            <label class="form-label required" for="vedit-nombre">Nombre de la Carpeta o Vigencia</label>
+            <input id="vedit-nombre" class="form-input" value="${escHtml(pkg.nombre)}" placeholder="Ej: Ejecución Presupuestal 2026" required />
+            <span class="form-help-text">Nombre descriptivo institucional con el que se identifica este paquete.</span>
           </div>
-          <div class="form-group">
-            <label class="form-label">Nombre del Archivo Origen</label>
-            <input id="vedit-archivo" class="form-input form-input--no-icon" value="${escHtml(pkg.archivo_origen || '')}" />
-          </div>
-        </div>
 
-        <div class="form-group">
-          <label class="form-label">Descripción</label>
-          <input id="vedit-desc" class="form-input form-input--no-icon" value="${escHtml(pkg.descripcion || '')}" />
-        </div>
-      </form>
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
+            <div class="form-group">
+              <label class="form-label required" for="vedit-anio">Año de Vigencia Fiscal</label>
+              <input id="vedit-anio" type="number" min="2000" max="2050" class="form-input font-mono" value="${pkg.anio || new Date().getFullYear()}" required />
+              <span class="form-help-text">Año fiscal para categorización y filtros.</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vedit-archivo">Archivo Origen (.xlsx)</label>
+              <input id="vedit-archivo" class="form-input font-mono" value="${escHtml(pkg.archivo_origen || '')}" placeholder="Ej: EJECUCION PRESUPUESTAL 2026.xlsx" />
+              <span class="form-help-text">Nombre del archivo Excel fuente institucional.</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="vedit-desc">Descripción o Notas de la Vigencia</label>
+            <input id="vedit-desc" class="form-input" value="${escHtml(pkg.descripcion || '')}" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" />
+          </div>
+
+          <div class="vpkg-modal-notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Los cambios de nombre o año se sincronizan automáticamente con todas las consultas y exportaciones.</span>
+          </div>
+        </form>
+      </div>
     `;
 
     App.openModal('Editar Carpeta de Viáticos', modalBody, [
@@ -1844,8 +2044,12 @@ const ViaticosModule = (() => {
           return;
         }
 
+        const btn = document.getElementById('btn-update-vpkg');
+        if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
         try {
           await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           App.closeModal();
           App.showToast('Carpeta de viáticos actualizada correctamente.', 'success');
           await loadPackages();
@@ -1855,6 +2059,8 @@ const ViaticosModule = (() => {
           await renderCurrentView();
         } catch (err) {
           App.showToast(err.message || 'Error al actualizar carpeta.', 'error');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
         }
       }},
     ]);
@@ -1866,6 +2072,8 @@ const ViaticosModule = (() => {
       App.showToast('No tienes permisos para eliminar paquetes.', 'warning');
       return;
     }
+
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
 
     App.openModal('Confirmar Eliminación de Carpeta', `
       <div style="display:flex; flex-direction:column; gap:12px;">
@@ -1881,6 +2089,7 @@ const ViaticosModule = (() => {
       { text: 'Sí, Eliminar Todo', cls: 'btn-danger', action: async () => {
         try {
           await API.deleteViaticosPaquete(id_paquete);
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           App.closeModal();
           App.showToast(`Carpeta "${nombre}" eliminada exitosamente.`, 'success');
           if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
@@ -1911,6 +2120,7 @@ const ViaticosModule = (() => {
         columns: EXCEL_COLUMNS,
         data: records
       });
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Se exportaron ${records.length.toLocaleString('es-CO')} registros exitosamente.`, 'success');
     } catch (err) {
       App.showToast('Error al exportar: ' + err.message, 'error');
@@ -2008,99 +2218,7 @@ const ViaticosModule = (() => {
     });
   }
 
-  // ─── Render General de Viáticos ───────────────────────────────────────────────
-  async function render(container) {
-    container.innerHTML = `
-      <div class="module-enter">
-        <div class="page-header">
-          <div class="page-header-info">
-            <h1 class="page-heading">Viáticos</h1>
-            <p class="page-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos del personal institucional</p>
-          </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown de Opciones Secundarias -->
-            <div class="actions-dropdown-wrap">
-              <button
-                type="button"
-                class="btn btn-secondary actions-dropdown-btn"
-                id="vit-dropdown-toggle"
-                aria-haspopup="true"
-                aria-expanded="false"
-                aria-controls="vit-dropdown-menu"
-                onclick="ViaticosModule.toggleActionsDropdown(event)"
-                onkeydown="ViaticosModule.handleDropdownKeydown(event)"
-                title="Opciones secundarias (Excel y plantillas)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
-                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div
-                class="actions-dropdown-menu"
-                id="vit-dropdown-menu"
-                role="menu"
-                aria-labelledby="vit-dropdown-toggle"
-                hidden
-              >
-                <button
-                  type="button"
-                  class="actions-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  <div>
-                    <strong>Exportar Todos los Viáticos</strong>
-                    <small>Descargar base de datos completa (.xlsx)</small>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  class="actions-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                  <div>
-                    <strong>Descargar Plantilla Oficial</strong>
-                    <small>Formato institucional de 17 secretarías (.xlsx)</small>
-                  </div>
-                </button>
-                ${Auth.canEdit() ? `
-                <button
-                  type="button"
-                  class="actions-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                  <div>
-                    <strong>Nueva Carpeta / Importar Excel</strong>
-                    <small>Crear nueva vigencia o cargar archivo Excel</small>
-                  </div>
-                </button>` : ''}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Estadísticas Globales (Siempre visibles en la parte superior) -->
-        <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-          ${renderStatsSkeletons()}
-        </div>
-
-        <!-- Área Dinámica de Contenido (Grilla de Paquetes o Detalle de un Paquete) -->
-        <div id="vit-content-area"></div>
-      </div>
-    `;
-
-    bindDropdownOutsideClick();
-    loadStats();
-    await renderCurrentView();
-  }
 
   const EXCEL_COLUMNS = [
     { header: 'Código Solicitud', key: 'radicado', width: 18, sample: 'VIT-2026-00012' },
@@ -2131,6 +2249,7 @@ const ViaticosModule = (() => {
         columns: EXCEL_COLUMNS,
         data: records
       });
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Se exportaron ${records.length} registros de viáticos exitosamente.`, 'success');
     } catch (err) {
       App.showToast('Error al exportar: ' + err.message, 'error');
@@ -2142,6 +2261,8 @@ const ViaticosModule = (() => {
       App.showToast('La biblioteca de Excel (SheetJS) aún no se ha cargado. Recarga la página.', 'error');
       return;
     }
+
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const existing = document.getElementById('excel-vit-modal-overlay');
     if (existing) existing.remove();
@@ -2779,8 +2900,9 @@ const ViaticosModule = (() => {
 
       const dateStr = new Date().toISOString().split('T')[0];
       XLSX.writeFile(wb, `Plantilla_Oficial_Viaticos_Gobernacion_Boyaca_${dateStr}.xlsx`);
-      App.showToast('Plantilla oficial institucional de viáticos (17 secretarías) descargada exitosamente.', 'success');
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+      App.showToast('Plantilla oficial institucional de viáticos (17 secretarías) descargada exitosamente.', 'success');
     } catch (err) {
       console.error('[ViaticosModule] Error al descargar plantilla oficial:', err);
       App.showToast('Error al generar la plantilla oficial de viáticos: ' + err.message, 'error');
@@ -2822,6 +2944,7 @@ const ViaticosModule = (() => {
     closeActionsDropdown,
     handleDropdownKeydown,
     switchFichaTab,
+    switchFormTab,
     copyFichaText,
   };
 })();

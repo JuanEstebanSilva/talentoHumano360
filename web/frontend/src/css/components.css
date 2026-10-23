@@ -7331,65 +7331,10 @@ input.flatpickr-input:hover {
   gap: 8px;
 }
 
-.viaticos-pkg-btn-delete {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.viaticos-pkg-btn-delete:hover {
-  background: #ef4444;
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
-}
-
-.viaticos-pkg-btn-edit {
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border, #e2e8f0);
-  background: var(--bg-primary, #f8fafc);
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.viaticos-pkg-btn-edit:hover {
-  background: var(--bg-surface);
-  border-color: #3b82f6;
-  color: #3b82f6;
-  transform: translateY(-2px);
-}
-
-[data-theme="dark"] .viaticos-pkg-btn-edit {
-  background: #1f2937;
-  border-color: #374151;
-  color: #9ca3af;
-}
-
-[data-theme="dark"] .viaticos-pkg-btn-edit:hover {
-  border-color: #60a5fa;
-  color: #60a5fa;
-}
-
 .viaticos-pkg-btn-enter {
-  height: 36px;
+  height: 34px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius: 999px;
   border: none;
   background: linear-gradient(135deg, #16a34a, #15803d);
   color: #ffffff;
@@ -7580,5 +7525,172 @@ input.flatpickr-input:hover {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* ─── Encabezado Principal de Paquete en Vista Detalle ─── */
+.viaticos-header-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding-bottom: var(--space-2);
+}
+
+.viaticos-detail-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.viaticos-detail-heading {
+  font-size: 1.55rem !important;
+  font-weight: 800 !important;
+  margin: 0 !important;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+/* ─── Modal Mejorado de Edición de Paquetes de Viáticos ─── */
+.vpkg-edit-modal-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vpkg-modal-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.08) 0%, rgba(22, 163, 74, 0.02) 100%);
+  border: 1px solid rgba(22, 163, 74, 0.22);
+}
+
+[data-theme="dark"] .vpkg-modal-hero {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.02) 100%);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.vpkg-modal-hero-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
+}
+
+[data-theme="dark"] .vpkg-modal-hero-icon {
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  color: #111827;
+  box-shadow: 0 4px 14px rgba(251, 191, 36, 0.3);
+}
+
+.vpkg-modal-hero-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.vpkg-modal-hero-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vpkg-modal-hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vpkg-modal-hero-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vpkg-modal-hero-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+.vpkg-modal-hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.vpkg-badge-metric {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  color: var(--text-secondary);
+}
+
+.vpkg-badge-metric.is-pending {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #d97706;
+}
+
+.vpkg-badge-metric.is-approved {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.3);
+  color: #16a34a;
+}
+
+[data-theme="dark"] .vpkg-badge-metric {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+[data-theme="dark"] .vpkg-badge-metric.is-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .vpkg-badge-metric.is-approved {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.vpkg-modal-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.vpkg-modal-notice svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
 
 
