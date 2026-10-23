@@ -298,25 +298,13 @@ const HorariosModule = (() => {
         <!-- Barra de Búsqueda y Filtros -->
         <div class="filters-card">
           <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-            <div class="filter-group" style="flex:2; min-width:220px;">
+            <div class="filter-group" style="flex:3; min-width:240px;">
               <label class="filter-label" for="horarios-search">Buscar</label>
-              <input id="horarios-search" class="filter-input" placeholder="Nombre, cédula, dependencia o resolución..." value="${escHtml(
+              <input id="horarios-search" class="filter-input" placeholder="Nombre, cédula, cargo o resolución..." value="${escHtml(
                 state.filters.q || ''
               )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" />
             </div>
-            <div class="filter-group" style="flex:1.5; min-width:200px;">
-              <label class="filter-label" for="filter-dependencia">Dependencia</label>
-              <select id="filter-dependencia" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por dependencia institucional">
-                <option value="">TODAS</option>
-                ${dependenciasCatalog.map(
-                  (d) =>
-                    `<option value="${escHtml(d)}" ${
-                      state.filters.dependencia === d ? 'selected' : ''
-                    }>${escHtml(d)}</option>`
-                ).join('')}
-              </select>
-            </div>
-            <div class="filter-group" style="min-width:140px;">
+            <div class="filter-group" style="flex:1; min-width:160px;">
               <label class="filter-label" for="filter-estado">Estado</label>
               <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por estado">
                 <option value="">TODOS</option>
@@ -1890,21 +1878,21 @@ const HorariosModule = (() => {
         if (h.soporte_acto.startsWith('data:image/')) {
           thumbnailHtml = `
             <div style="flex-shrink:0; cursor:pointer;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ampliar documento oficial">
-              <img src="${h.soporte_acto}" alt="Miniatura Resolución" style="width:72px; height:88px; object-fit:cover; border-radius:6px; border:2px solid rgba(251, 191, 36, 0.5); box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
+              <img src="${h.soporte_acto}" alt="Miniatura Resolución" class="ficha-soporte-thumb" style="width:72px; height:88px; object-fit:cover; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
             </div>
           `;
         } else if (h.soporte_acto.startsWith('data:application/pdf')) {
           thumbnailHtml = `
-            <div style="width:72px; height:88px; border-radius:6px; background:rgba(239, 68, 68, 0.15); border:2px solid rgba(239, 68, 68, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento PDF" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <div class="ficha-soporte-thumb" style="width:72px; height:88px; border-radius:6px; background:rgba(239, 68, 68, 0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento PDF" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
               <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width:28px;height:28px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.5px;">PDF</span>
             </div>
           `;
         } else {
           thumbnailHtml = `
-            <div style="width:72px; height:88px; border-radius:6px; background:rgba(251, 191, 36, 0.15); border:2px solid rgba(251, 191, 36, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <div class="ficha-soporte-thumb" style="width:72px; height:88px; border-radius:6px; background:rgba(22, 163, 74, 0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
               <span style="font-size:26px;">📄</span>
-              <span style="font-size:10px; font-weight:800; color:#fbbf24;">DOC</span>
+              <span style="font-size:10px; font-weight:800;" class="ficha-soporte-titulo">DOC</span>
             </div>
           `;
         }
@@ -2184,7 +2172,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">🟢</div>
                   <span class="ficha-card-label">Fecha Inicio de Vigencia</span>
                 </div>
-                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="color:#fbbf24; font-weight:700; font-size:1.05rem;">
+                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="font-weight:700; font-size:1.05rem;">
                   ${formatDate(h.fecha_inicio)}
                 </div>
                 <div class="ficha-card-sub">Comienzo de efectos de la situación</div>
@@ -2195,7 +2183,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">🔴</div>
                   <span class="ficha-card-label">Fecha Final de Vigencia</span>
                 </div>
-                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="color:#fbbf24; font-weight:700; font-size:1.05rem;">
+                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="font-weight:700; font-size:1.05rem;">
                   ${h.fecha_fin ? formatDate(h.fecha_fin) : '<span style="color:var(--text-muted);">Indefinida / Sin fecha fin</span>'}
                 </div>
                 <div class="ficha-card-sub">${h.fecha_fin ? 'Culminación del período autorizado' : 'Vigencia continuada'}</div>
@@ -2213,7 +2201,7 @@ const HorariosModule = (() => {
                       <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:260px;">
                         ${thumbnailHtml}
                         <div style="display:flex; flex-direction:column; gap:4px;">
-                          <span class="ficha-soporte-titulo" style="color:#fbbf24; font-weight:700; display:inline-flex; align-items:center; gap:6px; font-size:13.5px;">
+                          <span class="ficha-soporte-titulo" style="font-weight:700; display:inline-flex; align-items:center; gap:6px; font-size:13.5px;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
                             Hoja de Resolución Firmada Adjunta al Esquema
                           </span>
@@ -2221,10 +2209,12 @@ const HorariosModule = (() => {
                         </div>
                       </div>
                       <div style="display:inline-flex; gap:8px;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="font-weight:700;">
-                          📄 Ver Documento
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          Ver Documento
                         </button>
-                        <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                           Reemplazar Archivo
                         </button>
                       </div>
@@ -2553,13 +2543,20 @@ const HorariosModule = (() => {
     let pendingFileName = '';
     const hasCurrent = Boolean(item.soporte_acto);
 
+    const nameParts = (item.apellidos_nombres || '').trim().split(/\s+/).filter(Boolean);
+    const initials = nameParts.length >= 2
+      ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
+      : ((item.apellidos_nombres || 'SP').slice(0, 2).toUpperCase());
+
     const modalBody = `
       <div style="padding:var(--space-2);">
-        <div style="display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:12px 16px; border-radius:var(--radius-md); border:1px solid var(--color-border);">
-          <div class="employee-avatar avatar-char" style="width:40px; height:40px; font-size:16px;">${(item.apellidos_nombres || 'F')[0]}</div>
-          <div style="flex:1;">
-            <div style="font-weight:600; font-size:14px; color:var(--text-primary);">${escHtml(item.apellidos_nombres)}</div>
-            <div style="font-size:12px; color:var(--text-muted);">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:var(--space-4); background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:14px 18px; border-radius:var(--radius-md); border:1px solid var(--color-border);">
+          <div class="user-row-avatar" style="width:44px; height:44px; min-width:44px; border-radius:50%; background:linear-gradient(135deg, #16a34a 0%, #065f46 100%); color:#ffffff; font-size:15px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(22,163,74,0.3); border:2px solid rgba(255,255,255,0.25);">
+            ${escHtml(initials)}
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:700; font-size:14.5px; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.3px;">${escHtml(item.apellidos_nombres)}</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
               C.C. ${escHtml(item.documento)} &bull; ${escHtml(item.cargo)} ${item.numero_consecutivo ? `&bull; #${item.numero_consecutivo}` : ''}
             </div>
           </div>
@@ -2567,41 +2564,51 @@ const HorariosModule = (() => {
         </div>
 
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:var(--space-3); line-height:1.5;">
-          Adjunte la hoja oficial o resolución firmada (PDF o imagen escaneada, máx. 15MB) que respalda y autoriza este esquema de alternancia / teletrabajo.
+          Adjunte la hoja oficial o resolución firmada (PDF o imagen escaneada, máx. 5MB) que respalda y autoriza este esquema de alternancia / teletrabajo.
         </p>
 
         ${hasCurrent ? `
-          <div id="current-soporte-box" style="display:flex; align-items:center; justify-content:space-between; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); border-radius:var(--radius-md); padding:10px 14px; margin-bottom:var(--space-4);">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:16px;">📄</span>
+          <div id="current-soporte-box" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:var(--space-4);">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:18px;">📄</span>
               <div>
-                <span style="font-size:12px; font-weight:600; color:var(--color-green-bright, #22c55e);">Documento de soporte actual registrado</span>
-                <div style="font-size:11px; color:var(--text-muted);">Puede visualizarlo o reemplazarlo subiendo uno nuevo a continuación.</div>
+                <span style="font-size:12.5px; font-weight:700; color:var(--color-green-bright, #22c55e);">Documento de soporte actual registrado</span>
+                <div style="font-size:11.5px; color:var(--text-muted);">Puede visualizarlo o reemplazarlo subiendo uno nuevo a continuación.</div>
               </div>
             </div>
-            <div style="display:flex; gap:6px;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${item.id_horario})" style="font-size:11px; padding:3px 8px;">
-                👁️ Ver Actual
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${item.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:12px; padding:6px 12px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Ver Documento
               </button>
-              <button type="button" id="btn-delete-soporte" class="btn btn-outline btn-sm" style="font-size:11px; padding:3px 8px; color:#ef4444; border-color:rgba(239,68,68,0.3);">
-                🗑️ Eliminar
+              <button type="button" id="btn-delete-soporte" class="btn btn-outline btn-sm" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:12px; padding:6px 12px; color:#ef4444; border-color:rgba(239,68,68,0.4);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Eliminar
               </button>
             </div>
           </div>
         ` : ''}
 
-        <div id="dropzone-soporte-modal" class="upload-dropzone" style="border:2px dashed var(--color-border); border-radius:var(--radius-lg); padding:28px 16px; text-align:center; background:rgba(255,255,255,0.02); cursor:pointer; transition:all 0.2s ease;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; margin-bottom:8px;">
+          <strong style="font-size:12.5px; color:var(--text-primary); display:inline-flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M12 5v14M5 12h14"/></svg>
+            ${hasCurrent ? 'Subir otro documento o soporte adicional' : 'Cargar soporte documental'}
+          </strong>
+          <span style="font-size:11.5px; color:var(--text-muted);">${hasCurrent ? 'Sustituirá el documento anterior al guardar' : 'PDF o Imagen hasta 5MB'}</span>
+        </div>
+
+        <div id="dropzone-soporte-modal" class="upload-dropzone" style="border:2px dashed var(--color-border); border-radius:var(--radius-lg); padding:26px 16px; text-align:center; background:rgba(255,255,255,0.02); cursor:pointer; transition:all 0.2s ease;">
           <input type="file" id="input-soporte-modal" accept=".pdf,image/png,image/jpeg,image/webp" style="display:none;" />
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:36px; height:36px; color:var(--color-primary-light, #60a5fa); margin:0 auto var(--space-2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:36px; height:36px; color:var(--color-primary, #16a34a); margin:0 auto var(--space-2);">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
           </svg>
           <div style="font-weight:600; font-size:13px; color:var(--text-primary); margin-bottom:4px;">
-            Haga clic o arrastre aquí el documento escaneado
+            ${hasCurrent ? 'Haga clic o arrastre aquí para subir otro documento' : 'Haga clic o arrastre aquí el documento escaneado'}
           </div>
           <div style="font-size:11px; color:var(--text-muted);">
-            Soporta PDF o Imágenes (JPG, PNG, WebP) hasta 15MB
+            Soporta PDF o Imágenes (JPG, PNG, WebP) hasta 5MB
           </div>
         </div>
 
@@ -2692,8 +2699,8 @@ const HorariosModule = (() => {
       };
 
       function handleFile(file) {
-        if (file.size > 15 * 1024 * 1024) {
-          App.showToast('El archivo supera el límite de 15MB.', 'warning');
+        if (file.size > 5 * 1024 * 1024) {
+          App.showToast('El archivo supera el límite de 5MB. Por favor optimice o comprima el documento.', 'warning');
           return;
         }
         const reader = new FileReader();

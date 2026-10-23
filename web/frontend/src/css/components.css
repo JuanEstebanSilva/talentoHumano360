@@ -5548,11 +5548,33 @@ tbody tr:last-child td {
   font-weight: 800 !important;
 }
 
+.ficha-val-duracion-computo {
+  color: #0284c7;
+  font-weight: 800;
+}
+
 [data-theme="dark"] .ficha-val-duracion-computo {
   color: #38bdf8 !important;
   font-weight: 800 !important;
 }
 
+/* En Modo Claro: Fechas de vigencia, soporte documental y bordecito en VERDE */
+.ficha-val-fecha-vigencia {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.ficha-soporte-titulo {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.ficha-soporte-thumb {
+  border: 2px solid #16a34a !important;
+  border-radius: 6px;
+}
+
+/* En Modo Oscuro: se mantienen en amarillo/dorado (#fbbf24) */
 [data-theme="dark"] .ficha-val-fecha-vigencia {
   color: #fbbf24 !important;
   font-weight: 700 !important;
@@ -5561,6 +5583,15 @@ tbody tr:last-child td {
 [data-theme="dark"] .ficha-soporte-titulo {
   color: #fbbf24 !important;
   font-weight: 700 !important;
+}
+
+[data-theme="dark"] .ficha-soporte-thumb {
+  border: 2px solid rgba(251, 191, 36, 0.6) !important;
+}
+
+.ficha-val-cargo-denominacion {
+  color: #ea580c;
+  font-weight: 800;
 }
 
 [data-theme="dark"] .ficha-val-cargo-denominacion {
@@ -5592,39 +5623,50 @@ tbody tr:last-child td {
 .stat-card.clickable {
   cursor: pointer;
   user-select: none;
+  position: relative;
   transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .stat-card.clickable:hover {
-  transform: translateY(-3px) scale(1.02);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
+/* Selección elegante: no inunda el fondo de morado ni naranja */
 .stat-card.clickable.active {
-  border-width: 2px !important;
+  border-color: #16a34a !important;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.18), 0 0 0 2px #16a34a !important;
+  background: var(--color-surface, #ffffff) !important;
+  transform: translateY(-2px);
 }
 
-.stat-card--active-blue.active {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 18px rgba(59, 130, 246, 0.45) !important;
-  background: rgba(59, 130, 246, 0.12) !important;
+.stat-card.clickable.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #16a34a;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.stat-card--active-purple.active {
-  border-color: #a855f7 !important;
-  box-shadow: 0 0 18px rgba(168, 85, 247, 0.45) !important;
-  background: rgba(168, 85, 247, 0.14) !important;
+/* Modo oscuro: selección con borde y acento dorado sutil */
+[data-theme="dark"] .stat-card.clickable.active {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 0 1.5px #fbbf24 !important;
+  background: var(--color-surface) !important;
 }
 
-.stat-card--active-orange.active {
-  border-color: #f97316 !important;
-  box-shadow: 0 0 18px rgba(249, 115, 22, 0.45) !important;
-  background: rgba(249, 115, 22, 0.14) !important;
+[data-theme="dark"] .stat-card.clickable.active::after {
+  background: #fbbf24 !important;
 }
 
+.stat-card--active-blue.active,
+.stat-card--active-purple.active,
+.stat-card--active-orange.active,
 .stat-card--active-teal.active {
-  border-color: #06b6d4 !important;
-  box-shadow: 0 0 18px rgba(6, 182, 212, 0.45) !important;
-  background: rgba(6, 182, 212, 0.14) !important;
+  background: var(--color-surface) !important;
 }
 
 /* ─── Barra de Desplazamiento Personalizada y Elegante para Modales ─── */
@@ -7020,3 +7062,23 @@ input.flatpickr-input:hover {
 [data-theme="dark"] #ef-periodos-total-display {
   color: #fbbf24 !important;
 }
+
+/* ─── Íconos de Acciones Excel (Descargar, Importar, Plantilla) en Amarillo para Modo Oscuro ─── */
+/* Aplica a Servidores Públicos (.emp-dropdown-item), Horarios y Viáticos (.actions-dropdown-item) */
+[data-theme="dark"] .emp-dropdown-item svg,
+[data-theme="dark"] .actions-dropdown-item svg,
+[data-theme="dark"] .excel-step-banner svg,
+[data-theme="dark"] .excel-dropzone-icon svg,
+[data-theme="dark"] #btn-download-excel-template svg {
+  color: #fbbf24 !important;
+  stroke: #fbbf24 !important;
+}
+
+[data-theme="dark"] .emp-dropdown-item:hover svg,
+[data-theme="dark"] .actions-dropdown-item:hover svg,
+[data-theme="dark"] #btn-download-excel-template:hover svg {
+  color: #fde047 !important;
+  stroke: #fde047 !important;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.45));
+}
+

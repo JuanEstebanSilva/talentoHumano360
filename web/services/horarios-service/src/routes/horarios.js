@@ -537,6 +537,12 @@ router.get('/', auth, async (req, res) => {
 
     params.push(limitNum, offset);
     const query = `
+      WITH paginated_horarios AS (
+        SELECT * FROM horarios h
+        WHERE ${where}
+        ${orderByClause}
+        LIMIT $${idx++} OFFSET $${idx++}
+      )
       SELECT
         h.*,
         p.primer_apellido,
@@ -546,12 +552,11 @@ router.get('/', auth, async (req, res) => {
         COALESCE(h.grado, ca.grado, '') AS grado,
         COALESCE(h.secretaria, d.dependencia, h.dependencia, '') AS secretaria,
         COALESCE(h.telefono, con.celular, con.telefono_fijo, '') AS telefono
-      FROM horarios h
+      FROM paginated_horarios h
       LEFT JOIN LATERAL (
         SELECT p.id_persona, p.primer_apellido, p.segundo_apellido, p.nombres
         FROM personas p
         WHERE p.cedula = h.documento
-           OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = REPLACE(REPLACE(h.documento, '.', ''), ' ', '')
         LIMIT 1
       ) p ON true
       LEFT JOIN LATERAL (
@@ -568,9 +573,7 @@ router.get('/', auth, async (req, res) => {
       ) con ON true
       LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
       LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
-      WHERE ${where}
       ${orderByClause}
-      LIMIT $${idx++} OFFSET $${idx++}
     `;
 
     const result = await pool.query(query, params);
