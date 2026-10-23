@@ -22,6 +22,9 @@ services:
       - ../database/08_full_divipola_update.sql:/docker-entrypoint-initdb.d/08_full_divipola_update.sql
       - ../database/09_cargos_nivel_update.sql:/docker-entrypoint-initdb.d/09_cargos_nivel_update.sql
       - ../database/10_sst_module.sql:/docker-entrypoint-initdb.d/10_sst_module.sql
+      - ../database/11_stress_test_data.sql:/docker-entrypoint-initdb.d/11_stress_test_data.sql
+      - ../database/12_performance_indexes.sql:/docker-entrypoint-initdb.d/12_performance_indexes.sql
+      - ../database/13_paquetes_viaticos.sql:/docker-entrypoint-initdb.d/13_paquetes_viaticos.sql
     ports:
       - "5432:5432"
     networks:
