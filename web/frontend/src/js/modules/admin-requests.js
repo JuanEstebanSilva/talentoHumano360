@@ -238,11 +238,11 @@ const AdminRequestsModule = (() => {
         </div>
         <div class="form-group">
           <label class="form-label">Fecha Inicio</label>
-          <input id="af-fi" class="form-input" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaInicio||'')}" ${dis} />
+          <input id="af-fi" class="form-input" data-datepicker="true" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaInicio||'')}" ${dis} />
         </div>
         <div class="form-group">
           <label class="form-label">Fecha Fin</label>
-          <input id="af-ff" class="form-input" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaFin||'')}" ${dis} />
+          <input id="af-ff" class="form-input" data-datepicker="true" placeholder="DD/MM/AAAA" value="${escHtml(r.fechaFin||'')}" ${dis} />
         </div>
         <div class="form-group">
           <label class="form-label">Días Solicitados</label>

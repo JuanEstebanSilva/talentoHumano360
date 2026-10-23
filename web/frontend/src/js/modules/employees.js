@@ -1001,7 +1001,7 @@ const EmployeesModule = (() => {
                   <div class="ficha-card-icon">🪪</div>
                   <span class="ficha-card-label">Cédula de Ciudadanía</span>
                 </div>
-                <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary);">
+                <div class="ficha-card-val font-mono ficha-val-cedula" style="font-size:1.1rem;">
                   ${isProv
           ? `<span class="badge badge--pendiente font-mono" style="font-size:12px; font-weight:700;">${escHtml(emp.cedula)} (Provisional)</span>`
           : (emp.cedula ? `C.C. ${escHtml(formattedCc)}` : 'Sin Cédula Registrada')
@@ -1045,12 +1045,12 @@ const EmployeesModule = (() => {
               <div class="ficha-card ficha-card--featured ficha-grid--full">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">⏳</div>
-                  <span class="ficha-card-label" style="color:var(--color-navy);">Edad Exacta (Cálculo Dinámico)</span>
+                  <span class="ficha-card-label ficha-label-edad">Edad Exacta (Cálculo Dinámico)</span>
                 </div>
-                <div class="ficha-card-val" style="font-size: 1.25rem; font-weight: 800; color: var(--color-success);">
+                <div class="ficha-card-val ficha-val-edad" style="font-size: 1.25rem; font-weight: 800;">
                   ${escHtml(emp.edadCalculada || 'No disponible')}
                 </div>
-                <div class="ficha-card-sub" style="color:var(--color-info);">
+                <div class="ficha-card-sub ficha-sub-edad">
                   Actualizado en tiempo real a la fecha de hoy con base en la fecha de nacimiento
                 </div>
               </div>
@@ -1126,7 +1126,7 @@ const EmployeesModule = (() => {
                   <span class="ficha-card-label">Situación Administrativa</span>
                 </div>
                 <div class="ficha-card-val">
-                  <span style="font-weight:800; color:var(--color-primary);">${escHtml(emp.situacion || 'ACTIVO')}</span>
+                  <span class="ficha-val-situacion" style="font-weight:800;">${escHtml(emp.situacion || 'ACTIVO')}</span>
                 </div>
                 <div class="ficha-card-sub">Condición operativa del funcionario</div>
               </div>
@@ -1158,15 +1158,15 @@ const EmployeesModule = (() => {
           <div class="ficha-tab-pane" id="ficha-tiempos">
             <div class="ficha-grid">
               <!-- Grand Highlight: Tiempo Total Acumulado -->
-              <div class="ficha-card ficha-card--featured ficha-grid--full" style="background: linear-gradient(135deg, rgba(0,123,199,0.08) 0%, rgba(40,135,27,0.08) 100%); border: 1.5px solid rgba(0,123,199,0.35); padding: 18px 20px;">
+              <div class="ficha-card ficha-card--featured ficha-grid--full ficha-card-tiempo-total" style="padding: 18px 20px;">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon" style="background: rgba(0,123,199,0.15); color: var(--color-info); font-size:16px;">🏆</div>
-                  <span class="ficha-card-label" style="color: var(--color-navy); font-size: 0.78rem;">Tiempo Total en la Gobernación de Boyacá</span>
+                  <span class="ficha-card-label ficha-label-tiempo-total" style="font-size: 0.78rem;">Tiempo Total en la Gobernación de Boyacá</span>
                 </div>
-                <div class="ficha-card-val" style="font-size: 1.38rem; font-weight: 800; color: var(--color-navy); margin: 6px 0;">
+                <div class="ficha-card-val ficha-val-tiempo-total" style="font-size: 1.38rem; font-weight: 800; margin: 6px 0;">
                   ${escHtml(emp.tiempoTotalGobernacion || emp.tiempoServicioCalculado || '0 años, 0 meses, 0 días')}
                 </div>
-                <div style="font-size:0.8rem; color:var(--color-info); background:rgba(0,123,199,0.08); padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <div class="ficha-sub-tiempo-total" style="font-size:0.8rem; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
                   <span>Servicio Actual: <strong>${escHtml(emp.tiempoServicioCalculado || '0')}</strong></span>
                   <span>+</span>
                   <span>Otro Tiempo: <strong>${escHtml(emp.otroTiempoCalculado || emp.otroTiempoGobernacion || '0')}</strong></span>
@@ -1189,7 +1189,7 @@ const EmployeesModule = (() => {
                   <div class="ficha-card-icon">⏱️</div>
                   <span class="ficha-card-label">Tiempo de Servicio Actual</span>
                 </div>
-                <div class="ficha-card-val" style="color: var(--color-success); font-weight:800;">
+                <div class="ficha-card-val ficha-val-tiempo-servicio" style="font-weight:800;">
                   ${escHtml(emp.tiempoServicioCalculado || '—')}
                 </div>
                 <div class="ficha-card-sub">Cálculo dinámico a partir de la fecha de ingreso</div>
@@ -1228,20 +1228,20 @@ const EmployeesModule = (() => {
                             <td style="padding: 7px 12px; color: var(--text-muted);">${idx + 1}</td>
                             <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.desde)}</td>
                             <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.hasta)}</td>
-                            <td style="padding: 7px 12px; color: var(--color-success); font-weight: 700;">${escHtml(p.duracionTexto || '—')}</td>
+                            <td style="padding: 7px 12px; font-weight: 700;" class="ficha-val-otro-tiempo">${escHtml(p.duracionTexto || '—')}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
-                        <tr style="background: rgba(40, 135, 27, 0.08); font-weight: 700;">
+                        <tr class="ficha-tfoot-otro-tiempo" style="background: rgba(40, 135, 27, 0.08); font-weight: 700;">
                           <td colspan="3" style="padding: 8px 12px; text-align: right; color: var(--text-primary);">Total Acumulado Otros Tiempos:</td>
-                          <td style="padding: 8px 12px; color: var(--color-success); font-weight: 800;">${escHtml(emp.otroTiempoGobernacion || '—')}</td>
+                          <td style="padding: 8px 12px; font-weight: 800;" class="ficha-val-otro-tiempo">${escHtml(emp.otroTiempoGobernacion || '—')}</td>
                         </tr>
                       </tfoot>
                     </table>
                   </div>
                 ` : `
-                  <div class="ficha-card-val" style="color: var(--color-success); font-size:1.05rem; margin-top:4px;">
+                  <div class="ficha-card-val ficha-val-otro-tiempo" style="font-size:1.05rem; margin-top:4px;">
                     ${escHtml(emp.otroTiempoCalculado && emp.otroTiempoCalculado !== '0 años, 0 meses, 0 días' ? emp.otroTiempoCalculado : (emp.otroTiempoGobernacion || 'No registra experiencia previa o externa'))}
                   </div>
                   ${(emp.otroTiempoCalculado && emp.otroTiempoGobernacion && emp.otroTiempoGobernacion !== emp.otroTiempoCalculado && emp.otroTiempoGobernacion !== 'NO REGISTRADO') ? `
@@ -1402,6 +1402,11 @@ const EmployeesModule = (() => {
       pane.classList.toggle('active', pane.id === tabId);
     });
 
+    const activePane = document.getElementById(tabId);
+    if (activePane) {
+      App.initDatePickers(activePane);
+    }
+
     const modalBody = document.getElementById('modal-body');
     if (modalBody) {
       modalBody.scrollTop = 0;
@@ -1424,13 +1429,17 @@ const EmployeesModule = (() => {
       switchFormTab(pane.id);
     }
 
-    // Marcar campo en rojo visual con animación
+    // Marcar campo en rojo visual con animación (soporte para altInput de Flatpickr)
     el.classList.add('input-invalid');
+    const targetFocusEl = (el._flatpickr && el._flatpickr.altInput) ? el._flatpickr.altInput : el;
+    if (el._flatpickr && el._flatpickr.altInput) {
+      el._flatpickr.altInput.classList.add('input-invalid');
+    }
 
     // Desplazar la vista suavemente hasta el campo y hacer foco
     setTimeout(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      try { el.focus(); } catch (_) { }
+      targetFocusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { targetFocusEl.focus(); } catch (_) { }
     }, 100);
 
     if (message) {
@@ -1440,11 +1449,22 @@ const EmployeesModule = (() => {
     // Quitar automáticamente el resaltado rojo cuando el usuario interactúe
     const clearHandler = () => {
       el.classList.remove('input-invalid');
+      if (el._flatpickr && el._flatpickr.altInput) {
+        el._flatpickr.altInput.classList.remove('input-invalid');
+      }
       el.removeEventListener('input', clearHandler);
       el.removeEventListener('change', clearHandler);
+      if (el._flatpickr && el._flatpickr.altInput) {
+        el._flatpickr.altInput.removeEventListener('input', clearHandler);
+        el._flatpickr.altInput.removeEventListener('click', clearHandler);
+      }
     };
     el.addEventListener('input', clearHandler);
     el.addEventListener('change', clearHandler);
+    if (el._flatpickr && el._flatpickr.altInput) {
+      el._flatpickr.altInput.addEventListener('input', clearHandler);
+      el._flatpickr.altInput.addEventListener('click', clearHandler);
+    }
   }
 
   async function openCreate() {
@@ -1456,7 +1476,7 @@ const EmployeesModule = (() => {
     const box = document.querySelector('.modal-box');
     if (box) {
       box.classList.add('modal-form-emp', 'modal-lg');
-      box.style.maxWidth = '860px';
+      box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
     attachFormListeners();
@@ -1479,7 +1499,7 @@ const EmployeesModule = (() => {
     const box = document.querySelector('.modal-box');
     if (box) {
       box.classList.add('modal-form-emp', 'modal-lg');
-      box.style.maxWidth = '860px';
+      box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
     attachFormListeners(emp);
@@ -1750,7 +1770,9 @@ const EmployeesModule = (() => {
                       ${escHtml(p.duracionTexto || '')}
                     </div>
                     <div style="padding-top:14px; display:flex; justify-content:center;">
-                      <button type="button" class="btn-del-periodo" title="Eliminar periodo">🗑️</button>
+                      <button type="button" class="btn-action-delete btn-del-periodo" title="Eliminar periodo" aria-label="Eliminar periodo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
                     </div>
                   </div>
                 `).join('')}
@@ -1868,12 +1890,8 @@ const EmployeesModule = (() => {
   function attachFormListeners(emp = {}) {
     const cats = state.catalogs;
 
-    // 0. Habilitar click directo para abrir el calendario en todos los inputs date
-    document.querySelectorAll('.modal-form-emp input[type="date"]').forEach(inp => {
-      inp.addEventListener('click', () => {
-        try { inp.showPicker(); } catch (_) {}
-      });
-    });
+    // 0. Asegurar inicialización de Flatpickr en todos los selectores de fecha del modal
+    App.initDatePickers(document.getElementById('modal-body') || document);
 
     // 1. Regla 7: Restricción en Nombres y Apellidos (Solo letras y espacios)
     ['ef-nombres', 'ef-apellidos', 'ef-nombre'].forEach(id => {
@@ -2175,11 +2193,11 @@ const EmployeesModule = (() => {
 
       if (desdeInp) {
         desdeInp.addEventListener('change', updatePeriodosTotal);
-        desdeInp.addEventListener('click', () => { try { desdeInp.showPicker(); } catch (_) {} });
+        desdeInp.addEventListener('input', updatePeriodosTotal);
       }
       if (hastaInp) {
         hastaInp.addEventListener('change', updatePeriodosTotal);
-        hastaInp.addEventListener('click', () => { try { hastaInp.showPicker(); } catch (_) {} });
+        hastaInp.addEventListener('input', updatePeriodosTotal);
       }
       if (delBtn) {
         delBtn.addEventListener('click', () => {
@@ -2210,10 +2228,13 @@ const EmployeesModule = (() => {
           </div>
           <div style="font-size:13.5px; color:#16a34a; font-weight:700; padding-top:14px; text-align:right;" class="ef-periodo-duracion"></div>
           <div style="padding-top:14px; display:flex; justify-content:center;">
-            <button type="button" class="btn-del-periodo" title="Eliminar periodo">🗑️</button>
+            <button type="button" class="btn-action-delete btn-del-periodo" title="Eliminar periodo" aria-label="Eliminar periodo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
           </div>
         `;
         periodosContainer.appendChild(div);
+        App.initDatePickers(div);
         bindPeriodoRow(div);
       });
     }

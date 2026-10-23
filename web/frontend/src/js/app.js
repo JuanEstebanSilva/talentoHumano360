@@ -92,7 +92,12 @@ const App = (() => {
   function initDatePickers(container = document) {
     if (typeof flatpickr === 'undefined') return;
     try {
-      const inputs = container.querySelectorAll ? container.querySelectorAll('input[type="date"], input[data-datepicker]') : [];
+      const inputs = [];
+      if (container && container.matches && (container.matches('input[type="date"], input[data-datepicker], input.datepicker-input'))) {
+        inputs.push(container);
+      } else if (container && container.querySelectorAll) {
+        inputs.push(...container.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input'));
+      }
       inputs.forEach(input => {
         if (input._flatpickr) return;
         const currentVal = input.value || '';
@@ -101,11 +106,52 @@ const App = (() => {
           dateFormat: 'Y-m-d',
           altInput: true,
           altFormat: 'd/m/Y',
-          altInputClass: (input.className || 'form-input') + ' flatpickr-input-custom',
+          altInputClass: ((input.className || 'form-input').replace(/\bflatpickr-input\b/g, '') + ' flatpickr-input-custom').trim(),
           defaultDate: currentVal || null,
           allowInput: true,
           disableMobile: true,
           monthSelectorType: 'dropdown',
+          onReady: function(selectedDates, dateStr, instance) {
+            if (!instance.calendarContainer) return;
+            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
+            const monthsBar = instance.calendarContainer.querySelector('.flatpickr-months');
+            if (monthsBar && !instance.calendarContainer.querySelector('.flatpickr-custom-close')) {
+              const closeBtn = document.createElement('button');
+              closeBtn.type = 'button';
+              closeBtn.className = 'flatpickr-custom-close';
+              closeBtn.title = 'Cerrar calendario (sin cambios)';
+              closeBtn.setAttribute('aria-label', 'Cerrar calendario');
+              closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+              closeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.close();
+              });
+              monthsBar.appendChild(closeBtn);
+            }
+            // 2. Footer institucional rápido (Hoy / Limpiar)
+            if (!instance.calendarContainer.querySelector('.flatpickr-custom-footer')) {
+              const footer = document.createElement('div');
+              footer.className = 'flatpickr-custom-footer';
+              footer.innerHTML = `
+                <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
+                <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
+              `;
+              footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.setDate(new Date(), true);
+                instance.close();
+              });
+              footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                instance.clear();
+                instance.close();
+              });
+              instance.calendarContainer.appendChild(footer);
+            }
+          },
           onChange: function(selectedDates, dateStr) {
             input.value = dateStr;
             input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1141,6 +1187,43 @@ const App = (() => {
       } else {
         showLogin();
       }
+    // Garantizar que Flatpickr sea el calendario universal y único en toda la plataforma
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+      const dateObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.addedNodes && m.addedNodes.length) {
+            for (const node of m.addedNodes) {
+              if (node.nodeType === 1) {
+                if (node.matches && node.matches('input[type="date"], input[data-datepicker], input.datepicker-input')) {
+                  initDatePickers(node);
+                } else if (node.querySelectorAll) {
+                  const dates = node.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input');
+                  if (dates.length) initDatePickers(node);
+                }
+              }
+            }
+          }
+        }
+      });
+      dateObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (typeof HTMLInputElement !== 'undefined' && HTMLInputElement.prototype.showPicker) {
+      const origShowPicker = HTMLInputElement.prototype.showPicker;
+      HTMLInputElement.prototype.showPicker = function() {
+        if (this._flatpickr) {
+          this._flatpickr.open();
+          return;
+        }
+        if (this.type === 'date' || this.hasAttribute('data-datepicker')) {
+          initDatePickers(this);
+          if (this._flatpickr) {
+            this._flatpickr.open();
+            return;
+          }
+        }
+        return origShowPicker.apply(this, arguments);
+      };
     }
 
     // FX: init effects engine
