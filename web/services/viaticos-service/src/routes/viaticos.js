@@ -88,11 +88,12 @@ function formatCurrency(v) {
 
 // ─── GET /api/viaticos ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q='', estado='', departamento='', page=1, limit=20 } = req.query;
+  const { q='', estado='', departamento='', dependencia='', page=1, limit=20 } = req.query;
+  const depFilter = dependencia || departamento || '';
   try {
     const conditions = ['1=1']; const params = []; let idx = 1;
     if (estado && estado !== 'Todos') { conditions.push(`estado = $${idx++}`); params.push(normalizeStatus(estado)); }
-    if (departamento && departamento !== 'Todas') { conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`); params.push(`%${departamento}%`); }
+    if (depFilter && depFilter !== 'Todas' && depFilter !== 'Todos') { conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`); params.push(`%${depFilter}%`); }
     if (q) { conditions.push(`(LOWER(apellidos_nombres) LIKE LOWER($${idx}) OR documento LIKE $${idx} OR LOWER(destino) LIKE LOWER($${idx}))`); params.push(`%${q}%`); idx++; }
 
     const where = conditions.join(' AND ');

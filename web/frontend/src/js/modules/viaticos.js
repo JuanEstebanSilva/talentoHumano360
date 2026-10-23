@@ -4,9 +4,86 @@
 
 const ViaticosModule = (() => {
   const ESTADOS = ['Todos', 'Pendiente', 'En revisión', 'Aprobada', 'Finalizada', 'Rechazada'];
+  const DEPENDENCIAS_LIST = [
+    'Todas',
+    'DESPACHO DEL GOBERNADOR',
+    'SECRETARÍA DE HACIENDA',
+    'SECRETARÍA DE PLANEACIÓN',
+    'SECRETARÍA GENERAL',
+    'SECRETARÍA DE INFRAESTRUCTURA',
+    'SECRETARÍA DE EDUCACIÓN',
+    'SECRETARÍA DE AGRICULTURA',
+    'SECRETARÍA DE INTEGRACIÓN SOCIAL',
+    'SECRETARÍA DE CULTURA Y PATRIMONIO',
+    'SECRETARÍA DE MINAS Y ENERGÍA',
+    'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
+    'SECRETARÍA DE DESARROLLO EMPRESARIAL',
+    'SECRETARÍA DE CONTRATACIÓN',
+    'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+    'SECRETARÍA DE TURISMO',
+    'SECRETARÍA TIC Y GOBIERNO ABIERTO',
+    'SECRETARÍA DE SALUD'
+  ];
+
   let state = { data: [], total: 0, page: 1, totalPages: 1, filters: {} };
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+
+  function getInitials(name) {
+    if (!name) return 'VT';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function formatCedulaDots(val) {
+    if (!val) return '—';
+    const clean = String(val).replace(/\D/g, '');
+    if (!clean) return String(val);
+    return clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function sanitizeText(str) {
+    if (!str) return '';
+    return String(str).trim();
+  }
+
+  function switchFichaTab(tabId) {
+    const container = document.querySelector('.ficha-wrapper');
+    if (!container) return;
+    container.querySelectorAll('.ficha-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    container.querySelectorAll('.ficha-tab-pane').forEach(pane => {
+      pane.classList.toggle('active', pane.id === tabId);
+    });
+    const modalBody = document.getElementById('modal-body');
+    if (modalBody && modalBody.scrollTop > 100) {
+      modalBody.scrollTo({ top: 90, behavior: 'smooth' });
+    }
+  }
+
+  function copyFichaText(text, btnId) {
+    const btn = document.getElementById(btnId);
+    if (!navigator.clipboard) {
+      App.showToast('Copiado: ' + text, 'info');
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ ¡Copiado!';
+        btn.style.background = 'rgba(34, 197, 94, 0.45)';
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.style.background = '';
+        }, 1800);
+      }
+      App.showToast(`Copiado al portapapeles: ${text}`, 'success');
+    }).catch(() => {
+      App.showToast('Copiado: ' + text, 'info');
+    });
+  }
 
   // ─── Diccionario Geográfico de Colombia ──────────────────────────────────────
   const COLOMBIA_GEO = {
@@ -653,78 +730,278 @@ const ViaticosModule = (() => {
   function openView(id) {
     const r = state.data.find(x => x.id === id);
     if (!r) return;
+
+    const initials = getInitials(r.persona);
+    const estadoNorm = (r.estado || 'Pendiente').toLowerCase();
+    const isAprobada = estadoNorm.includes('aprobad') || estadoNorm.includes('finaliz');
+    const isRechazada = estadoNorm.includes('rechazad');
+    const badgeStateClass = isAprobada ? 'pill--emerald' : (isRechazada ? 'pill--danger' : 'pill--gold');
+    const statusIcon = isAprobada ? '🟢' : (isRechazada ? '🔴' : '🟡');
+
+    const cleanPersona = sanitizeText(r.persona || 'Servidor Público');
+    const cleanCargo = sanitizeText(r.cargo || 'Funcionario');
+    const cleanDep = sanitizeText(r.dependencia || 'Gobernación de Boyacá');
+    const cleanDestino = sanitizeText(r.destino || 'No especificado');
+    const formattedCc = formatCedulaDots(r.documento);
+    const radicadoRaw = r.radicado || 'SIN-RADICADO';
+
     const content = `
-      <div class="detail-modal-card">
-        <div class="detail-grid">
-          <div class="detail-item">
-            <span class="detail-label">Radicado</span>
-            <span class="detail-value">${escHtml(r.radicado || '—')}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Estado</span>
-            <div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estado)}">${escHtml(r.estado || '—')}</span></div>
-          </div>
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Comisionado(a)</span>
-            <span class="detail-value">${escHtml(r.persona || '—')}</span>
-          </div>
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Dependencia</span>
-            <span class="detail-value">${escHtml(r.dependencia || '—')}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Destino</span>
-            <span class="detail-value">${escHtml(r.destino || '—')}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Tipo de Destino</span>
-            <span class="detail-value">${escHtml(r.tipoDestino || 'Departamental')}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Fecha de Salida</span>
-            <span class="detail-value">${escHtml(r.fechaInicio || '—')}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Fecha de Regreso</span>
-            <span class="detail-value">${escHtml(r.fechaFin || '—')}</span>
-          </div>
-          ${r.numeroResolucion ? `
-          <div class="detail-item">
-            <span class="detail-label">N° Resolución / Fecha</span>
-            <span class="detail-value font-mono" style="font-weight:600">${escHtml(r.numeroResolucion)}</span>
-          </div>` : ''}
-          ${r.saldo ? `
-          <div class="detail-item">
-            <span class="detail-label">Saldo Presupuestal</span>
-            <span class="detail-value font-mono">${formatCOP(r.saldo)}</span>
-          </div>` : ''}
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Valor Total Liquidado</span>
-            <span class="detail-value" style="color:var(--color-primary-400);font-size:1.15rem;font-weight:700">${formatCOP(r.valorTotal)}</span>
-          </div>
-          ${r.motivo ? `
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Objeto de la Comisión</span>
-            <span class="detail-value">${escHtml(r.motivo)}</span>
-          </div>` : ''}
-          ${r.observaciones ? `
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Observaciones</span>
-            <span class="detail-value">${escHtml(r.observaciones)}</span>
-          </div>` : ''}
-          ${r.soporte ? `
-          <div class="detail-item detail-grid--full">
-            <span class="detail-label">Soporte Adjunto</span>
-            <div style="margin-top:6px">
-              <button class="btn btn-secondary btn-sm" onclick="ViaticosModule.viewSoporte(${r.id})" style="display:inline-flex;align-items:center;gap:6px">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                Ver Documento Adjunto
-              </button>
+      <div class="ficha-wrapper">
+        <!-- ─── Hero Viático Header ─── -->
+        <div class="ficha-hero">
+          <div class="ficha-hero-inner">
+            <div class="ficha-avatar-box">
+              <div class="ficha-avatar">${escHtml(initials)}</div>
+              <div class="ficha-avatar-badge ${isAprobada ? '' : (isRechazada ? 'inactivo' : '')}" title="Estado: ${escHtml(r.estado || 'Pendiente')}"></div>
             </div>
-          </div>` : ''}
+            <div class="ficha-hero-info">
+              <h3 class="ficha-hero-name">${escHtml(cleanPersona)}</h3>
+              <div class="ficha-hero-sub">
+                <span>Cargo: <strong>${escHtml(cleanCargo)}</strong></span>
+                <span>•</span>
+                <span>C.C.: <strong>${escHtml(formattedCc)}</strong></span>
+                ${r.documento ? `
+                  <button class="ficha-copy-btn" id="btn-copy-vit-cc" onclick="ViaticosModule.copyFichaText('${escHtml(r.documento)}', 'btn-copy-vit-cc')" title="Copiar Cédula">
+                    Copiar
+                  </button>
+                ` : ''}
+              </div>
+              <div class="ficha-hero-pills">
+                <div class="ficha-hero-pill pill--gold">
+                  <span>🏷️ Radicado: <strong>${escHtml(radicadoRaw)}</strong></span>
+                  <button class="ficha-copy-btn" id="btn-copy-vit-rad" onclick="ViaticosModule.copyFichaText('${escHtml(radicadoRaw)}', 'btn-copy-vit-rad')" title="Copiar Radicado">
+                    <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    Copiar
+                  </button>
+                </div>
+                <span class="ficha-hero-pill ${badgeStateClass}">
+                  ${statusIcon} ${escHtml(r.estado || 'Pendiente')}
+                </span>
+                <span class="ficha-hero-pill">
+                  📍 ${escHtml(cleanDestino)}
+                </span>
+                <span class="ficha-hero-pill">
+                  🏢 ${escHtml(cleanDep)}
+                </span>
+              </div>
+            </div>
+            <div class="ficha-hero-logo-wrap" title="Gobernación de Boyacá">
+              <img src="imgs/logoCondor.png" alt="Cóndor — Boyacá" class="ficha-hero-condor logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Cóndor — Boyacá" class="ficha-hero-condor logo-dark-theme" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Tabs Navigation ─── -->
+        <div class="ficha-tabs">
+          <button class="ficha-tab-btn active" data-tab="ficha-comision" onclick="ViaticosModule.switchFichaTab('ficha-comision')">
+            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Comisión & Destino
+          </button>
+          <button class="ficha-tab-btn" data-tab="ficha-liquidacion" onclick="ViaticosModule.switchFichaTab('ficha-liquidacion')">
+            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Liquidación & Presupuesto
+          </button>
+          <button class="ficha-tab-btn" data-tab="ficha-soporte" onclick="ViaticosModule.switchFichaTab('ficha-soporte')">
+            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            Fechas & Soportes
+          </button>
+        </div>
+
+        <!-- ─── Tab 1: Comisión & Destino ─── -->
+        <div class="ficha-tab-pane active" id="ficha-comision">
+          <div class="ficha-grid">
+            <div class="ficha-card ficha-grid--full">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">🎯</div>
+                <span class="ficha-card-label">Objeto o Justificación de la Comisión</span>
+              </div>
+              <div class="ficha-card-val" style="font-weight:600; font-size:1.05rem; line-height:1.5; color:var(--text-primary);">
+                ${escHtml(r.motivo || 'No se registró objeto detallado para este desplazamiento.')}
+              </div>
+              <div class="ficha-card-sub">Finalidad oficial autorizada por la administración departamental</div>
+            </div>
+
+            <div class="ficha-card ficha-card--gold">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">📍</div>
+                <span class="ficha-card-label">Lugar de Destino</span>
+              </div>
+              <div class="ficha-card-val" style="font-size:1.15rem; color:var(--color-gold); font-weight:700;">
+                ${escHtml(cleanDestino)}
+              </div>
+              <div class="ficha-card-sub">Modalidad: <strong>${escHtml(r.tipoDestino || 'Nacional')}</strong></div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">📋</div>
+                <span class="ficha-card-label">Acto Administrativo / N° Resolución</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.05rem; font-weight:700;">
+                ${r.numeroResolucion ? escHtml(r.numeroResolucion) : '<span style="color:var(--text-muted); font-size:0.95rem;">Pendiente de expedición</span>'}
+              </div>
+              <div class="ficha-card-sub">Resolución oficial de comisión</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">🏢</div>
+                <span class="ficha-card-label">Dependencia Institucional</span>
+              </div>
+              <div class="ficha-card-val" style="font-size:0.95rem; font-weight:600;">
+                ${escHtml(cleanDep)}
+              </div>
+              <div class="ficha-card-sub">Área solicitante del trámite</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">👤</div>
+                <span class="ficha-card-label">Servidor Público Solicitante</span>
+              </div>
+              <div class="ficha-card-val" style="font-size:0.95rem; font-weight:600;">
+                ${escHtml(cleanPersona)}
+              </div>
+              <div class="ficha-card-sub">${escHtml(cleanCargo)} • C.C. ${escHtml(formattedCc)}</div>
+            </div>
+
+            ${r.observaciones ? `
+            <div class="ficha-card ficha-grid--full">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">📝</div>
+                <span class="ficha-card-label">Observaciones y Anotaciones de Trámite</span>
+              </div>
+              <div class="ficha-card-val" style="font-weight:500; font-size:0.92rem; color:var(--text-secondary);">
+                ${escHtml(r.observaciones)}
+              </div>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <!-- ─── Tab 2: Liquidación & Presupuesto ─── -->
+        <div class="ficha-tab-pane" id="ficha-liquidacion">
+          <div class="ficha-grid">
+            <div class="ficha-card ficha-card--featured ficha-grid--full" style="padding:18px 20px;">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon" style="background:rgba(0,123,199,0.15); color:var(--color-info); font-size:18px;">💰</div>
+                <span class="ficha-card-label" style="font-size:0.8rem;">Valor Total Liquidado</span>
+              </div>
+              <div class="ficha-card-val" style="font-size:1.6rem; font-weight:800; margin:6px 0; color:var(--color-primary-400);">
+                ${formatCOP(r.valorTotal)}
+              </div>
+              <div class="ficha-card-sub" style="font-size:0.85rem;">
+                Devengo económico total liquidado para la comisión oficial
+              </div>
+            </div>
+
+            <div class="ficha-card ficha-card--emerald">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">💵</div>
+                <span class="ficha-card-label">Tarifa Diaria Asignada</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.2rem; font-weight:700;">
+                ${formatCOP(r.valorDiario)}
+              </div>
+              <div class="ficha-card-sub">Tarifa fija por día de comisión</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">⏱️</div>
+                <span class="ficha-card-label">Días Reconocidos</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.25rem; font-weight:800;">
+                ${escHtml(r.dias ?? '1')} ${r.dias === 1 ? 'día' : 'días'}
+              </div>
+              <div class="ficha-card-sub">Tiempo efectivo liquidado</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">🏦</div>
+                <span class="ficha-card-label">Saldo Presupuestal Secretaría</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.15rem; font-weight:700;">
+                ${r.saldo != null ? formatCOP(r.saldo) : '<span style="color:var(--text-muted); font-size:0.95rem;">No reportado</span>'}
+              </div>
+              <div class="ficha-card-sub">Disponibilidad presupuestal del rubro</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">✍️</div>
+                <span class="ficha-card-label">Autorizado / Aprobado Por</span>
+              </div>
+              <div class="ficha-card-val" style="font-size:0.95rem; font-weight:600;">
+                ${r.aprobadoPor ? escHtml(r.aprobadoPor) : '<span style="color:var(--text-muted);">En trámite de aprobación</span>'}
+              </div>
+              <div class="ficha-card-sub">Ordenador del gasto o supervisor</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Tab 3: Fechas & Soportes ─── -->
+        <div class="ficha-tab-pane" id="ficha-soporte">
+          <div class="ficha-grid">
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">🛫</div>
+                <span class="ficha-card-label">Fecha de Salida</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.15rem; font-weight:700;">
+                ${escHtml(r.fechaInicio || 'No especificada')}
+              </div>
+              <div class="ficha-card-sub">Inicio de itinerario oficial</div>
+            </div>
+
+            <div class="ficha-card">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">🛬</div>
+                <span class="ficha-card-label">Fecha de Retorno</span>
+              </div>
+              <div class="ficha-card-val font-mono" style="font-size:1.15rem; font-weight:700;">
+                ${escHtml(r.fechaFin || 'No especificada')}
+              </div>
+              <div class="ficha-card-sub">Finalización de actividades en comisión</div>
+            </div>
+
+            <div class="ficha-card ficha-grid--full">
+              <div class="ficha-card-top">
+                <div class="ficha-card-icon">📎</div>
+                <span class="ficha-card-label">Soporte Adjunto / Comprobante de Desplazamiento</span>
+              </div>
+              <div style="margin-top:8px;">
+                ${r.soporte ? `
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:var(--color-bg-secondary, rgba(0,0,0,0.04)); border:1px solid var(--color-border); border-radius:10px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <div style="width:36px; height:36px; border-radius:8px; background:rgba(2,132,199,0.15); color:var(--color-info); display:flex; align-items:center; justify-content:center; font-size:18px;">
+                        📄
+                      </div>
+                      <div>
+                        <div style="font-weight:700; font-size:0.95rem; color:var(--text-primary);">Documento de Soporte Registrado</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">Comprobante institucional adjunto al radicado ${escHtml(radicadoRaw)}</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <button class="btn btn-primary btn-sm" onclick="ViaticosModule.viewSoporte(${r.id})" style="display:inline-flex; align-items:center; gap:6px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Ver Documento
+                      </button>
+                    </div>
+                  </div>
+                ` : `
+                  <div style="padding:16px; border:1px dashed var(--color-border); border-radius:10px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+                    📂 No se ha adjuntado documento o factura de soporte para este viático.
+                  </div>
+                `}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
+
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
@@ -735,7 +1012,18 @@ const ViaticosModule = (() => {
         action: () => openEdit(id)
       });
     }
-    App.openModal(`Detalle del Viático · ${r.radicado || ''}`, content, actions);
+
+    App.openModal(`Ficha Integral del Viático · ${escHtml(radicadoRaw)}`, content, actions, 'modal-ficha modal-lg');
+    const box = document.querySelector('.modal-box');
+    if (box) {
+      box.classList.add('modal-ficha', 'modal-lg');
+      box.style.maxWidth = '900px';
+      box.style.width = '92vw';
+    }
+    const modalBody = document.getElementById('modal-body');
+    if (modalBody) {
+      modalBody.scrollTop = 0;
+    }
   }
 
   // ─── Acciones de Creación y Edición ───────────────────────────────────────
@@ -743,7 +1031,14 @@ const ViaticosModule = (() => {
     App.openModal('Nuevo Viático Institucional', buildForm(), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Crear Viático', cls: 'btn-primary', id: 'vit-save-btn', action: saveCreate },
-    ]);
+    ], 'modal-form-emp modal-lg');
+    const box = document.querySelector('.modal-box');
+    if (box) {
+      box.classList.add('modal-form-emp', 'modal-lg');
+      box.style.maxWidth = '900px';
+      box.style.width = '92vw';
+    }
+    App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => initFormHelpers(), 50);
   }
 
@@ -753,7 +1048,14 @@ const ViaticosModule = (() => {
     App.openModal(`Editar Viático ${r.radicado}`, buildForm(r), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Actualizar Viático', cls: 'btn-gold', id: 'vit-save-btn', action: () => saveEdit(id) },
-    ]);
+    ], 'modal-form-emp modal-lg');
+    const box = document.querySelector('.modal-box');
+    if (box) {
+      box.classList.add('modal-form-emp', 'modal-lg');
+      box.style.maxWidth = '900px';
+      box.style.width = '92vw';
+    }
+    App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => initFormHelpers(r), 50);
   }
 
@@ -962,14 +1264,18 @@ const ViaticosModule = (() => {
 
   function applyFilters() {
     state.page = 1;
+    const dep = document.getElementById('vit-dependencia')?.value || '';
     state.filters = {
       q: document.getElementById('vit-q')?.value.trim() || '',
       estado: document.getElementById('vit-estado')?.value || '',
+      dependencia: (dep && dep !== 'Todas' && dep !== 'Todos') ? dep : '',
     };
     load();
   }
   function clearFilters() {
     ['vit-q', 'vit-estado'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const depEl = document.getElementById('vit-dependencia');
+    if (depEl) depEl.value = 'Todas';
     state.filters = {}; state.page = 1; load();
   }
   function goPage(p) { if (p < 1 || p > state.totalPages) return; state.page = p; load(); }
@@ -1132,9 +1438,15 @@ const ViaticosModule = (() => {
               <label class="filter-label">Buscar</label>
               <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
             </div>
+            <div class="filter-group" style="flex:1.5">
+              <label class="filter-label">Dependencia</label>
+              <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
+                ${DEPENDENCIAS_LIST.map(d => `<option value="${d}">${d}</option>`).join('')}
+              </select>
+            </div>
             <div class="filter-group">
               <label class="filter-label">Estado</label>
-              <select id="vit-estado" class="filter-select">
+              <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
                 ${ESTADOS.map(s => `<option>${s}</option>`).join('')}
               </select>
             </div>
@@ -1825,19 +2137,24 @@ const ViaticosModule = (() => {
           [sec.name],
           [null, null, null, null, null, 'SALDO'],
           ['ITEM', 'NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No.RESOLUCION', 'VALOR', sec.saldo, 'OBSERVACIONES'],
-          [1, sec.sampleNom, sec.sampleFecha, sec.sampleLugar, sec.sampleRes, sec.sampleVal, sec.saldo - sec.sampleVal, 'Comisión oficial institucional']
         ];
+        // 20 filas en blanco para ingreso directo del usuario
+        for (let i = 1; i <= 20; i++) {
+          rows.push([i, null, null, null, null, null, null, null]);
+        }
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = [
-          { wch: 8 },
-          { wch: 38 },
-          { wch: 20 },
-          { wch: 28 },
-          { wch: 22 },
-          { wch: 16 },
-          { wch: 18 },
-          { wch: 32 }
+          { wch: 8 },   // ITEM
+          { wch: 38 },  // NOMBRE
+          { wch: 22 },  // FECHA COMISION
+          { wch: 30 },  // LUGAR COMISION
+          { wch: 24 },  // No.RESOLUCION
+          { wch: 18 },  // VALOR
+          { wch: 20 },  // SALDO
+          { wch: 35 }   // OBSERVACIONES
         ];
+        // Habilitar autofiltros expandibles en Excel
+        ws['!autofilter'] = { ref: 'A4:H24' };
         XLSX.utils.book_append_sheet(wb, ws, sec.code);
       });
 
@@ -1879,5 +2196,7 @@ const ViaticosModule = (() => {
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown,
+    switchFichaTab,
+    copyFichaText,
   };
 })();

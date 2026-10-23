@@ -596,9 +596,13 @@ tbody tr:last-child td {
 
 .td-radicado {
   font-size: var(--text-xs) !important;
-  color: var(--color-green-dark) !important;
+  color: var(--color-primary-600, #0284c7) !important;
   font-weight: 700;
   letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .td-radicado {
+  color: #38bdf8 !important;
 }
 
 .td-actions {
@@ -2301,6 +2305,63 @@ tbody tr:last-child td {
 .file-chip-remove:hover {
   color: var(--color-red);
   transform: scale(1.15);
+}
+
+/* Dark Mode Overrides for Destination & File Upload */
+[data-theme="dark"] .dest-toggle-group {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .dest-toggle-pill {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .dest-toggle-opt input[type="radio"]:checked+.dest-toggle-pill {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.45);
+}
+
+[data-theme="dark"] .dest-preview-box {
+  background: rgba(30, 58, 138, 0.25);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+[data-theme="dark"] .dest-preview-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .dest-preview-val {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .file-upload-zone {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: #0b1926;
+}
+
+[data-theme="dark"] .file-upload-zone:hover {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.1);
+}
+
+[data-theme="dark"] .file-upload-title {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .file-upload-desc {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .file-upload-icon {
+  color: #38bdf8;
+}
+
+[data-theme="dark"] .file-chip {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
 }
 
 /* ─── Responsive Charts ──────────────────────────────────────────────────── */

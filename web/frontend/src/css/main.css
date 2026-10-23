@@ -2791,7 +2791,7 @@ body {
   color: #f8fafc !important;
 }
 [data-theme="dark"] .td-radicado {
-  color: var(--color-green-bright) !important;
+  color: #38bdf8 !important;
 }
 [data-theme="dark"] .td-currency {
   color: var(--color-teal) !important;
