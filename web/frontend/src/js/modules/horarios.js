@@ -4,8 +4,30 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const HorariosModule = (() => {
-  const MODALIDADES = ['Todas', 'Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
+  const MODALIDADES = ['Todas', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
   const ESTADOS     = ['Todos', 'Activa', 'Pendiente', 'En revisión', 'Caducada', 'Finalizada'];
+  const INSTITUTIONAL_DEPENDENCIAS = [
+    'CONTROL INTERNO DE GESTION',
+    'DESPACHO GOBERNADOR',
+    'DIRECCIÓN DE GESTIÓN DE TALENTO HUMANO',
+    'SECRETARÍA DE HACIENDA',
+    'SECRETARÍA DE PLANEACIÓN',
+    'SECRETARÍA GENERAL',
+    'SECRETARÍA DE INFRAESTRUCTURA',
+    'SECRETARÍA DE EDUCACIÓN',
+    'SECRETARÍA DE AGRICULTURA',
+    'SECRETARÍA DE INTEGRACIÓN SOCIAL',
+    'SECRETARÍA DE CULTURA Y PATRIMONIO',
+    'SECRETARÍA DE MINAS Y ENERGÍA',
+    'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
+    'SECRETARÍA DE DESARROLLO EMPRESARIAL',
+    'SECRETARÍA DE CONTRATACIÓN',
+    'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+    'SECRETARÍA DE TURISMO',
+    'SECRETARÍA TIC Y GOBIERNO ABIERTO',
+    'SECRETARÍA DE SALUD'
+  ];
+  let dependenciasCatalog = [...INSTITUTIONAL_DEPENDENCIAS];
 
   let state = {
     data: [],
@@ -13,7 +35,7 @@ const HorariosModule = (() => {
     page: 1,
     limit: 20,
     totalPages: 1,
-    filters: { q: '', modalidad: 'Todas', estado: 'Todos', dependencia: 'Todas' },
+    filters: { q: '', modalidad: 'Todas', estado: '', dependencia: '' },
     sort: 'consecutivo',
     order: 'asc',
     stats: {},
@@ -182,7 +204,7 @@ const HorariosModule = (() => {
           <div class="page-header-info">
             <h1 class="page-heading">Horarios y Modalidades</h1>
             <p class="page-desc">
-              Administración de esquemas de trabajo institucional: Presencial, Teletrabajo, Trabajo en casa y Horarios flexibles
+              Administración de esquemas de trabajo institucional: Teletrabajo, Trabajo en casa y Horarios flexibles
             </p>
           </div>
           <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -268,44 +290,51 @@ const HorariosModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjetas de Métricas Líquidas -->
-        <div class="stats-grid" id="horarios-stats-grid" style="margin-bottom:var(--space-5);">
+        <!-- Tarjetas de Métricas Líquidas (4 tarjetas interactivas con toggle) -->
+        <div class="stats-grid stats-grid--4" id="horarios-stats-grid" style="margin-bottom:var(--space-5);">
           ${renderStatsSkeletons()}
         </div>
 
         <!-- Barra de Búsqueda y Filtros -->
         <div class="filters-card">
-          <div class="filters-row">
-            <div class="filter-group" style="flex:2">
-              <label class="filter-label">Buscar</label>
+          <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <div class="filter-group" style="flex:2; min-width:220px;">
+              <label class="filter-label" for="horarios-search">Buscar</label>
               <input id="horarios-search" class="filter-input" placeholder="Nombre, cédula, dependencia o resolución..." value="${escHtml(
                 state.filters.q || ''
               )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" />
             </div>
-            <div class="filter-group">
-              <label class="filter-label">Modalidad</label>
-              <select id="filter-modalidad" class="filter-select" onchange="HorariosModule.applyFilters()">
-                ${MODALIDADES.map(
-                  (m) =>
-                    `<option value="${m}" ${
-                      state.filters.modalidad === m ? 'selected' : ''
-                    }>${m === 'Todas' ? 'Todas las modalidades' : m}</option>`
+            <div class="filter-group" style="flex:1.5; min-width:200px;">
+              <label class="filter-label" for="filter-dependencia">Dependencia</label>
+              <select id="filter-dependencia" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por dependencia institucional">
+                <option value="">TODAS</option>
+                ${dependenciasCatalog.map(
+                  (d) =>
+                    `<option value="${escHtml(d)}" ${
+                      state.filters.dependencia === d ? 'selected' : ''
+                    }>${escHtml(d)}</option>`
                 ).join('')}
               </select>
             </div>
-            <div class="filter-group">
-              <label class="filter-label">Estado</label>
-              <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()">
-                ${ESTADOS.map(
+            <div class="filter-group" style="min-width:140px;">
+              <label class="filter-label" for="filter-estado">Estado</label>
+              <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por estado">
+                <option value="">TODOS</option>
+                ${ESTADOS.filter(e => e !== 'Todos').map(
                   (e) =>
                     `<option value="${e}" ${
                       state.filters.estado === e ? 'selected' : ''
-                    }>${e === 'Todos' ? 'Todos los estados' : e}</option>`
+                    }>${e}</option>`
                 ).join('')}
               </select>
             </div>
-            <button class="btn btn-primary" onclick="HorariosModule.applyFilters()">Filtrar</button>
-            <button class="btn btn-secondary" onclick="HorariosModule.clearFilters()">Limpiar</button>
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <button class="btn btn-primary" onclick="HorariosModule.applyFilters()" aria-label="Ejecutar búsqueda">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar
+              </button>
+              <button class="btn btn-secondary" onclick="HorariosModule.clearFilters()">Limpiar</button>
+            </div>
           </div>
         </div>
 
@@ -350,12 +379,32 @@ const HorariosModule = (() => {
     `;
 
     bindDropdownOutsideClick();
+    loadDependenciasCatalog();
     loadStats();
     await loadData();
   }
 
+  async function loadDependenciasCatalog() {
+    try {
+      if (typeof API.getEmployeeCatalogs === 'function') {
+        const cats = await API.getEmployeeCatalogs();
+        if (cats && Array.isArray(cats.dependencias) && cats.dependencias.length) {
+          const combined = Array.from(new Set([...INSTITUTIONAL_DEPENDENCIAS, ...cats.dependencias])).sort();
+          dependenciasCatalog = combined;
+          const sel = document.getElementById('filter-dependencia');
+          if (sel) {
+            const currentVal = state.filters.dependencia || '';
+            sel.innerHTML = `<option value="">TODAS</option>` + dependenciasCatalog.map(d => `<option value="${escHtml(d)}" ${currentVal === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
+          }
+        }
+      }
+    } catch (e) {
+      // Usar catálogo institucional por defecto
+    }
+  }
+
   function renderStatsSkeletons() {
-    return Array(5).fill(0).map(() => `
+    return Array(4).fill(0).map(() => `
       <div class="stat-card" aria-busy="true" role="progressbar">
         <div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px;"></div>
         <div class="stat-info" style="display:flex;flex-direction:column;gap:6px;flex:1;">
@@ -422,65 +471,80 @@ const HorariosModule = (() => {
     tbody.innerHTML = renderSkeletonRows();
   }
 
-  // ─── Carga de Estadísticas ────────────────────────────────────────────────
+  // ─── Carga y Renderizado Interactivo de Estadísticas (4 Tarjetas) ─────────
+  function renderStatsCards() {
+    const grid = document.getElementById('horarios-stats-grid');
+    if (!grid) return;
+    const stats = state.stats || {};
+    const currentMod = (state.filters.modalidad || 'Todas').toLowerCase();
+
+    const isTotal = currentMod === 'todas' || currentMod === '' || currentMod === 'todos';
+    const isTele = currentMod.includes('teletrabajo');
+    const isCasa = currentMod.includes('casa');
+    const isFlex = currentMod.includes('flex');
+
+    grid.className = 'stats-grid stats-grid--4';
+    grid.innerHTML = `
+      <div class="stat-card clickable stat-card--active-blue ${isTotal ? 'active' : ''}" onclick="HorariosModule.toggleModalidadFilter('Todas')" role="button" tabindex="0" title="Ver todos los esquemas" onkeydown="if(event.key==='Enter'||event.key===' ')HorariosModule.toggleModalidadFilter('Todas')">
+        <div class="stat-icon stat-icon--blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${parseInt(stats.total) || 0}</span>
+          <span class="stat-label">Total Esquemas</span>
+        </div>
+      </div>
+
+      <div class="stat-card clickable stat-card--active-purple ${isTele ? 'active' : ''}" onclick="HorariosModule.toggleModalidadFilter('Teletrabajo')" role="button" tabindex="0" title="Filtrar por Teletrabajo (clic de nuevo para desfiltrar)" onkeydown="if(event.key==='Enter'||event.key===' ')HorariosModule.toggleModalidadFilter('Teletrabajo')">
+        <div class="stat-icon stat-icon--purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${parseInt(stats.teletrabajo) || 0}</span>
+          <span class="stat-label">Teletrabajo</span>
+        </div>
+      </div>
+
+      <div class="stat-card clickable stat-card--active-orange ${isCasa ? 'active' : ''}" onclick="HorariosModule.toggleModalidadFilter('Trabajo en casa')" role="button" tabindex="0" title="Filtrar por Trabajo en Casa (clic de nuevo para desfiltrar)" onkeydown="if(event.key==='Enter'||event.key===' ')HorariosModule.toggleModalidadFilter('Trabajo en casa')">
+        <div class="stat-icon stat-icon--orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${parseInt(stats.trabajoEnCasa) || 0}</span>
+          <span class="stat-label">Trabajo en Casa</span>
+        </div>
+      </div>
+
+      <div class="stat-card clickable stat-card--active-teal ${isFlex ? 'active' : ''}" onclick="HorariosModule.toggleModalidadFilter('Horario flexible')" role="button" tabindex="0" title="Filtrar por Horario Flexible (clic de nuevo para desfiltrar)" onkeydown="if(event.key==='Enter'||event.key===' ')HorariosModule.toggleModalidadFilter('Horario flexible')">
+        <div class="stat-icon stat-icon--teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${parseInt(stats.horarioFlexible) || 0}</span>
+          <span class="stat-label">Horario Flexible</span>
+        </div>
+      </div>
+    `;
+  }
+
   function loadStats() {
     API.getHorariosStats().then(stats => {
       state.stats = stats;
-      const grid = document.getElementById('horarios-stats-grid');
-      if (!grid) return;
-
-      grid.innerHTML = `
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${parseInt(stats.total) || 0}</span>
-            <span class="stat-label">Total Esquemas</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${parseInt(stats.presencial) || 0}</span>
-            <span class="stat-label">Presencial</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${parseInt(stats.teletrabajo) || 0}</span>
-            <span class="stat-label">Teletrabajo</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${parseInt(stats.trabajoEnCasa) || 0}</span>
-            <span class="stat-label">Trabajo en Casa</span>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--teal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${parseInt(stats.horarioFlexible) || 0}</span>
-            <span class="stat-label">Horario Flexible</span>
-          </div>
-        </div>
-      `;
+      renderStatsCards();
     }).catch(e => console.error('[HorariosModule] Error cargando stats:', e));
+  }
+
+  function toggleModalidadFilter(targetMod) {
+    if (targetMod === 'Todas') {
+      state.filters.modalidad = 'Todas';
+    } else if (state.filters.modalidad === targetMod) {
+      state.filters.modalidad = 'Todas'; // Toggle off / desfiltrar
+    } else {
+      state.filters.modalidad = targetMod;
+    }
+    state.page = 1;
+    renderStatsCards();
+    loadData();
   }
 
   // ─── Carga de Datos y Tabla ────────────────────────────────────────────────
@@ -1821,6 +1885,31 @@ const HorariosModule = (() => {
       const isFlexible = modalidadStr.toLowerCase().includes('flexible');
       const isCasa = modalidadStr.toLowerCase().includes('casa');
 
+      let thumbnailHtml = '';
+      if (h.soporte_acto) {
+        if (h.soporte_acto.startsWith('data:image/')) {
+          thumbnailHtml = `
+            <div style="flex-shrink:0; cursor:pointer;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ampliar documento oficial">
+              <img src="${h.soporte_acto}" alt="Miniatura Resolución" style="width:72px; height:88px; object-fit:cover; border-radius:6px; border:2px solid rgba(251, 191, 36, 0.5); box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
+            </div>
+          `;
+        } else if (h.soporte_acto.startsWith('data:application/pdf')) {
+          thumbnailHtml = `
+            <div style="width:72px; height:88px; border-radius:6px; background:rgba(239, 68, 68, 0.15); border:2px solid rgba(239, 68, 68, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento PDF" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width:28px;height:28px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.5px;">PDF</span>
+            </div>
+          `;
+        } else {
+          thumbnailHtml = `
+            <div style="width:72px; height:88px; border-radius:6px; background:rgba(251, 191, 36, 0.15); border:2px solid rgba(251, 191, 36, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.35); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+              <span style="font-size:26px;">📄</span>
+              <span style="font-size:10px; font-weight:800; color:#fbbf24;">DOC</span>
+            </div>
+          `;
+        }
+      }
+
       const bodyHtml = `
         <div class="ficha-wrapper">
           <!-- ─── Hero Profile Header ─── -->
@@ -1889,7 +1978,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">💼</div>
                   <span class="ficha-card-label">Modalidad / Situación Administrativa</span>
                 </div>
-                <div class="ficha-card-val" style="font-size:1.15rem; color:var(--color-gold, #d97706); font-weight:800;">
+                <div class="ficha-card-val ficha-val-modalidad" style="font-size:1.15rem; color:#f97316; font-weight:800;">
                   ${escHtml(modalidadStr)}
                 </div>
                 <div class="ficha-card-sub">Modalidad laboral autorizada institucionalmente</div>
@@ -1912,7 +2001,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">⏳</div>
                   <span class="ficha-card-label" style="color:var(--color-navy);">Duración Autorizada y Tipo de Cómputo</span>
                 </div>
-                <div class="ficha-card-val" style="font-size:1.25rem; font-weight:800; color:var(--color-success);">
+                <div class="ficha-card-val ficha-val-duracion-computo" style="font-size:1.25rem; font-weight:800; color:#38bdf8;">
                   ${escHtml(h.duracion_texto || (h.duracion_dias ? `${h.duracion_dias} días autorizados` : 'Vigencia Indefinida'))}
                 </div>
                 <div class="ficha-card-sub" style="color:var(--color-info);">
@@ -2095,7 +2184,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">🟢</div>
                   <span class="ficha-card-label">Fecha Inicio de Vigencia</span>
                 </div>
-                <div class="ficha-card-val font-mono" style="color:var(--color-success); font-weight:700; font-size:1.05rem;">
+                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="color:#fbbf24; font-weight:700; font-size:1.05rem;">
                   ${formatDate(h.fecha_inicio)}
                 </div>
                 <div class="ficha-card-sub">Comienzo de efectos de la situación</div>
@@ -2106,7 +2195,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">🔴</div>
                   <span class="ficha-card-label">Fecha Final de Vigencia</span>
                 </div>
-                <div class="ficha-card-val font-mono" style="font-weight:700; font-size:1.05rem;">
+                <div class="ficha-card-val font-mono ficha-val-fecha-vigencia" style="color:#fbbf24; font-weight:700; font-size:1.05rem;">
                   ${h.fecha_fin ? formatDate(h.fecha_fin) : '<span style="color:var(--text-muted);">Indefinida / Sin fecha fin</span>'}
                 </div>
                 <div class="ficha-card-sub">${h.fecha_fin ? 'Culminación del período autorizado' : 'Vigencia continuada'}</div>
@@ -2118,13 +2207,19 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">📎</div>
                   <span class="ficha-card-label" style="color:var(--color-navy);">Soporte Documental Escaneado / Digitalizado</span>
                 </div>
-                <div style="margin-top:8px;">
+                <div style="margin-top:10px;">
                   ${h.soporte_acto ? `
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                      <span style="color:var(--color-success); font-weight:700; display:inline-flex; align-items:center; gap:6px;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
-                        Hoja de Resolución Firmada Adjunta al Esquema
-                      </span>
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+                      <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:260px;">
+                        ${thumbnailHtml}
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                          <span class="ficha-soporte-titulo" style="color:#fbbf24; font-weight:700; display:inline-flex; align-items:center; gap:6px; font-size:13.5px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
+                            Hoja de Resolución Firmada Adjunta al Esquema
+                          </span>
+                          <span style="font-size:11.5px; color:var(--text-muted);">Documento oficial adjunto disponible para consulta y verificación.</span>
+                        </div>
+                      </div>
                       <div style="display:inline-flex; gap:8px;">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="font-weight:700;">
                           📄 Ver Documento
@@ -2155,7 +2250,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">🪪</div>
                   <span class="ficha-card-label">Cédula de Ciudadanía</span>
                 </div>
-                <div class="ficha-card-val font-mono" style="font-size:1.1rem; color:var(--color-primary); font-weight:700;">
+                <div class="ficha-card-val font-mono ficha-val-cedula" style="font-size:1.15rem; font-weight:800;">
                   C.C. ${escHtml(formattedCc)}
                 </div>
                 <div class="ficha-card-sub">Identificación institucional del servidor</div>
@@ -2177,7 +2272,7 @@ const HorariosModule = (() => {
                   <div class="ficha-card-icon">💼</div>
                   <span class="ficha-card-label">Denominación del Cargo</span>
                 </div>
-                <div class="ficha-card-val" style="color:var(--color-gold, #d97706); font-weight:700;">
+                <div class="ficha-card-val ficha-val-cargo-denominacion" style="color:#f97316; font-weight:800;">
                   ${escHtml(h.cargo || 'No registrado')}
                 </div>
                 <div class="ficha-card-sub">Cargo que desempeña en la entidad</div>
@@ -2682,25 +2777,26 @@ const HorariosModule = (() => {
 
   function applyFilters() {
     const q = document.getElementById('horarios-search')?.value.trim() || '';
-    const mod = document.getElementById('filter-modalidad')?.value || 'Todas';
-    const est = document.getElementById('filter-estado')?.value || 'Todos';
+    const dep = document.getElementById('filter-dependencia')?.value || '';
+    const est = document.getElementById('filter-estado')?.value || '';
 
     state.filters.q = q;
-    state.filters.modalidad = mod;
-    state.filters.estado = est;
+    state.filters.dependencia = (dep === 'TODAS' || dep === 'Todas') ? '' : dep;
+    state.filters.estado = (est === 'TODOS' || est === 'Todos') ? '' : est;
     state.page = 1;
     loadData();
   }
 
   function clearFilters() {
-    state.filters = { q: '', modalidad: 'Todas', estado: 'Todos', dependencia: 'Todas' };
+    state.filters = { q: '', modalidad: 'Todas', estado: '', dependencia: '' };
     const searchInput = document.getElementById('horarios-search');
     if (searchInput) searchInput.value = '';
-    const selMod = document.getElementById('filter-modalidad');
-    if (selMod) selMod.value = 'Todas';
+    const selDep = document.getElementById('filter-dependencia');
+    if (selDep) selDep.value = '';
     const selEst = document.getElementById('filter-estado');
-    if (selEst) selEst.value = 'Todos';
+    if (selEst) selEst.value = '';
     state.page = 1;
+    renderStatsCards();
     loadData();
   }
 
@@ -3514,6 +3610,7 @@ const HorariosModule = (() => {
     confirmDelete,
     applyFilters,
     clearFilters,
+    toggleModalidadFilter,
     goPage,
     checkExpirations,
     exportExcel,

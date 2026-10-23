@@ -1441,16 +1441,19 @@ const ViaticosModule = (() => {
             <div class="filter-group" style="flex:1.5">
               <label class="filter-label">Dependencia</label>
               <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${DEPENDENCIAS_LIST.map(d => `<option value="${d}">${d}</option>`).join('')}
+                ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
               </select>
             </div>
             <div class="filter-group">
               <label class="filter-label">Estado</label>
               <select id="vit-estado" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                ${ESTADOS.map(s => `<option>${s}</option>`).join('')}
+                ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
               </select>
             </div>
-            <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()">Filtrar</button>
+            <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Buscar
+            </button>
             <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
           </div>
         </div>

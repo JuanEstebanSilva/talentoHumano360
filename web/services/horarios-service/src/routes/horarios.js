@@ -492,19 +492,19 @@ router.get('/', auth, async (req, res) => {
     const params = [];
     let idx = 1;
 
-    if (modalidad && modalidad !== 'Todas') {
-      conditions.push(`h.modalidad = $${idx++}`);
-      params.push(modalidad);
+    if (modalidad && !['todas', 'todos', ''].includes(modalidad.trim().toLowerCase())) {
+      conditions.push(`LOWER(h.modalidad) = LOWER($${idx++})`);
+      params.push(modalidad.trim());
     }
 
-    if (estado && estado !== 'Todos') {
+    if (estado && !['todos', 'todas', ''].includes(estado.trim().toLowerCase())) {
       conditions.push(`LOWER(h.estado) = LOWER($${idx++})`);
-      params.push(estado);
+      params.push(estado.trim());
     }
 
-    if (dependencia && dependencia !== 'Todas') {
+    if (dependencia && !['todas', 'todos', ''].includes(dependencia.trim().toLowerCase())) {
       conditions.push(`LOWER(h.dependencia) LIKE LOWER($${idx++})`);
-      params.push(`%${dependencia}%`);
+      params.push(`%${dependencia.trim()}%`);
     }
 
     if (q) {
