@@ -1683,7 +1683,7 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-fecha-nac">Fecha de Nacimiento</label>
               <input id="ef-fecha-nac" type="date" class="form-input" value="${escHtml(emp.fechaNacimiento || '')}" />
-              <div id="ef-edad-calc-display" style="font-size:12px; color:var(--color-green-bright); font-weight:600; margin-top:4px;">
+              <div id="ef-edad-calc-display" class="ef-calc-display-val">
                 ${emp.edadCalculada ? `Edad: ${escHtml(emp.edadCalculada)}` : ''}
               </div>
             </div>
@@ -1807,7 +1807,7 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso</label>
               <input id="ef-fecha-ingreso" type="date" class="form-input" value="${escHtml(emp.fechaIngreso || '')}" />
-              <div id="ef-tiempo-calc-display" style="font-size:12px; color:var(--color-green-bright); font-weight:600; margin-top:4px;">
+              <div id="ef-tiempo-calc-display" class="ef-calc-display-val">
                 ${emp.tiempoServicioCalculado ? `Tiempo: ${escHtml(emp.tiempoServicioCalculado)}` : ''}
               </div>
             </div>
@@ -1830,7 +1830,7 @@ const EmployeesModule = (() => {
                       <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
                       <input type="date" class="form-input ef-periodo-hasta" value="${escHtml(p.hasta || '')}" required />
                     </div>
-                    <div style="font-size:13.5px; color:#16a34a; font-weight:700; padding-top:14px; text-align:right;" class="ef-periodo-duracion">
+                    <div class="ef-periodo-duracion">
                       ${escHtml(p.duracionTexto || '')}
                     </div>
                     <div style="padding-top:14px; display:flex; justify-content:center;">
@@ -1843,7 +1843,7 @@ const EmployeesModule = (() => {
               </div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-add-periodo" style="font-size:11px;">+ Agregar Periodo Histórico</button>
-                <div id="ef-periodos-total-display" style="font-size:12px; font-weight:700; color:var(--color-green-bright);"></div>
+                <div id="ef-periodos-total-display" class="ef-periodos-total"></div>
               </div>
               <div id="ef-tiempo-total-display" style="display:none; font-size:14.5px; font-weight:700; color:var(--color-navy); margin-top:12px; padding:12px 18px; background:rgba(0,123,199,0.08); border:1.5px solid rgba(0,123,199,0.3); border-radius:10px; box-shadow:0 3px 10px rgba(0,123,199,0.06);"></div>
               ${(emp.otroTiempoGobernacion && (!periodosList || periodosList.length === 0)) ? `
@@ -2175,7 +2175,8 @@ const EmployeesModule = (() => {
           const diff = calcExactDiffBetween(desde, hasta);
           if (diff) {
             if (durDisplay) {
-              durDisplay.style.color = '#16a34a';
+              durDisplay.classList.remove('is-error');
+              durDisplay.style.color = '';
               durDisplay.textContent = diff.texto;
             }
             totalAnios += diff.anios;
@@ -2184,12 +2185,17 @@ const EmployeesModule = (() => {
             validCount++;
           } else {
             if (durDisplay) {
+              durDisplay.classList.add('is-error');
               durDisplay.style.color = 'var(--color-danger)';
               durDisplay.textContent = 'Hasta debe ser ≥ Desde';
             }
           }
         } else {
-          if (durDisplay) durDisplay.textContent = '';
+          if (durDisplay) {
+            durDisplay.classList.remove('is-error');
+            durDisplay.style.color = '';
+            durDisplay.textContent = '';
+          }
         }
       });
 
@@ -2284,7 +2290,7 @@ const EmployeesModule = (() => {
             <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
             <input type="date" class="form-input ef-periodo-hasta" required />
           </div>
-          <div style="font-size:13.5px; color:#16a34a; font-weight:700; padding-top:14px; text-align:right;" class="ef-periodo-duracion"></div>
+          <div class="ef-periodo-duracion"></div>
           <div style="padding-top:14px; display:flex; justify-content:center;">
             <button type="button" class="btn-action-delete btn-del-periodo" title="Eliminar periodo" aria-label="Eliminar periodo">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>

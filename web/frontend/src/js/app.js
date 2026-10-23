@@ -129,7 +129,48 @@ const App = (() => {
               });
               monthsBar.appendChild(closeBtn);
             }
-            // 2. Footer institucional rápido (Hoy / Limpiar)
+
+            // 2. Selector Desplegable de Año (fácil de usar, rango 1920 a 2050)
+            const currentMonthEl = instance.calendarContainer.querySelector('.flatpickr-current-month');
+            const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
+            if (currentMonthEl && numInput && !currentMonthEl.querySelector('.flatpickr-year-dropdown')) {
+              numInput.style.display = 'none';
+
+              const yearSelect = document.createElement('select');
+              yearSelect.className = 'flatpickr-year-dropdown';
+              yearSelect.setAttribute('aria-label', 'Seleccionar año');
+              yearSelect.title = 'Seleccionar año';
+
+              const minYear = 1920;
+              const maxYear = 2050;
+              const currentY = instance.currentYear || (instance.latestSelectedDateObj ? instance.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
+
+              let optionsHtml = '';
+              for (let y = minYear; y <= maxYear; y++) {
+                optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
+              }
+              yearSelect.innerHTML = optionsHtml;
+              yearSelect.value = currentY.toString();
+
+              yearSelect.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const newY = parseInt(e.target.value, 10);
+                if (!isNaN(newY)) {
+                  instance.changeYear(newY);
+                }
+              });
+
+              numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
+              instance._customYearSelect = yearSelect;
+            }
+
+            // 3. Tooltip accesible en desplegable de mes
+            const monthSelect = instance.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+            if (monthSelect) {
+              monthSelect.title = 'Seleccionar mes';
+            }
+
+            // 4. Footer institucional rápido (Hoy / Limpiar)
             if (!instance.calendarContainer.querySelector('.flatpickr-custom-footer')) {
               const footer = document.createElement('div');
               footer.className = 'flatpickr-custom-footer';
@@ -150,6 +191,26 @@ const App = (() => {
                 instance.close();
               });
               instance.calendarContainer.appendChild(footer);
+            }
+          },
+          onYearChange: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onMonthChange: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onOpen: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
+            }
+          },
+          onValueUpdate: function(selectedDates, dateStr, instance) {
+            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
+              instance._customYearSelect.value = instance.currentYear.toString();
             }
           },
           onChange: function(selectedDates, dateStr) {
