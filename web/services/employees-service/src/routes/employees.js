@@ -508,7 +508,7 @@ router.get('/', auth, async (req, res) => {
 // ─── GET /api/employees/catalogs ─────────────────────────────────────────────
 router.get('/catalogs', auth, async (_, res) => {
   try {
-    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes] = await Promise.all([
+    const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes, discRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
       pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
       pool.query(`
@@ -521,7 +521,8 @@ router.get('/catalogs', auth, async (_, res) => {
       `),
       pool.query('SELECT departamento, municipio FROM divipola ORDER BY departamento, municipio'),
       pool.query('SELECT DISTINCT estudios FROM educacion WHERE estudios IS NOT NULL AND TRIM(estudios) <> \'\' ORDER BY estudios'),
-      pool.query('SELECT DISTINCT institucion_estudios FROM educacion WHERE institucion_estudios IS NOT NULL AND TRIM(institucion_estudios) <> \'\' ORDER BY institucion_estudios')
+      pool.query('SELECT DISTINCT institucion_estudios FROM educacion WHERE institucion_estudios IS NOT NULL AND TRIM(institucion_estudios) <> \'\' ORDER BY institucion_estudios'),
+      pool.query('SELECT DISTINCT tipo_discapacidad FROM personas WHERE tipo_discapacidad IS NOT NULL AND TRIM(tipo_discapacidad) <> \'\' ORDER BY tipo_discapacidad')
     ]);
 
     // Dependencias únicas institucionales (sin duplicados, sin registros espurios y ordenadas naturalmente)
@@ -603,6 +604,22 @@ router.get('/catalogs', auth, async (_, res) => {
       municipiosPorDepto[depto].push(mpio);
     }
 
+    // Discapacidades canónicas y existentes en BD (todas en MAYÚSCULAS)
+    const discSet = new Set((DISCAPACIDADES_VALIDAS || []).map(d => d.toUpperCase()));
+    for (const r of (discRes?.rows || [])) {
+      let disc = clean(r.tipo_discapacidad)?.toUpperCase();
+      if (!disc) continue;
+      if (disc === 'MOTORA' || disc === 'FISICA' || disc === 'FÍSICA') disc = 'FÍSICA / MOTRIZ';
+      else if (disc === 'COGNITIVA' || disc === 'INTELECTUAL') disc = 'INTELECTUAL / COGNITIVA';
+      else if (disc === 'MENTAL' || disc === 'PSICOSOCIAL') disc = 'PSICOSOCIAL / MENTAL';
+      else if (disc === 'SORDOCIEGUERA') disc = 'SORDOCIEGA';
+
+      if (!['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR', 'NULL', 'UNDEFINED', 'N/A', 'OTRA'].includes(disc)) {
+        discSet.add(disc);
+      }
+    }
+    const discapacidadesList = Array.from(discSet).sort((a, b) => a.localeCompare(b, 'es'));
+
     res.json({
       dependencias: dependenciasList,
       departamentos: dependenciasList,
@@ -622,7 +639,7 @@ router.get('/catalogs', auth, async (_, res) => {
       clasificaciones: CLASIFICACIONES_EMPLEO,
       estadosServidor: ESTADOS_SERVIDOR,
       sexos: SEXOS_VALIDOS,
-      discapacidades: DISCAPACIDADES_VALIDAS,
+      discapacidades: discapacidadesList,
       tiposSangre: TIPOS_SANGRE_VALIDOS,
       diplomados: DIPLOMADOS_OPCIONES
     });

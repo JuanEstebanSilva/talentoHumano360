@@ -40,14 +40,14 @@ const EmployeesModule = (() => {
       estadosServidor: ['Activo', 'Inactivo', 'Pensionado'],
       sexos: ['Femenino', 'Masculino', 'Prefiero no decirlo'],
       discapacidades: [
-        'Física / Motriz',
-        'Visual',
-        'Auditiva',
-        'Intelectual',
-        'Psicosocial / Mental',
-        'Sordoceguera',
-        'Múltiple',
-        'Otra'
+        'FÍSICA / MOTRIZ',
+        'VISUAL',
+        'AUDITIVA',
+        'INTELECTUAL / COGNITIVA',
+        'PSICOSOCIAL / MENTAL',
+        'SORDOMUDA',
+        'SORDOCIEGA',
+        'MÚLTIPLE'
       ],
       diplomados: [
         'Gestión Pública y Buen Gobierno',
@@ -756,19 +756,19 @@ const EmployeesModule = (() => {
 
   function formatDiscapacidadBadge(tipoDiscapacidad) {
     if (!tipoDiscapacidad || ['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(String(tipoDiscapacidad).trim().toLowerCase())) {
-      return '<span class="ficha-discapacidad-none">No registra condición de discapacidad</span>';
+      return '<span class="ficha-discapacidad-none">NO REGISTRA CONDICIÓN DE DISCAPACIDAD</span>';
     }
     const clean = String(tipoDiscapacidad).trim();
     const lower = clean.toLowerCase();
-    let label = clean;
-    if (lower === 'fisica' || lower === 'motora') label = 'Física / Motriz';
-    else if (lower === 'visual') label = 'Visual';
-    else if (lower === 'auditiva') label = 'Auditiva';
-    else if (lower === 'cognitiva' || lower === 'intelectual') label = 'Intelectual';
-    else if (lower === 'sordomuda') label = 'Auditiva (Sordomuda)';
-    else if (lower === 'sordociega') label = 'Sordoceguera';
-    else if (lower === 'psicosocial' || lower === 'mental') label = 'Psicosocial / Mental';
-    else if (label.length > 0) label = label.charAt(0).toUpperCase() + label.slice(1);
+    let label = clean.toUpperCase();
+    if (lower === 'fisica' || lower === 'motora') label = 'FÍSICA / MOTRIZ';
+    else if (lower === 'visual') label = 'VISUAL';
+    else if (lower === 'auditiva') label = 'AUDITIVA';
+    else if (lower === 'cognitiva' || lower === 'intelectual') label = 'INTELECTUAL / COGNITIVA';
+    else if (lower === 'sordomuda') label = 'SORDOMUDA';
+    else if (lower === 'sordociega') label = 'SORDOCIEGA';
+    else if (lower === 'psicosocial' || lower === 'mental') label = 'PSICOSOCIAL / MENTAL';
+    else if (lower === 'multiple' || lower === 'múltiple') label = 'MÚLTIPLE';
 
     return `
       <div class="ficha-badge-discapacidad" role="status">
@@ -1690,40 +1690,45 @@ const EmployeesModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-tipo-discapacidad" style="font-weight:700;">
-                ♿ Condición Especial / Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span>
+                Condición Especial / Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span>
               </label>
-              <select id="ef-tipo-discapacidad" class="filter-select">
-                <option value="">Ninguna / No registra condición de discapacidad</option>
+              <select id="ef-tipo-discapacidad" class="filter-select" style="text-transform: uppercase;">
+                <option value="">NINGUNA / NO REGISTRA CONDICIÓN DE DISCAPACIDAD</option>
                 ${(cats.discapacidades || []).map(d => {
-                  const empDisc = (emp.tipoDiscapacidad || '').trim().toLowerCase();
-                  const optDisc = d.trim().toLowerCase();
+                  const optUpper = String(d || '').trim().toUpperCase();
+                  if (!optUpper) return '';
+                  const empDisc = (emp.tipoDiscapacidad || '').trim().toUpperCase();
                   const isSelected = empDisc && (
-                    empDisc === optDisc ||
-                    (optDisc.includes('física') && (empDisc.includes('fisi') || empDisc.includes('moto'))) ||
-                    (optDisc.includes('auditiva') && empDisc.includes('audit')) ||
-                    (optDisc.includes('visual') && empDisc.includes('visu')) ||
-                    (optDisc.includes('intelectual') && (empDisc.includes('intelect') || empDisc.includes('cognit'))) ||
-                    (optDisc.includes('psicosocial') && (empDisc.includes('psico') || empDisc.includes('mental'))) ||
-                    (optDisc.includes('sordoceguera') && empDisc.includes('sordocieg')) ||
-                    (optDisc.includes('múltiple') && empDisc.includes('multipl'))
+                    empDisc === optUpper ||
+                    (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+                    (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+                    (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+                    (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+                    (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+                    (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+                    (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+                    (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')))
                   );
-                  return `<option value="${escHtml(d)}" ${isSelected ? 'selected' : ''}>${escHtml(d)}</option>`;
+                  return `<option value="${escHtml(optUpper)}" ${isSelected ? 'selected' : ''}>${escHtml(optUpper)}</option>`;
                 }).join('')}
                 ${(emp.tipoDiscapacidad && !(cats.discapacidades || []).some(d => {
-                  const empDisc = emp.tipoDiscapacidad.trim().toLowerCase();
-                  const optDisc = d.trim().toLowerCase();
-                  return empDisc === optDisc ||
-                    (optDisc.includes('física') && (empDisc.includes('fisi') || empDisc.includes('moto'))) ||
-                    (optDisc.includes('auditiva') && empDisc.includes('audit')) ||
-                    (optDisc.includes('visual') && empDisc.includes('visu')) ||
-                    (optDisc.includes('intelectual') && (empDisc.includes('intelect') || empDisc.includes('cognit'))) ||
-                    (optDisc.includes('psicosocial') && (empDisc.includes('psico') || empDisc.includes('mental'))) ||
-                    (optDisc.includes('sordoceguera') && empDisc.includes('sordocieg')) ||
-                    (optDisc.includes('múltiple') && empDisc.includes('multipl'));
-                }) && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase()))
-                  ? `<option value="${escHtml(emp.tipoDiscapacidad)}" selected>${escHtml(emp.tipoDiscapacidad)}</option>`
+                  const empDisc = emp.tipoDiscapacidad.trim().toUpperCase();
+                  const optUpper = String(d || '').trim().toUpperCase();
+                  return empDisc === optUpper ||
+                    (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+                    (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+                    (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+                    (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+                    (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+                    (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+                    (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+                    (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')));
+                }) && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(emp.tipoDiscapacidad.trim().toUpperCase()))
+                  ? `<option value="${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}" selected>${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}</option>`
                   : ''}
+                <option value="__OTRO__">+ OTRA CONDICIÓN (ESPECIFICAR)...</option>
               </select>
+              <input id="ef-tipo-discapacidad-custom" class="form-input" style="display:none; margin-top:8px; text-transform:uppercase;" placeholder="Especifique la condición de discapacidad..." />
             </div>
           </div>
         </div>
@@ -2128,6 +2133,29 @@ const EmployeesModule = (() => {
 
     // 6. Regla 12: Situación y Discapacidad (gestión independiente de condición especial y situación)
     const situacionSelect = document.getElementById('ef-situacion');
+    const discSelect = document.getElementById('ef-tipo-discapacidad');
+    const discCustom = document.getElementById('ef-tipo-discapacidad-custom');
+    if (discSelect && discCustom) {
+      discSelect.addEventListener('change', () => {
+        if (discSelect.value === '__OTRO__') {
+          discCustom.style.display = 'block';
+          discCustom.focus();
+        } else {
+          discCustom.style.display = 'none';
+        }
+      });
+      if (emp.tipoDiscapacidad && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase())) {
+        const empUpper = emp.tipoDiscapacidad.trim().toUpperCase();
+        const match = Array.from(discSelect.options).find(o => o.value.toUpperCase() === empUpper);
+        if (match) {
+          discSelect.value = match.value;
+        } else {
+          discSelect.value = '__OTRO__';
+          discCustom.value = empUpper;
+          discCustom.style.display = 'block';
+        }
+      }
+    }
 
     // 7. Regla 19: Diplomado / Capacitación SENA
     const diplomadoToggle = document.getElementById('ef-diplomado-toggle');
@@ -2402,7 +2430,7 @@ const EmployeesModule = (() => {
         state.catalogs.clasificaciones = cats.clasificaciones || state.catalogs.clasificaciones;
         state.catalogs.estadosServidor = cats.estadosServidor || state.catalogs.estadosServidor;
         state.catalogs.sexos = cats.sexos || state.catalogs.sexos;
-        state.catalogs.discapacidades = cats.discapacidades || state.catalogs.discapacidades;
+        state.catalogs.discapacidades = (cats.discapacidades || state.catalogs.discapacidades || []).map(d => String(d).toUpperCase());
         state.catalogs.diplomados = cats.diplomados || state.catalogs.diplomados;
         state.catalogs.estudios = cats.estudios || [];
         state.catalogs.institucionesEstudios = cats.institucionesEstudios || [];
@@ -2530,10 +2558,24 @@ const EmployeesModule = (() => {
 
     // 10. Situación y Discapacidad (Opcionales)
     const situacion = document.getElementById('ef-situacion')?.value || 'ACTIVO';
-    const tipoDiscapacidadRaw = document.getElementById('ef-tipo-discapacidad')?.value?.trim() || '';
-    const tipoDiscapacidad = (tipoDiscapacidadRaw && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(tipoDiscapacidadRaw.toLowerCase()))
-      ? tipoDiscapacidadRaw
-      : null;
+    const tipoDiscapacidadSelect = document.getElementById('ef-tipo-discapacidad');
+    const tipoDiscapacidadCustom = document.getElementById('ef-tipo-discapacidad-custom');
+    const tipoDiscapacidadRaw = tipoDiscapacidadSelect?.value?.trim() || '';
+    let tipoDiscapacidad = null;
+    if (tipoDiscapacidadRaw === '__OTRO__') {
+      const customVal = tipoDiscapacidadCustom?.value?.trim().toUpperCase();
+      if (!customVal) {
+        markInvalidField('ef-tipo-discapacidad-custom', 'Por favor especifique la condición especial o de discapacidad.');
+        return null;
+      }
+      tipoDiscapacidad = customVal;
+      if (state.catalogs.discapacidades && !state.catalogs.discapacidades.includes(customVal)) {
+        state.catalogs.discapacidades.push(customVal);
+        state.catalogs.discapacidades.sort((a, b) => a.localeCompare(b, 'es'));
+      }
+    } else if (tipoDiscapacidadRaw && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(tipoDiscapacidadRaw.toLowerCase())) {
+      tipoDiscapacidad = tipoDiscapacidadRaw.toUpperCase();
+    }
 
     // 11. Periodos de Otro Tiempo con la Gobernación (Experiencia Múltiple, Opcional)
     const periodoRows = document.querySelectorAll('.periodo-row');
@@ -2696,6 +2738,7 @@ const EmployeesModule = (() => {
       const msgCc = res.documento_pendiente ? ` (Se asignó ID Temporal ${res.cedula})` : '';
       App.showToast(`Servidor registrado exitosamente.${msgCc}`, 'success');
       await load();
+      loadCatalogs().catch(() => {});
     } catch (err) {
       if (err.message && err.message.toLowerCase().includes('cédula')) {
         markInvalidField('ef-cedula', err.message);
@@ -2717,6 +2760,7 @@ const EmployeesModule = (() => {
       App.closeModal();
       App.showToast('Servidor actualizado exitosamente.', 'success');
       await load();
+      loadCatalogs().catch(() => {});
     } catch (err) {
       if (err.message && err.message.toLowerCase().includes('cédula')) {
         markInvalidField('ef-cedula', err.message);

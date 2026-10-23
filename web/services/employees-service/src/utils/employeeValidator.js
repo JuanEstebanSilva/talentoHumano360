@@ -134,7 +134,7 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
     return {
       valido: true,
       situacion: sitVal,
-      tipoDiscapacidad: match || discClean
+      tipoDiscapacidad: (match || discClean).toUpperCase()
     };
   }
 
@@ -145,25 +145,27 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   const sitUpper = sitClean.toUpperCase();
   if (sitUpper.includes('DISCAPACIDAD')) {
     let tipo = null;
-    if (sitUpper.includes('AUDITIV')) {
-      tipo = 'Auditiva';
+    if (sitUpper.includes('AUDITIV') && sitUpper.includes('SORDOMUD')) {
+      tipo = 'SORDOMUDA';
+    } else if (sitUpper.includes('AUDITIV')) {
+      tipo = 'AUDITIVA';
     } else if (sitUpper.includes('VISUAL')) {
-      tipo = 'Visual';
+      tipo = 'VISUAL';
     } else if (sitUpper.includes('MOTOR') || sitUpper.includes('FÍSIC') || sitUpper.includes('FISIC')) {
-      tipo = 'Física / Motriz';
+      tipo = 'FÍSICA / MOTRIZ';
     } else if (sitUpper.includes('COGNITIV') || sitUpper.includes('INTELECT')) {
-      tipo = 'Intelectual';
+      tipo = 'INTELECTUAL / COGNITIVA';
     } else if (sitUpper.includes('PSICOSOCIAL') || sitUpper.includes('MENTAL')) {
-      tipo = 'Psicosocial / Mental';
+      tipo = 'PSICOSOCIAL / MENTAL';
     } else if (sitUpper.includes('SORDOCIEG')) {
-      tipo = 'Sordoceguera';
+      tipo = 'SORDOCIEGA';
     } else if (sitUpper.includes('SORDOMUD')) {
-      tipo = 'Auditiva';
+      tipo = 'SORDOMUDA';
     } else if (sitUpper.includes('MÚLTIPL') || sitUpper.includes('MULTIPL')) {
-      tipo = 'Múltiple';
+      tipo = 'MÚLTIPLE';
     } else {
       const rem = sitUpper.replace(/DISCAPACIDAD[:\s\-]*/gi, '').trim();
-      tipo = rem ? rem : 'Otra';
+      tipo = rem ? rem.toUpperCase() : 'OTRA';
     }
 
     return {
@@ -185,14 +187,14 @@ const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
 const SEXOS_VALIDOS = ['Femenino', 'Masculino', 'Prefiero no decirlo'];
 
 const DISCAPACIDADES_VALIDAS = [
-  'Física / Motriz',
-  'Visual',
-  'Auditiva',
-  'Intelectual',
-  'Psicosocial / Mental',
-  'Sordoceguera',
-  'Múltiple',
-  'Otra'
+  'FÍSICA / MOTRIZ',
+  'VISUAL',
+  'AUDITIVA',
+  'INTELECTUAL / COGNITIVA',
+  'PSICOSOCIAL / MENTAL',
+  'SORDOMUDA',
+  'SORDOCIEGA',
+  'MÚLTIPLE'
 ];
 
 const TIPOS_SANGRE_VALIDOS = [

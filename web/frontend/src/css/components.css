@@ -5434,8 +5434,14 @@ tbody tr:last-child td {
 }
 
 .ficha-badge-discapacidad-text {
-  text-transform: capitalize;
+  text-transform: uppercase;
   font-weight: 800;
+}
+
+#ef-tipo-discapacidad,
+#ef-tipo-discapacidad option,
+#ef-tipo-discapacidad-custom {
+  text-transform: uppercase !important;
 }
 
 .ficha-discapacidad-none {
