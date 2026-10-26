@@ -113,22 +113,29 @@ const App = (() => {
           monthSelectorType: 'dropdown',
           onReady: function(selectedDates, dateStr, instance) {
             if (!instance.calendarContainer) return;
-            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
-            const monthsBar = instance.calendarContainer.querySelector('.flatpickr-months');
-            if (monthsBar && !instance.calendarContainer.querySelector('.flatpickr-custom-close')) {
-              const closeBtn = document.createElement('button');
-              closeBtn.type = 'button';
-              closeBtn.className = 'flatpickr-custom-close';
-              closeBtn.title = 'Cerrar calendario (sin cambios)';
-              closeBtn.setAttribute('aria-label', 'Cerrar calendario');
-              closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-              closeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.close();
-              });
-              monthsBar.appendChild(closeBtn);
+
+            function ensureCloseBtn(inst) {
+              if (!inst || !inst.calendarContainer) return;
+              const monthsBar = inst.calendarContainer.querySelector('.flatpickr-months');
+              if (monthsBar && !inst.calendarContainer.querySelector('.flatpickr-custom-close')) {
+                const closeBtn = document.createElement('button');
+                closeBtn.type = 'button';
+                closeBtn.className = 'flatpickr-custom-close';
+                closeBtn.title = 'Cerrar calendario';
+                closeBtn.setAttribute('aria-label', 'Cerrar calendario');
+                closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+                closeBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  inst.close();
+                });
+                monthsBar.appendChild(closeBtn);
+              }
             }
+            instance._ensureCloseBtn = ensureCloseBtn;
+
+            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
+            ensureCloseBtn(instance);
 
             // 2. Selector Desplegable de Año (fácil de usar, rango 1920 a 2050)
             const currentMonthEl = instance.calendarContainer.querySelector('.flatpickr-current-month');
@@ -197,16 +204,19 @@ const App = (() => {
             if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
               instance._customYearSelect.value = instance.currentYear.toString();
             }
+            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
           },
           onMonthChange: function(selectedDates, dateStr, instance) {
             if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
               instance._customYearSelect.value = instance.currentYear.toString();
             }
+            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
           },
           onOpen: function(selectedDates, dateStr, instance) {
             if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
               instance._customYearSelect.value = instance.currentYear.toString();
             }
+            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
             if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
