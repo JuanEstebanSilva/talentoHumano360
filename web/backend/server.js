@@ -5,14 +5,24 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initDatabase } = require('./scripts/init-db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de CORS amplia para permitir peticiones desde Netlify y localhost
+// Configuración de CORS segura con lista de orígenes permitidos
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost', 'http://localhost:80', 'http://127.0.0.1', 'http://127.0.0.1:80'];
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Permitir peticiones sin header Origin (CLI, curl, microservicios internos) o en dev
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS bloqueado para el origen no autorizado: ${origin}`));
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -50,31 +60,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/sst', sstRoutes);
 
-// Endpoint administrativo para ejecutar o forzar la inicialización de la base de datos sin necesitar Shell
-app.all('/api/admin/init-db', async (req, res) => {
-  const secret = req.query.secret || req.body?.secret;
-  const expectedSecret = process.env.DB_INIT_SECRET || 'talento360_init_secret';
-
-  if (secret !== expectedSecret) {
-    return res.status(403).json({ error: 'Acceso no autorizado. Secret inválido.' });
-  }
-
-  const force = req.query.force === 'true' || req.body?.force === true;
-
-  try {
-    await initDatabase({ force });
-    res.json({
-      success: true,
-      message: `Base de datos de Talento 360 inicializada correctamente (force=${force}).`,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
 
 // Manejador 404 para rutas API no encontradas
 app.use('/api/*', (req, res) => {

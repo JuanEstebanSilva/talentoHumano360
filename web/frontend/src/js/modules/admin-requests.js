@@ -155,20 +155,20 @@ const AdminRequestsModule = (() => {
     }
     tbody.innerHTML = state.data.map(r => `
       <tr>
-        <td class="td-radicado">${r.radicado}</td>
+        <td class="td-radicado">${escHtml(r.radicado)}</td>
         <td>
           <div class="user-table-cell">
-            <span class="td-primary" title="${r.persona}">${truncate(r.persona, 28) || '—'}</span>
-            <span class="user-table-cc font-mono">${r.documento ? `C.C. ${r.documento}` : '—'}</span>
+            <span class="td-primary" title="${escHtml(r.persona)}">${escHtml(truncate(r.persona, 28)) || '—'}</span>
+            <span class="user-table-cc font-mono">${r.documento ? `C.C. ${escHtml(r.documento)}` : '—'}</span>
           </div>
         </td>
-        <td title="${r.dependencia}">${truncate(r.dependencia, 26) || '—'}</td>
-        <td><span class="badge ${tipoBadge(r.tipo)}">${r.tipo}</span></td>
-        <td>${r.fechaInicio || '—'}</td>
-        <td>${r.diasSolicitados ?? '—'}</td>
+        <td title="${escHtml(r.dependencia)}">${escHtml(truncate(r.dependencia, 26)) || '—'}</td>
+        <td><span class="badge ${tipoBadge(r.tipo)}">${escHtml(r.tipo)}</span></td>
+        <td>${escHtml(r.fechaInicio || '—')}</td>
+        <td>${escHtml(String(r.diasSolicitados ?? '—'))}</td>
         <td>
-          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="AdminRequestsModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de esta solicitud" aria-label="Cambiar estado: ${r.estado}">
-            <span>${r.estado}</span>
+          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="AdminRequestsModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de esta solicitud" aria-label="Cambiar estado: ${escHtml(r.estado)}">
+            <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </td>

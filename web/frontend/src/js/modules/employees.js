@@ -669,7 +669,7 @@ const EmployeesModule = (() => {
           </div>
         </td>
         <td title="${escHtml(e.cargoActual)}">
-          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">${truncate(e.cargoActual, 28) || '—'}</div>
+          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">${escHtml(truncate(e.cargoActual, 28)) || '—'}</div>
           <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
             ${(e.codigoActual && e.codigoActual !== 'N/A') ? `Cód. <strong>${escHtml(e.codigoActual)}</strong>` : 'Sin código'}
             ${(e.gradoActual && e.gradoActual !== 'N/A') ? ` • Grado <strong>${escHtml(e.gradoActual)}</strong>` : ''}

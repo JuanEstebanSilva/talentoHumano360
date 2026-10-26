@@ -297,23 +297,23 @@ const ViaticosModule = (() => {
     tbody.innerHTML = state.data.map(r => `
       <tr>
         <td class="td-radicado">
-          <span style="font-weight:700;">${r.radicado}</span>
+          <span style="font-weight:700;">${escHtml(r.radicado)}</span>
           ${r.numeroResolucion ? `<span class="user-table-cc font-mono" style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px;">Res. ${escHtml(r.numeroResolucion)}</span>` : ''}
         </td>
         <td>
           <div class="user-table-cell">
-            <span class="td-primary" title="${r.persona}">${truncate(r.persona, 26) || '—'}</span>
-            <span class="user-table-cc font-mono">${r.documento ? `C.C. ${r.documento}` : '—'}</span>
+            <span class="td-primary" title="${escHtml(r.persona)}">${escHtml(truncate(r.persona, 26)) || '—'}</span>
+            <span class="user-table-cc font-mono">${r.documento ? `C.C. ${escHtml(r.documento)}` : '—'}</span>
           </div>
         </td>
-        <td title="${r.dependencia}">${truncate(r.dependencia, 24) || '—'}</td>
-        <td title="${r.destino}">${truncate(r.destino, 20) || '—'}</td>
-        <td>${r.fechaInicio || '—'}</td>
-        <td>${r.dias ?? '—'} días</td>
+        <td title="${escHtml(r.dependencia)}">${escHtml(truncate(r.dependencia, 24)) || '—'}</td>
+        <td title="${escHtml(r.destino)}">${escHtml(truncate(r.destino, 20)) || '—'}</td>
+        <td>${escHtml(r.fechaInicio || '—')}</td>
+        <td>${escHtml(String(r.dias ?? '—'))} días</td>
         <td class="td-currency">${formatCOP(r.valorTotal)}</td>
         <td>
-          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="ViaticosModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de este viático" aria-label="Cambiar estado: ${r.estado}">
-            <span>${r.estado}</span>
+          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="ViaticosModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de este viático" aria-label="Cambiar estado: ${escHtml(r.estado)}">
+            <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </td>
@@ -766,26 +766,39 @@ const ViaticosModule = (() => {
       App.showToast('Este registro no tiene soporte adjunto.', 'info');
       return;
     }
-    if (r.soporte.startsWith('data:image/')) {
-      App.openModal(`Soporte de Viático - ${r.radicado}`, `
+
+    const soporteStr = String(r.soporte).trim();
+    const isImage = /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(soporteStr);
+    const isPdf = /^data:application\/pdf;base64,/i.test(soporteStr);
+    const isHttpsUrl = /^https:\/\/[^\s"'<>]+$/i.test(soporteStr);
+
+    if (!isImage && !isPdf && !isHttpsUrl) {
+      App.showToast('El soporte adjunto no tiene un formato o protocolo seguro permitido.', 'warning');
+      return;
+    }
+
+    const radicadoSeguro = escHtml(r.radicado || 'Soporte');
+
+    if (isImage) {
+      App.openModal(`Soporte de Viático - ${radicadoSeguro}`, `
         <div style="text-align:center;padding:var(--space-2);">
-          <img src="${r.soporte}" alt="Soporte" style="max-width:100%;max-height:70vh;border-radius:var(--radius-md);box-shadow:0 8px 24px rgba(0,0,0,0.5);" />
+          <img src="${soporteStr}" alt="Soporte de viático" style="max-width:100%;max-height:70vh;border-radius:var(--radius-md);box-shadow:0 8px 24px rgba(0,0,0,0.5);" />
           <div style="margin-top:var(--space-4);">
-            <a href="${r.soporte}" download="soporte_${r.radicado}.png" class="btn btn-primary btn-sm">Descargar Imagen</a>
+            <a href="${soporteStr}" download="soporte_${radicadoSeguro}.png" class="btn btn-primary btn-sm">Descargar Imagen</a>
           </div>
         </div>
       `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
-    } else if (r.soporte.startsWith('data:application/pdf')) {
-      App.openModal(`Soporte de Viático - ${r.radicado}`, `
+    } else if (isPdf) {
+      App.openModal(`Soporte de Viático - ${radicadoSeguro}`, `
         <div style="width:100%;height:70vh;">
-          <iframe src="${r.soporte}" style="width:100%;height:100%;border:none;border-radius:var(--radius-md);"></iframe>
+          <iframe src="${soporteStr}" sandbox="allow-scripts allow-same-origin" style="width:100%;height:100%;border:none;border-radius:var(--radius-md);"></iframe>
         </div>
       `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
-    } else {
-      App.openModal(`Soporte de Viático - ${r.radicado}`, `
+    } else if (isHttpsUrl) {
+      App.openModal(`Soporte de Viático - ${radicadoSeguro}`, `
         <div style="padding:var(--space-4);text-align:center;">
-          <p style="color:var(--text-secondary);margin-bottom:var(--space-3);">Documento adjunto registrado:</p>
-          <a href="${r.soporte}" download="soporte_${r.radicado}" class="btn btn-primary">Descargar Documento</a>
+          <p style="color:var(--text-secondary);margin-bottom:var(--space-3);">Documento institucional disponible en enlace seguro:</p>
+          <a href="${soporteStr}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">Abrir Documento Seguro</a>
         </div>
       `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
     }

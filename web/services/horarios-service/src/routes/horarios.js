@@ -42,8 +42,12 @@ ensureHorariosColumns();
 
 // ─── Middleware de Autenticación ─────────────────────────────────────────────
 function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'No autorizado.' });
+  let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();

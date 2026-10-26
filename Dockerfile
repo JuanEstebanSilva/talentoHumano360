@@ -17,6 +17,9 @@ COPY web/backend/ ./web/backend/
 
 WORKDIR /app
 
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 3000
 ENV PORT=3000
 ENV NODE_ENV=production

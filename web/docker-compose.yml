@@ -26,7 +26,7 @@ services:
       - ../database/12_performance_indexes.sql:/docker-entrypoint-initdb.d/12_performance_indexes.sql
       - ../database/13_paquetes_viaticos.sql:/docker-entrypoint-initdb.d/13_paquetes_viaticos.sql
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432:5432}"
     networks:
       - talento360_net
     healthcheck:

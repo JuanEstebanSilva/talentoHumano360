@@ -17,5 +17,7 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 8h
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
-        value: postgresql://talento360_li46_user:b9KHPAhtd0mBM7enqEMPYkD3q3D97FmY@dpg-dbdnhegn74is739dk9m0-a/talento360_li46
+        sync: false # Configurar de forma segura en el Dashboard de Render (nunca commitear credenciales)

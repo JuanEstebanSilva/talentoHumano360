@@ -4,10 +4,10 @@
 --    La contraseña se guarda hasheada con bcrypt (nunca en texto plano).
 INSERT INTO public.usuarios (username, password, nombre, rol, cargo_laboral, estado)
 VALUES 
-    ('admin@boyaca.gov.co', 'admin123', 'Administrador', 'Administrador', NULL, 'ACTIVO'),
-    ('angela.ussa@boyaca.gov.co', '@Angela123', 'Angela Ussa', 'Administrador', 'Directora de Talento Humano', 'ACTIVO'),
-    ('carlos@boyaca.gov.co', 'carlos123', 'Carlos Andrés Torres Rivera', 'Coordinador', 'Coordinador de Solicitudes', 'ACTIVO'),
-    ('maria@boyaca.gov.co', 'maria123', 'María Camila Rodríguez Niño', 'Consulta', 'Analista de Talento Humano', 'ACTIVO')
+    ('admin@boyaca.gov.co', '$2a$12$V/AEZH3sAI.ZPJZdnCj3Ue8TU5P/6ekQdo9whQRwfR9H9RyLSjXDm', 'Administrador', 'Administrador', NULL, 'ACTIVO'),
+    ('angela.ussa@boyaca.gov.co', '$2a$12$eI7ehEXpN701IhYkkXSS1.hMobi37kko/n2/jjH6dkOm87BO5mYl6', 'Angela Ussa', 'Administrador', 'Directora de Talento Humano', 'ACTIVO'),
+    ('carlos@boyaca.gov.co', '$2a$12$oxJAvA4mX2.XXloxn./MDeHAg7Xzwuq8pwUbXXY7xNGIdFCGzan0.', 'Carlos Andrés Torres Rivera', 'Coordinador', 'Coordinador de Solicitudes', 'ACTIVO'),
+    ('maria@boyaca.gov.co', '$2a$12$4Pqs0cP5hrAqWydfUiiX0Oe.sBhpvh7pUjDfpvyDQ9V9WiXQyVHRe', 'María Camila Rodríguez Niño', 'Consulta', 'Analista de Talento Humano', 'ACTIVO')
     ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, nombre = EXCLUDED.nombre, rol = EXCLUDED.rol, cargo_laboral = EXCLUDED.cargo_laboral, estado = 'ACTIVO';
 
 -- ============================================================
