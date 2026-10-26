@@ -5,6 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { initDatabase } = require('./scripts/init-db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,6 +19,10 @@ app.use(cors({
   origin: (origin, callback) => {
     // Permitir peticiones sin header Origin (CLI, curl, microservicios internos) o en dev
     if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    // Permitir despliegues en Netlify y Render
+    if (origin.endsWith('.netlify.app') || origin.endsWith('.onrender.com')) {
       return callback(null, true);
     }
     return callback(new Error(`CORS bloqueado para el origen no autorizado: ${origin}`));
