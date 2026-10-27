@@ -10,6 +10,9 @@ const { initDatabase } = require('./scripts/init-db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Confianza en proxies inversos (Render, Cloudflare, Nginx) para rate limiting y headers
+app.set('trust proxy', 1);
+
 // Configuración de CORS segura con lista de orígenes permitidos
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
