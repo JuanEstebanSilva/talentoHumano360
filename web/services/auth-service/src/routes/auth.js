@@ -94,13 +94,40 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   try {
     // 1. Buscar si el usuario existe en la base de datos por email o prefijo
-    const userResult = await pool.query(
-      `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
-       FROM usuarios
-       WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
-       LIMIT 1`,
-      [normalizedUser]
-    );
+    let userResult;
+    try {
+      userResult = await pool.query(
+        `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
+         FROM usuarios
+         WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
+         LIMIT 1`,
+        [normalizedUser]
+      );
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('modulos')) {
+        console.warn('[auth] Columna modulos no presente en tabla usuarios, migrando al vuelo...');
+        try {
+          await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos VARCHAR(255) DEFAULT '*'`);
+          userResult = await pool.query(
+            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
+             FROM usuarios
+             WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
+             LIMIT 1`,
+            [normalizedUser]
+          );
+        } catch (migErr) {
+          userResult = await pool.query(
+            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado
+             FROM usuarios
+             WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
+             LIMIT 1`,
+            [normalizedUser]
+          );
+        }
+      } else {
+        throw colErr;
+      }
+    }
 
     // Mitigación de enumeración de usuarios y análisis de tiempos
     if (userResult.rows.length === 0) {
@@ -169,7 +196,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.json({ token, user: payload });
   } catch (err) {
     console.error('[auth] Login error:', err.message);
-    return res.status(500).json({ error: 'Error interno del servidor. Verifique la conexión a la base de datos.' });
+    return res.status(500).json({ 
+      error: 'Error interno del servidor. Verifique la conexión a la base de datos.',
+      details: err.message
+    });
   }
 });
 

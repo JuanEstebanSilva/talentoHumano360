@@ -68,7 +68,18 @@ async function initDatabase(options = { force: false }) {
     `);
 
     if (checkTable.rows.length > 0 && !options.force) {
-      console.log('[Talento 360 DB Init] La base de datos ya contiene las tablas. Omitiendo inicialización.');
+      console.log('[Talento 360 DB Init] La base de datos ya contiene las tablas. Sincronizando roles y módulos...');
+      try {
+        await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos VARCHAR(255) DEFAULT '*';`);
+        const rolesSqlPath = path.join(dbDir, '15_user_roles_permissions.sql');
+        if (fs.existsSync(rolesSqlPath)) {
+          const rolesSql = fs.readFileSync(rolesSqlPath, 'utf8');
+          await client.query(rolesSql);
+          console.log('[Talento 360 DB Init] Roles y permisos sincronizados correctamente.');
+        }
+      } catch (migErr) {
+        console.warn('[Talento 360 DB Init] Aviso en sincronización de roles:', migErr.message);
+      }
       return;
     }
 
@@ -104,4 +115,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { initDatabase };
+module.exports = { pool, initDatabase };

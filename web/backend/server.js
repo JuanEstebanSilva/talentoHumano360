@@ -5,7 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initDatabase } = require('./scripts/init-db');
+const { pool, initDatabase } = require('./scripts/init-db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,14 +39,80 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ─── Health Checks ────────────────────────────────────────────────────────────
-const healthResponse = (_, res) => res.json({
-  status: 'ok',
-  system: 'Talento 360 — API Gateway',
-  timestamp: new Date().toISOString()
+// ─── Health Checks y Diagnóstico ──────────────────────────────────────────────
+app.get(['/health', '/api/health'], async (_, res) => {
+  const dbConfigured = !!process.env.DATABASE_URL;
+  try {
+    const client = await pool.connect();
+    try {
+      const q = await client.query('SELECT NOW() as db_time, current_database() as db_name');
+      return res.json({
+        status: 'ok',
+        system: 'Talento 360 — API Gateway',
+        database: {
+          connected: true,
+          dbName: q.rows[0].db_name,
+          dbTime: q.rows[0].db_time,
+          configured: dbConfigured
+        },
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    return res.status(500).json({
+      status: 'error',
+      system: 'Talento 360 — API Gateway',
+      database: {
+        connected: false,
+        configured: dbConfigured,
+        error: err.message,
+        code: err.code
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
 });
-app.get('/health', healthResponse);
-app.get('/api/health', healthResponse);
+
+app.get('/api/db-status', async (_, res) => {
+  const dbConfigured = !!process.env.DATABASE_URL;
+  try {
+    const client = await pool.connect();
+    try {
+      const dbInfo = await client.query('SELECT current_database() as db, NOW() as server_time');
+      const tableCheck = await client.query(`
+        SELECT table_name FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `);
+      const usersCheck = await client.query(`
+        SELECT id_usuario, username, rol, estado, 
+               EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='modulos') as has_modulos
+        FROM usuarios LIMIT 10
+      `).catch(e => ({ error: e.message }));
+
+      return res.json({
+        status: 'connected',
+        database: dbInfo.rows[0].db,
+        serverTime: dbInfo.rows[0].server_time,
+        totalTables: tableCheck.rows.length,
+        hasUsuariosTable: tableCheck.rows.some(t => t.table_name === 'usuarios'),
+        users: Array.isArray(usersCheck.rows) ? usersCheck.rows.map(u => ({ username: u.username, rol: u.rol, hasModulos: u.has_modulos })) : usersCheck,
+        databaseUrlConfigured: dbConfigured
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    return res.status(500).json({
+      status: 'error',
+      databaseUrlConfigured: dbConfigured,
+      error: err.message,
+      code: err.code,
+      hint: !dbConfigured ? 'DATABASE_URL no está definida en las variables de entorno de Render.' : undefined
+    });
+  }
+});
 
 // ─── Importación de Microservicios ───────────────────────────────────────────
 const authRoutes          = require('../services/auth-service/src/routes/auth');
