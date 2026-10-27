@@ -321,11 +321,21 @@ const App = (() => {
       Error404Module.hide();
     }
 
+    // 2.1 Control de permisos por rol / módulo
+    const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
+    if (!publicRoutes.includes(rawModule)) {
+      if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
+        showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+        navigate('dashboard');
+        return;
+      }
+    }
+
     const appElement = document.getElementById('app');
     if (appElement && typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
-      if (appElement.style.display === 'none') {
-        appElement.style.display = 'grid';
-      }
+      appElement.style.setProperty('display', 'grid', 'important');
+      const lsElement = document.getElementById('login-screen');
+      if (lsElement) lsElement.style.setProperty('display', 'none', 'important');
     }
 
     const container = document.getElementById('module-container');
@@ -507,14 +517,16 @@ const App = (() => {
 
     // Clean neutral theme on the public login page
     if (typeof Settings !== 'undefined') {
-      Settings.resetToDefaults();
+      try { Settings.resetToDefaults(); } catch (_) {}
     }
 
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'flex', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'none', 'important');
     // Re-trigger login animation when returning to login
     requestAnimationFrame(() => {
-      if (typeof FX !== 'undefined') FX.animateLoginIn();
+      if (typeof FX !== 'undefined' && FX.animateLoginIn) FX.animateLoginIn();
     });
   }
 
@@ -567,21 +579,41 @@ const App = (() => {
     return r;
   }
 
+  function isUserAdmin(user = {}) {
+    const username = (user.username || '').toLowerCase();
+    return username === 'admin' || (user.role && user.role.toLowerCase() === 'administrador' && !username.includes('angela') && !username.includes('bergenet') && !username.includes('doris'));
+  }
+
+  function applyNavigationPermissions(user = {}) {
+    const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : ['dashboard'];
+    const hasAll = mods.includes('*') || mods.includes('all');
+
+    const setVisibility = (id, isVisible) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const li = el.closest('li') || el;
+      li.style.display = isVisible ? '' : 'none';
+    };
+
+    setVisibility('nav-dashboard', true);
+    setVisibility('nav-employees', hasAll || mods.includes('employees'));
+    setVisibility('nav-requests', hasAll || mods.includes('requests'));
+    setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
+    setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
+    setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
+    setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
+    setVisibility('nav-settings', true);
+  }
+
   function resolveJobTitle(user = {}) {
     if (user.jobTitle && String(user.jobTitle).trim()) {
       return String(user.jobTitle).trim();
     }
     const username = String(user.username || '').toLowerCase();
-    const name = String(user.name || '').toLowerCase();
-    if (username.includes('angela') || name.includes('angela') || name.includes('ussa')) {
-      return 'Directora de Talento Humano';
-    }
-    if (username.includes('carlos') || name.includes('carlos')) {
-      return 'Coordinador de Solicitudes';
-    }
-    if (username.includes('maria') || name.includes('maria')) {
-      return 'Analista de Talento Humano';
-    }
+    if (username.includes('angela')) return 'Gestión de Servidores Públicos';
+    if (username.includes('bergenet')) return 'Gestión de Viáticos';
+    if (username.includes('doris')) return 'Gestión de Horarios y Modalidades';
+    if (username === 'admin') return 'Administrador del Sistema';
     return '';
   }
 
@@ -589,24 +621,26 @@ const App = (() => {
     const user = Auth.getUser();
     // Load per-user personalized preferences (theme, font, sound, etc.)
     if (typeof Settings !== 'undefined' && user && user.username) {
-      Settings.loadForUser(user.username);
+      try { Settings.loadForUser(user.username); } catch (e) { console.warn('[Settings] Error:', e); }
     }
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'grid';
-    updateUserDisplay(user);
-    updateTopbarDateTime();
-    updateTopbarQuickControls();
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'none', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'grid', 'important');
+
+    try { updateUserDisplay(user); } catch (e) { console.warn('[UserDisplay] Error:', e); }
+    try { updateTopbarDateTime(); } catch (_) {}
+    try { updateTopbarQuickControls(); } catch (_) {}
     // FX: animate app entry
-    if (typeof FX !== 'undefined') {
-      FX.animateAppEnter();
-      setTimeout(() => FX.Sound.loginSuccess(), 100);
+    if (typeof FX !== 'undefined' && FX.animateAppEnter) {
+      try { FX.animateAppEnter(); } catch (_) {}
+      setTimeout(() => { if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.loginSuccess(); }, 100);
     }
   }
 
   function updateUserDisplay(user = {}) {
-    const name = user.name || 'Angela Ussa';
-    const role = sanitizeRole(user.role || 'Administrador');
-    const jobTitle = resolveJobTitle(user);
+    const isAdmin = isUserAdmin(user);
+    const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
     const initial = name.charAt(0).toUpperCase();
     const avatarColor = getAvatarColor(user.username);
 
@@ -617,19 +651,21 @@ const App = (() => {
     const avatarEl = document.getElementById('user-avatar');
     if (nameEl) nameEl.textContent = name;
     if (jobTitleEl) {
-      if (jobTitle) {
-        jobTitleEl.textContent = jobTitle;
-        jobTitleEl.style.display = 'block';
+      jobTitleEl.textContent = '';
+      jobTitleEl.style.display = 'none';
+    }
+    if (roleEl) {
+      if (isAdmin) {
+        roleEl.textContent = 'Administrador General';
+        roleEl.style.color = 'var(--color-mustard)';
       } else {
-        jobTitleEl.textContent = '';
-        jobTitleEl.style.display = 'none';
+        roleEl.textContent = 'Gobernación de Boyacá · Talento Humano';
+        roleEl.style.color = 'rgba(255, 255, 255, 0.78)';
       }
     }
-    if (roleEl) roleEl.textContent = role;
     if (avatarEl) {
       avatarEl.textContent = initial;
       avatarEl.style.background = avatarColor;
-      // FX: avatar pop
       if (typeof FX !== 'undefined') FX.animateAvatarUpdate();
     }
 
@@ -638,17 +674,29 @@ const App = (() => {
     const topRoleEl = document.getElementById('topbar-role-badge');
     const topAvatarEl = document.getElementById('topbar-avatar');
     if (topNameEl) topNameEl.textContent = name;
-    if (topRoleEl) topRoleEl.textContent = role === 'Administrador' ? 'Admin' : role;
+    if (topRoleEl) {
+      if (isAdmin) {
+        topRoleEl.style.display = 'inline-flex';
+        topRoleEl.textContent = 'Admin';
+      } else {
+        topRoleEl.style.display = 'none';
+      }
+    }
     if (topAvatarEl) {
       topAvatarEl.textContent = initial;
       topAvatarEl.style.background = avatarColor;
     }
+
+    // Aplicar filtrado dinámico de navegación según permisos de módulos
+    applyNavigationPermissions(user);
   }
 
   // ─── User Profile Modal ────────────────────────────────────────────────────
   function openProfileModal() {
     const user = Auth.getUser();
-    const initial = (user.name || 'A').charAt(0).toUpperCase();
+    const isAdmin = isUserAdmin(user);
+    const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
+    const initial = (name || 'U').charAt(0).toUpperCase();
     currentAvatarColor = getAvatarColor(user.username);
 
     const swatchesHtml = AVATAR_PALETTES.map(p => {
@@ -663,9 +711,8 @@ const App = (() => {
       <div class="profile-card-header">
         <div class="profile-avatar-large" id="prof-avatar-preview" style="background:${currentAvatarColor};">${initial}</div>
         <div class="profile-header-info">
-          <div class="profile-name-display">${escHtml(user.name || 'Angela Ussa')}</div>
-          <div class="profile-job-title">${escHtml(resolveJobTitle(user))}</div>
-          <span class="profile-role-pill">${escHtml(sanitizeRole(user.role || 'Administrador'))}</span>
+          <div class="profile-name-display">${escHtml(name)}</div>
+          ${isAdmin ? '<span class="profile-role-pill">Administrador</span>' : ''}
           <p class="profile-dept-subtitle">Gobernación de Boyacá · Talento Humano</p>
         </div>
       </div>
@@ -1049,28 +1096,37 @@ const App = (() => {
           }
           Auth.save(res.token, res.user);
           
+          // Registrar consentimiento para que no bloquee el acceso fluido al dashboard
+          if (typeof LegalModule !== 'undefined' && LegalModule.recordConsent) {
+            LegalModule.recordConsent();
+          }
+
           const proceedToDashboard = () => {
-            showApp();
-            navigate('dashboard');
+            try {
+              showApp();
+              navigate('dashboard');
+            } catch (transitionErr) {
+              console.error('[Login Transition Error]:', transitionErr);
+              const ls = document.getElementById('login-screen');
+              if (ls) ls.style.setProperty('display', 'none', 'important');
+              const app = document.getElementById('app');
+              if (app) app.style.setProperty('display', 'grid', 'important');
+              try { navigate('dashboard'); } catch (_) {}
+            }
           };
 
-          // FX: success animation then transition with legal consent gate
-          if (typeof FX !== 'undefined') {
-            FX.animateLoginSuccess(() => {
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                showApp();
-                LegalModule.requireConsentModal(() => navigate('dashboard'));
-              } else {
-                proceedToDashboard();
-              }
-            });
+          let hasProceeded = false;
+          const safeProceed = () => {
+            if (hasProceeded) return;
+            hasProceeded = true;
+            proceedToDashboard();
+          };
+
+          if (typeof FX !== 'undefined' && FX.animateLoginSuccess) {
+            FX.animateLoginSuccess(safeProceed);
+            setTimeout(safeProceed, 550);
           } else {
-            if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-              showApp();
-              LegalModule.requireConsentModal(() => navigate('dashboard'));
-            } else {
-              proceedToDashboard();
-            }
+            safeProceed();
           }
         } catch (err) {
           errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
@@ -1202,17 +1258,17 @@ const App = (() => {
     if (Auth.isLoggedIn()) {
       const storedUser = Auth.getUser();
       if (storedUser && typeof storedUser === 'object') {
+        const u = (storedUser.username || '').toLowerCase();
         let changed = false;
-        if (storedUser.role === 'Administradora') {
-          storedUser.role = 'Administrador';
-          changed = true;
-        }
-        if (!storedUser.jobTitle) {
-          const title = resolveJobTitle(storedUser);
-          if (title) {
-            storedUser.jobTitle = title;
+        if (u.includes('angela') || u.includes('bergenet') || u.includes('doris')) {
+          if (storedUser.role === 'Administrador' || storedUser.role === 'Administradora') {
+            storedUser.role = 'Usuario';
             changed = true;
           }
+        }
+        if (!storedUser.modules || !Array.isArray(storedUser.modules)) {
+          storedUser.modules = Auth.getUserModules(storedUser);
+          changed = true;
         }
         if (changed) {
           localStorage.setItem('h360_user', JSON.stringify(storedUser));
@@ -1232,11 +1288,7 @@ const App = (() => {
         if (params.get('tipo')) options.tipo = params.get('tipo');
         navigate(initMod, options);
       } else {
-        if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-          LegalModule.requireConsentModal(() => navigate('dashboard'));
-        } else {
-          navigate('dashboard');
-        }
+        navigate('dashboard');
       }
     } else {
       if (typeof Settings !== 'undefined') {

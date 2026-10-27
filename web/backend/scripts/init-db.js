@@ -36,6 +36,7 @@ const SQL_FILES = [
   '11_stress_test_data.sql',
   '12_performance_indexes.sql',
   '13_paquetes_viaticos.sql',
+  '15_user_roles_permissions.sql',
 ];
 
 function findDatabaseDir() {

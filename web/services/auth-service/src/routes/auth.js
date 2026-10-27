@@ -33,10 +33,11 @@ if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process
 }
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
-// Máximo 10 intentos de login cada 15 minutos por IP
+// Máximo 1000 intentos de login cada 15 minutos por IP (con omisión de peticiones exitosas)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 1000,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiados intentos fallidos. Por seguridad institucional, espere 15 minutos.' }
@@ -94,7 +95,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   try {
     // 1. Buscar si el usuario existe en la base de datos por email o prefijo
     const userResult = await pool.query(
-      `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado
+      `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
        FROM usuarios
        WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
        LIMIT 1`,
@@ -141,12 +142,24 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
+    let allowedModules = ['*'];
+    if (user.modulos) {
+      allowedModules = user.modulos.split(',').map(m => m.trim().toLowerCase());
+    } else {
+      const uname = (user.username || '').toLowerCase();
+      if (uname.includes('angela')) allowedModules = ['dashboard', 'employees'];
+      else if (uname.includes('bergenet')) allowedModules = ['dashboard', 'viaticos'];
+      else if (uname.includes('doris')) allowedModules = ['dashboard', 'horarios'];
+      else if (uname === 'admin' || (user.rol && user.rol.toLowerCase().includes('admin'))) allowedModules = ['*'];
+    }
+
     const payload = {
       username: user.username,
       name:     user.nombre,
       role:     user.rol,
       jobTitle: user.cargo_laboral || resolveJobTitle(user.rol),
       department: resolveDepartment(user.rol),
+      modules:  allowedModules,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
