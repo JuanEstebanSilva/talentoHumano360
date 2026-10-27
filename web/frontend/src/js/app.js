@@ -78,8 +78,11 @@ const App = (() => {
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    // Inicializar selectores de fecha mejorados (Flatpickr institucional)
-    setTimeout(() => initDatePickers(bodyEl), 30);
+    // Inicializar selectores de fecha mejorados (Flatpickr institucional) y UX de formularios
+    setTimeout(() => {
+      initDatePickers(bodyEl);
+      initFormUX(bodyEl);
+    }, 30);
 
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
@@ -112,6 +115,19 @@ const App = (() => {
           disableMobile: true,
           monthSelectorType: 'dropdown',
           onReady: function(selectedDates, dateStr, instance) {
+            // Sincronización con etiquetas flotantes
+            const group = input.closest('.form-group');
+            if (group) {
+              if (currentVal || dateStr) group.classList.add('is-floated');
+              if (instance.altInput) {
+                instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
+                instance.altInput.addEventListener('blur', () => {
+                  group.classList.remove('is-focused');
+                  if (!input.value) group.classList.remove('is-floated');
+                });
+              }
+            }
+
             if (!instance.calendarContainer) return;
 
             function ensureCloseBtn(inst) {
@@ -217,6 +233,15 @@ const App = (() => {
               instance._customYearSelect.value = instance.currentYear.toString();
             }
             if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
+            const group = input.closest('.form-group');
+            if (group) group.classList.add('is-focused', 'is-floated');
+          },
+          onClose: function(selectedDates, dateStr, instance) {
+            const group = input.closest('.form-group');
+            if (group) {
+              group.classList.remove('is-focused');
+              if (!input.value) group.classList.remove('is-floated');
+            }
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
             if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
@@ -225,6 +250,11 @@ const App = (() => {
           },
           onChange: function(selectedDates, dateStr) {
             input.value = dateStr;
+            const group = input.closest('.form-group');
+            if (group) {
+              if (dateStr) group.classList.add('is-floated');
+              else group.classList.remove('is-floated');
+            }
             input.dispatchEvent(new Event('change', { bubbles: true }));
             input.dispatchEvent(new Event('input', { bubbles: true }));
           }
@@ -233,6 +263,149 @@ const App = (() => {
     } catch (e) {
       console.warn('[Flatpickr] Fallback to native datepicker:', e);
     }
+  }
+
+  /**
+   * Inicializa la experiencia moderna de formularios institucional Talento360:
+   * - Floating Labels automáticos y sincronización reactiva
+   * - Teclado y navegación optimizada (enterkeyhint, navegación secuencial sin envíos accidentales)
+   */
+  function initFormUX(container = document) {
+    if (!container) return;
+    try {
+      const groups = container.querySelectorAll('.form-group');
+      groups.forEach(group => {
+        // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, headers
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+
+        const label = group.querySelector('.form-label');
+        const control = group.querySelector('.form-input, .filter-select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        if (!label || !control) return;
+
+        // Activar grupo flotante
+        group.classList.add('floating-group');
+
+        const updateState = () => {
+          let hasVal = false;
+          if (control.matches('select')) {
+            hasVal = control.value !== '' && control.value !== null;
+          } else if (control.type === 'date' || control._flatpickr) {
+            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
+
+          if (hasVal) {
+            group.classList.add('is-floated');
+          } else if (document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
+            group.classList.remove('is-floated');
+          }
+        };
+
+        // Estado inicial
+        updateState();
+
+        // Listeners de foco e interacción
+        if (!control._hasFloatListeners) {
+          control._hasFloatListeners = true;
+          control.addEventListener('focus', () => {
+            group.classList.add('is-focused', 'is-floated');
+          });
+          control.addEventListener('blur', () => {
+            group.classList.remove('is-focused');
+            updateState();
+          });
+          control.addEventListener('input', updateState);
+          control.addEventListener('change', updateState);
+        }
+      });
+
+      // Configuración de navegación por teclado y enterkeyhint
+      const activeInputs = Array.from(container.querySelectorAll(
+        'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+      )).filter(el => el.offsetParent !== null); // Solo visibles
+
+      activeInputs.forEach((inp, idx) => {
+        if (!inp.getAttribute('enterkeyhint')) {
+          if (idx === activeInputs.length - 1) {
+            inp.setAttribute('enterkeyhint', 'done');
+          } else {
+            inp.setAttribute('enterkeyhint', 'next');
+          }
+        }
+
+        if (!inp._hasEnterNavListener) {
+          inp._hasEnterNavListener = true;
+          inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              if (inp.tagName === 'TEXTAREA') return; // Permitir salto de línea en áreas de texto
+              // Evitar envíos accidentales o cierre de modal
+              e.preventDefault();
+              e.stopPropagation();
+
+              // Buscar el contenedor activo (pestaña activa o modal)
+              const scope = inp.closest('.form-tab-pane.active') || inp.closest('.form-grid') || container;
+              const scopeInputs = Array.from(scope.querySelectorAll(
+                'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+              )).filter(el => el.offsetParent !== null && !el.classList.contains('input-locked-servidor'));
+
+              const currentIdx = scopeInputs.indexOf(inp);
+              if (currentIdx !== -1 && currentIdx < scopeInputs.length - 1) {
+                const nextField = scopeInputs[currentIdx + 1];
+                if (nextField._flatpickr && nextField._flatpickr.altInput) {
+                  nextField._flatpickr.altInput.focus();
+                } else {
+                  nextField.focus();
+                }
+              } else {
+                // Si es el último campo visible, enfocar el botón de continuar o guardar
+                const nextActionBtn = document.querySelector('#modal-footer #btn-wizard-next, #modal-footer .btn-primary, #modal-footer .btn-gold');
+                if (nextActionBtn) nextActionBtn.focus();
+              }
+            }
+          });
+        }
+      });
+    } catch (err) {
+      console.warn('[Talento360] initFormUX notice:', err);
+    }
+  }
+
+  /**
+   * Refresca las etiquetas flotantes tras cambios programáticos (autocompletados, catálogos)
+   */
+  function refreshFloatingLabels(container = document) {
+    if (!container) return;
+    try {
+      const groups = container.querySelectorAll('.form-group.floating-group');
+      groups.forEach(group => {
+        const control = group.querySelector('.form-input, .filter-select, textarea, input:not([type="hidden"])');
+        if (!control) return;
+        let hasVal = false;
+        if (control.matches('select')) {
+          hasVal = control.value !== '' && control.value !== null;
+        } else if (control.type === 'date' || control._flatpickr) {
+          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
+        } else {
+          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+        }
+        if (hasVal) {
+          group.classList.add('is-floated');
+        } else if (document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
+          group.classList.remove('is-floated');
+        }
+      });
+    } catch (_) {}
   }
 
   function closeModal() {
@@ -1355,7 +1528,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

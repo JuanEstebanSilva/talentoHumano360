@@ -1425,6 +1425,67 @@ const EmployeesModule = (() => {
     }
   }
 
+  let currentFormIsEdit = false;
+  let currentFormEmpId = null;
+  let currentFormIsVacante = false;
+  const EMP_FORM_TABS = [
+    'tab-form-personales',
+    'tab-form-cargo',
+    'tab-form-tiempos',
+    'tab-form-formacion'
+  ];
+
+  function updateWizardFooter(tabId) {
+    const footerEl = document.getElementById('modal-footer');
+    if (!footerEl) return;
+    if (currentFormIsVacante) {
+      footerEl.innerHTML = `
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${currentFormIsEdit ? 'Actualizar Plaza Vacante' : 'Guardar Plaza Vacante'}</button>
+      `;
+      return;
+    }
+
+    const currentIdx = EMP_FORM_TABS.indexOf(tabId);
+    const isFirst = currentIdx <= 0;
+    const isLast = currentIdx === EMP_FORM_TABS.length - 1;
+
+    let html = '';
+    if (isFirst) {
+      html += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+    } else {
+      const prevTab = EMP_FORM_TABS[currentIdx - 1];
+      html += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Anterior
+      </button>`;
+    }
+
+    html += `<div style="display:flex; align-items:center; gap:8px;">`;
+
+    // Si está en edición y no es la última pestaña, permitir guardado directo
+    if (currentFormIsEdit && !isLast) {
+      html += `<button type="button" class="btn btn-gold" style="font-size:12px; padding:8px 14px;" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios directamente">
+        Guardar Cambios
+      </button>`;
+    }
+
+    if (!isLast) {
+      const nextTab = EMP_FORM_TABS[currentIdx + 1];
+      html += `<button type="button" class="btn btn-primary btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
+        Continuar <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>`;
+    } else {
+      if (currentFormIsEdit) {
+        html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">Actualizar Servidor</button>`;
+      } else {
+        html += `<button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.saveCreate()">Guardar Servidor</button>`;
+      }
+    }
+
+    html += `</div>`;
+    footerEl.innerHTML = html;
+  }
+
   function switchFormTab(tabId) {
     const tabs = document.querySelectorAll('.form-tabs .form-tab-btn');
     const panes = document.querySelectorAll('.form-tab-pane');
@@ -1440,7 +1501,11 @@ const EmployeesModule = (() => {
     const activePane = document.getElementById(tabId);
     if (activePane) {
       App.initDatePickers(activePane);
+      App.initFormUX(activePane);
+      App.refreshFloatingLabels(activePane);
     }
+
+    updateWizardFooter(tabId);
 
     const modalBody = document.getElementById('modal-body');
     if (modalBody) {
@@ -1503,10 +1568,13 @@ const EmployeesModule = (() => {
   }
 
   async function openCreate() {
+    currentFormIsEdit = false;
+    currentFormEmpId = null;
+    currentFormIsVacante = false;
     await loadCatalogs();
     App.openModal('Nuevo Servidor Público', buildForm(), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Guardar Servidor', cls: 'btn-primary', id: 'emp-save-btn', action: saveCreate },
+      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -1514,7 +1582,15 @@ const EmployeesModule = (() => {
       box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
+    updateWizardFooter('tab-form-personales');
     attachFormListeners();
+    setTimeout(() => {
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody) {
+        App.initFormUX(modalBody);
+        App.refreshFloatingLabels(modalBody);
+      }
+    }, 40);
   }
 
   async function openEdit(idOrCedula) {
@@ -1526,10 +1602,13 @@ const EmployeesModule = (() => {
     } catch (_) { }
 
     if (!emp) return;
+    currentFormIsEdit = true;
+    currentFormEmpId = idOrCedula;
+    currentFormIsVacante = Boolean(emp.es_vacante || emp.situacion === 'VACANTE' || (emp.nombreCompleto && emp.nombreCompleto.startsWith('PLAZA VACANTE')));
     await loadCatalogs();
     App.openModal('Editar Servidor Público', buildForm(emp), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Actualizar Servidor', cls: 'btn-gold', id: 'emp-save-btn', action: () => saveEdit(idOrCedula) },
+      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -1537,7 +1616,15 @@ const EmployeesModule = (() => {
       box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
+    updateWizardFooter('tab-form-personales');
     attachFormListeners(emp);
+    setTimeout(() => {
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody) {
+        App.initFormUX(modalBody);
+        App.refreshFloatingLabels(modalBody);
+      }
+    }, 40);
   }
 
   function extractNombresApellidos(emp = {}) {
@@ -1636,17 +1723,17 @@ const EmployeesModule = (() => {
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label" for="ef-nombres">Nombres *</label>
-              <input id="ef-nombres" class="form-input" placeholder="Ej: JUAN CARLOS" value="${escHtml(nombresVal)}" required />
+              <input id="ef-nombres" class="form-input" placeholder="Ej: JUAN CARLOS" value="${escHtml(nombresVal)}" enterkeyhint="next" required />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-apellidos">Apellidos *</label>
-              <input id="ef-apellidos" class="form-input" placeholder="Ej: PEREZ RODRIGUEZ" value="${escHtml(apellidosVal)}" required />
+              <input id="ef-apellidos" class="form-input" placeholder="Ej: PEREZ RODRIGUEZ" value="${escHtml(apellidosVal)}" enterkeyhint="next" required />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-cedula">Cédula de Ciudadanía *</label>
-              <input id="ef-cedula" class="form-input font-mono" placeholder="Ej: 1000000000" value="${escHtml(emp.cedula || '')}" required />
+              <input id="ef-cedula" class="form-input font-mono" placeholder="Ej: 1000000000" value="${escHtml(emp.cedula || '')}" inputmode="numeric" enterkeyhint="next" required />
             </div>
 
             <div class="form-group">
@@ -1757,7 +1844,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-codigo-cargo">Código de Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, letras o números)</span></label>
-              <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoActual || '')}" />
+              <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoActual || '')}" enterkeyhint="next" />
               <small id="ef-codigo-hint" style="font-size:11px; color:var(--text-muted);">Código alfanumérico asignado al cargo.</small>
             </div>
 
@@ -1788,7 +1875,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-opec">OPEC <span style="font-size:11px; color:var(--text-muted);">(Texto o número)</span></label>
-              <input id="ef-opec" class="form-input font-mono" placeholder="Ej: 184592" value="${escHtml(emp.opec || '')}" />
+              <input id="ef-opec" class="form-input font-mono" placeholder="Ej: 184592" value="${escHtml(emp.opec || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -1865,12 +1952,12 @@ const EmployeesModule = (() => {
           <div class="form-grid">
             <div class="form-group span-2">
               <label class="form-label" for="ef-funciones">Funciones <span style="font-size:11px; color:var(--text-muted);">(00 a 999 o texto explicativo / decreto)</span></label>
-              <input id="ef-funciones" class="form-input" placeholder="Ej: 01 o DECRETO 145 DE 2024" value="${escHtml(emp.funciones || '')}" />
+              <input id="ef-funciones" class="form-input" placeholder="Ej: 01 o DECRETO 145 DE 2024" value="${escHtml(emp.funciones || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-novedades">Novedades <span style="font-size:11px; color:var(--text-muted);">(Texto libre)</span></label>
-              <input id="ef-novedades" class="form-input" placeholder="Ej: POSESIÓN RECIENTE" value="${escHtml(emp.novedades || '')}" />
+              <input id="ef-novedades" class="form-input" placeholder="Ej: POSESIÓN RECIENTE" value="${escHtml(emp.novedades || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -1895,7 +1982,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-matricula">Matrícula Profesional <span style="font-size:11px; color:var(--text-muted);">(Opcional: letras, números, guiones, etc.)</span></label>
-              <input id="ef-matricula" class="form-input font-mono" placeholder="Ej: 15-28490-T, MP-1049" value="${escHtml(emp.matriculaProfesional || '')}" />
+              <input id="ef-matricula" class="form-input font-mono" placeholder="Ej: 15-28490-T, MP-1049" value="${escHtml(emp.matriculaProfesional || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -1917,7 +2004,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-telefono-fijo">Teléfono Fijo <span style="font-size:11px; color:var(--text-muted);">(6 a 12 dígitos)</span></label>
-              <input id="ef-telefono-fijo" class="form-input font-mono" placeholder="Ej: 7401234" value="${escHtml(emp.telefonoFijo || '')}" />
+              <input id="ef-telefono-fijo" type="tel" inputmode="tel" class="form-input font-mono" placeholder="Ej: 7401234" value="${escHtml(emp.telefonoFijo || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group span-2">
@@ -1925,7 +2012,7 @@ const EmployeesModule = (() => {
               <div id="ef-celulares-container" style="display:flex; flex-direction:column; gap:8px;">
                 ${celularesList.map((cel, idx) => `
                   <div class="celular-row" style="display:flex; align-items:center; gap:8px;">
-                    <input class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" value="${escHtml(cel)}" maxlength="10" />
+                    <input type="tel" inputmode="numeric" class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" value="${escHtml(cel)}" maxlength="10" enterkeyhint="next" />
                     ${idx > 0 ? `<button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>` : ''}
                   </div>
                 `).join('')}
@@ -1935,17 +2022,17 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-correo-inst">Correo Institucional</label>
-              <input id="ef-correo-inst" type="email" class="form-input font-mono" placeholder="Ej: usuario@boyaca.gov.co" value="${escHtml(emp.correo || '')}" />
+              <input id="ef-correo-inst" type="email" inputmode="email" class="form-input font-mono" placeholder="Ej: usuario@boyaca.gov.co" value="${escHtml(emp.correo || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-correo-pers">Correo Personal</label>
-              <input id="ef-correo-pers" type="email" class="form-input font-mono" placeholder="Ej: usuario@gmail.com" value="${escHtml(emp.correoPersonal || '')}" />
+              <input id="ef-correo-pers" type="email" inputmode="email" class="form-input font-mono" placeholder="Ej: usuario@gmail.com" value="${escHtml(emp.correoPersonal || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-direccion">Dirección de Residencia</label>
-              <input id="ef-direccion" class="form-input" placeholder="Ej: Calle 20 # 10-45, Tunja" value="${escHtml(emp.direccion || '')}" />
+              <input id="ef-direccion" class="form-input" placeholder="Ej: Calle 20 # 10-45, Tunja" value="${escHtml(emp.direccion || '')}" enterkeyhint="done" />
             </div>
           </div>
         </div>

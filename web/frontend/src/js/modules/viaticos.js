@@ -353,6 +353,43 @@ const ViaticosModule = (() => {
   }
 
   // ─── Construcción de Formulario Inteligente ──────────────────────────────────
+  let currentFormIsEdit = false;
+  let currentFormEditId = null;
+  const VIATICOS_TABS = ['tab-vit-servidor', 'tab-vit-comision', 'tab-vit-liquidacion', 'tab-vit-soporte'];
+
+  function updateViaticosWizardFooter(tabId) {
+    const footer = document.getElementById('modal-footer');
+    if (!footer) return;
+
+    const curIdx = VIATICOS_TABS.indexOf(tabId);
+    const prevTab = curIdx > 0 ? VIATICOS_TABS[curIdx - 1] : null;
+    const nextTab = curIdx < VIATICOS_TABS.length - 1 ? VIATICOS_TABS[curIdx + 1] : null;
+
+    let buttonsHtml = '';
+
+    if (prevTab) {
+      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">← Anterior</button>`;
+    } else {
+      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+    }
+
+    if (nextTab) {
+      if (currentFormIsEdit) {
+        buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">Guardar Cambios</button>`;
+      }
+      buttonsHtml += `<button type="button" class="btn btn-primary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')">Continuar →</button>`;
+    } else {
+      // Última pestaña (Soporte & Estado)
+      if (currentFormIsEdit) {
+        buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">Actualizar Viático</button>`;
+      } else {
+        buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">Crear Viático</button>`;
+      }
+    }
+
+    footer.innerHTML = buttonsHtml;
+  }
+
   function switchFormTab(tabId) {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.click();
     const modalBody = document.getElementById('modal-body');
@@ -363,6 +400,10 @@ const ViaticosModule = (() => {
     modalBody.querySelectorAll('.form-tab-pane').forEach(pane => {
       pane.classList.toggle('active', pane.id === tabId);
     });
+    updateViaticosWizardFooter(tabId);
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(modalBody);
+    }
   }
 
   function buildForm(r = {}) {
@@ -401,23 +442,23 @@ const ViaticosModule = (() => {
           <div class="form-grid">
             <div class="form-group span-2 autocomplete-wrapper">
               <label class="form-label">Nombre Completo del Servidor * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar cédula, cargo y dependencia)</span></label>
-              <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
+              <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
             <div class="form-group">
               <label class="form-label">Documento de Identidad (C.C.)</label>
-              <input id="vf-doc" class="form-input font-mono" placeholder="Número de cédula" value="${escHtml(r.documento||'')}" ${dis} />
+              <input id="vf-doc" class="form-input font-mono" placeholder="Número de cédula" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.documento||'')}" ${dis} />
             </div>
 
             <div class="form-group">
               <label class="form-label">Cargo Actual</label>
-              <input id="vf-cargo" class="form-input" placeholder="Cargo del servidor..." value="${escHtml(r.cargo||'')}" ${dis} />
+              <input id="vf-cargo" class="form-input" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${dis} />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label">Dependencia / Secretaría</label>
-              <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." value="${escHtml(r.dependencia||'')}" ${dis} />
+              <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${dis} />
             </div>
           </div>
         </div>
@@ -465,7 +506,7 @@ const ViaticosModule = (() => {
               </div>
               <div class="form-group">
                 <label class="form-label">Ciudad Internacional *</label>
-                <input id="vf-ciudad-int" class="form-input" placeholder="Ej: Washington D.C., Madrid..." oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
+                <input id="vf-ciudad-int" class="form-input" placeholder="Ej: Washington D.C., Madrid..." enterkeyhint="next" oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
               </div>
             </div>
 
@@ -481,7 +522,7 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Motivo o Justificación del Desplazamiento</label>
-              <input id="vf-motivo" class="form-input" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." value="${escHtml(r.motivo||'')}" ${dis} />
+              <input id="vf-motivo" class="form-input" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." enterkeyhint="next" value="${escHtml(r.motivo||'')}" ${dis} />
             </div>
           </div>
         </div>
@@ -501,12 +542,12 @@ const ViaticosModule = (() => {
 
             <div class="form-group">
               <label class="form-label">Número de Días (calculado)</label>
-              <input id="vf-dias" class="form-input" type="number" min="1" value="${escHtml(r.dias||'1')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <input id="vf-dias" class="form-input" type="number" min="1" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.dias||'1')}" oninput="ViaticosModule.calcTotal()" ${dis} />
             </div>
 
             <div class="form-group">
               <label class="form-label">Valor Diario ($ COP)</label>
-              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" value="${escHtml(r.valorDiario||'0')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.valorDiario||'0')}" oninput="ViaticosModule.calcTotal()" ${dis} />
             </div>
 
             <div class="form-group span-2">
@@ -516,17 +557,17 @@ const ViaticosModule = (() => {
 
             <div class="form-group">
               <label class="form-label">N° Resolución / Acto</label>
-              <input id="vf-resolucion" class="form-input font-mono" placeholder="Ej: 0053/18/01/2024" value="${escHtml(r.numeroResolucion||'')}" ${dis} />
+              <input id="vf-resolucion" class="form-input font-mono" placeholder="Ej: 0053/18/01/2024" enterkeyhint="next" value="${escHtml(r.numeroResolucion||'')}" ${dis} />
             </div>
 
             <div class="form-group">
               <label class="form-label">Saldo Presupuestal ($ COP)</label>
-              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" value="${escHtml(r.saldo||'')}" ${dis} />
+              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo||'')}" ${dis} />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label">Aprobado Por</label>
-              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" ${dis} />
             </div>
           </div>
         </div>
@@ -562,7 +603,7 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Observaciones Adicionales</label>
-              <input id="vf-obs" class="form-input" placeholder="Anotaciones de gestión o trámite..." value="${escHtml(r.observaciones||'')}" ${dis} />
+              <input id="vf-obs" class="form-input" placeholder="Anotaciones de gestión o trámite..." enterkeyhint="done" value="${escHtml(r.observaciones||'')}" ${dis} />
             </div>
           </div>
         </div>
@@ -639,6 +680,10 @@ const ViaticosModule = (() => {
     if (depInput) depInput.value = emp.dependencia || '';
     if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
 
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
     App.showToast(`Datos autocompletados para ${emp.nombre_completo}.`, 'info');
   }
 
@@ -682,6 +727,9 @@ const ViaticosModule = (() => {
     const previewText = document.getElementById('vf-dest-preview-text');
     if (hiddenDest) hiddenDest.value = destText;
     if (previewText) previewText.textContent = destText;
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
   }
 
   // ─── Cálculo de Días y Valores ────────────────────────────────────────────
@@ -712,6 +760,9 @@ const ViaticosModule = (() => {
     const total = dias * daily;
     const el = document.getElementById('vf-vtotal');
     if (el) el.value = formatCOP(total);
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
   }
 
   function onEstadoChange() {
@@ -724,6 +775,9 @@ const ViaticosModule = (() => {
       if (!aprInput.value || aprInput.value === '—' || aprInput.value.toLowerCase().includes('pendiente')) {
         aprInput.value = adminName;
       }
+    }
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
   }
 
@@ -1105,10 +1159,12 @@ const ViaticosModule = (() => {
 
   // ─── Acciones de Creación y Edición ───────────────────────────────────────
   function openCreate() {
+    currentFormIsEdit = false;
+    currentFormEditId = null;
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
     App.openModal('Nuevo Viático Institucional', buildForm(), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Crear Viático', cls: 'btn-primary', id: 'vit-save-btn', action: saveCreate },
+      { text: 'Continuar →', cls: 'btn-primary btn-wizard-next', action: () => switchFormTab('tab-vit-comision') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -1116,17 +1172,26 @@ const ViaticosModule = (() => {
       box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
+    updateViaticosWizardFooter('tab-vit-servidor');
     App.initDatePickers(document.getElementById('modal-body') || document);
-    setTimeout(() => initFormHelpers(), 50);
+    setTimeout(() => {
+      initFormHelpers();
+      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      }
+    }, 50);
   }
 
   function openEdit(id) {
     const r = state.data.find(x => x.id === id);
     if (!r) return;
+    currentFormIsEdit = true;
+    currentFormEditId = id;
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
     App.openModal(`Editar Viático ${r.radicado}`, buildForm(r), [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Actualizar Viático', cls: 'btn-gold', id: 'vit-save-btn', action: () => saveEdit(id) },
+      { text: 'Guardar Cambios', cls: 'btn-gold', id: 'vit-save-btn', action: () => saveEdit(id) },
+      { text: 'Continuar →', cls: 'btn-primary btn-wizard-next', action: () => switchFormTab('tab-vit-comision') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -1134,8 +1199,14 @@ const ViaticosModule = (() => {
       box.style.maxWidth = '900px';
       box.style.width = '92vw';
     }
+    updateViaticosWizardFooter('tab-vit-servidor');
     App.initDatePickers(document.getElementById('modal-body') || document);
-    setTimeout(() => initFormHelpers(r), 50);
+    setTimeout(() => {
+      initFormHelpers(r);
+      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      }
+    }, 50);
   }
 
   async function saveCreate() {
@@ -2959,5 +3030,7 @@ const ViaticosModule = (() => {
     switchFichaTab,
     switchFormTab,
     copyFichaText,
+    saveCreate,
+    saveEdit,
   };
 })();

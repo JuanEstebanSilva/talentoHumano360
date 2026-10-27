@@ -797,7 +797,7 @@ const HorariosModule = (() => {
               ✕ Desvincular / Ingreso manual
             </button>
           </div>
-          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba el nombre o cédula para buscar en la base de datos de servidores públicos..." autocomplete="off" />
+          <input type="text" id="horario-search-emp" class="form-input" placeholder="Escriba el nombre o cédula para buscar en la base de datos de servidores públicos..." autocomplete="off" enterkeyhint="search" />
           <div id="horario-emp-results" class="autocomplete-dropdown" style="display:none;"></div>
           <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:3px;">
             Al seleccionar o buscar un servidor público, se cargan automáticamente todos sus datos institucionales abajo y se protegen contra edición.
@@ -806,47 +806,47 @@ const HorariosModule = (() => {
 
         <div class="form-group">
           <label for="horario-nombre" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">NOMBRES Y APELLIDOS</label>
-          <input type="text" id="horario-nombre" class="form-input font-bold" placeholder="Nombres y apellidos completos" value="${escHtml(
+          <input type="text" id="horario-nombre" class="form-input font-bold" placeholder="Nombres y apellidos completos" enterkeyhint="next" value="${escHtml(
             item?.apellidos_nombres || ''
           )}" />
         </div>
 
         <div class="form-group">
           <label for="horario-documento" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DOCUMENTO DE IDENTIDAD (C.C.)</label>
-          <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de cédula" value="${escHtml(
+          <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de cédula" inputmode="numeric" enterkeyhint="next" value="${escHtml(
             item?.documento || ''
           )}" />
         </div>
 
         <div class="form-group">
           <label for="horario-cargo" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CARGO</label>
-          <input type="text" id="horario-cargo" class="form-input" placeholder="Cargo institucional..." value="${escHtml(item?.cargo || '')}" />
+          <input type="text" id="horario-cargo" class="form-input" placeholder="Cargo institucional..." enterkeyhint="next" value="${escHtml(item?.cargo || '')}" />
         </div>
 
         <!-- Código y Grado Institucional (Cargados automáticamente de la BD del servidor) -->
         <div class="form-group" style="display:flex; gap:12px;">
           <div style="flex:1;">
             <label for="horario-codigo" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CÓDIGO</label>
-            <input type="text" id="horario-codigo" class="form-input font-mono" placeholder="Ej: 219" value="${escHtml(item?.codigo || '')}" />
+            <input type="text" id="horario-codigo" class="form-input font-mono" placeholder="Ej: 219" enterkeyhint="next" value="${escHtml(item?.codigo || '')}" />
             <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Código del cargo</small>
           </div>
           <div style="flex:1;">
             <label for="horario-grado" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">GRADO</label>
-            <input type="text" id="horario-grado" class="form-input font-mono" placeholder="Ej: 05" value="${escHtml(item?.grado || '')}" />
+            <input type="text" id="horario-grado" class="form-input font-mono" placeholder="Ej: 05" inputmode="numeric" enterkeyhint="next" value="${escHtml(item?.grado || '')}" />
             <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Grado salarial</small>
           </div>
         </div>
 
         <div class="form-group">
           <label for="horario-dependencia" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DEPENDENCIA</label>
-          <input type="text" id="horario-dependencia" class="form-input" placeholder="Ej: CONTROL INTERNO DE GESTION..." value="${escHtml(
+          <input type="text" id="horario-dependencia" class="form-input" placeholder="Ej: CONTROL INTERNO DE GESTION..." enterkeyhint="next" value="${escHtml(
             item?.dependencia || ''
           )}" />
         </div>
 
         <div class="form-group">
           <label for="horario-secretaria" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">SECRETARÍA</label>
-          <input type="text" id="horario-secretaria" class="form-input" placeholder="Ej: SECRETARÍA GENERAL..." value="${escHtml(
+          <input type="text" id="horario-secretaria" class="form-input" placeholder="Ej: SECRETARÍA GENERAL..." enterkeyhint="next" value="${escHtml(
             item?.secretaria || ''
           )}" />
         </div>
@@ -952,7 +952,7 @@ const HorariosModule = (() => {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
             <div class="form-group">
               <label for="dias-teletrabajo" class="form-label">Días de Teletrabajo (Texto)</label>
-              <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder="Ej: martes y jueves" value="${escHtml(item?.dias_teletrabajo || 'martes y jueves')}" />
+              <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder="Ej: martes y jueves" enterkeyhint="next" value="${escHtml(item?.dias_teletrabajo || 'martes y jueves')}" />
               <small class="field-hint" style="font-size:11px; color:var(--text-muted);">Se actualiza automáticamente al hacer clic en los días</small>
             </div>
             <div class="form-group">
@@ -986,7 +986,7 @@ const HorariosModule = (() => {
 
           <div class="form-group">
             <label for="franja-ingreso" class="form-label required">Franja Horaria Concertada</label>
-            <input type="text" id="franja-ingreso" class="form-input font-bold" placeholder="Ej: 8 AM A 12 M, 1 A 5 PM" value="${escHtml(item?.franja_ingreso || item?.dias_teletrabajo || '8 AM A 12 M, 1 A 5 PM')}" />
+            <input type="text" id="franja-ingreso" class="form-input font-bold" placeholder="Ej: 8 AM A 12 M, 1 A 5 PM" enterkeyhint="next" value="${escHtml(item?.franja_ingreso || item?.dias_teletrabajo || '8 AM A 12 M, 1 A 5 PM')}" />
           </div>
         </div>
 
@@ -1002,7 +1002,7 @@ const HorariosModule = (() => {
 
           <div class="form-group">
             <label for="motivo-trabajo-casa" class="form-label">Justificación o Motivo Transitorio (Opcional)</label>
-            <input type="text" id="motivo-trabajo-casa" class="form-input" placeholder="Ej: Situación transitoria de salud o calamidad..." value="${escHtml(item?.motivo_trabajo_casa || '')}" />
+            <input type="text" id="motivo-trabajo-casa" class="form-input" placeholder="Ej: Situación transitoria de salud o calamidad..." enterkeyhint="next" value="${escHtml(item?.motivo_trabajo_casa || '')}" />
           </div>
         </div>
 
@@ -1019,7 +1019,7 @@ const HorariosModule = (() => {
         <!-- Campos de Vigencia y Duración -->
         <div class="form-group">
           <label for="horario-duracion-texto" class="form-label" style="font-weight:700;">Vigencia y Duración</label>
-          <input type="text" id="horario-duracion-texto" class="form-input font-bold" value="${escHtml(defaultDuracion)}" placeholder="Ej: 2 días / semana, 8 horas / día, o No aplica" />
+          <input type="text" id="horario-duracion-texto" class="form-input font-bold" value="${escHtml(defaultDuracion)}" placeholder="Ej: 2 días / semana, 8 horas / día, o No aplica" enterkeyhint="next" />
           <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Calculada automáticamente según la modalidad y los días seleccionados</small>
         </div>
 
@@ -1062,7 +1062,7 @@ const HorariosModule = (() => {
 
         <div class="form-group">
           <label for="horario-resolucion" class="form-label">Número de Resolución (Opcional)</label>
-          <input type="text" id="horario-resolucion" class="form-input font-mono font-bold" placeholder="Ej: 0045 de 2026" value="${escHtml(
+          <input type="text" id="horario-resolucion" class="form-input font-mono font-bold" placeholder="Ej: 0045 de 2026" enterkeyhint="next" value="${escHtml(
             item?.numero_resolucion || ''
           )}" />
         </div>
@@ -1210,6 +1210,10 @@ const HorariosModule = (() => {
 
     // Conectar eventos dinámicos del formulario
     bindModalFormEvents(item);
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      setTimeout(() => App.refreshFloatingLabels(document.getElementById('modal-body')), 50);
+    }
   }
 
   // ─── Lógica Dinámica del Formulario (Autocomplete y Días) ─────────────────
@@ -1246,6 +1250,9 @@ const HorariosModule = (() => {
           } else if (val === 'Presencial') {
             durInput.value = 'Jornada ordinaria';
           }
+        }
+        if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+          App.refreshFloatingLabels(document.getElementById('modal-body'));
         }
       });
     });
@@ -1286,6 +1293,10 @@ const HorariosModule = (() => {
         if (durInput) {
           durInput.value = activeNames.length > 0 ? `${activeNames.length} días / semana` : '2 días / semana';
         }
+
+        if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+          App.refreshFloatingLabels(document.getElementById('modal-body'));
+        }
       });
 
       // Estilo inicial
@@ -1306,6 +1317,10 @@ const HorariosModule = (() => {
 
         const durInput = document.getElementById('horario-duracion-texto');
         if (durInput) durInput.value = '8 horas / día';
+
+        if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+          App.refreshFloatingLabels(document.getElementById('modal-body'));
+        }
       });
     });
 
@@ -1376,6 +1391,9 @@ const HorariosModule = (() => {
       isManualServidorMode = true;
       setServerFieldsLock(false);
       if (empSearchInput) empSearchInput.value = '';
+      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      }
       App.showToast('Campos habilitados para ingreso manual.', 'info');
     });
 
@@ -1422,6 +1440,10 @@ const HorariosModule = (() => {
           }, 1500);
         }
       });
+
+      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      }
 
       if (notify && typeof App !== 'undefined' && App.showToast) {
         App.showToast(`Servidor institucional cargado: ${name}`, 'success');

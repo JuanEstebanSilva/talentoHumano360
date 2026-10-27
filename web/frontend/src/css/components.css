@@ -1197,10 +1197,13 @@ tbody tr:last-child td {
 }
 
 /* ─── Form Grid (Modal forms & Embedded forms) ────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORM GRID, 56PX TOUCH TARGETS & FLOATING LABELS (TALENTO 360)
+   ═══════════════════════════════════════════════════════════════════════════ */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.1rem 1.25rem;
+  gap: 1.25rem 1.25rem;
   width: 100%;
 }
 
@@ -1214,6 +1217,7 @@ tbody tr:last-child td {
   gap: 6px;
   width: 100%;
   margin-bottom: 0;
+  position: relative;
 }
 
 .form-grid .form-label {
@@ -1226,36 +1230,155 @@ tbody tr:last-child td {
   margin-bottom: 0;
 }
 
+/* Campos de ~56px de altura, esquinas suaves y foco accesible */
 .form-grid .form-input,
-.form-grid .filter-select {
+.form-grid .filter-select,
+.form-grid .flatpickr-input-custom {
   width: 100%;
   box-sizing: border-box;
   display: block;
-  padding: 10px 14px;
+  min-height: 56px;
+  height: 56px;
+  padding: 22px 14px 6px 14px;
   background: #ffffff;
   border: 1.5px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 12px;
   color: #0f172a;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  transition: all var(--transition-fast);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .form-grid .form-input,
+[data-theme="dark"] .form-grid .filter-select,
+[data-theme="dark"] .form-grid .flatpickr-input-custom {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
 }
 
 .form-grid .form-input:focus,
-.form-grid .filter-select:focus {
-  border-color: var(--color-green-dark);
+.form-grid .filter-select:focus,
+.form-grid .flatpickr-input-custom:focus {
+  border-color: var(--color-green-dark, #287522);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(40, 117, 34, 0.15);
+  box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18);
+}
+
+[data-theme="dark"] .form-grid .form-input:focus,
+[data-theme="dark"] .form-grid .filter-select:focus,
+[data-theme="dark"] .form-grid .flatpickr-input-custom:focus {
+  border-color: #4ade80;
+  background: #1e293b;
+  box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22);
 }
 
 .form-grid .form-input:disabled,
-.form-grid .filter-select:disabled {
+.form-grid .filter-select:disabled,
+.form-grid .flatpickr-input-custom:disabled {
   background: #f1f5f9;
-  color: var(--color-slate);
+  color: #64748b;
   border-color: var(--color-border);
   cursor: not-allowed;
+}
+
+[data-theme="dark"] .form-grid .form-input:disabled,
+[data-theme="dark"] .form-grid .filter-select:disabled,
+[data-theme="dark"] .form-grid .flatpickr-input-custom:disabled {
+  background: #0f172a;
+  color: #64748b;
+  border-color: #1e293b;
+}
+
+/* ─── ETIQUETAS FLOTANTES (FLOATING LABELS) ─── */
+.form-group.floating-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.floating-group > .form-label {
+  position: absolute;
+  top: 18px;
+  left: 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #64748b;
+  pointer-events: none;
+  transform-origin: left top;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              top 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              letter-spacing 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+  margin: 0;
+  max-width: calc(100% - 28px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+}
+
+[data-theme="dark"] .form-group.floating-group > .form-label {
+  color: #94a3b8;
+}
+
+/* Estado flotante (Elevada al tope del campo) */
+.form-group.floating-group.is-floated > .form-label,
+.form-group.floating-group:focus-within > .form-label {
+  top: 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* Color primario institucional al recibir foco */
+.form-group.floating-group:focus-within > .form-label {
+  color: var(--color-green-dark, #287522);
+}
+
+[data-theme="dark"] .form-group.floating-group:focus-within > .form-label {
+  color: #4ade80;
+}
+
+/* Ocultar placeholder mientras la etiqueta está en reposo para evitar colisión visual */
+.form-group.floating-group:not(.is-floated):not(:focus-within) .form-input::placeholder {
+  color: transparent !important;
+  opacity: 0 !important;
+}
+
+.form-group.floating-group:focus-within .form-input::placeholder,
+.form-group.floating-group.is-floated .form-input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.8 !important;
+  transition: opacity 0.2s ease;
+}
+
+[data-theme="dark"] .form-group.floating-group:focus-within .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder {
+  color: #64748b !important;
+}
+
+/* Select vacío en reposo: texto transparente para mostrar limpiamente la etiqueta */
+.form-group.floating-group:not(.is-floated):not(:focus-within) select.filter-select {
+  color: transparent !important;
+}
+
+.form-group.floating-group.is-floated select.filter-select,
+.form-group.floating-group:focus-within select.filter-select {
+  color: #0f172a !important;
+}
+
+[data-theme="dark"] .form-group.floating-group.is-floated select.filter-select,
+[data-theme="dark"] .form-group.floating-group:focus-within select.filter-select {
+  color: #f1f5f9 !important;
 }
 
 /* ─── Loading Skeleton System (Mockup Baja Fidelidad & Shimmer) ────────── */
@@ -5722,29 +5845,79 @@ tbody tr:last-child td {
 
 .modal-box.modal-schedule,
 .modal-box.modal-ficha,
-.modal-box.modal-lg {
-  max-width: 900px !important;
-  width: 92vw !important;
-}
-
-/* ─── Form Tabs & Single Horizontal Bar ─── */
+.modal-box.modal-lg,
 .modal-box.modal-form-emp {
   max-width: 900px !important;
   width: 92vw !important;
-  max-height: 90vh !important;
+  max-height: 92vh !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+  border-radius: 18px !important;
 }
 
+.modal-box.modal-schedule .modal-body,
+.modal-box.modal-ficha .modal-body,
+.modal-box.modal-lg .modal-body,
 .modal-box.modal-form-emp .modal-body {
   padding: 0 24px 24px 24px !important;
-  max-height: calc(90vh - 130px) !important;
+  max-height: none !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   flex: 1 1 auto !important;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Footer persistente y siempre visible en modales */
+.modal-box.modal-schedule .modal-footer,
+.modal-box.modal-ficha .modal-footer,
+.modal-box.modal-lg .modal-footer,
+.modal-box.modal-form-emp .modal-footer {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 35 !important;
+  background: #f8fafc !important;
+  border-top: 1px solid var(--color-border) !important;
+  padding: 14px 24px !important;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+}
+
+[data-theme="dark"] .modal-box.modal-schedule .modal-footer,
+[data-theme="dark"] .modal-box.modal-ficha .modal-footer,
+[data-theme="dark"] .modal-box.modal-lg .modal-footer,
+[data-theme="dark"] .modal-box.modal-form-emp .modal-footer {
+  background: #0f172a !important;
+  border-top-color: #334155 !important;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Botones de navegación wizard entre pestañas */
+.btn-wizard-next,
+#btn-wizard-next {
+  min-height: 44px;
+  padding: 10px 20px;
+  font-weight: 700;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-wizard-prev,
+#btn-wizard-prev {
+  min-height: 44px;
+  padding: 10px 18px;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .modal-box.modal-form-emp .modal-body::-webkit-scrollbar {
