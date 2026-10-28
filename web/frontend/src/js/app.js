@@ -70,7 +70,11 @@ const App = (() => {
       const el = document.createElement('button');
       el.className = `btn ${btn.cls || 'btn-secondary'}`;
       if (btn.id) el.id = btn.id;
-      el.textContent = btn.text;
+      if (btn.html) {
+        el.innerHTML = btn.html;
+      } else {
+        el.textContent = btn.text || '';
+      }
       el.onclick = btn.action;
       footerEl.appendChild(el);
     });

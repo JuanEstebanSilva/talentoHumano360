@@ -1140,6 +1140,8 @@ const HorariosModule = (() => {
       </form>
     `;
 
+    const saveCheckSvg = `<svg class="wizard-save-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
     const footerButtons = [
       {
         text: 'Cancelar',
@@ -1151,8 +1153,10 @@ const HorariosModule = (() => {
         },
       },
       {
-        text: isEdit ? 'Guardar Cambios' : 'Crear Esquema de Horario',
+        html: `${saveCheckSvg}<span>${isEdit ? 'Guardar Cambios' : 'Crear Horario'}</span>`,
+        text: isEdit ? 'Guardar Cambios' : 'Crear Horario',
         cls: 'btn-primary',
+        id: 'btn-save-horario',
         action: () => submitScheduleForm(item?.id_horario),
       },
     ];

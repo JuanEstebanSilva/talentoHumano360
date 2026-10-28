@@ -6838,27 +6838,178 @@ tbody tr:last-child td {
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Botones de navegación wizard entre pestañas */
+/* ─── Botones Unificados y Estables en Modal Footers (Wizards y Formularios) ─── */
+.modal-footer .btn,
 .btn-wizard-next,
-#btn-wizard-next {
-  min-height: 44px;
-  padding: 10px 20px;
-  font-weight: 700;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
+#btn-wizard-next,
 .btn-wizard-prev,
 #btn-wizard-prev {
-  min-height: 44px;
-  padding: 10px 18px;
-  font-weight: 600;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  height: 42px !important;
+  min-height: 42px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  font-size: 0.88rem !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  user-select: none !important;
+}
+
+/* Botón Principal Estable (Continuar, Crear Viático, Crear Servidor, Crear Horario) */
+.modal-footer .btn-primary,
+.modal-footer .btn-wizard-next,
+#btn-wizard-next,
+#vit-save-btn,
+#emp-save-btn,
+#btn-save-vpkg,
+#btn-update-vpkg {
+  min-width: 154px !important;
+  padding: 0 22px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #2299b5 0%, #166e82 100%) !important;
+  border: 1px solid #166475 !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.15), 0 4px 14px rgba(22, 110, 130, 0.35) !important;
+  cursor: pointer !important;
+}
+
+.modal-footer .btn-primary:hover,
+.modal-footer .btn-wizard-next:hover,
+#btn-wizard-next:hover,
+#vit-save-btn:hover,
+#emp-save-btn:hover,
+#btn-save-vpkg:hover,
+#btn-update-vpkg:hover {
+  background: linear-gradient(135deg, #28a9c7 0%, #1a7c93 100%) !important;
+  border-color: #1a7589 !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(22, 110, 130, 0.48) !important;
+}
+
+.modal-footer .btn-primary:active,
+.modal-footer .btn-wizard-next:active,
+#btn-wizard-next:active,
+#vit-save-btn:active,
+#emp-save-btn:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(22, 110, 130, 0.25) !important;
+}
+
+/* Botón Secundario Estable (Cancelar, Anterior) */
+.modal-footer .btn-secondary,
+.modal-footer .btn-wizard-prev,
+#btn-wizard-prev {
+  min-width: 116px !important;
+  padding: 0 18px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  cursor: pointer !important;
+}
+
+.modal-footer .btn-secondary:hover,
+.modal-footer .btn-wizard-prev:hover,
+#btn-wizard-prev:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.modal-footer .btn-secondary:active,
+.modal-footer .btn-wizard-prev:active,
+#btn-wizard-prev:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+}
+
+/* Botón Guardar Cambios Modo Edición en Wizards */
+.modal-footer .btn-gold {
+  height: 42px !important;
+  min-height: 42px !important;
+  min-width: 154px !important;
+  border-radius: 9999px !important;
+  padding: 0 20px !important;
+  font-weight: 700 !important;
+  font-size: 0.88rem !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(209, 173, 42, 0.35) !important;
+}
+
+/* Micro-animaciones de íconos en botones wizard */
+.wizard-arrow-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+.btn-wizard-next:hover .wizard-arrow-icon,
+.modal-footer .btn-primary:hover .wizard-arrow-icon {
+  transform: translateX(3px);
+}
+
+.wizard-prev-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+.btn-wizard-prev:hover .wizard-prev-icon,
+.modal-footer .btn-secondary:hover .wizard-prev-icon {
+  transform: translateX(-3px);
+}
+
+.wizard-save-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+.modal-footer .btn-primary:hover .wizard-save-icon,
+.modal-footer .btn-gold:hover .wizard-save-icon {
+  transform: scale(1.18);
+}
+
+/* Modo Oscuro en Footers y Botones de Modal */
+[data-theme="dark"] .modal-footer .btn-secondary,
+[data-theme="dark"] .modal-footer .btn-wizard-prev,
+[data-theme="dark"] #btn-wizard-prev {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-secondary:hover,
+[data-theme="dark"] .modal-footer .btn-wizard-prev:hover,
+[data-theme="dark"] #btn-wizard-prev:hover {
+  background: #334155 !important;
+  color: #ffffff !important;
+  border-color: #475569 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-primary,
+[data-theme="dark"] .modal-footer .btn-wizard-next,
+[data-theme="dark"] #btn-wizard-next,
+[data-theme="dark"] #vit-save-btn,
+[data-theme="dark"] #emp-save-btn {
+  background: linear-gradient(135deg, #1f94b0 0%, #135f70 100%) !important;
+  border-color: #176e82 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-primary:hover,
+[data-theme="dark"] .modal-footer .btn-wizard-next:hover,
+[data-theme="dark"] #btn-wizard-next:hover,
+[data-theme="dark"] #vit-save-btn:hover,
+[data-theme="dark"] #emp-save-btn:hover {
+  background: linear-gradient(135deg, #25a5c4 0%, #166e82 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(31, 148, 176, 0.35) !important;
 }
 
 .modal-box.modal-form-emp .modal-body::-webkit-scrollbar {

@@ -1438,10 +1438,15 @@ const EmployeesModule = (() => {
   function updateWizardFooter(tabId) {
     const footerEl = document.getElementById('modal-footer');
     if (!footerEl) return;
+
+    const arrowNextSvg = `<svg class="wizard-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+    const arrowPrevSvg = `<svg class="wizard-prev-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
+    const saveCheckSvg = `<svg class="wizard-save-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
     if (currentFormIsVacante) {
       footerEl.innerHTML = `
         <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${currentFormIsEdit ? 'Actualizar Plaza Vacante' : 'Guardar Plaza Vacante'}</button>
+        <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
       `;
       return;
     }
@@ -1456,7 +1461,7 @@ const EmployeesModule = (() => {
     } else {
       const prevTab = EMP_FORM_TABS[currentIdx - 1];
       html += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Anterior
+        ${arrowPrevSvg}<span>Anterior</span>
       </button>`;
     }
 
@@ -1464,21 +1469,21 @@ const EmployeesModule = (() => {
 
     // Si está en edición y no es la última pestaña, permitir guardado directo
     if (currentFormIsEdit && !isLast) {
-      html += `<button type="button" class="btn btn-gold" style="font-size:12px; padding:8px 14px;" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios directamente">
-        Guardar Cambios
+      html += `<button type="button" class="btn btn-gold" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios directamente">
+        ${saveCheckSvg}<span>Guardar Cambios</span>
       </button>`;
     }
 
     if (!isLast) {
       const nextTab = EMP_FORM_TABS[currentIdx + 1];
       html += `<button type="button" class="btn btn-primary btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
-        Continuar <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <span>Continuar</span>${arrowNextSvg}
       </button>`;
     } else {
       if (currentFormIsEdit) {
-        html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">Actualizar Servidor</button>`;
+        html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">${saveCheckSvg}<span>Actualizar Servidor</span></button>`;
       } else {
-        html += `<button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.saveCreate()">Guardar Servidor</button>`;
+        html += `<button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.saveCreate()">${saveCheckSvg}<span>Crear Servidor</span></button>`;
       }
     }
 
