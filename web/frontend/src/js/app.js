@@ -270,6 +270,36 @@ const App = (() => {
    * - Floating Labels automáticos y sincronización reactiva
    * - Teclado y navegación optimizada (enterkeyhint, navegación secuencial sin envíos accidentales)
    */
+  /**
+   * Mejora dinámica universal de botones de agregar (+)
+   * Asegura que cualquier botón con clase .btn-action-icon-add o .btn-action-add-circle
+   * tenga su etiqueta animada (.btn-action-add-label) para expandirse con animación al hacer hover.
+   */
+  function enhanceAddButtons(root = document) {
+    if (!root || !root.querySelectorAll) return;
+    const btns = root.querySelectorAll ? root.querySelectorAll('.btn-action-icon-add, .btn-action-add-circle') : [];
+    btns.forEach(btn => {
+      if (btn.querySelector('.btn-action-add-label')) return;
+      let labelText = '';
+      const id = (btn.id || '').toLowerCase();
+      const title = (btn.getAttribute('title') || btn.getAttribute('aria-label') || '').toLowerCase();
+      if (id.includes('servidor') || title.includes('servidor')) labelText = 'Nuevo Servidor';
+      else if (id.includes('horario') || title.includes('horario')) labelText = 'Nuevo Horario';
+      else if (id.includes('viatico') || title.includes('viático') || title.includes('viatico')) labelText = 'Nuevo Viático';
+      else if (btn.classList.contains('btn-action-export-pdf') || id.includes('pdf') || title.includes('pdf')) labelText = 'Exportar PDF';
+      else if (title.includes('vigencia')) labelText = 'Nueva Vigencia';
+      else if (title.includes('carpeta')) labelText = 'Nueva Carpeta';
+      else if (title.includes('agregar') || title.includes('nuevo') || title.includes('crear')) labelText = 'Nuevo';
+
+      if (labelText) {
+        const span = document.createElement('span');
+        span.className = 'btn-action-add-label';
+        span.textContent = labelText;
+        btn.appendChild(span);
+      }
+    });
+  }
+
   function initFormUX(container = document) {
     if (!container) return;
     try {
@@ -667,11 +697,13 @@ const App = (() => {
     if (typeof FX !== 'undefined') {
       FX.animatePageTransition(container, async () => {
         await renderSelectedModule();
+        enhanceAddButtons(container);
         FX.onModuleRendered(container);
         container.scrollTop = 0;
       });
     } else {
       await renderSelectedModule();
+      enhanceAddButtons(container);
       container.scrollTop = 0;
     }
   }
@@ -1697,6 +1729,7 @@ const App = (() => {
                   const dates = node.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input');
                   if (dates.length) initDatePickers(node);
                 }
+                enhanceAddButtons(node);
               }
             }
           }
@@ -1727,7 +1760,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

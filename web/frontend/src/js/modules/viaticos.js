@@ -468,6 +468,17 @@ const ViaticosModule = (() => {
               <label class="form-label">Dependencia / Secretaría</label>
               <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${dis} />
             </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Vigencia Fiscal / Carpeta de Viáticos *</label>
+              <select id="vf-id-paquete" class="filter-select" ${dis}>
+                ${(state.packages || []).map(p => {
+                  const isSel = (r.id_paquete && parseInt(r.id_paquete, 10) === parseInt(p.id_paquete, 10)) ||
+                                (state.activePackage && parseInt(state.activePackage.id_paquete, 10) === parseInt(p.id_paquete, 10));
+                  return `<option value="${p.id_paquete}" ${isSel ? 'selected' : ''}>Vigencia ${p.anio} - ${escHtml(p.nombre)}` + (p.total_viaticos ? ` (${p.total_viaticos} registros)` : '') + `</option>`;
+                }).join('')}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1227,8 +1238,20 @@ const ViaticosModule = (() => {
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.closeModal();
       App.showToast(`Viático creado exitosamente. Radicado: ${res.radicado || ''}`, 'success');
-      await load();
-      loadStats();
+      if (state.activeView === 'years') {
+        await loadPackages();
+        loadStatsGlobal();
+        const yearsContainer = document.getElementById('vit-years-container');
+        if (yearsContainer) await renderYearsView(yearsContainer);
+      } else if (state.activeView === 'year_packages') {
+        await loadPackages();
+        loadStatsYear(state.selectedYear);
+        const yearPkgsContainer = document.getElementById('vit-year-packages-container');
+        if (yearPkgsContainer) await renderYearPackagesView(yearPkgsContainer);
+      } else {
+        await load();
+        loadStats();
+      }
     } catch (err) { App.showToast(err.message, 'error'); }
     finally { if (btn) { btn.disabled = false; btn.textContent = 'Crear Viático'; } }
   }
@@ -1278,7 +1301,7 @@ const ViaticosModule = (() => {
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
       saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
       soporte: currentUploadedFile || null,
-      id_paquete: state.activePackage ? state.activePackage.id_paquete : 5,
+      id_paquete: parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.activePackage ? state.activePackage.id_paquete : (state.packages && state.packages[0] ? state.packages[0].id_paquete : 5)),
     };
   }
 
@@ -2141,15 +2164,16 @@ const ViaticosModule = (() => {
               <button
                 type="button"
                 class="btn-action-icon-add"
-                onclick="ViaticosModule.openCreatePackageModal()"
-                id="btn-nueva-vigencia"
-                title="Nueva Vigencia / Carga Excel"
-                aria-label="Nueva Vigencia / Carga Excel"
+                onclick="ViaticosModule.openCreate()"
+                id="btn-nuevo-viatico-root"
+                title="Nuevo Viático"
+                aria-label="Registrar nuevo viático institucional"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
+                <span class="btn-action-add-label">Nuevo Viático</span>
               </button>` : ''}
             </div>
           </div>
@@ -2206,14 +2230,15 @@ const ViaticosModule = (() => {
               <button
                 type="button"
                 class="btn-action-icon-add"
-                onclick="ViaticosModule.openCreatePackageModal(${year})"
-                title="Agregar carpeta o archivo Excel a la vigencia ${year}"
-                aria-label="Agregar carpeta a la vigencia ${year}"
+                onclick="ViaticosModule.openCreate()"
+                title="Nuevo Viático"
+                aria-label="Registrar nuevo viático institucional"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
+                <span class="btn-action-add-label">Nuevo Viático</span>
               </button>` : ''}
             </div>
           </div>
@@ -2283,6 +2308,7 @@ const ViaticosModule = (() => {
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
+                <span class="btn-action-add-label">Nuevo Viático</span>
               </button>` : ''}
             </div>
           </div>
