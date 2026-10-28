@@ -1163,18 +1163,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  padding: 5px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  width: 48px;
+  height: 48px;
+  border-radius: 0;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .sidebar-logo:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  transform: scale(1.08);
+  box-shadow: none !important;
 }
 
 .sidebar-logo svg,
@@ -1185,7 +1186,7 @@ body {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  filter: none !important;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)) !important;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1193,40 +1194,33 @@ body {
   flex: 1;
   min-width: 0;
   overflow: visible;
-  margin-left: 2px;
+  margin-left: 6px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
   transition: opacity var(--transition-base);
 }
 
 .sidebar-title {
-  display: block;
-  font-size: 1.35rem;
+  display: flex;
+  align-items: baseline;
+  font-size: 1.62rem;
   font-weight: 800;
   color: #ffffff !important;
   white-space: nowrap;
-  letter-spacing: -0.3px;
-  line-height: 1.15;
+  letter-spacing: -0.4px;
+  line-height: 1;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .sidebar-title span {
-  color: #D1AD2A !important; /* Amarillo mostaza institucional Boyacá */
+  color: #E5B32A !important; /* Amarillo mostaza institucional Boyacá */
   font-weight: 900;
-  margin-left: 0.12em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  margin-left: 0.15em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .sidebar-dept {
-  display: block !important;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.72);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  margin-top: 3px;
-  line-height: 1;
-  white-space: nowrap;
+  display: none !important;
 }
 
 .app.sidebar-collapsed .sidebar-logo { display: none; }
@@ -2686,18 +2680,18 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 [data-theme="dark"] .sidebar-logo {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 [data-theme="dark"] .sidebar-title {
   color: #ffffff !important;
 }
 [data-theme="dark"] .sidebar-title span {
-  color: #D1AD2A !important;
+  color: #E5B32A !important;
 }
 [data-theme="dark"] .sidebar-dept {
-  color: rgba(255, 255, 255, 0.72) !important;
+  display: none !important;
 }
 [data-theme="dark"] .sidebar-toggle {
   background: rgba(255, 255, 255, 0.12) !important;
