@@ -298,7 +298,7 @@
   }
 }
 
-/* ─── Viáticos Header Hero ───────────────────────────────────────────────── */
+/* ─── Viáticos Header Hero (Estructura de 2 Filas: Identidad Superior y Contenido Principal) ─── */
 .viaticos-header-hero {
   margin-bottom: var(--space-5, 20px);
   padding: 22px 26px;
@@ -309,9 +309,8 @@
   border-radius: var(--radius-xl, 18px);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
+  flex-direction: column;
+  gap: 16px;
   position: relative;
   overflow: visible;
 }
@@ -319,12 +318,52 @@
 .viaticos-header-hero::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3.5px;
+  inset: -1px;
+  border-radius: inherit;
   background: linear-gradient(90deg, #28871B 0%, #D1AD2A 35%, #CF3A78 70%, #007BC7 100%);
-  border-radius: var(--radius-xl, 18px) var(--radius-xl, 18px) 0 0;
+  clip-path: polygon(0 0, 100% 0, 100% 4px, 0 4px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Fila Superior: Gobernación a la izquierda y Talento 360 completamente a la derecha */
+.viaticos-header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.viaticos-header-eyebrow-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.viaticos-header-eyebrow-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* Fila Principal de Contenido */
+.viaticos-header-body-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .viaticos-header-body-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
 }
 
 .viaticos-header-main {
@@ -342,6 +381,36 @@
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.badge--talento360 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, rgba(209, 173, 42, 0.12), rgba(0, 123, 199, 0.08));
+  border: 1px solid rgba(209, 173, 42, 0.35);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  letter-spacing: 0.3px;
+}
+
+.badge--talento360 .t360-highlight {
+  color: #D1AD2A !important; /* Amarillo / Mostaza Boyacá */
+  font-weight: 900 !important;
+}
+
+[data-theme="dark"] .badge--talento360 {
+  background: rgba(209, 173, 42, 0.16) !important;
+  border-color: rgba(209, 173, 42, 0.45) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .badge--talento360 .t360-highlight {
+  color: #FACC15 !important; /* Amarillo brillante visible en fondo oscuro */
 }
 
 .viaticos-live-pill {
@@ -393,12 +462,27 @@
   max-width: 950px;
 }
 
+/* ─── Acento Dinámico del Nombre del Usuario (Sincronizado con su Avatar y Accesibilidad) ─── */
+:root {
+  --user-avatar-color: #E32431;
+  --user-name-color: #E32431;
+  --user-name-color-light: #E32431;
+  --user-name-color-dark: #f87171;
+}
+
+[data-theme="dark"] {
+  --user-name-color: var(--user-name-color-dark, #f87171);
+}
+
+.user-name-accent,
 .viaticos-user-name {
-  color: var(--text-primary, #0f172a);
-  font-weight: 900;
-  background: linear-gradient(135deg, #007BC7 0%, #1D8096 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--user-name-color, #E32431) !important;
+  font-weight: 900 !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  -webkit-text-fill-color: initial !important;
+  display: inline !important;
+  transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .viaticos-header-actions {
@@ -2236,8 +2320,8 @@ tbody tr:last-child td {
 }
 
 .activity-dot--viatico {
-  background: var(--color-teal);
-  box-shadow: 0 0 6px rgba(29, 128, 150, 0.55);
+  background: #f97316;
+  box-shadow: 0 0 7px rgba(249, 115, 22, 0.6);
 }
 
 .activity-content {
@@ -7708,55 +7792,63 @@ input.flatpickr-input:hover {
 /* ─── Tarjeta de Paquete de Viáticos (Excel Anual) ─── */
 .viaticos-pkg-card {
   background: var(--bg-surface, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 18px;
-  padding: 22px 20px 18px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 20px;
+  padding: 22px 22px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 225px;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  min-height: 245px;
+  box-shadow: 0 4px 20px -3px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
 }
 
+.viaticos-folder-card-body,
+.viaticos-year-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .viaticos-pkg-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #16a34a 0%, #22c55e 50%, #fbbf24 100%);
-  opacity: 0.85;
-  transition: height 0.25s ease, opacity 0.25s ease;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #28871B 0%, #16a34a 45%, #D1AD2A 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 4.5px, 0 4.5px);
+  opacity: 0.95;
+  transition: clip-path 0.25s ease, opacity 0.25s ease;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .viaticos-pkg-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(22, 163, 74, 0.45);
-  box-shadow: 0 14px 30px -6px rgba(22, 163, 74, 0.14), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-5px);
+  border-color: rgba(40, 135, 27, 0.42);
+  box-shadow: 0 16px 36px -6px rgba(40, 135, 27, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
 }
 
 .viaticos-pkg-card:hover::before {
-  height: 5px;
+  clip-path: polygon(0 0, 100% 0, 100% 5.5px, 0 5.5px);
   opacity: 1;
 }
 
 [data-theme="dark"] .viaticos-pkg-card {
-  background: linear-gradient(180deg, #111827 0%, #0b1322 100%);
-  border-color: #1f2937;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg, #111a2e 0%, #0c1424 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="dark"] .viaticos-pkg-card::before {
-  background: linear-gradient(90deg, #22c55e 0%, #fbbf24 60%, #f59e0b 100%);
+  background: linear-gradient(90deg, #4ade80 0%, #fbbf24 60%, #f59e0b 100%);
 }
 
 [data-theme="dark"] .viaticos-pkg-card:hover {
-  border-color: rgba(251, 191, 36, 0.5);
-  box-shadow: 0 14px 30px -6px rgba(251, 191, 36, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+  border-color: rgba(74, 222, 128, 0.45);
+  box-shadow: 0 16px 36px -8px rgba(74, 222, 128, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.6);
 }
 
 .viaticos-pkg-card-top {
@@ -7764,38 +7856,43 @@ input.flatpickr-input:hover {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .viaticos-pkg-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(22, 163, 74, 0.1);
-  border: 1px solid rgba(22, 163, 74, 0.2);
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(40, 135, 27, 0.12) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border: 1px solid rgba(40, 135, 27, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #16a34a;
+  color: #28871B;
   flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 8px rgba(40, 135, 27, 0.08);
 }
 
 .viaticos-pkg-card:hover .viaticos-pkg-icon-wrap {
-  background: #16a34a;
+  background: linear-gradient(135deg, #28871B 0%, #16a34a 100%);
+  border-color: #28871B;
   color: #ffffff;
-  transform: scale(1.05);
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 4px 14px rgba(40, 135, 27, 0.3);
 }
 
 [data-theme="dark"] .viaticos-pkg-icon-wrap {
-  background: rgba(251, 191, 36, 0.12);
-  border-color: rgba(251, 191, 36, 0.25);
-  color: #fbbf24;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.14) 0%, rgba(34, 197, 94, 0.06) 100%);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] .viaticos-pkg-card:hover .viaticos-pkg-icon-wrap {
-  background: #fbbf24;
-  color: #111827;
+  background: linear-gradient(135deg, #4ade80 0%, #28871B 100%);
+  color: #0d1523;
+  box-shadow: 0 4px 14px rgba(74, 222, 128, 0.35);
 }
 
 .viaticos-pkg-year-pill {
@@ -7862,76 +7959,212 @@ input.flatpickr-input:hover {
   margin-bottom: 14px;
 }
 
-/* ─── Estadísticas compactas en tarjeta ─── */
-.viaticos-pkg-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  border-radius: 12px;
-  margin-bottom: 14px;
-}
-
-[data-theme="dark"] .viaticos-pkg-stats {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.05);
-}
-
-.viaticos-pkg-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: center;
-}
-
-.viaticos-pkg-stat-val {
-  font-size: 13px;
+.viaticos-folder-subheading {
+  font-size: 11px;
   font-weight: 800;
-  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-azul-profundo, #005387);
+  display: block;
+  margin-bottom: 3px;
+}
+
+[data-theme="dark"] .viaticos-folder-subheading {
+  color: #38bdf8;
+}
+
+.viaticos-folder-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viaticos-folder-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(40, 135, 27, 0.08);
+  color: #28871B;
+  border: 1px solid rgba(40, 135, 27, 0.22);
+  letter-spacing: 0.2px;
+}
+
+.viaticos-folder-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #28871B;
+  box-shadow: 0 0 6px rgba(40, 135, 27, 0.6);
+  animation: pulse-folder-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-folder-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+[data-theme="dark"] .viaticos-folder-status-indicator {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+[data-theme="dark"] .viaticos-folder-status-dot {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.8);
+}
+
+.viaticos-pkg-year-pill--folder {
+  font-size: 12.5px !important;
+  font-weight: 800 !important;
+  padding: 3px 9px !important;
+  border-radius: 8px !important;
+  background: rgba(15, 23, 42, 0.05) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="dark"] .viaticos-pkg-year-pill--folder {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f3f4f6 !important;
+}
+
+.viaticos-folder-file-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(40, 135, 27, 0.06) 0%, rgba(0, 123, 199, 0.04) 100%);
+  border: 1px solid rgba(40, 135, 27, 0.18);
+  margin-bottom: 10px;
+  max-width: 100%;
+  transition: all 0.2s ease;
+}
+
+.viaticos-folder-card:hover .viaticos-folder-file-pill {
+  border-color: rgba(40, 135, 27, 0.35);
+  background: rgba(40, 135, 27, 0.09);
+}
+
+.viaticos-folder-file-ext {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #28871B;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.viaticos-folder-file-name {
+  font-size: 11.5px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.viaticos-pkg-stat-val.is-approved {
-  color: #16a34a;
+[data-theme="dark"] .viaticos-folder-file-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .viaticos-pkg-stat-val.is-approved {
-  color: #fbbf24;
+[data-theme="dark"] .viaticos-folder-file-name {
+  color: #cbd5e1;
+}
+
+/* ─── Estadísticas de Tarjeta (Universal con divisores y estilo Glass) ─── */
+.viaticos-pkg-stats {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  padding: 12px 10px !important;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.7) 100%) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 14px !important;
+  margin-bottom: 14px !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="dark"] .viaticos-pkg-stats {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.viaticos-pkg-stat-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  text-align: center !important;
+  padding: 0 4px !important;
+  flex: 1 !important;
+}
+
+.viaticos-pkg-stat-val {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: var(--text-primary, #0f172a) !important;
+  letter-spacing: -0.01em !important;
+  font-feature-settings: "tnum" !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.viaticos-pkg-stat-val.is-approved {
+  color: #28871B !important;
+  font-weight: 900 !important;
+}
+
+.viaticos-pkg-stat-val.is-zero {
+  color: #28871B !important;
+  font-weight: 800 !important;
 }
 
 .viaticos-pkg-stat-val.is-pending {
-  color: #ea580c;
+  color: #D14600 !important;
+  font-weight: 900 !important;
+}
+
+[data-theme="dark"] .viaticos-pkg-stat-val.is-approved,
+[data-theme="dark"] .viaticos-pkg-stat-val.is-zero {
+  color: #4ade80 !important;
 }
 
 [data-theme="dark"] .viaticos-pkg-stat-val.is-pending {
-  color: #fb923c;
+  color: #fb923c !important;
 }
 
 .viaticos-pkg-stat-lbl {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  color: var(--text-tertiary, #94a3b8) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
 }
 
-/* ─── Acciones en la base de la tarjeta (según boceto del usuario) ─── */
+/* ─── Acciones en la base de la tarjeta ─── */
 .viaticos-pkg-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   margin-top: auto;
 }
 
 [data-theme="dark"] .viaticos-pkg-actions {
-  border-top-color: #1f2937;
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .viaticos-pkg-action-group-left {
@@ -7942,40 +8175,53 @@ input.flatpickr-input:hover {
 
 .viaticos-pkg-btn-enter {
   height: 38px;
-  min-width: 96px;
   padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid rgba(22, 163, 74, 0.35);
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  border: 1px solid rgba(40, 135, 27, 0.4);
+  background: linear-gradient(135deg, #28871B 0%, #206d15 100%);
   color: #ffffff !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   letter-spacing: 0.2px;
   cursor: pointer;
-  transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 3px 10px rgba(40, 135, 27, 0.28);
+}
+
+.viaticos-pkg-btn-enter .btn-arrow-icon {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.25s ease;
 }
 
 .viaticos-pkg-btn-enter:hover {
-  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  background: linear-gradient(135deg, #2ea320 0%, #28871B 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.38);
+  box-shadow: 0 6px 18px rgba(40, 135, 27, 0.45);
+}
+
+.viaticos-pkg-btn-enter:hover .btn-arrow-icon {
+  transform: translateX(3px);
+}
+
+.viaticos-pkg-btn-enter:active {
+  transform: scale(0.96);
 }
 
 [data-theme="dark"] .viaticos-pkg-btn-enter {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(135deg, #28871B 0%, #206d15 100%);
   border-color: rgba(74, 222, 128, 0.4);
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+  box-shadow: 0 3px 10px rgba(40, 135, 27, 0.35);
 }
 
 [data-theme="dark"] .viaticos-pkg-btn-enter:hover {
-  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.45);
+  background: linear-gradient(135deg, #2ea320 0%, #28871B 100%);
+  box-shadow: 0 6px 18px rgba(74, 222, 128, 0.45);
 }
 
 /* ─── Tarjeta para AGREGAR UNO NUEVO (Dibujada como un círculo '+' en el boceto) ─── */
@@ -8413,13 +8659,12 @@ input.flatpickr-input:hover {
 .viaticos-year-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
+  inset: -1px;
+  border-radius: inherit;
   background: linear-gradient(90deg, #28871B 0%, #D1AD2A 35%, #CF3A78 70%, #007BC7 100%);
-  border-radius: 20px 20px 0 0;
-  transition: height 0.25s ease;
+  clip-path: polygon(0 0, 100% 0, 100% 4.5px, 0 4.5px);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .viaticos-year-card:hover {
@@ -8429,7 +8674,7 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-card:hover::before {
-  height: 5px;
+  clip-path: polygon(0 0, 100% 0, 100% 5.5px, 0 5.5px);
 }
 
 [data-theme="dark"] .viaticos-year-card {
@@ -8449,26 +8694,58 @@ input.flatpickr-input:hover {
   flex: 1;
 }
 
+/* Icono Calendario Limpio — Sin recuadro de fondo, sin sombra, sin animaciones según solicitud del usuario */
 .viaticos-year-card .viaticos-pkg-icon-wrap {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(0, 123, 199, 0.12) 0%, rgba(0, 123, 199, 0.04) 100%);
-  border: 1.5px solid rgba(0, 123, 199, 0.22);
-  color: #007BC7;
+  width: 34px;
+  height: 34px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #007BC7 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 123, 199, 0.08);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  margin: 0;
+  transition: none !important;
+  transform: none !important;
+  flex-shrink: 0;
+}
+
+.viaticos-year-card .viaticos-pkg-icon-wrap svg {
+  width: 28px;
+  height: 28px;
+  stroke: #007BC7 !important;
+  stroke-width: 2.2 !important;
+  display: block;
+  transition: none !important;
 }
 
 .viaticos-year-card:hover .viaticos-pkg-icon-wrap {
-  background: linear-gradient(135deg, #007BC7 0%, #005387 100%);
-  color: #ffffff;
-  border-color: #007BC7;
-  transform: scale(1.08) rotate(-3deg);
-  box-shadow: 0 6px 18px rgba(0, 123, 199, 0.35);
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #007BC7 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-icon-wrap {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #38bdf8 !important;
+}
+
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-icon-wrap svg {
+  stroke: #38bdf8 !important;
+}
+
+[data-theme="dark"] .viaticos-year-card:hover .viaticos-pkg-icon-wrap {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #38bdf8 !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .viaticos-year-card .viaticos-pkg-year-pill--hero {
@@ -8517,7 +8794,8 @@ input.flatpickr-input:hover {
   line-height: 1.25;
 }
 
-.viaticos-year-card .viaticos-pkg-desc {
+.viaticos-year-card .viaticos-pkg-desc,
+.viaticos-folder-card .viaticos-pkg-desc {
   font-size: 12.5px;
   color: var(--text-secondary, #64748b);
   line-height: 1.5;
@@ -8529,22 +8807,24 @@ input.flatpickr-input:hover {
   overflow: hidden;
 }
 
-.viaticos-year-card .viaticos-pkg-stats {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1.35fr;
-  align-items: center;
-  gap: 0;
-  padding: 11px 12px;
-  background: var(--bg-surface-elevated, rgba(248, 250, 252, 0.9));
-  border: 1px solid var(--border, rgba(226, 232, 240, 0.8));
-  border-radius: 14px;
-  margin-bottom: 12px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+.viaticos-year-card .viaticos-pkg-stats,
+.viaticos-folder-card .viaticos-pkg-stats {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr auto 1.35fr !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 11px 12px !important;
+  background: var(--bg-surface-elevated, rgba(248, 250, 252, 0.9)) !important;
+  border: 1px solid var(--border, rgba(226, 232, 240, 0.8)) !important;
+  border-radius: 14px !important;
+  margin-bottom: 14px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stats {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.06);
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stats,
+[data-theme="dark"] .viaticos-folder-card .viaticos-pkg-stats {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 .viaticos-pkg-stat-divider {
@@ -8557,90 +8837,142 @@ input.flatpickr-input:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.viaticos-year-card .viaticos-pkg-stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: center;
-  padding: 0 4px;
+.viaticos-year-card .viaticos-pkg-stat-item,
+.viaticos-folder-card .viaticos-pkg-stat-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  text-align: center !important;
+  padding: 0 4px !important;
 }
 
-.viaticos-year-card .viaticos-pkg-stat-val {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text-primary, #0f172a);
-  letter-spacing: -0.01em;
-  font-feature-settings: "tnum";
+.viaticos-year-card .viaticos-pkg-stat-val,
+.viaticos-folder-card .viaticos-pkg-stat-val {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: var(--text-primary, #0f172a) !important;
+  letter-spacing: -0.01em !important;
+  font-feature-settings: "tnum" !important;
 }
 
-.viaticos-year-card .viaticos-pkg-stat-val.is-pending {
+.viaticos-year-card .viaticos-pkg-stat-val.is-pending,
+.viaticos-folder-card .viaticos-pkg-stat-val.is-pending {
   color: #D14600 !important;
-  font-weight: 900;
+  font-weight: 900 !important;
 }
 
-.viaticos-year-card .viaticos-pkg-stat-val.is-approved {
+.viaticos-year-card .viaticos-pkg-stat-val.is-approved,
+.viaticos-folder-card .viaticos-pkg-stat-val.is-approved,
+.viaticos-folder-card .viaticos-pkg-stat-val.is-zero {
   color: #28871B !important;
-  font-weight: 900;
+  font-weight: 900 !important;
 }
 
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stat-val.is-pending {
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stat-val.is-pending,
+[data-theme="dark"] .viaticos-folder-card .viaticos-pkg-stat-val.is-pending {
   color: #fb923c !important;
 }
 
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stat-val.is-approved {
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-stat-val.is-approved,
+[data-theme="dark"] .viaticos-folder-card .viaticos-pkg-stat-val.is-approved,
+[data-theme="dark"] .viaticos-folder-card .viaticos-pkg-stat-val.is-zero {
   color: #4ade80 !important;
 }
 
-.viaticos-year-card .viaticos-pkg-stat-lbl {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--text-tertiary, #94a3b8);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+.viaticos-year-card .viaticos-pkg-stat-lbl,
+.viaticos-folder-card .viaticos-pkg-stat-lbl {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  color: var(--text-tertiary, #94a3b8) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
 }
 
-/* ─── Barra de Progreso de Trámite Anual ─── */
+/* ─── Barra de Progreso de Trámite Anual (Diseño Moderno & Atractivo) ─── */
 .viaticos-year-progress-wrap {
   margin-bottom: 14px;
-  padding: 0 2px;
+  padding: 0 1px;
 }
 
 .viaticos-year-progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-tertiary, #64748b);
-  margin-bottom: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary, #475569);
+  letter-spacing: 0.25px;
+  margin-bottom: 7px;
 }
 
 .viaticos-year-pct {
+  font-size: 11px;
   font-weight: 800;
-  color: #28871B;
+  color: #15803d;
+  background: rgba(40, 135, 27, 0.1);
+  border: 1px solid rgba(40, 135, 27, 0.22);
+  padding: 1.5px 8px;
+  border-radius: 999px;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(40, 135, 27, 0.08);
 }
 
 [data-theme="dark"] .viaticos-year-pct {
   color: #4ade80;
+  background: rgba(74, 222, 128, 0.14);
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .viaticos-year-progress-track {
   width: 100%;
-  height: 5px;
-  background: rgba(0, 0, 0, 0.06);
+  height: 8px;
+  background: rgba(15, 23, 42, 0.06);
   border-radius: 999px;
+  padding: 1.5px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  position: relative;
   overflow: hidden;
 }
 
 [data-theme="dark"] .viaticos-year-progress-track {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .viaticos-year-progress-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #28871B 0%, #007BC7 100%);
+  background: linear-gradient(90deg, #28871B 0%, #10b981 35%, #007BC7 85%, #0284c7 100%);
+  box-shadow: 0 1px 6px rgba(0, 123, 199, 0.35), 0 0 10px rgba(40, 135, 27, 0.25);
+  position: relative;
+  overflow: hidden;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.viaticos-year-progress-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+  animation: vit-progress-shimmer 2.4s infinite ease-in-out;
+  border-radius: inherit;
+}
+
+@keyframes vit-progress-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+[data-theme="dark"] .viaticos-year-progress-bar {
+  background: linear-gradient(90deg, #22c55e 0%, #10b981 40%, #38bdf8 100%);
+  box-shadow: 0 1px 8px rgba(56, 189, 248, 0.45), 0 0 12px rgba(34, 197, 94, 0.3);
 }
 
 /* ─── Acciones Inferiores en Tarjeta de Año ─── */

@@ -1929,35 +1929,71 @@ const ViaticosModule = (() => {
     const grid = document.getElementById('vit-year-pkgs-grid');
     if (!grid) return;
 
-    const cardsHtml = yearPkgs.map(pkg => `
-      <div class="viaticos-pkg-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
-        <div>
+    const cardsHtml = yearPkgs.map(pkg => {
+      const totalViaticos = parseInt(pkg.total_viaticos, 10) || 0;
+      const pendientes = parseInt(pkg.pendientes, 10) || 0;
+      const tramitados = Math.max(0, totalViaticos - pendientes);
+      const pctTramitado = totalViaticos > 0 
+        ? Math.round((tramitados / totalViaticos) * 100) 
+        : 100;
+      const fileName = pkg.archivo_origen || `${pkg.nombre}.xlsx`;
+      const descText = pkg.descripcion 
+        ? pkg.descripcion 
+        : `Vigencia fiscal ${pkg.anio} en curso`;
+
+      return `
+      <div class="viaticos-pkg-card viaticos-folder-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
+        <div class="viaticos-folder-card-body">
           <div class="viaticos-pkg-card-top">
-            <div class="viaticos-pkg-icon-wrap" title="Archivo Excel / Vigencia ${pkg.anio}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:22px;height:22px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <div class="viaticos-pkg-icon-wrap" title="Archivo Excel / ${escHtml(pkg.nombre)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:22px;height:22px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             </div>
-            <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
+            <div class="viaticos-folder-badge-group">
+              <span class="viaticos-folder-status-indicator" title="Carpeta sincronizada y activa">
+                <span class="viaticos-folder-status-dot"></span> Activa
+              </span>
+              <span class="viaticos-pkg-year-pill viaticos-pkg-year-pill--folder">${pkg.anio}</span>
+            </div>
           </div>
 
-          <h3 class="viaticos-pkg-name">${escHtml(pkg.nombre)}</h3>
-          <div class="viaticos-pkg-file">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-            <span>${escHtml(pkg.archivo_origen || `${pkg.nombre}.xlsx`)}</span>
+          <div class="viaticos-folder-title-block">
+            <span class="viaticos-folder-subheading">Carpeta Presupuestal</span>
+            <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
           </div>
-          ${pkg.descripcion ? `<div class="viaticos-pkg-desc">${escHtml(pkg.descripcion)}</div>` : ''}
+
+          <div class="viaticos-folder-file-pill" title="Archivo Excel fuente: ${escHtml(fileName)}">
+            <span class="viaticos-folder-file-ext">XLSX</span>
+            <span class="viaticos-folder-file-name">${escHtml(fileName)}</span>
+          </div>
+
+          <div class="viaticos-pkg-desc" title="${escHtml(descText)}">
+            ${escHtml(descText)}
+          </div>
 
           <div class="viaticos-pkg-stats">
             <div class="viaticos-pkg-stat-item">
-              <span class="viaticos-pkg-stat-val">${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</span>
+              <span class="viaticos-pkg-stat-val">${totalViaticos.toLocaleString('es-CO')}</span>
               <span class="viaticos-pkg-stat-lbl">Viáticos</span>
             </div>
+            <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
             <div class="viaticos-pkg-stat-item">
-              <span class="viaticos-pkg-stat-val is-pending">${(pkg.pendientes || 0).toLocaleString('es-CO')}</span>
-              <span class="viaticos-pkg-stat-lbl">Pendientes</span>
+              <span class="viaticos-pkg-stat-val ${pendientes > 0 ? 'is-pending' : 'is-zero'}">${pendientes.toLocaleString('es-CO')}</span>
+              <span class="viaticos-pkg-stat-lbl">${pendientes === 0 ? 'Al Día' : 'Pendientes'}</span>
             </div>
+            <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
             <div class="viaticos-pkg-stat-item">
-              <span class="viaticos-pkg-stat-val is-approved" title="${pkg.valor_aprobado_formatted}">${pkg.valor_aprobado_formatted || '$ 0'}</span>
+              <span class="viaticos-pkg-stat-val is-approved" title="${pkg.valor_aprobado_formatted || '$ 0'}">${pkg.valor_aprobado_formatted || '$ 0'}</span>
               <span class="viaticos-pkg-stat-lbl">Aprobado</span>
+            </div>
+          </div>
+
+          <div class="viaticos-year-progress-wrap viaticos-folder-progress-wrap">
+            <div class="viaticos-year-progress-header">
+              <span>Avance de trámite</span>
+              <span class="viaticos-year-pct">${pctTramitado}%</span>
+            </div>
+            <div class="viaticos-year-progress-track">
+              <div class="viaticos-year-progress-bar" style="width: ${pctTramitado}%;"></div>
             </div>
           </div>
         </div>
@@ -2004,11 +2040,12 @@ const ViaticosModule = (() => {
             aria-label="Entrar a ${escHtml(pkg.nombre)}"
           >
             <span>Entrar</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-arrow-icon" style="width:15px;height:15px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </button>
         </div>
       </div>
-    `).join('');
+      `;
+    }).join('');
 
     const addCardHtml = `
       <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal(${year})" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal(${year})" title="Agregar nuevo archivo Excel a la vigencia ${year}">
@@ -2033,20 +2070,25 @@ const ViaticosModule = (() => {
         <div class="module-enter" id="vit-root-years">
           <!-- Encabezado General del Módulo Viáticos -->
           <div class="page-header viaticos-header-hero">
-            <div class="viaticos-header-main">
-              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+            <div class="viaticos-header-top-row">
+              <div class="viaticos-header-eyebrow-left">
                 <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
-                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
-                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+              </div>
+              <div class="viaticos-header-eyebrow-right">
+                <span class="badge badge--talento360">
                   <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
                   <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
-                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                  <span>Talento <span class="t360-highlight" style="color:#D1AD2A;font-weight:900;">360</span></span>
                 </span>
               </div>
-              <h1 class="viaticos-hero-title">Viáticos</h1>
-              <p class="viaticos-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la <strong>Gobernación de Boyacá</strong></p>
             </div>
-            <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+
+            <div class="viaticos-header-body-row">
+              <div class="viaticos-header-main">
+                <h1 class="viaticos-hero-title">Viáticos</h1>
+                <p class="viaticos-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la <strong>Gobernación de Boyacá</strong></p>
+              </div>
+              <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <!-- Dropdown de Opciones Secundarias -->
               <div class="actions-dropdown-wrap">
                 <button
@@ -2139,33 +2181,36 @@ const ViaticosModule = (() => {
         <div class="module-enter" id="vit-root-year-packages">
           <!-- Cabecera Superior Hero de la Vigencia Seleccionada -->
           <div class="page-header viaticos-header-hero">
-            <div class="viaticos-header-main">
-              <!-- Navegación Breadcrumb y Marca Oficial -->
-              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <div class="viaticos-header-top-row">
+              <div class="viaticos-header-eyebrow-left">
                 <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToYears()" title="Volver al histórico anual de viáticos">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   <span>Volver a Años</span>
                 </button>
                 <span class="viaticos-header-sep" style="color:var(--text-tertiary);font-weight:600;">/</span>
                 <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
-                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
-                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+              </div>
+              <div class="viaticos-header-eyebrow-right">
+                <span class="badge badge--talento360">
                   <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
                   <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
-                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                  <span>Talento <span class="t360-highlight" style="color:#D1AD2A;font-weight:900;">360</span></span>
                 </span>
               </div>
-
-              <!-- Título con Badge de Año Destacado -->
-              <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
-                <span class="viaticos-hero-year-badge">${year}</span>
-                <h1 class="viaticos-hero-title" style="margin:0;">Vigencia Fiscal ${year}</h1>
-              </div>
-
-              <p class="viaticos-hero-desc">
-                Gestión de carpetas, liquidaciones presupuestales y comisiones de servicio para el año fiscal <strong>${year}</strong> de la Gobernación de Boyacá.
-              </p>
             </div>
+
+            <div class="viaticos-header-body-row">
+              <div class="viaticos-header-main">
+                <!-- Título con Badge de Año Destacado -->
+                <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
+                  <span class="viaticos-hero-year-badge">${year}</span>
+                  <h1 class="viaticos-hero-title" style="margin:0;">Vigencia Fiscal ${year}</h1>
+                </div>
+
+                <p class="viaticos-hero-desc">
+                  Gestión de carpetas, liquidaciones presupuestales y comisiones de servicio para el año fiscal <strong>${year}</strong> de la Gobernación de Boyacá.
+                </p>
+              </div>
 
             <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelYear(${year})" title="Descargar todos los viáticos de la vigencia ${year} en ZIP con Excels individuales y consolidado">
@@ -2207,35 +2252,38 @@ const ViaticosModule = (() => {
         <div class="module-enter" id="vit-root-detail">
           <!-- Cabecera Superior Hero del Paquete -->
           <div class="page-header viaticos-header-hero">
-            <div class="viaticos-header-main">
-              <!-- Navegación Breadcrumb y Marca Oficial -->
-              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <div class="viaticos-header-top-row">
+              <div class="viaticos-header-eyebrow-left">
                 <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToYearPackages()" title="Volver a las carpetas del año ${pkg.anio}">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   <span>Volver a Carpetas (${pkg.anio})</span>
                 </button>
                 <span class="viaticos-header-sep" style="color:var(--text-tertiary);font-weight:600;">/</span>
                 <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
-                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
-                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+              </div>
+              <div class="viaticos-header-eyebrow-right">
+                <span class="badge badge--talento360">
                   <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
                   <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
-                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                  <span>Talento <span class="t360-highlight" style="color:#D1AD2A;font-weight:900;">360</span></span>
                 </span>
               </div>
-
-              <!-- Título con Badge de Año y Nombre -->
-              <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
-                <span class="viaticos-hero-year-badge">${pkg.anio}</span>
-                <h1 class="viaticos-hero-title" style="margin:0;" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
-              </div>
-
-              <p class="viaticos-hero-desc">
-                Registros de solicitudes y comisiones del archivo <strong>${escHtml(pkg.archivo_origen || pkg.nombre)}</strong> en la Vigencia Fiscal ${pkg.anio}.
-              </p>
             </div>
 
-            <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div class="viaticos-header-body-row">
+              <div class="viaticos-header-main">
+                <!-- Título con Badge de Año y Nombre -->
+                <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
+                  <span class="viaticos-hero-year-badge">${pkg.anio}</span>
+                  <h1 class="viaticos-hero-title" style="margin:0;" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
+                </div>
+
+                <p class="viaticos-hero-desc">
+                  Registros de solicitudes y comisiones del archivo <strong>${escHtml(pkg.archivo_origen || pkg.nombre)}</strong> en la Vigencia Fiscal ${pkg.anio}.
+                </p>
+              </div>
+
+              <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage(${pkg.id_paquete})" title="Descargar registros de este archivo Excel">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span>Descargar Excel</span>

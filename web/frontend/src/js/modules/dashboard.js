@@ -139,6 +139,9 @@ const DashboardModule = (() => {
   // 1. DASHBOARD PERSONALIZADO: ANGELA USSA (SERVIDORES PÚBLICOS)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderEmployeesDashboard(container) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const displayName = user.name || 'Angela Ussa';
+
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
@@ -147,7 +150,7 @@ const DashboardModule = (() => {
               <h1 class="page-heading" style="margin:0;">Dashboard · Servidores Públicos</h1>
               <span class="badge badge--blue" style="font-weight:700;">Planta de Personal</span>
             </div>
-            <p class="page-desc">Bienvenida, Angela Ussa · Panel institucional de gestión de planta, servidores públicos y expedientes laborales</p>
+            <p class="page-desc">Bienvenida, <strong class="user-name-accent">${escHtml(displayName)}</strong> · Panel institucional de gestión de planta, servidores públicos y expedientes laborales</p>
           </div>
           <div class="page-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-primary-cta" onclick="App.navigate('employees')" style="display:inline-flex; align-items:center; gap:8px;">
@@ -467,36 +470,47 @@ const DashboardModule = (() => {
   // 2. DASHBOARD PERSONALIZADO: BERGENET GUTIERREZ (VIÁTICOS)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderViaticosDashboard(container) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const displayName = user.name || 'Bergenet Gutierrez';
+
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header viaticos-header-hero">
-          <div class="viaticos-header-main">
-            <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+          <!-- Fila Superior de Identidad: Gobernación a la izquierda y Talento 360 completamente a la derecha -->
+          <div class="viaticos-header-top-row">
+            <div class="viaticos-header-eyebrow-left">
               <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
-              <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
-              <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+            </div>
+            <div class="viaticos-header-eyebrow-right">
+              <span class="badge badge--talento360">
                 <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
                 <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
-                <span>Talento <span style="color:#007BC7;">360</span></span>
+                <span>Talento <span class="t360-highlight" style="color:#D1AD2A;font-weight:900;">360</span></span>
               </span>
             </div>
-            <h1 class="viaticos-hero-title">Control de Viáticos y Comisiones</h1>
-            <p class="viaticos-hero-desc">
-              ¡Hola, <strong class="viaticos-user-name">Bergenet Gutierrez</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
-            </p>
           </div>
-          <div class="page-actions viaticos-header-actions">
-            <button class="btn btn-secondary-ghost" id="btn-refresh-dashboard" onclick="DashboardModule.render('viaticos')" title="Actualizar métricas en tiempo real">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Actualizar</span>
-            </button>
-            <button class="btn btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; padding:10px 20px; border-radius:12px;" title="Exportar informe oficial de viáticos en PDF">
-              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-              </svg>
-              <span>Exportar Informe</span>
-            </button>
+
+          <!-- Fila Principal: Título y descripción a la izquierda, botones de acción a la derecha -->
+          <div class="viaticos-header-body-row">
+            <div class="viaticos-header-main">
+              <h1 class="viaticos-hero-title">Control de Viáticos y Comisiones</h1>
+              <p class="viaticos-hero-desc">
+                ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
+              </p>
+            </div>
+            <div class="page-actions viaticos-header-actions">
+              <button class="btn btn-secondary-ghost" id="btn-refresh-dashboard" onclick="DashboardModule.render('viaticos')" title="Actualizar métricas en tiempo real">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Actualizar</span>
+              </button>
+              <button class="btn btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; padding:10px 20px; border-radius:12px;" title="Exportar informe oficial de viáticos en PDF">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+                <span>Exportar Informe</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -544,9 +558,9 @@ const DashboardModule = (() => {
         <!-- Fila 2: Últimas Comisiones (Izquierda) + Presupuesto por Dependencia (Derecha) -->
         <div class="viaticos-bottom-grid">
           <div class="activity-card db-glass-card">
-            <div class="activity-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="activity-title" style="display:flex;justify-content:flex-start;align-items:center;gap:12px;text-align:left;">
               <div>
-                <span style="font-size:1.02rem;font-weight:800;">Últimas Comisiones de Viáticos Registradas</span>
+                <span style="font-size:1.02rem;font-weight:800;display:block;">Últimas Comisiones de Viáticos Registradas</span>
                 <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Actividad y trazabilidad en tiempo real</span>
               </div>
             </div>
@@ -1011,7 +1025,7 @@ const DashboardModule = (() => {
           const depText = normalizeDep(rawDep);
           return `
           <li class="activity-item" style="padding:11px 14px;border-radius:12px;transition:all 0.22s ease;background:rgba(255,255,255,0.4);border:1px solid var(--color-border,rgba(0,0,0,0.05));margin-bottom:6px;">
-            <div class="activity-dot activity-dot--viatico" style="background:#007BC7;box-shadow:0 0 8px rgba(0,123,199,0.5);margin-top:5px;flex-shrink:0;"></div>
+            <div class="activity-dot activity-dot--viatico" style="background:#f97316;box-shadow:0 0 8px rgba(249,115,22,0.55);margin-top:5px;flex-shrink:0;"></div>
             <div class="activity-content" style="min-width:0;flex:1;">
               <div class="activity-persona" style="font-weight:800;font-size:0.89rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;">
                 <span>${escHtml(v.apellidos_nombres || v.persona || 'Funcionario')}</span>
@@ -1041,6 +1055,9 @@ const DashboardModule = (() => {
   // 3. DASHBOARD PERSONALIZADO: DORIS CAÑON (HORARIOS Y MODALIDADES)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderHorariosDashboard(container) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const displayName = user.name || 'Doris Cañon';
+
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
@@ -1049,7 +1066,7 @@ const DashboardModule = (() => {
               <h1 class="page-heading" style="margin:0;">Dashboard · Horarios y Modalidades</h1>
               <span class="badge badge--aprobada" style="font-weight:700;">Jornadas y Teletrabajo</span>
             </div>
-            <p class="page-desc">Bienvenida, Doris Cañon · Panel de control de jornadas laborales, teletrabajo y modalidades flexibles</p>
+            <p class="page-desc">Bienvenida, <strong class="user-name-accent">${escHtml(displayName)}</strong> · Panel de control de jornadas laborales, teletrabajo y modalidades flexibles</p>
           </div>
           <div class="page-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-primary-cta" onclick="App.navigate('horarios')" style="display:inline-flex; align-items:center; gap:8px;">
@@ -1377,6 +1394,9 @@ const DashboardModule = (() => {
   // 4. DASHBOARD GENERAL / ADMINISTRADOR (ADMINISTRACIÓN GENERAL)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderAdminDashboard(container) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const displayName = user.name || 'Administrador';
+
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
@@ -1385,7 +1405,7 @@ const DashboardModule = (() => {
               <h1 class="page-heading" style="margin:0;">Dashboard General</h1>
               <span class="badge badge--blue" style="font-weight:700;">Administración General</span>
             </div>
-            <p class="page-desc">Resumen integral 360 del sistema de gestión de talento humano · Gobernación de Boyacá</p>
+            <p class="page-desc">Bienvenido, <strong class="user-name-accent">${escHtml(displayName)}</strong> · Resumen integral 360 del sistema de gestión de talento humano · Gobernación de Boyacá</p>
           </div>
           <div class="page-actions">
             <button class="btn btn-primary btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px;">

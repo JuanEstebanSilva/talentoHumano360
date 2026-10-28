@@ -1639,9 +1639,9 @@ body {
   padding: 12px 14px;
   margin: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.12);
+  background: var(--avatar-bg-tint, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--avatar-border-tint, rgba(255, 255, 255, 0.16));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px var(--avatar-glow-tint, rgba(0, 0, 0, 0.12));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
@@ -1649,10 +1649,10 @@ body {
   cursor: pointer;
 }
 .sidebar-user:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.32);
+  background: var(--avatar-hover-tint, rgba(255, 255, 255, 0.16));
+  border-color: var(--avatar-border-tint-hover, rgba(255, 255, 255, 0.32));
   transform: translateY(-2px) scale(1.02);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 8px 24px var(--avatar-glow-tint, rgba(0, 0, 0, 0.2));
 }
 
 .sidebar-settings-btn {
@@ -1724,7 +1724,24 @@ body {
 }
 .app.sidebar-collapsed .sidebar-user {
   justify-content: center;
-  padding: var(--space-2) 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: var(--space-2) auto !important;
+  width: auto !important;
+  transform: none !important;
+}
+.app.sidebar-collapsed .sidebar-user:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: scale(1.08) !important;
+}
+.app.sidebar-collapsed .sidebar-user .user-avatar {
+  margin: 0 auto;
 }
 .app.sidebar-collapsed .sidebar-settings-btn {
   justify-content: center;
@@ -2024,6 +2041,20 @@ body {
 }
 #topbar-settings-btn:hover svg {
   transform: rotate(45deg);
+}
+
+.topbar-action-btn.topbar-logout-btn {
+  color: var(--text-secondary);
+}
+.topbar-action-btn.topbar-logout-btn:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.15);
+}
+.topbar-action-btn.topbar-logout-btn:hover svg {
+  transform: translateX(2px);
+  color: #dc2626;
 }
 
 /* Active state for high-contrast / table lines toggle */
@@ -2701,10 +2732,19 @@ body {
   border-top: 1px solid rgba(115, 137, 147, 0.25) !important;
 }
 [data-theme="dark"] .sidebar-user {
-  background: transparent !important;
+  background: var(--avatar-bg-tint, rgba(255, 255, 255, 0.06)) !important;
+  border-color: var(--avatar-border-tint, rgba(255, 255, 255, 0.15)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px var(--avatar-glow-tint, rgba(0, 0, 0, 0.3)) !important;
 }
 [data-theme="dark"] .sidebar-user:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: var(--avatar-hover-tint, rgba(255, 255, 255, 0.14)) !important;
+  border-color: var(--avatar-border-tint-hover, rgba(255, 255, 255, 0.3)) !important;
+}
+[data-theme="dark"] .app.sidebar-collapsed .sidebar-user,
+.app.sidebar-collapsed [data-theme="dark"] .sidebar-user {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 [data-theme="dark"] .user-name {
   color: #ffffff !important;
@@ -3182,6 +3222,15 @@ body {
   border-color: #60a5fa !important;
   color: #93c5fd !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35) !important;
+}
+[data-theme="dark"] .topbar-action-btn.topbar-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #f87171 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] .topbar-action-btn.topbar-logout-btn:hover svg {
+  color: #f87171 !important;
 }
 
 /* Dark mode theme switch pill */

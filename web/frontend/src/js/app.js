@@ -752,6 +752,131 @@ const App = (() => {
     localStorage.setItem(key, color);
   }
 
+  function hexToRgba(hex, alpha = 0.18) {
+    if (!hex || typeof hex !== 'string') return `rgba(255, 255, 255, ${alpha})`;
+    let c = hex.replace('#', '').trim();
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length === 6) {
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return `rgba(255, 255, 255, ${alpha})`;
+  }
+
+  function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return { r: 227, g: 36, b: 49 };
+    let c = hex.replace('#', '').trim();
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length === 6) {
+      return {
+        r: parseInt(c.substring(0, 2), 16) || 0,
+        g: parseInt(c.substring(2, 4), 16) || 0,
+        b: parseInt(c.substring(4, 6), 16) || 0,
+      };
+    }
+    return { r: 227, g: 36, b: 49 };
+  }
+
+  function getLuminance(r, g, b) {
+    const a = [r, g, b].map(v => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  }
+
+  function getContrastRatio(l1, l2) {
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  // Calcula el color de texto más legible y de alto contraste según el avatar y el tema
+  function getAccessibleTextColor(hexColor, isDark = false) {
+    if (!hexColor) return isDark ? '#f87171' : '#E32431';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+
+    if (isDark) {
+      // Fondo oscuro institucional (~#0b1329, luminancia ~0.015)
+      const bgLum = 0.015;
+      const ratio = getContrastRatio(lum, bgLum);
+
+      // Si el avatar es negro puro (#000000) o excesivamente oscuro
+      if (lum < 0.08 || ratio < 3.2) {
+        return '#f8fafc'; // Se proyecta blanco nítido
+      }
+      // Si el contraste es bajo contra fondo oscuro, se aclara conservando el matiz
+      if (ratio < 4.5) {
+        const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * 0.45));
+        const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * 0.45));
+        const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * 0.45));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      return hexColor;
+    } else {
+      // Fondo claro institucional (~#ffffff, luminancia 1.0)
+      const bgLum = 1.0;
+      const ratio = getContrastRatio(lum, bgLum);
+
+      // Si el avatar es blanco (#ffffff) o excesivamente claro (lum > 0.82 o ratio < 2.5:1)
+      // Como solicitó explícitamente el usuario: si se llega a poner un avatar blanco, aparecerá en negro
+      if (lum > 0.82 || ratio < 2.5) {
+        return '#0f172a'; // Negro institucional / pizarra profundo
+      }
+      // Si es un color claro como amarillo puro o pastel con contraste < 4.5:1 en fondo blanco
+      if (ratio < 4.5) {
+        const factor = 0.58;
+        const r = Math.round(rgb.r * factor);
+        const g = Math.round(rgb.g * factor);
+        const b = Math.round(rgb.b * factor);
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      return hexColor;
+    }
+  }
+
+  function applyAvatarTheming(color) {
+    let avatarColor = color;
+    if (!avatarColor) {
+      const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+      avatarColor = user ? getAvatarColor(user.username) : AVATAR_PALETTES[0].bg;
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (typeof Settings !== 'undefined' && Settings.get && Settings.get('theme') === 'dark');
+
+    const nameColor = getAccessibleTextColor(avatarColor, isDark);
+    const nameColorLight = getAccessibleTextColor(avatarColor, false);
+    const nameColorDark = getAccessibleTextColor(avatarColor, true);
+
+    // Variables globales en :root para que apliquen a TODO el software
+    const rootEl = document.documentElement;
+    rootEl.style.setProperty('--user-avatar-color', avatarColor);
+    rootEl.style.setProperty('--user-name-color', nameColor);
+    rootEl.style.setProperty('--user-name-color-light', nameColorLight);
+    rootEl.style.setProperty('--user-name-color-dark', nameColorDark);
+
+    const sidebarUserEl = document.getElementById('sidebar-user');
+    if (sidebarUserEl) {
+      // Tono muy tenue según el color del avatar
+      const bgTint = hexToRgba(avatarColor, 0.16);
+      const bgTintHover = hexToRgba(avatarColor, 0.26);
+      const borderTint = hexToRgba(avatarColor, 0.35);
+      const borderTintHover = hexToRgba(avatarColor, 0.55);
+      const glowTint = hexToRgba(avatarColor, 0.20);
+
+      sidebarUserEl.style.setProperty('--avatar-accent-color', avatarColor);
+      sidebarUserEl.style.setProperty('--avatar-bg-tint', bgTint);
+      sidebarUserEl.style.setProperty('--avatar-hover-tint', bgTintHover);
+      sidebarUserEl.style.setProperty('--avatar-border-tint', borderTint);
+      sidebarUserEl.style.setProperty('--avatar-border-tint-hover', borderTintHover);
+      sidebarUserEl.style.setProperty('--avatar-glow-tint', glowTint);
+    }
+  }
+
   function sanitizeRole(role) {
     if (!role) return 'Administrador';
     const r = String(role).trim();
@@ -825,6 +950,9 @@ const App = (() => {
     const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
     const initial = name.charAt(0).toUpperCase();
     const avatarColor = getAvatarColor(user.username);
+
+    // Aplicar tema dinámico tenue del recuadro de usuario según el color del avatar
+    applyAvatarTheming(avatarColor);
 
     // Sidebar
     const nameEl = document.getElementById('user-name');
@@ -964,7 +1092,15 @@ const App = (() => {
 
     openModal('Mi Perfil', bodyHtml, [
       { text: 'Configuración', cls: 'btn-secondary', id: 'prof-settings-btn', action: () => { closeModal(); navigate('settings'); } },
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => closeModal() },
+      {
+        text: 'Cancelar',
+        cls: 'btn-secondary',
+        action: () => {
+          // Revertir vista previa en tiempo real al color guardado
+          applyAvatarTheming(getAvatarColor(user.username));
+          closeModal();
+        }
+      },
       { text: 'Guardar Cambios', cls: 'btn-primary', id: 'prof-save-btn', action: saveProfile },
     ]);
 
@@ -1013,6 +1149,8 @@ const App = (() => {
           const bg = btn.dataset.bg;
           currentAvatarColor = bg;
           previewAvatar.style.background = bg;
+          // Actualizar en tiempo real el tono del recuadro del sidebar
+          applyAvatarTheming(bg);
 
           // Update active swatch state
           swatchesContainer.querySelectorAll('.avatar-swatch').forEach(s => {
@@ -1031,6 +1169,8 @@ const App = (() => {
           const hex = e.target.value;
           currentAvatarColor = hex;
           previewAvatar.style.background = hex;
+          // Actualizar en tiempo real el tono del recuadro del sidebar
+          applyAvatarTheming(hex);
 
           swatchesContainer.querySelectorAll('.avatar-swatch').forEach(s => {
             s.classList.remove('active');
@@ -1086,6 +1226,7 @@ const App = (() => {
       // Save custom avatar color
       if (currentAvatarColor) {
         setAvatarColor(res.user.username, currentAvatarColor);
+        applyAvatarTheming(currentAvatarColor);
       }
 
       updateUserDisplay(res.user);
@@ -1211,6 +1352,11 @@ const App = (() => {
         contrastBtn.setAttribute('title', 'Líneas de tabla y alto contraste: Desactivados (clic para activar)');
       }
     }
+
+    // Actualizar contrastes accesibles del avatar y nombre del usuario según el nuevo tema
+    try {
+      applyAvatarTheming();
+    } catch (_) {}
   }
 
   // ─── Init ──────────────────────────────────────────────────────────────────
@@ -1323,15 +1469,17 @@ const App = (() => {
       });
     }
 
-    // Logout
-    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+    // Logout (botón en la barra superior y fallback)
+    const handleLogoutTrigger = (e) => {
       e.stopPropagation();
       confirmLogout();
-    });
+    };
+    document.getElementById('topbar-logout-btn')?.addEventListener('click', handleLogoutTrigger);
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogoutTrigger);
 
     // Profile modal openers
     document.getElementById('sidebar-user')?.addEventListener('click', (e) => {
-      if (e.target.closest('#logout-btn')) return;
+      if (e.target.closest('#logout-btn') || e.target.closest('#topbar-logout-btn')) return;
       openProfileModal();
     });
     document.getElementById('profile-btn')?.addEventListener('click', (e) => {
@@ -1539,7 +1687,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)
