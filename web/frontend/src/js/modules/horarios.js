@@ -140,6 +140,9 @@ const HorariosModule = (() => {
     if (isHidden) {
       menu.removeAttribute('hidden');
       toggleBtn.setAttribute('aria-expanded', 'true');
+      const wrap = menu.closest('.actions-dropdown-wrap');
+      if (wrap) wrap.classList.add('is-open');
+      wrap?.closest('.module-header-card')?.classList.add('has-open-dropdown');
       const firstItem = menu.querySelector('.actions-dropdown-item');
       if (firstItem) firstItem.focus();
     } else {
@@ -155,6 +158,9 @@ const HorariosModule = (() => {
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.focus();
     }
+    const wrap = menu?.closest('.actions-dropdown-wrap');
+    if (wrap) wrap.classList.remove('is-open');
+    wrap?.closest('.module-header-card')?.classList.remove('has-open-dropdown');
   }
 
   function handleDropdownKeydown(event) {

@@ -1601,6 +1601,9 @@ const ViaticosModule = (() => {
     if (isHidden) {
       menu.removeAttribute('hidden');
       toggleBtn.setAttribute('aria-expanded', 'true');
+      const wrap = menu.closest('.actions-dropdown-wrap');
+      if (wrap) wrap.classList.add('is-open');
+      wrap?.closest('.module-header-card')?.classList.add('has-open-dropdown');
       const firstItem = menu.querySelector('.actions-dropdown-item');
       if (firstItem) firstItem.focus();
     } else {
@@ -1616,6 +1619,9 @@ const ViaticosModule = (() => {
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.focus();
     }
+    const wrap = menu?.closest('.actions-dropdown-wrap');
+    if (wrap) wrap.classList.remove('is-open');
+    wrap?.closest('.module-header-card')?.classList.remove('has-open-dropdown');
   }
 
   function handleDropdownKeydown(event) {
@@ -2129,14 +2135,28 @@ const ViaticosModule = (() => {
                   </button>
                 </div>
               </div>
+
+              ${Auth.canEdit() ? `
+              <button
+                type="button"
+                class="btn-action-icon-add"
+                onclick="ViaticosModule.openCreatePackageModal()"
+                id="btn-nueva-vigencia"
+                title="Nueva Vigencia / Carga Excel"
+                aria-label="Nueva Vigencia / Carga Excel"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>` : ''}
             </div>
           </div>
-        </div>
 
-        <!-- Estadísticas Globales (5 Tarjetas Glassmorphism Idénticas al Dashboard) -->
-        <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(5)}
-        </div>
+          <!-- Estadísticas Globales (5 Tarjetas Glassmorphism Idénticas al Dashboard) -->
+          <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+            ${renderStatsSkeletons(5)}
+          </div>
 
           <!-- Contenedor del Histórico Anual -->
           <div id="vit-years-container"></div>
@@ -2196,12 +2216,11 @@ const ViaticosModule = (() => {
               </button>` : ''}
             </div>
           </div>
-        </div>
 
-        <!-- Estadísticas Específicas de este Año Fiscal (5 Tarjetas Glassmorphism) -->
-        <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(5)}
-        </div>
+          <!-- Estadísticas Específicas de este Año Fiscal (5 Tarjetas Glassmorphism) -->
+          <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+            ${renderStatsSkeletons(5)}
+          </div>
 
           <!-- Contenedor de Carpetas del Año -->
           <div id="vit-year-packages-container"></div>
@@ -2266,12 +2285,11 @@ const ViaticosModule = (() => {
               </button>` : ''}
             </div>
           </div>
-        </div>
 
-        <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete (5 Tarjetas Glassmorphism) -->
-        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(5)}
-        </div>
+          <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete (5 Tarjetas Glassmorphism) -->
+          <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+            ${renderStatsSkeletons(5)}
+          </div>
 
           <!-- Filtros de Búsqueda para este Paquete -->
           <div class="filters-card">

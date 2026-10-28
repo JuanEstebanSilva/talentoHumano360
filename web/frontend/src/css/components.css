@@ -425,6 +425,14 @@
   gap: 20px;
   position: relative;
   overflow: visible;
+  z-index: 50;
+}
+
+.module-header-card.has-open-dropdown,
+.viaticos-header-hero.has-open-dropdown,
+.module-header-card:has([aria-expanded="true"]),
+.viaticos-header-hero:has([aria-expanded="true"]) {
+  z-index: 1200 !important;
 }
 
 [data-theme="dark"] .module-header-card,
@@ -510,6 +518,8 @@
   gap: 12px;
   flex-shrink: 0;
   margin-left: auto;
+  position: relative;
+  z-index: 60;
 }
 
 /* ─── Botón Volver Estilo Píldora Celeste ──────────────────────────────────── */
@@ -1156,6 +1166,8 @@
   padding: var(--space-5) var(--space-6);
   margin-bottom: var(--space-5);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  position: relative;
+  z-index: 10;
 }
 
 .filters-row {
@@ -2475,6 +2487,14 @@ tbody tr:last-child td {
 .actions-dropdown-wrap {
   position: relative;
   display: inline-block;
+  z-index: 60;
+}
+
+.emp-actions-dropdown-wrap.is-open,
+.actions-dropdown-wrap.is-open,
+.emp-actions-dropdown-wrap:has([aria-expanded="true"]),
+.actions-dropdown-wrap:has([aria-expanded="true"]) {
+  z-index: 1250 !important;
 }
 
 .emp-dropdown-btn,
@@ -2516,17 +2536,23 @@ tbody tr:last-child td {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 290px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl, 0 20px 40px rgba(0, 0, 0, 0.14));
+  min-width: 295px;
+  background: #ffffff !important;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 20px 45px -6px rgba(0, 0, 0, 0.18), 0 8px 18px -4px rgba(0, 0, 0, 0.08);
   padding: 8px;
-  z-index: 1000;
+  z-index: 9999 !important;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  backdrop-filter: var(--glass-blur, blur(16px));
+}
+
+[data-theme="dark"] .emp-dropdown-menu,
+[data-theme="dark"] .actions-dropdown-menu {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 45px -6px rgba(0, 0, 0, 0.6), 0 8px 18px -4px rgba(0, 0, 0, 0.4);
 }
 
 .emp-dropdown-menu[hidden],

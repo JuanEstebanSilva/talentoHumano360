@@ -3390,6 +3390,9 @@ const EmployeesModule = (() => {
     } else {
       menu.removeAttribute('hidden');
       toggleBtn.setAttribute('aria-expanded', 'true');
+      const wrap = document.getElementById('emp-actions-dropdown-wrap');
+      if (wrap) wrap.classList.add('is-open');
+      wrap?.closest('.module-header-card')?.classList.add('has-open-dropdown');
       const firstItem = menu.querySelector('.emp-dropdown-item');
       if (firstItem) {
         firstItem.setAttribute('tabindex', '0');
@@ -3409,6 +3412,9 @@ const EmployeesModule = (() => {
       toggleBtn.setAttribute('aria-expanded', 'false');
       toggleBtn.focus();
     }
+    const wrap = document.getElementById('emp-actions-dropdown-wrap');
+    if (wrap) wrap.classList.remove('is-open');
+    wrap?.closest('.module-header-card')?.classList.remove('has-open-dropdown');
     document.removeEventListener('click', onDocClickCloseDropdown);
   }
 
