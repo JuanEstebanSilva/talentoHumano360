@@ -108,62 +108,170 @@
   border-color: rgba(255, 255, 255, 0.4);
 }
 
-/* ── Stat Icon — 3D Liquid Gem ───────────────────────────────────────────── */
+.stat-top-stripe {
+  display: none !important;
+}
+
+/* ── Stat Icon — Minimalista, Icono Limpio y Grande sin Borde Neón ─────────── */
 .stat-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stat-icon.skeleton {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 8px !important;
+  background: var(--skeleton-bg, rgba(0, 0, 0, 0.08)) !important;
 }
 
 .stat-icon svg {
-  width: 20px;
-  height: 20px;
-  stroke: #ffffff !important;
-  color: #ffffff !important;
+  width: 36px !important;
+  height: 36px !important;
   stroke-width: 2.2 !important;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  filter: none !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  color: currentColor !important;
+  transition: transform 0.25s ease;
 }
 
-.stat-card:hover .stat-icon {
-  transform: scale(1.1) rotate(-3deg);
+.stat-card:hover .stat-icon svg {
+  transform: scale(1.08);
 }
 
+/* Modificadores de color: el color anterior del fondo ahora tiñe directamente el icono */
 .stat-icon--blue {
-  background: linear-gradient(135deg, #1d6bf3 0%, #0b49c0 100%) !important;
-  box-shadow: 0 6px 18px rgba(29, 107, 243, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #0284c7 !important;
+}
+.stat-icon--blue svg {
+  stroke: #0284c7 !important;
+  color: #0284c7 !important;
 }
 
 .stat-icon--green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #16a34a !important;
+}
+.stat-icon--green svg {
+  stroke: #16a34a !important;
+  color: #16a34a !important;
 }
 
 .stat-icon--gold {
-  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%) !important;
-  box-shadow: 0 6px 18px rgba(234, 179, 8, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #ca8a04 !important;
+}
+.stat-icon--gold svg {
+  stroke: #ca8a04 !important;
+  color: #ca8a04 !important;
 }
 
 .stat-icon--orange {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #ea580c !important;
+}
+.stat-icon--orange svg {
+  stroke: #ea580c !important;
+  color: #ea580c !important;
 }
 
 .stat-icon--purple {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important;
-  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #9333ea !important;
+}
+.stat-icon--purple svg {
+  stroke: #9333ea !important;
+  color: #9333ea !important;
 }
 
 .stat-icon--red {
-  background: linear-gradient(135deg, #ff453a 0%, #d32f2f 100%) !important;
-  box-shadow: 0 6px 18px rgba(255, 69, 58, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #dc2626 !important;
+}
+.stat-icon--red svg {
+  stroke: #dc2626 !important;
+  color: #dc2626 !important;
+}
+
+.stat-icon--teal {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  color: #0891b2 !important;
+}
+.stat-icon--teal svg {
+  stroke: #0891b2 !important;
+  color: #0891b2 !important;
+}
+
+/* Modo oscuro: tonos luminosos y de alto contraste sin fondo ni neón */
+[data-theme="dark"] .stat-icon--blue,
+[data-theme="dark"] .stat-icon--blue svg {
+  color: #38bdf8 !important;
+  stroke: #38bdf8 !important;
+}
+
+[data-theme="dark"] .stat-icon--green,
+[data-theme="dark"] .stat-icon--green svg {
+  color: #4ade80 !important;
+  stroke: #4ade80 !important;
+}
+
+[data-theme="dark"] .stat-icon--gold,
+[data-theme="dark"] .stat-icon--gold svg {
+  color: #facc15 !important;
+  stroke: #facc15 !important;
+}
+
+[data-theme="dark"] .stat-icon--orange,
+[data-theme="dark"] .stat-icon--orange svg {
+  color: #fb923c !important;
+  stroke: #fb923c !important;
+}
+
+[data-theme="dark"] .stat-icon--purple,
+[data-theme="dark"] .stat-icon--purple svg {
+  color: #c084fc !important;
+  stroke: #c084fc !important;
+}
+
+[data-theme="dark"] .stat-icon--red,
+[data-theme="dark"] .stat-icon--red svg {
+  color: #f87171 !important;
+  stroke: #f87171 !important;
+}
+
+[data-theme="dark"] .stat-icon--teal,
+[data-theme="dark"] .stat-icon--teal svg {
+  color: #22d3ee !important;
+  stroke: #22d3ee !important;
 }
 
 .stat-info {
@@ -299,34 +407,319 @@
   }
 }
 
-/* ─── Viáticos Header Hero (Estructura de 2 Filas: Identidad Superior y Contenido Principal) ─── */
+/* ─── Standardized Module Header Card (Gobernación de Boyacá) ─────────────── */
+.module-header-card,
 .viaticos-header-hero {
   margin-bottom: var(--space-5, 20px);
   padding: 22px 26px;
-  background: var(--glass-bg-card, rgba(255, 255, 255, 0.68));
+  background: var(--glass-bg-card, rgba(255, 255, 255, 0.75));
   backdrop-filter: var(--glass-blur, blur(18px));
   -webkit-backdrop-filter: var(--glass-blur, blur(18px));
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.65));
   border-radius: var(--radius-xl, 18px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
   display: flex;
-  flex-direction: column;
-  align-items: stretch !important;
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
-  gap: 16px;
+  gap: 20px;
   position: relative;
   overflow: visible;
 }
 
-.viaticos-header-hero::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #28871B 0%, #D1AD2A 35%, #CF3A78 70%, #007BC7 100%);
-  clip-path: polygon(0 0, 100% 0, 100% 4px, 0 4px);
-  pointer-events: none;
-  z-index: 1;
+[data-theme="dark"] .module-header-card,
+[data-theme="dark"] .viaticos-header-hero {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Retiro de línea de colores superior estilo IA */
+.viaticos-header-hero::after,
+.module-header-card::after {
+  display: none !important;
+}
+
+.module-header-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.module-header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.module-header-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.module-header-brand-text {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #15803d; /* Verde Boyacá */
+  letter-spacing: 0.2px;
+  line-height: 1;
+}
+
+[data-theme="dark"] .module-header-brand-text {
+  color: #4ade80;
+}
+
+.module-hero-title,
+.viaticos-hero-title {
+  font-family: Georgia, 'Times New Roman', Cambria, serif !important;
+  font-size: 2.35rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 3px 0 6px 0;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+[data-theme="dark"] .module-hero-title,
+[data-theme="dark"] .viaticos-hero-title {
+  color: #f8fafc;
+}
+
+.module-hero-desc,
+.viaticos-hero-desc {
+  font-size: 0.94rem;
+  color: var(--text-secondary, #64748b);
+  margin: 0;
+  line-height: 1.45;
+  font-weight: 400;
+  max-width: 860px;
+}
+
+[data-theme="dark"] .module-hero-desc,
+[data-theme="dark"] .viaticos-hero-desc {
+  color: #94a3b8;
+}
+
+.module-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ─── Botón Volver Estilo Píldora Celeste ──────────────────────────────────── */
+.btn-back-pill,
+.viaticos-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  background: rgba(2, 132, 199, 0.05);
+  border: 1.5px solid #38bdf8;
+  color: #0284c7;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  margin-bottom: 8px;
+  width: fit-content;
+}
+
+.btn-back-pill:hover,
+.viaticos-btn-back:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: #0284c7;
+  color: #0369a1;
+  transform: translateX(-2px);
+}
+
+[data-theme="dark"] .btn-back-pill,
+[data-theme="dark"] .viaticos-btn-back {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: #38bdf8;
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .btn-back-pill:hover,
+[data-theme="dark"] .viaticos-btn-back:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #7dd3fc;
+  color: #bae6fd;
+}
+
+/* ─── Botones de Acción Iconográficos (Sin Texto) ──────────────────────────── */
+/* 1. Botón Menú 3 Puntos */
+.btn-action-icon-menu {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-action-icon-menu:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.btn-action-icon-menu:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+}
+
+.btn-action-icon-menu svg {
+  width: 20px;
+  height: 20px;
+}
+
+[data-theme="dark"] .btn-action-icon-menu {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .btn-action-icon-menu:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* 2. Botón Sutil Descargar */
+.btn-action-icon-download {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-action-icon-download:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.btn-action-icon-download:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+}
+
+.btn-action-icon-download svg {
+  width: 20px;
+  height: 20px;
+}
+
+[data-theme="dark"] .btn-action-icon-download {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .btn-action-icon-download:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* 3. Botón Circular Verde Agregar (+) */
+.btn-action-icon-add,
+.btn-action-add-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #168735;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 14px rgba(22, 135, 53, 0.35);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-action-icon-add:hover,
+.btn-action-add-circle:hover {
+  background: #126e2a;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 18px rgba(22, 135, 53, 0.45);
+}
+
+.btn-action-icon-add:active,
+.btn-action-add-circle:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-action-icon-add:focus-visible,
+.btn-action-add-circle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.35);
+}
+
+.btn-action-icon-add svg,
+.btn-action-add-circle svg {
+  width: 22px;
+  height: 22px;
+  stroke: #ffffff;
+}
+
+[data-theme="dark"] .btn-action-icon-add,
+[data-theme="dark"] .btn-action-add-circle {
+  background: #16a34a;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
+}
+
+[data-theme="dark"] .btn-action-icon-add:hover,
+[data-theme="dark"] .btn-action-add-circle:hover {
+  background: #22c55e;
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.5);
+}
+
+@media (max-width: 768px) {
+  .module-header-card,
+  .viaticos-header-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px 18px;
+    gap: 16px;
+  }
+  .module-header-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .module-hero-title,
+  .viaticos-hero-title {
+    font-size: 1.85rem;
+  }
 }
 
 /* Fila Superior: Gobernación a la izquierda y Talento 360 completamente a la derecha */
@@ -924,19 +1317,37 @@
 }
 
 .table-title {
-  font-size: var(--text-base);
+  font-size: 1.05rem;
   font-weight: 800;
-  color: #0f172a;
+  color: #1e293b;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+[data-theme="dark"] .table-title {
+  color: #f8fafc;
 }
 
 .table-count {
-  font-size: var(--text-xs);
-  color: var(--color-slate);
+  font-size: 11.5px;
+  color: #64748b;
   background: #f1f5f9;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
+  padding: 3.5px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
   font-weight: 700;
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-feature-settings: "tnum";
+}
+
+[data-theme="dark"] .table-count {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .table-wrap {
@@ -5020,11 +5431,6 @@ tbody tr:last-child td {
   color: #cbd5e1 !important;
 }
 
-/* Stat Icon Teal */
-.stat-icon--teal {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%) !important;
-  box-shadow: 0 6px 18px rgba(6, 182, 212, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.65) !important;
-}
 
 /* Calculation pills */
 .tag-calc-pill {
@@ -7757,33 +8163,43 @@ input.flatpickr-input:hover {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 4px 0;
+  width: 100%;
 }
 
 .viaticos-pkg-section-title {
-  font-size: var(--text-lg);
+  font-size: 1.15rem;
   font-weight: 800;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  color: var(--text-primary, #1e293b);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.3;
+}
+
+[data-theme="dark"] .viaticos-pkg-section-title {
+  color: #f8fafc;
 }
 
 .viaticos-pkg-section-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  background: rgba(22, 163, 74, 0.12);
+  background: rgba(34, 197, 94, 0.12);
   color: #16a34a;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(22, 163, 74, 0.25);
+  padding: 4px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .viaticos-pkg-section-badge {
-  background: rgba(251, 191, 36, 0.14);
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.35);
 }
 
 .viaticos-pkg-grid {
@@ -7822,16 +8238,7 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-pkg-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #28871B 0%, #16a34a 45%, #D1AD2A 100%);
-  clip-path: polygon(0 0, 100% 0, 100% 4.5px, 0 4.5px);
-  opacity: 0.95;
-  transition: clip-path 0.25s ease, opacity 0.25s ease;
-  pointer-events: none;
-  z-index: 1;
+  display: none !important;
 }
 
 .viaticos-pkg-card:hover {
@@ -7841,8 +8248,7 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-pkg-card:hover::before {
-  clip-path: polygon(0 0, 100% 0, 100% 5.5px, 0 5.5px);
-  opacity: 1;
+  display: none !important;
 }
 
 [data-theme="dark"] .viaticos-pkg-card {
@@ -7852,7 +8258,7 @@ input.flatpickr-input:hover {
 }
 
 [data-theme="dark"] .viaticos-pkg-card::before {
-  background: linear-gradient(90deg, #4ade80 0%, #fbbf24 60%, #f59e0b 100%);
+  display: none !important;
 }
 
 [data-theme="dark"] .viaticos-pkg-card:hover {
@@ -7966,6 +8372,84 @@ input.flatpickr-input:hover {
   color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 14px;
+}
+
+/* ─── Encabezado de Ficha de Carpeta Presupuestal ─── */
+.viaticos-folder-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.viaticos-folder-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+}
+
+.viaticos-folder-hero-icon svg {
+  width: 38px;
+  height: 38px;
+  stroke: #16a34a !important;
+}
+
+.viaticos-folder-card .viaticos-pkg-name {
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: var(--text-primary, #0f172a);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.viaticos-folder-subtitle {
+  font-size: 12.5px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .viaticos-folder-subtitle {
+  color: #94a3b8;
+}
+
+/* ─── Archivo XLSX Centrado en el Medio ─── */
+.viaticos-folder-file-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px auto 14px auto;
+  max-width: 100%;
+  text-align: center;
+}
+
+.viaticos-folder-file-center .viaticos-folder-file-ext {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2.5px 7px;
+  border-radius: 4px;
+  background: #16a34a;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.viaticos-folder-file-center .viaticos-folder-file-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .viaticos-folder-file-center .viaticos-folder-file-name {
+  color: #cbd5e1;
 }
 
 .viaticos-folder-subheading {
@@ -8666,14 +9150,7 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-card::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #28871B 0%, #D1AD2A 35%, #CF3A78 70%, #007BC7 100%);
-  clip-path: polygon(0 0, 100% 0, 100% 4.5px, 0 4.5px);
-  pointer-events: none;
-  z-index: 1;
+  display: none !important;
 }
 
 .viaticos-year-card:hover {
@@ -8683,7 +9160,7 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-card:hover::before {
-  clip-path: polygon(0 0, 100% 0, 100% 5.5px, 0 5.5px);
+  display: none !important;
 }
 
 [data-theme="dark"] .viaticos-year-card {
@@ -8703,100 +9180,71 @@ input.flatpickr-input:hover {
   flex: 1;
 }
 
-/* Icono Calendario Limpio — Sin recuadro de fondo, sin sombra, sin animaciones según solicitud del usuario */
-.viaticos-year-card .viaticos-pkg-icon-wrap {
-  width: 34px;
-  height: 34px;
+/* Icono Calendario Limpio — Sin recuadro de fondo, color púrpura/ciruela corporativo Boyacá */
+.viaticos-year-clean-icon {
+  width: 36px;
+  height: 36px;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: #007BC7 !important;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   margin: 0;
-  transition: none !important;
-  transform: none !important;
   flex-shrink: 0;
 }
 
-.viaticos-year-card .viaticos-pkg-icon-wrap svg {
-  width: 28px;
-  height: 28px;
-  stroke: #007BC7 !important;
+.viaticos-year-clean-icon svg {
+  width: 34px;
+  height: 34px;
+  stroke: #914169 !important;
   stroke-width: 2.2 !important;
   display: block;
-  transition: none !important;
 }
 
-.viaticos-year-card:hover .viaticos-pkg-icon-wrap {
-  background: transparent !important;
-  border-color: transparent !important;
-  color: #007BC7 !important;
-  transform: none !important;
-  box-shadow: none !important;
+[data-theme="dark"] .viaticos-year-clean-icon svg {
+  stroke: #f472b6 !important;
 }
 
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-icon-wrap {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: #38bdf8 !important;
-}
-
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-icon-wrap svg {
-  stroke: #38bdf8 !important;
-}
-
-[data-theme="dark"] .viaticos-year-card:hover .viaticos-pkg-icon-wrap {
-  background: transparent !important;
-  border-color: transparent !important;
-  color: #38bdf8 !important;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.viaticos-year-card .viaticos-pkg-year-pill--hero {
-  font-size: 1.2rem !important;
-  font-weight: 900 !important;
-  padding: 4px 14px !important;
-  border-radius: 999px !important;
-  background: linear-gradient(135deg, rgba(0, 123, 199, 0.12) 0%, rgba(0, 123, 199, 0.04) 100%) !important;
-  color: #007BC7 !important;
-  border: 1.5px solid rgba(0, 123, 199, 0.28) !important;
-  letter-spacing: 0.5px !important;
-  box-shadow: 0 2px 8px rgba(0, 123, 199, 0.08);
+/* Número de Año Grande Hero — Tipografía Serif en tono ciruela, sin recuadro ni contenedor */
+.viaticos-year-hero-num {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.85rem !important;
+  font-weight: 800 !important;
+  color: #914169 !important;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-block;
   font-feature-settings: "tnum";
 }
 
-[data-theme="dark"] .viaticos-year-card .viaticos-pkg-year-pill--hero {
-  background: linear-gradient(135deg, rgba(0, 123, 199, 0.25) 0%, rgba(0, 123, 199, 0.1) 100%) !important;
-  border-color: rgba(0, 123, 199, 0.45) !important;
-  color: #60a5fa !important;
+[data-theme="dark"] .viaticos-year-hero-num {
+  color: #f472b6 !important;
 }
 
 .viaticos-year-title-block {
-  margin: 10px 0 6px;
+  margin: 12px 0 6px;
 }
 
 .viaticos-year-card .viaticos-year-subheading {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #007BC7;
+  letter-spacing: 1.2px;
+  color: #857352;
   display: block;
   margin-bottom: 2px;
 }
 
 [data-theme="dark"] .viaticos-year-card .viaticos-year-subheading {
-  color: #38bdf8;
+  color: #d4a373;
 }
 
 .viaticos-year-card .viaticos-pkg-name {
-  font-size: 1.35rem;
-  font-weight: 900;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.55rem;
+  font-weight: 800;
   color: var(--text-primary, #0f172a);
   letter-spacing: -0.025em;
   margin: 0;
@@ -8915,26 +9363,23 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-pct {
-  font-size: 11px;
-  font-weight: 800;
-  color: #15803d;
-  background: rgba(40, 135, 27, 0.1);
-  border: 1px solid rgba(40, 135, 27, 0.22);
-  padding: 1.5px 8px;
-  border-radius: 999px;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: inherit;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   font-feature-settings: "tnum";
-  letter-spacing: 0.3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(40, 135, 27, 0.08);
+  letter-spacing: 0.2px;
+  display: inline-block !important;
 }
 
 [data-theme="dark"] .viaticos-year-pct {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.14);
-  border-color: rgba(74, 222, 128, 0.3);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .viaticos-year-progress-track {
@@ -8958,11 +9403,9 @@ input.flatpickr-input:hover {
 .viaticos-year-progress-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #28871B 0%, #10b981 35%, #007BC7 85%, #0284c7 100%);
-  box-shadow: 0 1px 6px rgba(0, 123, 199, 0.35), 0 0 10px rgba(40, 135, 27, 0.25);
   position: relative;
   overflow: hidden;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
 }
 
 .viaticos-year-progress-bar::after {
@@ -8979,9 +9422,18 @@ input.flatpickr-input:hover {
   100% { transform: translateX(200%); }
 }
 
-[data-theme="dark"] .viaticos-year-progress-bar {
-  background: linear-gradient(90deg, #22c55e 0%, #10b981 40%, #38bdf8 100%);
-  box-shadow: 0 1px 8px rgba(56, 189, 248, 0.45), 0 0 12px rgba(34, 197, 94, 0.3);
+/* ─── Botón Verde Oliva Institucional (Guía Visual Boyacá) ─── */
+.viaticos-btn-olive {
+  background: #355833 !important;
+  border: 1px solid #284426 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3) !important;
+}
+
+.viaticos-btn-olive:hover {
+  background: #436a40 !important;
+  border-color: #355833 !important;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45) !important;
 }
 
 /* ─── Acciones Inferiores en Tarjeta de Año ─── */

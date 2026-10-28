@@ -199,31 +199,39 @@ const HorariosModule = (() => {
 
     container.innerHTML = `
       <div class="module-enter">
-        <!-- Encabezado de Página -->
-        <div class="page-header">
-          <div class="page-header-info">
-            <h1 class="page-heading">Horarios y Modalidades</h1>
-            <p class="page-desc">
-              Administración de esquemas de trabajo institucional: Teletrabajo, Trabajo en casa y Horarios flexibles
+        <!-- Encabezado Institucional Estandarizado Gobernación de Boyacá -->
+        <div class="module-header-card">
+          <div class="module-header-info">
+            <div class="module-header-brand">
+              <img src="imgs/logoCondor.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-dark-theme" />
+              <span class="module-header-brand-text">Gobernación de Boyacá</span>
+            </div>
+            <h1 class="module-hero-title">Horarios</h1>
+            <p class="module-hero-desc">
+              Gestión, control y seguimiento de horarios laborales y modalidades de la Gobernación de Boyacá.
             </p>
           </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown de Opciones Secundarias (Hick's Law) -->
+          <div class="module-header-actions">
+            <!-- Dropdown de Acciones de Excel (Cargas, Descargas y Plantillas) -->
             <div class="actions-dropdown-wrap">
               <button
                 type="button"
-                class="btn btn-secondary actions-dropdown-btn"
+                class="btn-action-icon-menu"
                 id="horarios-dropdown-toggle"
                 aria-haspopup="true"
                 aria-expanded="false"
                 aria-controls="horarios-dropdown-menu"
                 onclick="HorariosModule.toggleActionsDropdown(event)"
                 onkeydown="HorariosModule.handleDropdownKeydown(event)"
-                title="Opciones secundarias (Excel y plantillas)"
+                title="Acciones de Excel (Cargas, descargas y plantillas)"
+                aria-label="Acciones de Excel"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
-                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.5"></circle>
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="12" cy="19" r="1.5"></circle>
+                </svg>
               </button>
               <div
                 class="actions-dropdown-menu"
@@ -232,32 +240,6 @@ const HorariosModule = (() => {
                 aria-labelledby="horarios-dropdown-toggle"
                 hidden
               >
-                <button
-                  type="button"
-                  class="actions-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.exportExcel();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  <div>
-                    <strong>Exportar a Excel</strong>
-                    <small>Descargar listado filtrado (.xlsx)</small>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  class="actions-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.downloadTemplate();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                  <div>
-                    <strong>Descargar Plantilla Oficial</strong>
-                    <small>Formato oficial institucional (.xlsx)</small>
-                  </div>
-                </button>
                 ${
                   canManage
                     ? `<button
@@ -275,15 +257,50 @@ const HorariosModule = (() => {
                       </button>`
                     : ''
                 }
+                <button
+                  type="button"
+                  class="actions-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.exportExcel();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <div>
+                    <strong>Descargar Registros</strong>
+                    <small>Descargar listado en Excel (.xlsx)</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  class="actions-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="HorariosModule.closeActionsDropdown(); HorariosModule.downloadTemplate();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial</strong>
+                    <small>Formato oficial institucional en blanco (.xlsx)</small>
+                  </div>
+                </button>
               </div>
             </div>
 
-            <!-- Acción Primaria (CTA - Visual Salience) -->
+            <!-- Botón Agregar Horario (+) -->
             ${
               canManage
-                ? `<button class="btn btn-primary-cta" onclick="HorariosModule.openCreate()" id="btn-nuevo-horario" aria-label="Registrar nuevo esquema de horario">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                     <span>Nuevo Horario</span>
+                ? `<button
+                     type="button"
+                     class="btn-action-icon-add"
+                     onclick="HorariosModule.openCreate()"
+                     id="btn-nuevo-horario"
+                     title="Agregar nuevo horario o modalidad"
+                     aria-label="Agregar nuevo horario o modalidad"
+                   >
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                       <line x1="12" y1="5" x2="12" y2="19"></line>
+                       <line x1="5" y1="12" x2="19" y2="12"></line>
+                     </svg>
                    </button>`
                 : ''
             }
@@ -394,7 +411,7 @@ const HorariosModule = (() => {
   function renderStatsSkeletons() {
     return Array(4).fill(0).map(() => `
       <div class="stat-card" aria-busy="true" role="progressbar">
-        <div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px;"></div>
+        <div class="stat-icon skeleton" style="width:36px;height:36px;border-radius:8px;"></div>
         <div class="stat-info" style="display:flex;flex-direction:column;gap:6px;flex:1;">
           <span class="skeleton skeleton-line" style="width:50px;height:24px;border-radius:4px;margin-bottom:0;"></span>
           <span class="skeleton skeleton-line" style="width:90px;height:12px;border-radius:4px;margin-bottom:0;"></span>

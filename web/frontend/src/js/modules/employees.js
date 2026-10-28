@@ -3463,33 +3463,36 @@ const EmployeesModule = (() => {
     }
     container.innerHTML = `
       <div class="module-enter">
-        <div class="page-header">
-          <div class="page-header-info">
-            <h1 class="page-heading">Servidores Públicos</h1>
-            <p class="page-desc">Módulo de gestión integral del talento humano — Gobernación de Boyacá</p>
+        <!-- Encabezado Institucional Estandarizado Gobernación de Boyacá -->
+        <div class="module-header-card">
+          <div class="module-header-info">
+            <div class="module-header-brand">
+              <img src="imgs/logoCondor.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-dark-theme" />
+              <span class="module-header-brand-text">Gobernación de Boyacá</span>
+            </div>
+            <h1 class="module-hero-title">Servidores Públicos</h1>
+            <p class="module-hero-desc">Gestión, consulta y administración integral de servidores públicos de la Gobernación de Boyacá.</p>
           </div>
-          <div class="page-actions" style="display:flex; align-items:center; gap:12px;">
-            <!-- Opciones secundarias agrupadas en Dropdown (Ley de Hick) -->
+          <div class="module-header-actions">
+            <!-- Dropdown de Acciones de Excel (Cargas, Descargas y Plantillas) -->
             <div class="emp-actions-dropdown-wrap" id="emp-actions-dropdown-wrap">
               <button
                 type="button"
-                class="btn btn-secondary emp-dropdown-btn"
+                class="btn-action-icon-menu"
                 id="emp-dropdown-toggle"
                 aria-haspopup="true"
                 aria-expanded="false"
                 aria-controls="emp-dropdown-menu"
-                aria-label="Opciones y acciones secundarias"
+                aria-label="Acciones de Excel (Cargas, descargas y plantillas)"
+                title="Acciones de Excel (Cargas, descargas y plantillas)"
                 onclick="EmployeesModule.toggleActionsDropdown(event)"
                 onkeydown="EmployeesModule.handleDropdownKeydown(event)"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.5"></circle>
                   <circle cx="12" cy="12" r="1.5"></circle>
-                  <circle cx="19" cy="12" r="1.5"></circle>
-                  <circle cx="5" cy="12" r="1.5"></circle>
-                </svg>
-                <span>Acciones</span>
-                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px;" aria-hidden="true">
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  <circle cx="12" cy="19" r="1.5"></circle>
                 </svg>
               </button>
 
@@ -3501,6 +3504,20 @@ const EmployeesModule = (() => {
                 onkeydown="EmployeesModule.handleMenuKeydown(event)"
                 hidden
               >
+                ${Auth.canEdit() ? `
+                <button
+                  type="button"
+                  class="emp-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="EmployeesModule.openImportModal(); EmployeesModule.closeActionsDropdown();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <div>
+                    <strong>Carga Masiva Excel</strong>
+                    <small>Importar o actualizar planta de personal</small>
+                  </div>
+                </button>` : ''}
                 <button
                   type="button"
                   class="emp-dropdown-item"
@@ -3510,7 +3527,7 @@ const EmployeesModule = (() => {
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <div>
-                    <strong>Exportar a Excel</strong>
+                    <strong>Descargar Registros</strong>
                     <small>Descargar listado filtrado (.xlsx)</small>
                   </div>
                 </button>
@@ -3527,28 +3544,23 @@ const EmployeesModule = (() => {
                     <small>Formato oficial en blanco (.xlsx)</small>
                   </div>
                 </button>
-                ${Auth.canEdit() ? `
-                <button
-                  type="button"
-                  class="emp-dropdown-item"
-                  role="menuitem"
-                  tabindex="-1"
-                  onclick="EmployeesModule.openImportModal(); EmployeesModule.closeActionsDropdown();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                  <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar o actualizar planta de personal</small>
-                  </div>
-                </button>` : ''}
               </div>
             </div>
 
-            <!-- Acción Principal (CTA) - Alto Contraste y Salience Visual -->
+            <!-- Botón Agregar Servidor (+) -->
             ${Auth.canEdit() ? `
-            <button class="btn btn-primary-cta" onclick="EmployeesModule.openCreate()" id="btn-nuevo-servidor" aria-label="Crear nuevo servidor público">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:19px;height:19px" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <span>Nuevo Servidor</span>
+            <button
+              type="button"
+              class="btn-action-icon-add"
+              onclick="EmployeesModule.openCreate()"
+              id="btn-nuevo-servidor"
+              title="Agregar nuevo servidor público"
+              aria-label="Agregar nuevo servidor público"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
             </button>` : ''}
           </div>
         </div>
