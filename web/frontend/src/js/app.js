@@ -919,6 +919,53 @@ const App = (() => {
     const avatarTextColor = getAvatarTextColor(avatarColor);
     const roleColor = getRoleTextColor(avatarColor);
 
+    // ─── Generación de Fondo Oscuro y Acentos con el mismo Matiz del Avatar ───
+    const rgb = hexToRgb(avatarColor);
+    const isWhite = (rgb.r > 240 && rgb.g > 240 && rgb.b > 240);
+    const isVeryDark = (rgb.r < 30 && rgb.g < 30 && rgb.b < 30);
+
+    let cardBg, cardBgHover, cardBorder, cardBorderHover, cardHighlight, cardGlow;
+
+    if (isWhite) {
+      cardBg = 'linear-gradient(135deg, #1e242c 0%, #0f141a 100%)';
+      cardBgHover = 'linear-gradient(135deg, #2b333e 0%, #161c24 100%)';
+      cardBorder = 'rgba(255, 255, 255, 0.28)';
+      cardBorderHover = 'rgba(255, 255, 255, 0.55)';
+      cardHighlight = 'rgba(255, 255, 255, 0.35)';
+      cardGlow = 'rgba(255, 255, 255, 0.18)';
+    } else if (isVeryDark) {
+      cardBg = 'linear-gradient(135deg, #1a202c 0%, #0d1117 100%)';
+      cardBgHover = 'linear-gradient(135deg, #252e3e 0%, #121822 100%)';
+      cardBorder = 'rgba(255, 255, 255, 0.22)';
+      cardBorderHover = 'rgba(255, 255, 255, 0.45)';
+      cardHighlight = 'rgba(255, 255, 255, 0.25)';
+      cardGlow = 'rgba(255, 255, 255, 0.14)';
+    } else {
+      // Mucho más oscuro pero manteniendo la saturación y tonalidad viva del avatar
+      const rTop = Math.round(rgb.r * 0.22);
+      const gTop = Math.round(rgb.g * 0.22);
+      const bTop = Math.round(rgb.b * 0.22);
+
+      const rBot = Math.round(rgb.r * 0.09);
+      const gBot = Math.round(rgb.g * 0.09);
+      const bBot = Math.round(rgb.b * 0.09);
+
+      const rHoverTop = Math.round(rgb.r * 0.30);
+      const gHoverTop = Math.round(rgb.g * 0.30);
+      const bHoverTop = Math.round(rgb.b * 0.30);
+
+      const rHoverBot = Math.round(rgb.r * 0.14);
+      const gHoverBot = Math.round(rgb.g * 0.14);
+      const bHoverBot = Math.round(rgb.b * 0.14);
+
+      cardBg = `linear-gradient(135deg, rgb(${rTop}, ${gTop}, ${bTop}) 0%, rgb(${rBot}, ${gBot}, ${bBot}) 100%)`;
+      cardBgHover = `linear-gradient(135deg, rgb(${rHoverTop}, ${gHoverTop}, ${bHoverTop}) 0%, rgb(${rHoverBot}, ${gHoverBot}, ${bHoverBot}) 100%)`;
+      cardBorder = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.38)`;
+      cardBorderHover = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.68)`;
+      cardHighlight = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.40)`;
+      cardGlow = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.30)`;
+    }
+
     // Variables globales en :root para que apliquen a TODO el software
     const rootEl = document.documentElement;
     rootEl.style.setProperty('--user-avatar-color', avatarColor);
@@ -927,11 +974,23 @@ const App = (() => {
     rootEl.style.setProperty('--user-name-color-light', nameColorLight);
     rootEl.style.setProperty('--user-name-color-dark', nameColorDark);
     rootEl.style.setProperty('--user-role-color', roleColor);
+    rootEl.style.setProperty('--user-card-bg', cardBg);
+    rootEl.style.setProperty('--user-card-bg-hover', cardBgHover);
+    rootEl.style.setProperty('--user-card-border', cardBorder);
+    rootEl.style.setProperty('--user-card-border-hover', cardBorderHover);
+    rootEl.style.setProperty('--user-card-highlight', cardHighlight);
+    rootEl.style.setProperty('--user-card-glow', cardGlow);
 
     const sidebarUserEl = document.getElementById('sidebar-user');
     if (sidebarUserEl) {
       sidebarUserEl.style.setProperty('--avatar-accent-color', roleColor);
       sidebarUserEl.style.setProperty('--user-role-color', roleColor);
+      sidebarUserEl.style.setProperty('--user-card-bg', cardBg);
+      sidebarUserEl.style.setProperty('--user-card-bg-hover', cardBgHover);
+      sidebarUserEl.style.setProperty('--user-card-border', cardBorder);
+      sidebarUserEl.style.setProperty('--user-card-border-hover', cardBorderHover);
+      sidebarUserEl.style.setProperty('--user-card-highlight', cardHighlight);
+      sidebarUserEl.style.setProperty('--user-card-glow', cardGlow);
     }
 
     const avatarEl = document.getElementById('user-avatar');
@@ -949,6 +1008,11 @@ const App = (() => {
     const roleEl = document.getElementById('user-role');
     if (roleEl) {
       roleEl.style.setProperty('color', roleColor, 'important');
+    }
+
+    const profileBtn = document.getElementById('profile-btn');
+    if (profileBtn) {
+      profileBtn.style.setProperty('color', roleColor);
     }
   }
 
