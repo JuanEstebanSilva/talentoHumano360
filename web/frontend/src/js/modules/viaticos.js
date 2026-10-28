@@ -1636,6 +1636,35 @@ const ViaticosModule = (() => {
     }).catch(() => {});
   }
 
+    // ─── Carga Dinámica de Dependencias del Paquete con Números Oficiales ──────────
+  async function loadPackageDependencias(id_paquete) {
+    const sel = document.getElementById('vit-dependencia');
+    if (!sel) return;
+    try {
+      const res = await API.getViaticosDependencias({ id_paquete });
+      const deps = res?.data || [];
+      const currentVal = state.filters.dependencia || '';
+      const totalViaticos = deps.reduce((sum, d) => sum + (d.total || 0), 0);
+
+      if (!deps.length) {
+        sel.innerHTML = '<option value="">TODAS LAS DEPENDENCIAS (0)</option>';
+        return;
+      }
+
+      sel.innerHTML = `
+        <option value="">TODAS LAS DEPENDENCIAS (${totalViaticos.toLocaleString('es-CO')})</option>
+        ${deps.map(d => {
+          const isSelected = currentVal === d.dependencia ||
+            (currentVal && d.dependencia.toLowerCase().trim() === currentVal.toLowerCase().trim());
+          return `<option value="${escHtml(d.dependencia)}" ${isSelected ? 'selected' : ''}>${escHtml(d.dependencia)} (${d.total.toLocaleString('es-CO')})</option>`;
+        }).join('')}
+      `;
+    } catch (err) {
+      console.warn('Error al cargar dependencias del paquete:', err);
+      sel.innerHTML = '<option value="">TODAS LAS DEPENDENCIAS</option>';
+    }
+  }
+
   async function loadPackages() {
     try {
       const pkgs = await API.getViaticosPaquetes();
@@ -1691,7 +1720,7 @@ const ViaticosModule = (() => {
   function clearFilters() {
     ['vit-q', 'vit-estado'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const depEl = document.getElementById('vit-dependencia');
-    if (depEl) depEl.value = 'Todas';
+    if (depEl) depEl.value = '';
     state.filters = {};
     if (state.activePackage && state.activePackage.id_paquete) {
       state.filters.id_paquete = state.activePackage.id_paquete;
@@ -2414,8 +2443,8 @@ const ViaticosModule = (() => {
               </div>
               <div class="filter-group" style="flex:1.5">
                 <label class="filter-label">Dependencia</label>
-                <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()">
-                  ${DEPENDENCIAS_LIST.map(d => `<option value="${d === 'Todas' ? '' : d}">${d === 'Todas' ? 'TODAS' : d}</option>`).join('')}
+                <select id="vit-dependencia" class="filter-select" onchange="ViaticosModule.applyFilters()" title="Filtrar por dependencia institucional">
+                  <option value="">Cargando dependencias...</option>
                 </select>
               </div>
               <div class="filter-group">
@@ -2451,6 +2480,7 @@ const ViaticosModule = (() => {
       `;
 
       document.getElementById('vit-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
+      loadPackageDependencias(pkg.id_paquete);
       loadStatsPackage(pkg.id_paquete);
       await load();
     }
@@ -2502,6 +2532,7 @@ const ViaticosModule = (() => {
             <div id="vpkg-file-name" style="font-size:13.5px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra tu archivo Excel</div>
             <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Formatos admitidos: archivos Excel (.xlsx, .xls) de comisiones y viáticos</div>
           </div>
+          <div id="vpkg-sheets-preview" style="display:none; margin-top:12px;"></div>
         </div>
       </form>
     `;
@@ -2602,6 +2633,40 @@ const ViaticosModule = (() => {
         if (!nombreInput.value || nombreInput.value.trim() === '') {
           nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
         }
+
+        // Inspección y vista previa en tiempo real de las hojas y dependencias del Excel
+        if (typeof XLSX !== 'undefined') {
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            try {
+              const wb = XLSX.read(new Uint8Array(re.target.result), { type: 'array' });
+              const previewBox = document.getElementById('vpkg-sheets-preview');
+              if (previewBox && wb.SheetNames && wb.SheetNames.length) {
+                previewBox.style.display = 'block';
+                const sheetsList = wb.SheetNames.map(sName => {
+                  const ws = wb.Sheets[sName];
+                  const rowsCount = ws ? Math.max(0, XLSX.utils.sheet_to_json(ws, { header: 1 }).length - 1) : 0;
+                  return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                    <strong>${escHtml(sName)}</strong> <span style="color:#64748b;">(${rowsCount.toLocaleString('es-CO')} filas)</span>
+                  </span>`;
+                }).join('');
+                previewBox.innerHTML = `
+                  <div style="font-size:12px; font-weight:700; color:var(--color-green-dark, #16a34a); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    <span>${wb.SheetNames.length} Dependencias / Hojas detectadas en el Excel:</span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:2px;">
+                    ${sheetsList}
+                  </div>
+                `;
+              }
+            } catch (err) {
+              console.warn('Error previewing sheets:', err);
+            }
+          };
+          reader.readAsArrayBuffer(f);
+        }
+
         if (modalBodyEl && App.refreshFloatingLabels) {
           App.refreshFloatingLabels(modalBodyEl);
         }
@@ -3147,6 +3212,7 @@ const ViaticosModule = (() => {
       filePreview.style.display = 'none';
       confirmBtn.disabled = true;
       confirmText.textContent = 'Confirmar Importación';
+      const sc = overlay.querySelector('#vit-import-sheets-chips'); if (sc) sc.remove();
     };
 
     changeFileBtn.addEventListener('click', (e) => {
@@ -3179,6 +3245,48 @@ const ViaticosModule = (() => {
       filePreview.style.display = 'block';
       confirmBtn.disabled = false;
       confirmText.textContent = 'Confirmar Importación';
+
+      // Inspección y vista previa en tiempo real de las hojas y dependencias del Excel
+      if (typeof XLSX !== 'undefined') {
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          try {
+            const wb = XLSX.read(new Uint8Array(re.target.result), { type: 'array' });
+            let sheetChips = overlay.querySelector('#vit-import-sheets-chips');
+            if (!sheetChips) {
+              const noticeCard = overlay.querySelector('.excel-notice-card');
+              if (noticeCard) {
+                const previewWrap = document.createElement('div');
+                previewWrap.id = 'vit-import-sheets-chips';
+                previewWrap.style.cssText = 'margin-top:12px; background:rgba(40,135,27,0.06); border:1px solid rgba(40,135,27,0.2); border-radius:10px; padding:12px;';
+                noticeCard.parentNode.insertBefore(previewWrap, noticeCard);
+                sheetChips = previewWrap;
+              }
+            }
+            if (sheetChips && wb.SheetNames && wb.SheetNames.length) {
+              const sheetsList = wb.SheetNames.map(sName => {
+                const ws = wb.Sheets[sName];
+                const rowsCount = ws ? Math.max(0, XLSX.utils.sheet_to_json(ws, { header: 1 }).length - 1) : 0;
+                return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                  <strong>${escHtml(sName)}</strong> <span style="color:#64748b;">(${rowsCount.toLocaleString('es-CO')} filas)</span>
+                </span>`;
+              }).join('');
+              sheetChips.innerHTML = `
+                <div style="font-size:12px; font-weight:700; color:var(--color-green-dark, #16a34a); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  <span>${wb.SheetNames.length} Dependencias / Hojas detectadas en el Excel:</span>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:2px;">
+                  ${sheetsList}
+                </div>
+              `;
+            }
+          } catch (err) {
+            console.warn('Error previewing sheets in import modal:', err);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
     };
 
     dropzone.addEventListener('click', () => fileInput.click());

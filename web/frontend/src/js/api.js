@@ -147,6 +147,7 @@ const API = (() => {
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
+    getViaticosDependencias: (params = {}) => request('/viaticos/dependencias' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosStats: (params = {}) => request('/viaticos/stats' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosPaquetes: () => request('/viaticos/paquetes'),
     createViaticosPaquete: (data) => request('/viaticos/paquetes', { method: 'POST', body: JSON.stringify(data) }),

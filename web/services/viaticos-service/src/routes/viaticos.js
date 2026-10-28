@@ -202,6 +202,48 @@ router.delete('/paquetes/:id', auth, async (req, res) => {
   }
 });
 
+// ─── GET /api/viaticos/dependencias ──────────────────────────────────────────
+// Lista las dependencias únicas reales según el paquete o vigencia seleccionada
+router.get('/dependencias', auth, async (req, res) => {
+  const { id_paquete, anio } = req.query;
+  try {
+    const conditions = ["v.dependencia IS NOT NULL", "TRIM(v.dependencia) != ''"];
+    const params = [];
+    let idx = 1;
+    if (id_paquete && id_paquete !== 'todos' && id_paquete !== 'all') {
+      conditions.push('v.id_paquete = $' + (idx++));
+      params.push(parseInt(id_paquete, 10));
+    }
+    if (anio && anio !== 'todos' && anio !== 'all') {
+      conditions.push('p.anio = $' + (idx++));
+      params.push(parseInt(anio, 10));
+    }
+
+    const where = conditions.join(' AND ');
+    const q = `
+      SELECT v.dependencia, COUNT(v.id_viatico)::int as total
+      FROM viaticos v
+      LEFT JOIN paquetes_viaticos p ON p.id_paquete = v.id_paquete
+      WHERE ${where}
+      GROUP BY v.dependencia
+      ORDER BY v.dependencia ASC
+    `;
+    const result = await pool.query(q, params);
+
+    // Ordenamiento natural institucional (numérico y alfabético: 1., 1.1, 2., ..., 704)
+    const sorted = result.rows.sort((a, b) => {
+      return (a.dependencia || '').localeCompare(b.dependencia || '', 'es', { numeric: true, sensitivity: 'base' });
+    });
+
+    res.json({
+      data: sorted
+    });
+  } catch (err) {
+    console.error('[viaticos] dependencias error:', err.message);
+    res.status(500).json({ error: 'Error al listar dependencias.' });
+  }
+});
+
 // ─── GET /api/viaticos ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
   const { q='', estado='', departamento='', dependencia='', id_paquete='', anio='', page=1, limit=20 } = req.query;
@@ -217,8 +259,26 @@ router.get('/', auth, async (req, res) => {
       params.push(parseInt(anio, 10));
     }
     if (estado && estado !== 'Todos') { conditions.push(`v.estado = $${idx++}`); params.push(normalizeStatus(estado)); }
-    if (depFilter && depFilter !== 'Todas' && depFilter !== 'Todos') { conditions.push(`LOWER(v.dependencia) LIKE LOWER($${idx++})`); params.push(`%${depFilter}%`); }
-    if (q) { conditions.push(`(LOWER(v.apellidos_nombres) LIKE LOWER($${idx}) OR v.documento LIKE $${idx} OR LOWER(v.destino) LIKE LOWER($${idx}))`); params.push(`%${q}%`); idx++; }
+    if (depFilter && depFilter !== 'Todas' && depFilter !== 'Todos') {
+      conditions.push(`(
+        v.dependencia = $${idx}
+        OR LOWER(v.dependencia) = LOWER($${idx})
+        OR TRANSLATE(LOWER(v.dependencia), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`);
+      params.push(depFilter.trim());
+      idx++;
+    }
+    if (q) {
+      conditions.push(`(
+        TRANSLATE(LOWER(v.apellidos_nombres), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR v.documento LIKE $${idx}
+        OR TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR TRANSLATE(LOWER(v.dependencia), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR v.numero_resolucion LIKE $${idx}
+      )`);
+      params.push(`%${q}%`);
+      idx++;
+    }
 
     const where = conditions.join(' AND ');
     const countQuery = `SELECT COUNT(*) FROM viaticos v LEFT JOIN paquetes_viaticos p ON p.id_paquete = v.id_paquete WHERE ${where}`;
