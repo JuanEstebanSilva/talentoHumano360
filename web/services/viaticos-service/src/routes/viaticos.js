@@ -204,7 +204,7 @@ router.delete('/paquetes/:id', auth, async (req, res) => {
 
 // ─── GET /api/viaticos ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q='', estado='', departamento='', dependencia='', id_paquete='', page=1, limit=20 } = req.query;
+  const { q='', estado='', departamento='', dependencia='', id_paquete='', anio='', page=1, limit=20 } = req.query;
   const depFilter = dependencia || departamento || '';
   try {
     const conditions = ['1=1']; const params = []; let idx = 1;
@@ -212,12 +212,16 @@ router.get('/', auth, async (req, res) => {
       conditions.push(`v.id_paquete = $${idx++}`);
       params.push(parseInt(id_paquete));
     }
+    if (anio && anio !== 'todos' && anio !== 'all') {
+      conditions.push(`p.anio = $${idx++}`);
+      params.push(parseInt(anio, 10));
+    }
     if (estado && estado !== 'Todos') { conditions.push(`v.estado = $${idx++}`); params.push(normalizeStatus(estado)); }
     if (depFilter && depFilter !== 'Todas' && depFilter !== 'Todos') { conditions.push(`LOWER(v.dependencia) LIKE LOWER($${idx++})`); params.push(`%${depFilter}%`); }
     if (q) { conditions.push(`(LOWER(v.apellidos_nombres) LIKE LOWER($${idx}) OR v.documento LIKE $${idx} OR LOWER(v.destino) LIKE LOWER($${idx}))`); params.push(`%${q}%`); idx++; }
 
     const where = conditions.join(' AND ');
-    const countQuery = `SELECT COUNT(*) FROM viaticos v WHERE ${where}`;
+    const countQuery = `SELECT COUNT(*) FROM viaticos v LEFT JOIN paquetes_viaticos p ON p.id_paquete = v.id_paquete WHERE ${where}`;
     const total = parseInt((await pool.query(countQuery, params)).rows[0].count);
 
     const isAll = limit === 'all' || limit === '0' || parseInt(limit, 10) >= 10000;
@@ -278,11 +282,65 @@ router.get('/stats', auth, async (req, res) => {
       SELECT COUNT(*)::int AS total,
              COUNT(*) FILTER (WHERE estado='Pendiente')::int AS pendientes,
              COUNT(*) FILTER (WHERE estado='Aprobada' OR estado='Finalizada')::int AS aprobadas,
-             COALESCE(SUM(valor_total) FILTER (WHERE estado='Aprobada' OR estado='Finalizada'), 0)::numeric(15,2) AS valor_aprobado
+             COALESCE(SUM(valor_total) FILTER (WHERE estado='Aprobada' OR estado='Finalizada'), 0)::numeric(15,2) AS valor_aprobado,
+             COUNT(DISTINCT UPPER(TRIM(destino)))::int AS total_destinos
       FROM viaticos WHERE ${where}`, params);
+
+    // Destinos más frecuentes (Top 5)
+    const destRes = await pool.query(`
+      SELECT UPPER(TRIM(destino)) AS destino, COUNT(*)::int AS count
+      FROM viaticos
+      WHERE ${where} AND destino IS NOT NULL AND TRIM(destino) != ''
+      GROUP BY 1
+      ORDER BY count DESC
+      LIMIT 5`, params);
+
+    // Presupuesto y comisiones agrupadas por dependencia
+    const depRes = await pool.query(`
+      SELECT COALESCE(NULLIF(TRIM(dependencia), ''), 'SECRETARÍA GENERAL') AS dep,
+             COUNT(*)::int AS count,
+             COALESCE(SUM(valor_total), 0)::numeric(15,2) AS valor_total
+      FROM viaticos
+      WHERE ${where}
+      GROUP BY 1`, params);
+
+    function normalizeDep(raw) {
+      if (!raw) return 'Sec. General';
+      const d = raw.trim().toUpperCase();
+      if (d === '704' || d.includes('INFRAESTRUCTURA') || d.includes('VIAS') || d.includes('OBRAS')) return 'Sec. Infraestructura';
+      if (d.includes('SALUD') || d.includes('PREVENCION') || d.includes('PRESTACION')) return 'Sec. Salud';
+      if (d.includes('GOBERNADOR') || d.includes('DESPACHO')) return 'Despacho del Gobernador';
+      if (d.includes('HACIENDA') || d.includes('TESORERIA') || d.includes('RENTAS') || d.includes('PRESUPUESTO')) return 'Sec. Hacienda';
+      if (d.includes('AGRICULTURA') || d.includes('DESARROLLO RURAL')) return 'Sec. Agricultura';
+      if (d.includes('AMBIENTE') || d.includes('SOSTENIBLE')) return 'Sec. Ambiente';
+      if (d.includes('CULTURA') || d.includes('PATRIMONIO')) return 'Sec. Cultura y Patrimonio';
+      if (d.includes('EDUCACION')) return 'Sec. Educación';
+      if (d.includes('TALENTO HUMANO') || d.includes('PERSONAL')) return 'Talento Humano';
+      if (d.includes('SERVICIOS ADMINISTRATIVOS') || d.includes('GENERAL')) return 'Sec. General';
+      if (d.includes('GOBIERNO') || d.includes('ACCION SOCIAL')) return 'Sec. Gobierno';
+      if (d.includes('TURISMO')) return 'Sec. Turismo';
+      if (d.includes('JURIDICA')) return 'Oficina Jurídica';
+      return raw.length > 25 ? raw.substring(0, 22) + '...' : raw;
+    }
+
+    const depMap = {};
+    depRes.rows.forEach(row => {
+      const norm = normalizeDep(row.dep);
+      if (!depMap[norm]) depMap[norm] = { nombre: norm, presupuesto: 0, comisiones: 0 };
+      depMap[norm].presupuesto += parseFloat(row.valor_total) || 0;
+      depMap[norm].comisiones += parseInt(row.count) || 0;
+    });
+
+    const por_dependencia = Object.values(depMap)
+      .sort((a, b) => b.presupuesto - a.presupuesto)
+      .slice(0, 6);
+
     res.json({
       ...r.rows[0],
-      valor_aprobado_formatted: formatCurrency(r.rows[0].valor_aprobado)
+      valor_aprobado_formatted: formatCurrency(r.rows[0].valor_aprobado),
+      total_destinos: parseInt(r.rows[0].total_destinos) || 0,
+      por_destino: destRes.rows,
+      por_dependencia
     });
   } catch (err) {
     console.error('[viaticos] stats error:', err.message);

@@ -275,11 +275,13 @@ const App = (() => {
     try {
       const groups = container.querySelectorAll('.form-group');
       groups.forEach(group => {
-        // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, headers
+        // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, excel dropzones, headers
         if (
           group.querySelector('.modalidad-cards-selector') ||
           group.querySelector('.dest-toggle-group') ||
           group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
           group.querySelector('.form-section-header') ||
           group.querySelector('.badge-servidor-vinculado') ||
           group.querySelector('#ef-periodos-container') ||
@@ -585,11 +587,18 @@ const App = (() => {
     if (badge) badge.setAttribute('title', title);
     document.getElementById('app')?.setAttribute('data-current-module', rawModule);
 
-    const targetHash = rawModule + (options.tab ? `?tab=${options.tab}` : '') + (options.tipo ? `?tipo=${options.tipo}` : '');
+    const targetParams = [];
+    if (options.tab) targetParams.push(`tab=${encodeURIComponent(options.tab)}`);
+    if (options.tipo) targetParams.push(`tipo=${encodeURIComponent(options.tipo)}`);
+    if (options.year) targetParams.push(`year=${encodeURIComponent(options.year)}`);
+    if (options.pkg) targetParams.push(`pkg=${encodeURIComponent(options.pkg)}`);
+    const targetHash = rawModule + (targetParams.length ? `?${targetParams.join('&')}` : '');
     const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-    if (currentHash !== targetHash && currentHash !== rawModule) {
+    if (currentHash !== targetHash) {
       if (window.history && window.history.pushState) {
         window.history.pushState(null, '', `#${targetHash}`);
+      } else {
+        window.location.hash = targetHash;
       }
     }
 
@@ -613,7 +622,7 @@ const App = (() => {
             expandAdminGroup();
             break;
           }
-          case 'viaticos':      await ViaticosModule.render(container); break;
+          case 'viaticos':      await ViaticosModule.render(container, options); break;
           case 'horarios':      await HorariosModule.render(container); break;
           case 'sst': {
             const tabKey = options.tab || 'epidemiologico';
@@ -1459,6 +1468,8 @@ const App = (() => {
         const options = {};
         if (params.get('tab')) options.tab = params.get('tab');
         if (params.get('tipo')) options.tipo = params.get('tipo');
+        if (params.get('year')) options.year = params.get('year');
+        if (params.get('pkg')) options.pkg = params.get('pkg');
         navigate(initMod, options);
       } else {
         navigate('dashboard');
@@ -1552,6 +1563,8 @@ window.addEventListener('hashchange', () => {
     const options = {};
     if (params.get('tab')) options.tab = params.get('tab');
     if (params.get('tipo')) options.tipo = params.get('tipo');
+    if (params.get('year')) options.year = params.get('year');
+    if (params.get('pkg')) options.pkg = params.get('pkg');
     App.navigate(mod, options);
   }
 });

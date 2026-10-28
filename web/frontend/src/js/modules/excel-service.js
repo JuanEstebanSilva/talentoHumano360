@@ -97,6 +97,58 @@ const ExcelService = (() => {
   }
 
   /**
+   * Construye un ArrayBuffer binario de un archivo Excel (.xlsx) listo para empaquetar en ZIP
+   */
+  function buildWorkbookBuffer(options = {}) {
+    if (typeof XLSX === 'undefined') return null;
+    const columns = options.columns || [];
+    const data = options.data || [];
+    const sheetName = (options.sheetName || 'Datos').substring(0, 31);
+
+    let rows;
+    let colWidths;
+    if (columns && columns.length > 0) {
+      rows = data.map((item, idx) => {
+        const row = {};
+        columns.forEach(col => {
+          let val = item[col.key];
+          if (val === undefined && item[col.header] !== undefined) val = item[col.header];
+          if (col.format && typeof col.format === 'function') val = col.format(val, item, idx);
+          else if (val == null) val = '';
+          row[col.header] = val;
+        });
+        return row;
+      });
+      colWidths = columns.map(col => {
+        let maxLen = (col.header || '').length;
+        rows.forEach(r => {
+          const valStr = String(r[col.header] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        });
+        return { wch: Math.max(col.width || 12, maxLen + 3) };
+      });
+    } else {
+      rows = data;
+      const allKeys = Object.keys(rows[0] || {});
+      colWidths = allKeys.map(k => {
+        let maxLen = k.length;
+        rows.forEach(r => {
+          const valStr = String(r[k] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        });
+        return { wch: Math.max(12, maxLen + 3) };
+      });
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = colWidths;
+    ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  }
+
+  /**
    * Guarda un archivo Excel aplicando estilos profesionales a la fila de encabezados:
    * altura de 41 píxeles (30.75 pt), texto en negrita y centrado vertical y horizontal.
    */
@@ -593,7 +645,8 @@ const ExcelService = (() => {
   return {
     exportToExcel,
     downloadTemplate,
-    openImportModal
+    openImportModal,
+    buildWorkbookBuffer
   };
 
 })();

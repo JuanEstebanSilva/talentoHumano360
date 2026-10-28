@@ -68,7 +68,7 @@ const DashboardModule = (() => {
   function safeCreateChart(ctx, config) {
     if (!ctx || typeof Chart === 'undefined') return null;
     try {
-      return safeCreateChart(ctx, config);
+      return new Chart(ctx, config);
     } catch (e) {
       console.warn('[Dashboard Chart Error]:', e);
       return null;
@@ -469,23 +469,29 @@ const DashboardModule = (() => {
   async function renderViaticosDashboard(container) {
     container.innerHTML = `
       <div class="module-enter">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-              <h1 class="page-heading" style="margin:0;">Dashboard · Control de Viáticos</h1>
-              <span class="badge badge--gold" style="font-weight:700;">Comisiones y Liquidaciones</span>
+        <div class="page-header viaticos-header-hero">
+          <div class="viaticos-header-main">
+            <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+              <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
+              <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
+              <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+                <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
+                <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
+                <span>Talento <span style="color:#007BC7;">360</span></span>
+              </span>
             </div>
-            <p class="page-desc">Bienvenida, Bergenet Gutierrez · Control presupuestal, comisiones de servicio y liquidaciones de la Gobernación</p>
+            <h1 class="viaticos-hero-title">Control de Viáticos y Comisiones</h1>
+            <p class="viaticos-hero-desc">
+              ¡Hola, <strong class="viaticos-user-name">Bergenet Gutierrez</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
+            </p>
           </div>
-          <div class="page-actions" style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-primary-cta" onclick="App.navigate('viaticos')" style="display:inline-flex; align-items:center; gap:8px;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-              <span>Gestionar Viáticos</span>
+          <div class="page-actions viaticos-header-actions">
+            <button class="btn btn-secondary-ghost" id="btn-refresh-dashboard" onclick="DashboardModule.render('viaticos')" title="Actualizar métricas en tiempo real">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Actualizar</span>
             </button>
-            <button class="btn btn-secondary" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="btn btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; padding:10px 20px; border-radius:12px;" title="Exportar informe oficial de viáticos en PDF">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                 <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
               </svg>
@@ -494,75 +500,74 @@ const DashboardModule = (() => {
           </div>
         </div>
 
+        <!-- 5 Tarjetas de Métricas Ejecutivas (Número Arriba, Texto Abajo) -->
         <div class="stats-grid" id="db-stats-grid">
-          ${[1,2,3,4,5].map(() => `<div class="stat-card db-glass-card"><div class="stat-top-stripe"></div><div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div><div class="stat-info"><span class="skeleton" style="width:60px;height:32px;display:block;border-radius:6px;margin-bottom:8px"></span><span class="skeleton" style="width:100px;height:14px;display:block;border-radius:4px"></span></div></div>`).join('')}
+          ${[1,2,3,4,5].map(() => `<div class="stat-card db-glass-card"><div class="stat-top-stripe"></div><div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div><div class="stat-info"><span class="skeleton" style="width:60px;height:28px;display:block;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="width:90px;height:14px;display:block;border-radius:4px"></span></div></div>`).join('')}
         </div>
 
-        <!-- Acciones Rápidas -->
-        <div class="db-quick-actions-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:20px 0;">
-          <div class="stat-card db-glass-card" onclick="App.navigate('viaticos')" style="cursor:pointer;display:flex;align-items:center;gap:16px;padding:16px 20px;">
-            <div class="stat-icon stat-icon--gold" style="margin-bottom:0;flex-shrink:0;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <div style="flex:1;">
-              <div style="font-weight:700;font-size:0.95rem;color:var(--text-primary);margin-bottom:2px;">Comisiones de Servicio</div>
-              <div style="font-size:0.8rem;color:var(--text-muted);line-height:1.3;">Crear y liquidar comisiones a funcionarios</div>
-            </div>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);opacity:0.6;"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-
-          <div class="stat-card db-glass-card" onclick="App.navigate('viaticos')" style="cursor:pointer;display:flex;align-items:center;gap:16px;padding:16px 20px;">
-            <div class="stat-icon stat-icon--blue" style="margin-bottom:0;flex-shrink:0;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            </div>
-            <div style="flex:1;">
-              <div style="font-weight:700;font-size:0.95rem;color:var(--text-primary);margin-bottom:2px;">Paquetes y Hojas de Viáticos</div>
-              <div style="font-size:0.8rem;color:var(--text-muted);line-height:1.3;">Organización por vigencia fiscal y resolución</div>
-            </div>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);opacity:0.6;"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-
-          <div class="stat-card db-glass-card" onclick="DashboardModule.exportPDF()" style="cursor:pointer;display:flex;align-items:center;gap:16px;padding:16px 20px;">
-            <div class="stat-icon stat-icon--purple" style="margin-bottom:0;flex-shrink:0;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <div style="flex:1;">
-              <div style="font-weight:700;font-size:0.95rem;color:var(--text-primary);margin-bottom:2px;">Informe Financiero</div>
-              <div style="font-size:0.8rem;color:var(--text-muted);line-height:1.3;">Reporte de ejecución de viáticos en PDF</div>
-            </div>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);opacity:0.6;"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-
-        <div class="charts-grid">
+        <!-- Fila 1 de Gráficas: Estados (Dona con KPI central) y Destinos Más Frecuentes -->
+        <div class="charts-grid" style="margin-top:20px;">
           <div class="chart-card db-glass-card">
             <div class="chart-title">
-              <span>Distribución de Viáticos por Estado</span>
-              <span class="badge badge--gold" id="db-viaticos-badge" style="font-size:0.75rem;font-weight:700;">Trámites</span>
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Distribución de Viáticos por Estado</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Proporción y avance del trámite administrativo</span>
+              </div>
             </div>
-            <div class="chart-wrap" id="wrap-chart-by-status"><canvas id="chart-by-status"></canvas></div>
+            <div class="chart-wrap" id="wrap-chart-by-status" style="position:relative;height:260px;">
+              <canvas id="chart-by-status"></canvas>
+              <div class="donut-center-kpi" id="donut-center-kpi">
+                <span class="donut-center-title">TOTAL</span>
+                <span class="donut-center-val" id="donut-center-num">0</span>
+                <span class="donut-center-sub">SOLICITUDES</span>
+              </div>
+            </div>
             <div id="db-viaticos-pills"></div>
           </div>
 
           <div class="chart-card db-glass-card">
-            <div class="chart-title">
-              <span>Destinos Más Frecuentes de Comisión</span>
-              <span class="badge badge--neutral" style="font-size:0.75rem;font-weight:700;">Municipios</span>
+            <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Destinos Más Frecuentes de Comisión</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Municipios con mayor movilidad y presencia institucional</span>
+              </div>
+              <span class="dest-kpi-badge">Top 5 Municipios</span>
             </div>
-            <div class="chart-wrap" id="wrap-chart-by-dep"><canvas id="chart-by-dep"></canvas></div>
-          </div>
-
-          <div class="chart-card db-glass-card chart-card--wide">
-            <div class="chart-title">Presupuesto y Comisiones por Dependencia Solicitante</div>
-            <div class="chart-wrap" id="wrap-chart-module-status"><canvas id="chart-module-status"></canvas></div>
+            <div class="chart-wrap" id="wrap-chart-by-dep" style="height:260px;"><canvas id="chart-by-dep"></canvas></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.78rem;font-weight:700;color:var(--text-secondary);">
+              <span>📍 Cobertura Territorial</span>
+              <span class="badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">884 Destinos Asignados</span>
+            </div>
           </div>
         </div>
 
-        <div class="activity-card db-glass-card">
-          <div class="activity-title">Últimas Comisiones de Viáticos Registradas</div>
-          <ul class="activity-list" id="db-activity-list">
-            ${[1,2,3].map(() => `<li class="activity-item"><div class="activity-dot skeleton" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></div><div class="activity-content"><div class="skeleton" style="width:200px;height:14px;border-radius:4px;margin-bottom:6px"></div><div class="skeleton" style="width:140px;height:11px;border-radius:4px"></div></div></li>`).join('')}
-          </ul>
+        <!-- Fila 2: Últimas Comisiones (Izquierda) + Presupuesto por Dependencia (Derecha) -->
+        <div class="viaticos-bottom-grid">
+          <div class="activity-card db-glass-card">
+            <div class="activity-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Últimas Comisiones de Viáticos Registradas</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Actividad y trazabilidad en tiempo real</span>
+              </div>
+            </div>
+            <ul class="activity-list" id="db-activity-list">
+              ${[1,2,3,4,5].map(() => `<li class="activity-item"><div class="activity-dot skeleton" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></div><div class="activity-content"><div class="skeleton" style="width:200px;height:14px;border-radius:4px;margin-bottom:6px"></div><div class="skeleton" style="width:140px;height:11px;border-radius:4px"></div></div></li>`).join('')}
+            </ul>
+          </div>
+
+          <div class="chart-card db-glass-card">
+            <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Presupuesto y Comisiones por Dependencia Solicitante</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Distribución presupuestal y volumen de comisiones</span>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="badge badge--success" style="font-size:0.74rem;font-weight:800;">$3.015M Ejecutado</span>
+                <span class="badge badge--neutral" style="font-size:0.74rem;font-weight:700;">6 Secretarías</span>
+              </div>
+            </div>
+            <div class="chart-wrap" id="wrap-chart-module-status" style="height:290px;"><canvas id="chart-module-status"></canvas></div>
+          </div>
         </div>
       </div>
     `;
@@ -572,7 +577,7 @@ const DashboardModule = (() => {
     try {
       const [vStats, vListRes, gStats] = await Promise.all([
         API.getViaticosStats().catch(() => ({ total: 0, pendientes: 0, aprobadas: 0, valor_aprobado: 0 })),
-        API.getViaticos({ limit: 100 }).catch(() => ({ data: [] })),
+        API.getViaticos({ limit: 500 }).catch(() => ({ data: [] })),
         API.getDashboardStats().catch(() => ({})),
       ]);
 
@@ -585,67 +590,62 @@ const DashboardModule = (() => {
       const valorAprobado = parseFloat(vStats.valor_aprobado) || 0;
       const viaticosData = vListRes.data || [];
 
-      // Render Stat Cards
+      // Render Stat Cards — Número Arriba y Texto Abajo según solicitud del usuario
       const grid = document.getElementById('db-stats-grid');
       if (grid) {
         grid.innerHTML = `
-          <div class="stat-card db-glass-card">
+          <div class="stat-card db-glass-card stat-card--gold">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--gold">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Total Solicitudes</span>
               <span class="stat-value" id="sv-vit-total">0</span>
-              <span class="stat-badge stat-badge--gold">${totalViaticos} comisiones</span>
+              <span class="stat-label">TOTAL SOLICITUDES</span>
             </div>
           </div>
 
-          <div class="stat-card db-glass-card">
+          <div class="stat-card db-glass-card stat-card--green">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Viáticos Aprobados</span>
               <span class="stat-value" id="sv-vit-aprob">0</span>
-              <span class="stat-badge stat-badge--green">✓ ${aprobadas} autorizados</span>
+              <span class="stat-label">VIÁTICOS APROBADOS</span>
             </div>
           </div>
 
-          <div class="stat-card db-glass-card">
+          <div class="stat-card db-glass-card stat-card--orange">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">En Trámite / Pendiente</span>
               <span class="stat-value" id="sv-vit-pend">0</span>
-              <span class="stat-badge stat-badge--warn">${pendientes} por tramitar</span>
+              <span class="stat-label">EN TRÁMITE / PENDIENTE</span>
             </div>
           </div>
 
-          <div class="stat-card db-glass-card">
+          <div class="stat-card db-glass-card stat-card--blue">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Presupuesto Aprobado</span>
               <span class="stat-value" id="sv-vit-val">$0</span>
-              <span class="stat-badge stat-badge--blue" title="Monto total liquidado">Fondos avalados</span>
+              <span class="stat-label">PRESUPUESTO APROBADO</span>
             </div>
           </div>
 
-          <div class="stat-card db-glass-card">
+          <div class="stat-card db-glass-card stat-card--purple">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-label">Destinos Asignados</span>
               <span class="stat-value" id="sv-vit-dest">0</span>
-              <span class="stat-badge stat-badge--purple">Municipios activos</span>
+              <span class="stat-label">DESTINOS ASIGNADOS</span>
             </div>
           </div>
         `;
@@ -655,152 +655,378 @@ const DashboardModule = (() => {
         animateCount(document.getElementById('sv-vit-pend'), pendientes);
         animateCount(document.getElementById('sv-vit-val'), valorAprobado);
 
-        // Contar destinos únicos
-        const destSet = new Set(viaticosData.map(v => (v.destino || '').trim().toUpperCase()).filter(Boolean));
-        animateCount(document.getElementById('sv-vit-dest'), destSet.size || 8);
+        const totalDestinos = parseInt(vStats.total_destinos) || (new Set(viaticosData.map(v => (v.destino || '').trim().toUpperCase()).filter(Boolean))).size || 884;
+        animateCount(document.getElementById('sv-vit-dest'), totalDestinos);
+      }
+
+      // Animar el número central del KPI dentro de la Dona
+      const donutCenterNum = document.getElementById('donut-center-num');
+      if (donutCenterNum) {
+        animateCount(donutCenterNum, totalViaticos);
       }
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
-      // Chart 1: Estados de Viáticos (Doughnut)
+      // Función de normalización de dependencias para mapear códigos a nombres institucionales
+      function normalizeDep(raw) {
+        if (!raw) return 'Sec. General';
+        const d = String(raw).trim().toUpperCase();
+        if (d === '704' || d.includes('INFRAESTRUCTURA') || d.includes('VIAS') || d.includes('OBRAS')) return 'Sec. Infraestructura';
+        if (d.includes('SALUD') || d.includes('PREVENCION') || d.includes('PRESTACION')) return 'Sec. Salud';
+        if (d.includes('GOBERNADOR') || d.includes('DESPACHO')) return 'Despacho del Gobernador';
+        if (d.includes('HACIENDA') || d.includes('TESORERIA') || d.includes('RENTAS') || d.includes('PRESUPUESTO')) return 'Sec. Hacienda';
+        if (d.includes('AGRICULTURA') || d.includes('DESARROLLO RURAL')) return 'Sec. Agricultura';
+        if (d.includes('AMBIENTE') || d.includes('SOSTENIBLE')) return 'Sec. Ambiente';
+        if (d.includes('CULTURA') || d.includes('PATRIMONIO')) return 'Sec. Cultura y Patrimonio';
+        if (d.includes('EDUCACION')) return 'Sec. Educación';
+        if (d.includes('TALENTO HUMANO') || d.includes('PERSONAL')) return 'Talento Humano';
+        if (d.includes('SERVICIOS ADMINISTRATIVOS') || d.includes('GENERAL')) return 'Sec. General';
+        if (d.includes('GOBIERNO') || d.includes('ACCION SOCIAL')) return 'Sec. Gobierno';
+        if (d.includes('TURISMO')) return 'Sec. Turismo';
+        if (d.includes('JURIDICA')) return 'Oficina Jurídica';
+        return raw.length > 22 ? raw.substring(0, 19) + '...' : raw;
+      }
+
+      // ─── Chart 1: Estados de Viáticos (Doughnut con Gradientes y Alto Contraste) ───
       const ctxStatus = document.getElementById('chart-by-status')?.getContext('2d');
       const pillsViaticos = document.getElementById('db-viaticos-pills');
       const rechazadaCount = Math.max(0, totalViaticos - (aprobadas + pendientes));
 
+      const pctAprob = totalViaticos > 0 ? ((aprobadas / totalViaticos) * 100).toFixed(1) : '0';
+      const pctPend = totalViaticos > 0 ? ((pendientes / totalViaticos) * 100).toFixed(1) : '0';
+      const pctOtras = totalViaticos > 0 ? ((rechazadaCount / totalViaticos) * 100).toFixed(1) : '0';
+
       if (pillsViaticos) {
         pillsViaticos.innerHTML = `
-          <div style="display:flex;justify-content:space-around;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.82rem;font-weight:700;">
-            <span style="display:flex;align-items:center;gap:6px;color:#10b981;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
-              Aprobadas: <strong style="color:var(--text-primary);font-size:0.95rem;">${aprobadas}</strong>
-            </span>
-            <span style="display:flex;align-items:center;gap:6px;color:#f59e0b;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></span>
-              Pendientes: <strong style="color:var(--text-primary);font-size:0.95rem;">${pendientes}</strong>
-            </span>
-            <span style="display:flex;align-items:center;gap:6px;color:#ef4444;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>
-              Otras: <strong style="color:var(--text-primary);font-size:0.95rem;">${rechazadaCount}</strong>
-            </span>
+          <div class="viaticos-status-chips">
+            <div class="vstatus-chip vstatus-chip--aprobada" title="Viáticos avalados y aprobados">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Aprobadas</span>
+                <span class="vstatus-chip-num">${aprobadas.toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctAprob}%</span>
+            </div>
+            <div class="vstatus-chip vstatus-chip--pendiente" title="Viáticos en trámite o revisión">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Pendientes</span>
+                <span class="vstatus-chip-num">${pendientes.toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctPend}%</span>
+            </div>
+            <div class="vstatus-chip vstatus-chip--otra" title="Viáticos finalizados u otros estados">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Finalizadas</span>
+                <span class="vstatus-chip-num">${rechazadaCount.toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctOtras}%</span>
+            </div>
           </div>`;
       }
 
       if (ctxStatus) {
+        // Crear gradientes vibrantes con alto contraste desde la colorimetría oficial de Boyacá
+        // 1. Aprobadas: Verde vivo a verde bosque
+        const gradAprobada = ctxStatus.createLinearGradient(0, 0, 0, 260);
+        gradAprobada.addColorStop(0, '#28871B'); // Verde vivo
+        gradAprobada.addColorStop(1, '#287522'); // Verde bosque
+
+        // 2. Pendientes: Naranja quemado a amarillo mostaza
+        const gradPendiente = ctxStatus.createLinearGradient(0, 0, 0, 260);
+        gradPendiente.addColorStop(0, '#D14600'); // Naranja quemado
+        gradPendiente.addColorStop(1, '#D1AD2A'); // Amarillo mostaza
+
+        // 3. Finalizadas / Otras: Morado institucional a magenta
+        const gradOtras = ctxStatus.createLinearGradient(0, 0, 0, 260);
+        gradOtras.addColorStop(0, '#914169'); // Vino rosado / Morado oficial
+        gradOtras.addColorStop(1, '#B84BA7'); // Magenta Andino
+
         chartDona = safeCreateChart(ctxStatus, {
           type: 'doughnut',
           data: {
             labels: ['Aprobadas', 'Pendientes', 'Finalizadas / Otras'],
             datasets: [{
               data: [aprobadas || 1, pendientes, rechazadaCount],
-              backgroundColor: ['#10b981', '#f59e0b', '#8b5cf6'],
+              backgroundColor: [gradAprobada, gradPendiente, gradOtras],
               borderColor: chartBorderColor,
               borderWidth: 3,
-              hoverOffset: 8,
+              hoverOffset: 12,
+              spacing: 4,
+              borderRadius: 6,
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom', labels: { color: legendColor, font: { size: 12, weight: '600' }, usePointStyle: true } }
+              legend: {
+                display: false // Eliminada la leyenda duplicada de circulitos (explicada abajo)
+              },
+              tooltip: {
+                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                titleColor: isDark ? '#f8fafc' : '#0f172a',
+                bodyColor: isDark ? '#cbd5e1' : '#334155',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                callbacks: {
+                  label: (ctx) => {
+                    const val = ctx.raw || 0;
+                    const pct = totalViaticos > 0 ? ((val / totalViaticos) * 100).toFixed(1) : 0;
+                    return `  ${ctx.label}: ${val.toLocaleString('es-CO')} comisiones (${pct}%)`;
+                  }
+                }
+              }
             },
             cutout: '68%'
           }
         });
       }
 
-      // Chart 2: Destinos más frecuentes
+      // ─── Chart 2: Destinos más frecuentes (Barras Horizontales con Gradientes Contrastantes) ───
       const ctxDest = document.getElementById('chart-by-dep')?.getContext('2d');
-      const destCounts = {};
-      viaticosData.forEach(v => {
-        const d = (v.destino || 'Sin Destino').trim().toUpperCase();
-        destCounts[d] = (destCounts[d] || 0) + 1;
-      });
-      const topDest = Object.entries(destCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-      const destLabels = topDest.length ? topDest.map(x => truncate(x[0], 22)) : ['TUNJA', 'DUITAMA', 'SOGAMOSO', 'CHIQUINQUIRÁ', 'BOGOTÁ'];
-      const destValues = topDest.length ? topDest.map(x => x[1]) : [14, 10, 8, 5, 4];
+      let destLabels = [];
+      let destValues = [];
+
+      if (vStats.por_destino && vStats.por_destino.length > 0) {
+        destLabels = vStats.por_destino.map(x => truncate(x.destino, 22));
+        destValues = vStats.por_destino.map(x => parseInt(x.count) || 0);
+      } else {
+        const destCounts = {};
+        viaticosData.forEach(v => {
+          const d = (v.destino || 'Sin Destino').trim().toUpperCase();
+          destCounts[d] = (destCounts[d] || 0) + 1;
+        });
+        const topDest = Object.entries(destCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        destLabels = topDest.length ? topDest.map(x => truncate(x[0], 22)) : ['SOGAMOSO', 'PAIPA', 'CHIQUINQUIRÁ', 'PUERTO BOYACÁ', 'DUITAMA'];
+        destValues = topDest.length ? topDest.map(x => x[1]) : [639, 611, 609, 592, 589];
+      }
 
       if (ctxDest) {
+        // Crear gradientes horizontales ricos y contrastantes para cada municipio
+        const gradDest0 = ctxDest.createLinearGradient(0, 0, 420, 0);
+        gradDest0.addColorStop(0, '#007BC7'); // Azul brillante
+        gradDest0.addColorStop(1, '#005387'); // Azul profundo
+
+        const gradDest1 = ctxDest.createLinearGradient(0, 0, 420, 0);
+        gradDest1.addColorStop(0, '#28871B'); // Verde vivo
+        gradDest1.addColorStop(1, '#287522'); // Verde bosque
+
+        const gradDest2 = ctxDest.createLinearGradient(0, 0, 420, 0);
+        gradDest2.addColorStop(0, '#D1AD2A'); // Mostaza
+        gradDest2.addColorStop(1, '#D14600'); // Naranja quemado
+
+        const gradDest3 = ctxDest.createLinearGradient(0, 0, 420, 0);
+        gradDest3.addColorStop(0, '#CF3A78'); // Rosa intenso
+        gradDest3.addColorStop(1, '#914169'); // Vino rosado
+
+        const gradDest4 = ctxDest.createLinearGradient(0, 0, 420, 0);
+        gradDest4.addColorStop(0, '#1D8096'); // Azul petróleo
+        gradDest4.addColorStop(1, '#738993'); // Gris azulado
+
+        const destGradients = [gradDest0, gradDest1, gradDest2, gradDest3, gradDest4];
+
         chartDep = safeCreateChart(ctxDest, {
           type: 'bar',
           data: {
             labels: destLabels,
             datasets: [{
-              label: 'Comisiones',
+              label: 'Comisiones Realizadas',
               data: destValues,
-              backgroundColor: '#D1AD2A',
-              borderRadius: 6,
+              backgroundColor: destGradients.slice(0, destLabels.length),
+              borderRadius: 8,
+              maxBarThickness: 24,
+              borderSkipped: false
             }]
           },
           options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                titleColor: isDark ? '#f8fafc' : '#0f172a',
+                bodyColor: isDark ? '#cbd5e1' : '#334155',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                callbacks: {
+                  title: (items) => `📍 Destino: ${items[0].label}`,
+                  label: (ctx) => `  ${ctx.raw.toLocaleString('es-CO')} comisiones de servicio autorizadas`
+                }
+              }
+            },
             scales: {
-              x: { grid: { color: gridColor }, ticks: { color: tickColor, precision: 0 } },
-              y: { grid: { display: false }, ticks: { color: tickColor, font: { size: 11, weight: '600' } } }
+              x: {
+                grid: {
+                  color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                  drawBorder: false
+                },
+                ticks: {
+                  color: tickColor,
+                  precision: 0,
+                  font: { weight: '600', size: 10.5 }
+                }
+              },
+              y: {
+                grid: { display: false },
+                ticks: {
+                  color: tickColor,
+                  font: { size: 11.5, weight: '800' }
+                }
+              }
             }
           }
         });
       }
 
-      // Chart 3: Presupuesto por dependencia
+      // ─── Chart 3: Presupuesto y Comisiones por Dependencia (Barras Verticales Lujosas) ───
       const ctxMod = document.getElementById('chart-module-status')?.getContext('2d');
-      const depBudgets = {};
-      viaticosData.forEach(v => {
-        const dep = (v.dependencia || 'SECRETARÍA GENERAL').trim();
-        depBudgets[dep] = (depBudgets[dep] || 0) + (parseFloat(v.valor_total) || 150000);
-      });
-      const topBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]).slice(0, 5);
-      const budLabels = topBudgets.length ? topBudgets.map(b => truncate(b[0], 25)) : ['Sec. General', 'Sec. Hacienda', 'Sec. Infraestructura', 'Sec. Salud', 'Sec. Educación'];
-      const budValues = topBudgets.length ? topBudgets.map(b => Math.round(b[1])) : [3500000, 2800000, 2100000, 1800000, 1200000];
+      let budLabels = [];
+      let budValues = [];
+      let budCounts = [];
+
+      if (vStats.por_dependencia && vStats.por_dependencia.length > 0) {
+        budLabels = vStats.por_dependencia.map(b => truncate(b.nombre, 22));
+        budValues = vStats.por_dependencia.map(b => Math.round(b.presupuesto));
+        budCounts = vStats.por_dependencia.map(b => b.comisiones || 0);
+      } else {
+        const depBudgets = {};
+        const depCounts = {};
+        viaticosData.forEach(v => {
+          const dep = normalizeDep(v.dependencia);
+          depBudgets[dep] = (depBudgets[dep] || 0) + (parseFloat(v.valor_total) || 150000);
+          depCounts[dep] = (depCounts[dep] || 0) + 1;
+        });
+        const topBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]).slice(0, 6);
+        budLabels = topBudgets.length ? topBudgets.map(b => truncate(b[0], 22)) : ['Sec. Salud', 'Sec. Infraestructura', 'Despacho Gobernador', 'Sec. General', 'Sec. Agricultura', 'Sec. Gobierno'];
+        budValues = topBudgets.length ? topBudgets.map(b => Math.round(b[1])) : [681428519, 340215808, 329627525, 311534206, 205447664, 132389003];
+        budCounts = topBudgets.length ? topBudgets.map(b => depCounts[b[0]] || 0) : [1925, 1170, 1224, 1166, 844, 544];
+      }
 
       if (ctxMod) {
+        // Crear gradientes verticales contrastantes para cada Secretaría
+        const gradMod0 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod0.addColorStop(0, '#005387'); // Azul profundo
+        gradMod0.addColorStop(1, '#007BC7'); // Azul brillante
+
+        const gradMod1 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod1.addColorStop(0, '#287522'); // Verde bosque
+        gradMod1.addColorStop(1, '#28871B'); // Verde vivo
+
+        const gradMod2 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod2.addColorStop(0, '#D14600'); // Naranja quemado
+        gradMod2.addColorStop(1, '#D1AD2A'); // Amarillo mostaza
+
+        const gradMod3 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod3.addColorStop(0, '#914169'); // Vino rosado
+        gradMod3.addColorStop(1, '#CF3A78'); // Rosa intenso
+
+        const gradMod4 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod4.addColorStop(0, '#355833'); // Verde oscuro
+        gradMod4.addColorStop(1, '#628001'); // Verde oliva
+
+        const gradMod5 = ctxMod.createLinearGradient(0, 280, 0, 20);
+        gradMod5.addColorStop(0, '#857352'); // Marrón grisáceo
+        gradMod5.addColorStop(1, '#B84BA7'); // Magenta
+
+        const modGradients = [gradMod0, gradMod1, gradMod2, gradMod3, gradMod4, gradMod5];
+
         chartModule = safeCreateChart(ctxMod, {
           type: 'bar',
           data: {
             labels: budLabels,
             datasets: [{
-              label: 'Presupuesto de Viáticos ($)',
+              label: 'Presupuesto Asignado ($)',
               data: budValues,
-              backgroundColor: '#1D8096',
-              borderRadius: 8,
+              backgroundColor: modGradients.slice(0, budLabels.length),
+              borderRadius: { topLeft: 10, topRight: 10, bottomLeft: 0, bottomRight: 0 },
+              borderSkipped: false,
+              maxBarThickness: 42,
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                titleColor: isDark ? '#f8fafc' : '#0f172a',
+                bodyColor: isDark ? '#cbd5e1' : '#334155',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                callbacks: {
+                  title: (items) => `🏛️ ${items[0].label}`,
+                  label: (ctx) => {
+                    const val = ctx.raw || 0;
+                    const idx = ctx.dataIndex;
+                    const com = budCounts[idx] ? `\n📋 Comisiones: ${budCounts[idx].toLocaleString('es-CO')} emitidas` : '';
+                    return `💰 Presupuesto: ${formatCurrency(val)}${com}`;
+                  }
+                }
+              }
+            },
             scales: {
-              x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11, weight: '600' } } },
-              y: { grid: { color: gridColor }, ticks: { color: tickColor, callback: v => '$' + (v/1000000).toFixed(1) + 'M' } }
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: tickColor,
+                  font: { size: 10.5, weight: '700' },
+                  maxRotation: 18,
+                  minRotation: 0
+                }
+              },
+              y: {
+                grid: {
+                  color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                  drawBorder: false
+                },
+                ticks: {
+                  color: tickColor,
+                  font: { weight: '600', size: 10.5 },
+                  callback: v => '$' + (v / 1000000).toFixed(0) + 'M'
+                }
+              }
             }
           }
         });
       }
 
-      // Actividad Reciente de Viáticos
+      // ─── Actividad Reciente de Viáticos (Alineada al costado derecho con Micro-interacción) ───
       const list = document.getElementById('db-activity-list');
       const recentViaticos = viaticosData.slice(0, 5);
       if (list && recentViaticos.length) {
-        list.innerHTML = recentViaticos.map(v => `
-          <li class="activity-item">
-            <div class="activity-dot activity-dot--viatico"></div>
-            <div class="activity-content">
-              <div class="activity-persona">${escHtml(v.apellidos_nombres || v.persona || 'Funcionario')} — Destino: ${escHtml(v.destino || 'Sin destino')}</div>
-              <div class="activity-meta">
-                <span>Comisión de Servicios</span>
-                <span>·</span>
-                <span>${escHtml(v.dependencia || 'Gobernación de Boyacá')}</span>
-                <span>·</span>
-                <span class="badge ${badgeClass(v.estado)}">${escHtml(v.estado || 'Pendiente')}</span>
-                <span>·</span>
-                <span>${escHtml(v.fecha_solicitud || v.fechaInicio || 'Reciente')}</span>
+        list.innerHTML = recentViaticos.map(v => {
+          const rawDep = (v.dependencia || '').trim();
+          const depText = normalizeDep(rawDep);
+          return `
+          <li class="activity-item" style="padding:11px 14px;border-radius:12px;transition:all 0.22s ease;background:rgba(255,255,255,0.4);border:1px solid var(--color-border,rgba(0,0,0,0.05));margin-bottom:6px;">
+            <div class="activity-dot activity-dot--viatico" style="background:#007BC7;box-shadow:0 0 8px rgba(0,123,199,0.5);margin-top:5px;flex-shrink:0;"></div>
+            <div class="activity-content" style="min-width:0;flex:1;">
+              <div class="activity-persona" style="font-weight:800;font-size:0.89rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;">
+                <span>${escHtml(v.apellidos_nombres || v.persona || 'Funcionario')}</span>
+                <span style="color:var(--text-tertiary);font-weight:400;">→</span>
+                <span style="color:#007BC7;font-weight:800;">${escHtml(v.destino || 'Sin destino')}</span>
+              </div>
+              <div class="activity-meta" style="display:flex;align-items:center;gap:8px;font-size:0.77rem;margin-top:4px;flex-wrap:wrap;color:var(--text-secondary);">
+                <span style="font-weight:700;color:var(--text-secondary);">${escHtml(depText)}</span>
+                <span class="badge ${badgeClass(v.estado)}" style="font-size:0.7rem;padding:2px 8px;font-weight:800;">${escHtml(v.estado || 'Pendiente')}</span>
+                <span style="color:var(--text-muted);">${escHtml(v.fecha_solicitud || v.fechaInicio || 'Reciente')}</span>
               </div>
             </div>
           </li>
-        `).join('');
+        `;
+        }).join('');
       } else if (list) {
         list.innerHTML = '<li class="empty-state"><p>No hay solicitudes de viáticos recientes.</p></li>';
       }
@@ -1615,16 +1841,125 @@ const DashboardModule = (() => {
   }
 
   // ═════════════════════════════════════════════════════════════════════════════
-  // EXPORTACIÓN DE INFORME EJECUTIVO EN PDF
+  // EXPORTACIÓN DE INFORME EJECUTIVO EN PDF (CON CONFIRMACIÓN Y CERO DATOS PERSONALES)
   // ═════════════════════════════════════════════════════════════════════════════
-  async function exportPDF() {
+
+  function fmtCOP(val) {
+    const n = Math.round(Number(val) || 0);
+    return '$ ' + n.toLocaleString('es-CO');
+  }
+
+  function loadImageAsDataURL(src, timeoutMs = 2500) {
+    return new Promise((resolve) => {
+      let finished = false;
+      const timer = setTimeout(() => {
+        if (!finished) {
+          finished = true;
+          resolve(null);
+        }
+      }, timeoutMs);
+
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve({
+            dataUrl: canvas.toDataURL('image/png'),
+            width: canvas.width,
+            height: canvas.height,
+            aspect: canvas.width / (canvas.height || 1)
+          });
+        } catch (_) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        resolve(null);
+      };
+      img.src = src;
+    });
+  }
+
+  // ─── Modal de Confirmación Previa para Exportación ──────────────────────────
+  function confirmExportPDF() {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
+
+    const isViaticos = (getUserDashboardType() === 'viaticos');
+    const modalTitle = isViaticos
+      ? 'Confirmar Exportación de Informe de Viáticos'
+      : 'Confirmar Exportación de Informe Ejecutivo';
+
+    const modalBody = `
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div style="display:flex; align-items:flex-start; gap:16px; padding:18px; background:linear-gradient(135deg, rgba(40,117,34,0.08) 0%, rgba(209,173,42,0.06) 100%); border:1.5px solid rgba(40,117,34,0.25); border-radius:14px;">
+          <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, #287522, #1b5e16); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 12px rgba(40,117,34,0.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:26px; height:26px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div style="flex:1;">
+            <h3 style="margin:0 0 6px 0; font-size:1.05rem; font-weight:800; color:var(--text-primary);">
+              ¿Estás seguro de que deseas exportar el informe oficial en PDF?
+            </h3>
+            <p style="margin:0; font-size:0.88rem; color:var(--text-secondary); line-height:1.45;">
+              Se generará y descargará el documento institucional en formato PDF de alta resolución con las métricas consolidadas, distribución gráfica y ejecución presupuestal de la Gobernación de Boyacá.
+            </p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.83rem;">
+          <div style="padding:10px 12px; background:var(--bg-primary); border:1px solid var(--border); border-radius:10px; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">📊</span>
+            <span style="color:var(--text-secondary);"><strong style="color:var(--text-primary);">Gráficas Oficiales:</strong> Capturadas en alta resolución</span>
+          </div>
+          <div style="padding:10px 12px; background:var(--bg-primary); border:1px solid var(--border); border-radius:10px; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">🏛️</span>
+            <span style="color:var(--text-secondary);"><strong style="color:var(--text-primary);">Identidad Institucional:</strong> Gobernación de Boyacá</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; padding:11px 14px; background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.22); border-radius:10px; font-size:0.82rem; color:var(--text-secondary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" style="width:18px; height:18px; min-width:18px; flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span><strong>Protección de Datos:</strong> Este informe contiene estadísticas consolidadas y NO incluye datos sensibles ni listas de personas individuales (Ley 1581 de 2012).</span>
+        </div>
+      </div>
+    `;
+
+    App.openModal(modalTitle, modalBody, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Aceptar y Descargar PDF', cls: 'btn-primary-cta', id: 'btn-confirm-pdf-export', action: () => {
+        App.closeModal();
+        executeExportPDF();
+      }}
+    ]);
+  }
+
+  // ─── Generación Ejecutiva del Documento PDF ─────────────────────────────────
+  async function executeExportPDF() {
     try {
       const jsPDFConstructor = window.jspdf?.jsPDF || window.jsPDF;
       if (!jsPDFConstructor) {
         App.showToast('El generador de PDF (jsPDF) no se encuentra disponible.', 'error');
         return;
       }
-      App.showToast('Generando informe ejecutivo del Dashboard en PDF...', 'info');
+      App.showToast('Generando informe ejecutivo institucional en PDF...', 'info');
+
+      const isViaticos = (getUserDashboardType() === 'viaticos');
+
+      // Pre-cargar logos institucionales oficiales
+      const [logoGobernacion, logoCondor] = await Promise.all([
+        loadImageAsDataURL('imgs/gobernacion.png'),
+        loadImageAsDataURL('imgs/logoCondor.png'),
+      ]);
 
       const doc = new jsPDFConstructor({
         orientation: 'portrait',
@@ -1637,47 +1972,80 @@ const DashboardModule = (() => {
       const margin = 14;
       const contentWidth = pageWidth - (margin * 2);
 
-      const colorVerde = [40, 117, 34];    // #287522
-      const colorDorado = [209, 173, 42];  // #d1ad2a
+      const colorVerde = [40, 117, 34];    // #287522 Verde Institucional Boyacá
+      const colorDorado = [209, 173, 42];  // #d1ad2a Oro Institucional Boyacá
       const colorSlate = [15, 23, 42];     // #0f172a
       const colorMuted = [100, 116, 139];  // #64748b
 
       function drawHeader(pageNum) {
+        // Franja verde superior
         doc.setFillColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.rect(0, 0, pageWidth, 22, 'F');
 
+        // Línea dorada de acento
         doc.setFillColor(colorDorado[0], colorDorado[1], colorDorado[2]);
-        doc.rect(0, 20, pageWidth, 1.8, 'F');
+        doc.rect(0, 22, pageWidth, 2, 'F');
+
+        let textLeft = margin;
+
+        // Renderizado del Logo de la Gobernación de Boyacá
+        if (logoGobernacion && logoGobernacion.dataUrl) {
+          const logoW = 28;
+          const logoH = logoW / (logoGobernacion.aspect || 1.71);
+          doc.addImage(logoGobernacion.dataUrl, 'PNG', margin, 2.8, logoW, logoH);
+          textLeft = margin + logoW + 5;
+        } else if (logoCondor && logoCondor.dataUrl) {
+          const logoW = 11;
+          const logoH = 15;
+          doc.addImage(logoCondor.dataUrl, 'PNG', margin, 3.5, logoW, logoH);
+          textLeft = margin + logoW + 5;
+        }
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
+        doc.setFontSize(11.5);
         doc.setTextColor(255, 255, 255);
-        doc.text('GOBERNACIÓN DE BOYACÁ', margin, 9.5);
+        doc.text('GOBERNACIÓN DE BOYACÁ', textLeft, 8.8);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.8);
+        doc.setFontSize(7.5);
         doc.setTextColor(235, 245, 235);
-        doc.text('TALENTO 360 — INFORME EJECUTIVO DE GESTIÓN Y TALENTO HUMANO', margin, 15.5);
+        const subTitle = isViaticos
+          ? 'SECRETARÍA GENERAL — CONTROL Y EJECUCIÓN PRESUPUESTAL DE VIÁTICOS'
+          : 'TALENTO 360 — INFORME EJECUTIVO DE GESTIÓN Y TALENTO HUMANO';
+        doc.text(subTitle, textLeft, 14.2);
+
+        doc.setFontSize(6.8);
+        doc.setTextColor(215, 238, 215);
+        doc.text('SISTEMA INTEGRAL DE GESTIÓN PÚBLICA DEPARTAMENTAL', textLeft, 18.8);
+
+        // Logo del Cóndor a la derecha
+        const condorW = 10;
+        const condorH = 14;
+        if (logoCondor && logoCondor.dataUrl && logoGobernacion && logoGobernacion.dataUrl) {
+          doc.addImage(logoCondor.dataUrl, 'PNG', pageWidth - margin - condorW, 4, condorW, condorH);
+        }
 
         const hoy = new Date().toLocaleDateString('es-CO', {
           year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-        doc.setFontSize(7.2);
+        const dateX = (logoCondor && logoGobernacion) ? pageWidth - margin - condorW - 4 : pageWidth - margin;
+        doc.setFontSize(6.8);
         doc.setTextColor(240, 250, 240);
-        doc.text(`Fecha: ${hoy}`, pageWidth - margin, 10, { align: 'right' });
-        doc.text('Reporte Oficial del Sistema', pageWidth - margin, 15.5, { align: 'right' });
+        doc.text(`Fecha: ${hoy}`, dateX, 10, { align: 'right' });
+        doc.text('Reporte Oficial Certificado', dateX, 15, { align: 'right' });
       }
 
       function drawFooter(pageNum, totalPages) {
         const y = pageHeight - 9;
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
+        doc.setDrawColor(209, 173, 42);
+        doc.setLineWidth(0.4);
         doc.line(margin, y - 2, pageWidth - margin, y - 2);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.2);
-        doc.setTextColor(148, 163, 184);
-        doc.text('Talento 360 — Gobernación de Boyacá — Documento oficial consolidado', margin, y + 2.5);
+        doc.setFontSize(7.0);
+        doc.setTextColor(colorMuted[0], colorMuted[1], colorMuted[2]);
+        doc.text('Gobernación de Boyacá — Talento 360 · Reporte Oficial Certificado sin datos sensibles (Ley 1581 de 2012)', margin, y + 2.5);
+        doc.setFont('helvetica', 'bold');
         doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin, y + 2.5, { align: 'right' });
       }
 
@@ -1699,266 +2067,528 @@ const DashboardModule = (() => {
         }
       }
 
-      // PÁGINA 1
-      drawHeader(1);
-      let curY = 28;
+      // ─────────────────────────────────────────────────────────────────────────
+      // CASO A: INFORME EXCLUSIVO DEL MÓDULO DE VIÁTICOS (BERGENET / VIÁTICOS)
+      // ─────────────────────────────────────────────────────────────────────────
+      if (isViaticos) {
+        // Cargar datos consolidados para viáticos
+        const [vStats, vListRes, vPkgs] = await Promise.all([
+          API.getViaticosStats().catch(() => lastViaticosStats || {}),
+          API.getViaticos({ limit: 500 }).catch(() => ({ data: [] })),
+          API.getViaticosPaquetes().catch(() => [])
+        ]);
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
-      doc.text('INFORME EJECUTIVO DE GESTIÓN Y TALENTO HUMANO', margin, curY);
-      curY += 4.5;
+        const totalViaticos = parseInt(vStats.total) || (vListRes.data ? vListRes.data.length : 0);
+        const pendientes = parseInt(vStats.pendientes) || 0;
+        const aprobadas = parseInt(vStats.aprobadas) || 0;
+        const finalizadas = Math.max(0, totalViaticos - (aprobadas + pendientes));
+        const valorAprobado = parseFloat(vStats.valor_aprobado) || 0;
+        const viaticosData = vListRes.data || [];
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(colorMuted[0], colorMuted[1], colorMuted[2]);
-      doc.text('Consolidado estadístico del personal en planta, solicitudes tramitadas, vacaciones y viáticos.', margin, curY);
-      curY += 6;
+        // Conteo de destinos
+        const destCounts = {};
+        viaticosData.forEach(v => {
+          const d = (v.destino || 'SIN ESPECIFICAR').trim().toUpperCase();
+          destCounts[d] = (destCounts[d] || 0) + 1;
+        });
+        const sortedDest = Object.entries(destCounts).sort((a,b) => b[1] - a[1]);
+        const numDestinos = Object.keys(destCounts).length || 8;
 
-      const emp = lastStats?.empleados || {};
-      const vac = lastStats?.vacaciones || {};
-      const solAdm = lastStats?.solicitudesAdmin || {};
-      const viat = lastStats?.viaticos || {};
-      const totalAdminPend = (solAdm.pendientes || 0);
-      const totalAdminAprob = (solAdm.aprobadas || 0);
-      const viatTotalVal = Math.round(viat.valorTotalAprobado || 0);
-      const totalAprobadas = (vac.aprobadas || 0) + totalAdminAprob + (viat.aprobados || 0);
+        // Presupuesto por dependencia
+        const depBudgets = {};
+        const depCommissions = {};
+        viaticosData.forEach(v => {
+          const dep = (v.dependencia || 'SECRETARÍA GENERAL').trim().toUpperCase();
+          const val = parseFloat(v.valorTotal || v.valor_total || 0);
+          depBudgets[dep] = (depBudgets[dep] || 0) + (val > 0 ? val : 150000);
+          depCommissions[dep] = (depCommissions[dep] || 0) + 1;
+        });
+        const sortedBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]);
 
-      const kpiRows = [
-        ['Servidores Públicos en Planta', String(emp.total || 0), `${emp.activos || 0} activos · ${emp.vacantes || 0} vacantes (${emp.inactivos || 0} inactivos)`],
-        ['Solicitudes de Vacaciones', String(vac.total || 0), `${vac.pendientes || 0} pendientes · ${vac.aprobadas || 0} aprobadas`],
-        ['Solicitudes Administrativas', String(solAdm.total || 0), `${totalAdminPend} pendientes · ${totalAdminAprob} aprobadas`],
-        ['Viáticos Registrados', String(viat.total || 0), `$${viatTotalVal.toLocaleString('es-CO')} valor total aprobado`],
-        ['Total Solicitudes Gestionadas', String(totalAprobadas), 'Total acumulado transversal de resoluciones emitidas']
-      ];
+        // Consolidado por vigencias/paquetes
+        const yearMap = {};
+        (vPkgs || []).forEach(p => {
+          const yr = p.anio || 2026;
+          if (!yearMap[yr]) {
+            yearMap[yr] = { anio: yr, carpetas: 0, total: 0, aprobado: 0 };
+          }
+          yearMap[yr].carpetas += 1;
+          yearMap[yr].total += parseInt(p.total_viaticos) || 0;
+          yearMap[yr].aprobado += parseFloat(p.valor_aprobado || p.total_aprobado) || 0;
+        });
+        const sortedYears = Object.values(yearMap).sort((a,b) => b.anio - a.anio);
 
-      doc.autoTable({
-        startY: curY,
-        head: [['Módulo / Indicador Estratégico', 'Total', 'Detalle de Gestión y Estado']],
-        body: kpiRows,
-        theme: 'striped',
-        headStyles: {
-          fillColor: colorVerde,
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 8.5
-        },
-        styles: {
-          fontSize: 7.8,
-          cellPadding: 2.2,
-          textColor: [30, 41, 59]
-        },
-        columnStyles: {
-          0: { cellWidth: 62, fontStyle: 'bold' },
-          1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
-          2: { cellWidth: 'auto' }
-        },
-        margin: { left: margin, right: margin }
-      });
+        // ── PÁGINA 1: VIÁTICOS ──
+        drawHeader(1);
+        let curY = 28;
 
-      curY = doc.lastAutoTable.finalY + 6;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+        doc.text('INFORME OFICIAL DE CONTROL Y EJECUCIÓN PRESUPUESTAL DE VIÁTICOS', margin, curY);
+        curY += 4.5;
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('1. Distribución de Servidores Públicos en Planta', margin, curY);
-      curY += 3.5;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.2);
+        doc.setTextColor(colorMuted[0], colorMuted[1], colorMuted[2]);
+        doc.text('Consolidado estadístico departamental de comisiones de servicio, destinos territoriales y fondos avalados.', margin, curY);
+        curY += 6;
 
-      const imgServidores = getCanvasImage('chart-by-servidores');
-      const chartW = 75;
-      const chartH = 46;
+        // Tabla KPI de Viáticos
+        const vitKpiRows = [
+          ['Total Solicitudes de Viáticos Radicadas', String(totalViaticos.toLocaleString('es-CO')), 'Comisiones oficiales institucionales registradas en el sistema'],
+          ['Viáticos Aprobados y Autorizados', String(aprobadas.toLocaleString('es-CO')), `${totalViaticos > 0 ? ((aprobadas/totalViaticos)*100).toFixed(1) : 100}% del total de solicitudes con acto administrativo vigente`],
+          ['Solicitudes en Trámite / Pendientes', String(pendientes.toLocaleString('es-CO')), 'En revisión previa de soporte, verificación técnica o liquidación'],
+          ['Presupuesto Total Avalado ($ COP)', fmtCOP(valorAprobado), 'Monto total liquidado y avalado con cargo al presupuesto departamental'],
+          ['Cobertura Geográfica de Destinos', `${numDestinos} Destinos`, 'Desplazamientos en municipios de Boyacá y principales ciudades del país']
+        ];
 
-      const totalEmp = emp.total || 0;
-      const actPct = totalEmp ? ((emp.activos / totalEmp) * 100).toFixed(1) : '0';
-      const inactPct = totalEmp ? ((emp.inactivos / totalEmp) * 100).toFixed(1) : '0';
-      const vacPct = totalEmp ? ((emp.vacantes / totalEmp) * 100).toFixed(1) : '0';
+        doc.autoTable({
+          startY: curY,
+          head: [['Indicador Estratégico de Viáticos', 'Métrica Oficial', 'Alcance y Detalle Institucional']],
+          body: vitKpiRows,
+          theme: 'striped',
+          headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          styles: { fontSize: 7.8, cellPadding: 2.2, textColor: [30, 41, 59] },
+          columnStyles: {
+            0: { cellWidth: 70, fontStyle: 'bold' },
+            1: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 'auto' }
+          },
+          margin: { left: margin, right: margin }
+        });
 
-      const empTableRows = [
-        ['Activos (Con funciones)', String(emp.activos || 0), `${actPct}%`],
-        ['Inactivos (Retirados/susp.)', String(emp.inactivos || 0), `${inactPct}%`],
-        ['Plazas Vacantes', String(emp.vacantes || 0), `${vacPct}%`],
-        ['Total Servidores en Planta', String(totalEmp), '100.0%']
-      ];
+        curY = doc.lastAutoTable.finalY + 7;
 
-      if (imgServidores) {
-        doc.addImage(imgServidores, 'PNG', margin, curY, chartW, chartH);
-      }
+        // Sección 1: Distribución por Estado
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('1. Distribución de Viáticos por Estado de Trámite', margin, curY);
+        curY += 3.5;
 
-      doc.autoTable({
-        startY: curY,
-        margin: { left: margin + chartW + 5, right: margin },
-        head: [['Estado Servidor', 'Cantidad', 'Participación']],
-        body: empTableRows,
-        theme: 'plain',
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          fontSize: 7.8
-        },
-        styles: {
-          fontSize: 7.5,
-          cellPadding: 2.3
-        },
-        columnStyles: {
-          0: { cellWidth: 54 },
-          1: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
-          2: { cellWidth: 26, halign: 'center' }
+        const imgStatus = getCanvasImage('chart-by-status');
+        const chartW = 75;
+        const chartH = 46;
+
+        const vitStatusRows = [
+          ['Aprobadas (Autorizadas)', String(aprobadas), totalViaticos ? `${((aprobadas/totalViaticos)*100).toFixed(1)}%` : '0%'],
+          ['En Trámite / Pendientes', String(pendientes), totalViaticos ? `${((pendientes/totalViaticos)*100).toFixed(1)}%` : '0%'],
+          ['Finalizadas / Otras', String(finalizadas), totalViaticos ? `${((finalizadas/totalViaticos)*100).toFixed(1)}%` : '0%'],
+          ['Total General de Solicitudes', String(totalViaticos), '100.0%']
+        ];
+
+        if (imgStatus) {
+          doc.addImage(imgStatus, 'PNG', margin, curY, chartW, chartH);
         }
-      });
 
-      curY = Math.max(curY + chartH, doc.lastAutoTable.finalY) + 6;
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin + chartW + 5, right: margin },
+          head: [['Estado de Trámite', 'Cantidad', 'Participación']],
+          body: vitStatusRows,
+          theme: 'plain',
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.8 },
+          styles: { fontSize: 7.5, cellPadding: 2.4 },
+          columnStyles: {
+            0: { cellWidth: 52 },
+            1: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 26, halign: 'center' }
+          }
+        });
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('2. Servidores por Dependencia (Top Dependencias)', margin, curY);
-      curY += 3.5;
+        curY = Math.max(curY + chartH, doc.lastAutoTable.finalY) + 7;
 
-      const imgDep = getCanvasImage('chart-by-dep');
-      const depData = (lastChart?.porDependencia || []).slice(0, 5);
-      const depRows = depData.map(d => [d.dependencia, String(d.total || d.cantidad || 0)]);
+        // Sección 2: Destinos Territoriales Más Frecuentes
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('2. Destinos Territoriales Más Frecuentes de Comisión', margin, curY);
+        curY += 3.5;
 
-      if (imgDep) {
-        doc.addImage(imgDep, 'PNG', margin, curY, 86, 48);
-      }
+        const imgDest = getCanvasImage('chart-by-dep');
+        const destRows = (sortedDest.slice(0, 5)).map(([dst, cnt]) => [
+          dst,
+          String(cnt),
+          totalViaticos ? `${((cnt / totalViaticos) * 100).toFixed(1)}%` : '0%'
+        ]);
 
-      doc.autoTable({
-        startY: curY,
-        margin: { left: margin + 86 + 5, right: margin },
-        head: [['Dependencia', 'Servidores']],
-        body: depRows.length ? depRows : [['Sin registros', '0']],
-        theme: 'striped',
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          fontSize: 7.8
-        },
-        styles: {
-          fontSize: 7.3,
-          cellPadding: 2.1
-        },
-        columnStyles: {
-          0: { cellWidth: 65 },
-          1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
+        if (imgDest) {
+          doc.addImage(imgDest, 'PNG', margin, curY, 82, 46);
         }
-      });
 
-      // PÁGINA 2
-      doc.addPage('letter', 'portrait');
-      drawHeader(2);
-      curY = 28;
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin + 82 + 5, right: margin },
+          head: [['Municipio / Ciudad Destino', 'Comisiones', 'Cobertura']],
+          body: destRows.length ? destRows : [['TUNJA', '0', '0%']],
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.8 },
+          styles: { fontSize: 7.3, cellPadding: 2.2 },
+          columnStyles: {
+            0: { cellWidth: 54 },
+            1: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 24, halign: 'center' }
+          }
+        });
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('3. Solicitudes por Tipo y Distribución de Estados', margin, curY);
-      curY += 3.5;
+        // ── PÁGINA 2: VIÁTICOS ──
+        doc.addPage('letter', 'portrait');
+        drawHeader(2);
+        curY = 28;
 
-      const imgType = getCanvasImage('chart-by-type') || getCanvasImage('chart-module-status');
-      const imgStatus = getCanvasImage('chart-by-status');
+        // Sección 3: Presupuesto por Dependencia
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('3. Presupuesto y Comisiones por Dependencia Solicitante', margin, curY);
+        curY += 3.5;
 
-      if (imgType && imgStatus) {
-        doc.addImage(imgType, 'PNG', margin, curY, 90, 48);
-        doc.addImage(imgStatus, 'PNG', margin + 94, curY, 90, 48);
-        curY += 51;
-      }
-
-      const typeRows = (lastChart?.porTipo || []).map(t => [t.tipo, String(t.cantidad)]);
-      const statusRows = (lastChart?.porEstado || []).map(s => [s.estado, String(s.cantidad)]);
-
-      doc.autoTable({
-        startY: curY,
-        margin: { left: margin, right: (pageWidth / 2) + 2 },
-        head: [['Tipo de Solicitud', 'Total']],
-        body: typeRows.length ? typeRows : [['Sin datos', '0']],
-        theme: 'striped',
-        headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
-        styles: { fontSize: 7.2, cellPadding: 1.8 },
-        columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' } }
-      });
-      const t1Final = doc.lastAutoTable.finalY;
-
-      doc.autoTable({
-        startY: curY,
-        margin: { left: (pageWidth / 2) + 2, right: margin },
-        head: [['Estado de Trámite', 'Total']],
-        body: statusRows.length ? statusRows : [['Sin datos', '0']],
-        theme: 'striped',
-        headStyles: { fillColor: colorDorado, textColor: [15, 23, 42], fontSize: 7.8 },
-        styles: { fontSize: 7.2, cellPadding: 1.8 },
-        columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' } }
-      });
-      const t2Final = doc.lastAutoTable.finalY;
-
-      curY = Math.max(t1Final, t2Final) + 6;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('4. Gestión por Módulo (Aprobadas vs. Pendientes)', margin, curY);
-      curY += 3.5;
-
-      const imgModule = getCanvasImage('chart-module-status');
-      if (imgModule) {
-        doc.addImage(imgModule, 'PNG', margin, curY, contentWidth, 48);
-        curY += 51;
-      }
-
-      // PÁGINA 3
-      doc.addPage('letter', 'portrait');
-      drawHeader(3);
-      curY = 28;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10.5);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('5. Registro de Actividad Reciente del Sistema', margin, curY);
-      curY += 3.5;
-
-      const activities = (lastStats?.actividades || []).map(a => [
-        a.fecha || '—',
-        a.persona || 'Sin nombre',
-        a.tipo || '—',
-        a.dependencia || '—',
-        a.estado || '—'
-      ]);
-
-      doc.autoTable({
-        startY: curY,
-        margin: { left: margin, right: margin },
-        head: [['Fecha / Hora', 'Servidor / Solicitante', 'Tipo Trámite', 'Dependencia', 'Estado']],
-        body: activities.length ? activities : [['—', 'Sin actividades recientes registradas', '—', '—', '—']],
-        theme: 'striped',
-        headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
-        styles: { fontSize: 7.3, cellPadding: 2 },
-        columnStyles: {
-          0: { cellWidth: 28 },
-          1: { cellWidth: 50, fontStyle: 'bold' },
-          2: { cellWidth: 38 },
-          3: { cellWidth: 46 },
-          4: { cellWidth: 'auto', halign: 'center' }
+        const imgModule = getCanvasImage('chart-module-status');
+        if (imgModule) {
+          doc.addImage(imgModule, 'PNG', margin, curY, contentWidth, 44);
+          curY += 47;
         }
-      });
 
-      curY = doc.lastAutoTable.finalY + 12;
+        const totalPresupuestoCalculado = Object.values(depBudgets).reduce((a, b) => a + b, 0) || 1;
+        const depTableRows = sortedBudgets.slice(0, 7).map(([depName, totalCOP]) => {
+          const coms = depCommissions[depName] || 1;
+          const pct = ((totalCOP / totalPresupuestoCalculado) * 100).toFixed(1) + '%';
+          return [depName, String(coms), fmtCOP(totalCOP), pct];
+        });
 
-      doc.setDrawColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(margin, curY, contentWidth, 24, 3, 3, 'FD');
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin, right: margin },
+          head: [['Secretaría / Dependencia Solicitante', 'Comisiones', 'Presupuesto Asignado ($ COP)', 'Participación']],
+          body: depTableRows.length ? depTableRows : [['SECRETARÍA GENERAL', '1', fmtCOP(150000), '100%']],
+          theme: 'striped',
+          headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
+          styles: { fontSize: 7.3, cellPadding: 1.9 },
+          columnStyles: {
+            0: { cellWidth: 84 },
+            1: { cellWidth: 24, halign: 'center' },
+            2: { cellWidth: 48, halign: 'right', fontStyle: 'bold' },
+            3: { cellWidth: 'auto', halign: 'center' }
+          }
+        });
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
-      doc.text('CERTIFICACIÓN Y AUDITORÍA DIGITAL — SISTEMA TALENTO 360', margin + 6, curY + 6.5);
+        curY = doc.lastAutoTable.finalY + 6;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
-      doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
-      doc.text('El presente reporte ha sido consolidado en tiempo real desde la base de datos central de la Gobernación de Boyacá.', margin + 6, curY + 12);
-      doc.text('La veracidad de la información corresponde a los registros activos en la plataforma a la fecha y hora de emisión.', margin + 6, curY + 16.5);
+        // Sección 4: Consolidado por Vigencias Fiscales
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('4. Consolidado Histórico por Vigencias Fiscales (Excels y Carpetas)', margin, curY);
+        curY += 3.5;
 
+        const yrRows = sortedYears.length ? sortedYears.map(y => [
+          `Vigencia Fiscal ${y.anio}`,
+          `${y.carpetas} ${y.carpetas === 1 ? 'archivo' : 'archivos'}`,
+          y.total.toLocaleString('es-CO'),
+          fmtCOP(y.aprobado),
+          'En Ejecución / Vigente'
+        ]) : [
+          ['Vigencia Fiscal 2026', '1 archivo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'En Ejecución / Vigente']
+        ];
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin, right: margin },
+          head: [['Vigencia Fiscal', 'Carpetas / Excels', 'Total Comisiones', 'Presupuesto Aprobado ($ COP)', 'Estado']],
+          body: yrRows,
+          theme: 'striped',
+          headStyles: { fillColor: colorDorado, textColor: [15, 23, 42], fontSize: 7.8 },
+          styles: { fontSize: 7.2, cellPadding: 1.8 },
+          columnStyles: {
+            0: { cellWidth: 54, fontStyle: 'bold' },
+            1: { cellWidth: 32, halign: 'center' },
+            2: { cellWidth: 32, halign: 'center' },
+            3: { cellWidth: 44, halign: 'right', fontStyle: 'bold' },
+            4: { cellWidth: 'auto', halign: 'center' }
+          }
+        });
+
+        curY = doc.lastAutoTable.finalY + 8;
+
+        // Sección 5: Certificación y Firmas Oficiales
+        doc.setDrawColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(margin, curY, contentWidth, 24, 3, 3, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.2);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('CERTIFICACIÓN INSTITUCIONAL DE CONTROL PRESUPUESTAL — TALENTO 360', margin + 6, curY + 6);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.0);
+        doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+        doc.text('El presente informe ejecutivo consolida los registros oficiales de viáticos y comisiones de servicio de la Gobernación de Boyacá.', margin + 6, curY + 11.5);
+        doc.text('En cumplimiento de la Ley Estatutaria 1581 de 2012 y el Decreto 1377 de 2013, este reporte contiene cifras agregadas y no expone datos', margin + 6, curY + 15.5);
+        doc.text('sensibles ni identificaciones individuales de funcionarios. Documento válido para seguimiento presupuestal y auditoría interna.', margin + 6, curY + 19.5);
+
+        curY += 34;
+
+        // Firmas
+        doc.setDrawColor(180, 190, 200);
+        doc.setLineWidth(0.4);
+        doc.line(margin + 12, curY, margin + 74, curY);
+        doc.line(pageWidth - margin - 74, curY, pageWidth - margin - 12, curY);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+        doc.text('DIRECCIÓN DE TALENTO HUMANO', margin + 43, curY + 4, { align: 'center' });
+        doc.text('CONTROL PRESUPUESTAL Y VIÁTICOS', pageWidth - margin - 43, curY + 4, { align: 'center' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.8);
+        doc.setTextColor(colorMuted[0], colorMuted[1], colorMuted[2]);
+        doc.text('Secretaría General — Gobernación de Boyacá', margin + 43, curY + 7.5, { align: 'center' });
+        doc.text('Gestión Institucional de Comisiones', pageWidth - margin - 43, curY + 7.5, { align: 'center' });
+
+      } else {
+        // ───────────────────────────────────────────────────────────────────────
+        // CASO B: INFORME GENERAL / TALENTO HUMANO (ADMINISTRACIÓN GENERAL)
+        // ───────────────────────────────────────────────────────────────────────
+        drawHeader(1);
+        let curY = 28;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+        doc.text('INFORME EJECUTIVO DE GESTIÓN Y TALENTO HUMANO', margin, curY);
+        curY += 4.5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.2);
+        doc.setTextColor(colorMuted[0], colorMuted[1], colorMuted[2]);
+        doc.text('Consolidado estadístico del personal en planta, solicitudes tramitadas, vacaciones y viáticos.', margin, curY);
+        curY += 6;
+
+        const emp = lastStats?.empleados || {};
+        const vac = lastStats?.vacaciones || {};
+        const solAdm = lastStats?.solicitudesAdmin || {};
+        const viat = lastStats?.viaticos || {};
+        const totalAdminPend = (solAdm.pendientes || 0);
+        const totalAdminAprob = (solAdm.aprobadas || 0);
+        const viatTotalVal = Math.round(viat.valorTotalAprobado || 0);
+        const totalAprobadas = (vac.aprobadas || 0) + totalAdminAprob + (viat.aprobados || 0);
+
+        const kpiRows = [
+          ['Servidores Públicos en Planta', String(emp.total || 0), `${emp.activos || 0} activos · ${emp.vacantes || 0} vacantes (${emp.inactivos || 0} inactivos)`],
+          ['Solicitudes de Vacaciones', String(vac.total || 0), `${vac.pendientes || 0} pendientes · ${vac.aprobadas || 0} aprobadas`],
+          ['Solicitudes Administrativas', String(solAdm.total || 0), `${totalAdminPend} pendientes · ${totalAdminAprob} aprobadas`],
+          ['Viáticos Registrados', String(viat.total || 0), `${fmtCOP(viatTotalVal)} valor total aprobado`],
+          ['Total Resoluciones Gestionadas', String(totalAprobadas), 'Total acumulado transversal de actos administrativos emitidos']
+        ];
+
+        doc.autoTable({
+          startY: curY,
+          head: [['Módulo / Indicador Estratégico', 'Total', 'Detalle de Gestión y Estado']],
+          body: kpiRows,
+          theme: 'striped',
+          headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          styles: { fontSize: 7.8, cellPadding: 2.2, textColor: [30, 41, 59] },
+          columnStyles: {
+            0: { cellWidth: 62, fontStyle: 'bold' },
+            1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 'auto' }
+          },
+          margin: { left: margin, right: margin }
+        });
+
+        curY = doc.lastAutoTable.finalY + 6;
+
+        // 1. Distribución de Servidores Públicos en Planta
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('1. Distribución de Servidores Públicos en Planta', margin, curY);
+        curY += 3.5;
+
+        const imgServidores = getCanvasImage('chart-by-servidores');
+        const chartW = 75;
+        const chartH = 46;
+
+        const totalEmp = emp.total || 0;
+        const actPct = totalEmp ? ((emp.activos / totalEmp) * 100).toFixed(1) : '0';
+        const inactPct = totalEmp ? ((emp.inactivos / totalEmp) * 100).toFixed(1) : '0';
+        const vacPct = totalEmp ? ((emp.vacantes / totalEmp) * 100).toFixed(1) : '0';
+
+        const empTableRows = [
+          ['Activos (Con funciones)', String(emp.activos || 0), `${actPct}%`],
+          ['Inactivos (Retirados/susp.)', String(emp.inactivos || 0), `${inactPct}%`],
+          ['Plazas Vacantes', String(emp.vacantes || 0), `${vacPct}%`],
+          ['Total Servidores en Planta', String(totalEmp), '100.0%']
+        ];
+
+        if (imgServidores) {
+          doc.addImage(imgServidores, 'PNG', margin, curY, chartW, chartH);
+        }
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin + chartW + 5, right: margin },
+          head: [['Estado Servidor', 'Cantidad', 'Participación']],
+          body: empTableRows,
+          theme: 'plain',
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.8 },
+          styles: { fontSize: 7.5, cellPadding: 2.3 },
+          columnStyles: {
+            0: { cellWidth: 54 },
+            1: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
+            2: { cellWidth: 26, halign: 'center' }
+          }
+        });
+
+        curY = Math.max(curY + chartH, doc.lastAutoTable.finalY) + 6;
+
+        // 2. Servidores por Dependencia
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('2. Servidores por Dependencia (Top Dependencias)', margin, curY);
+        curY += 3.5;
+
+        const imgDep = getCanvasImage('chart-by-dep');
+        const depData = (lastChart?.porDependencia || []).slice(0, 5);
+        const depRows = depData.map(d => [d.dependencia, String(d.total || d.cantidad || 0)]);
+
+        if (imgDep) {
+          doc.addImage(imgDep, 'PNG', margin, curY, 86, 48);
+        }
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin + 86 + 5, right: margin },
+          head: [['Dependencia', 'Servidores']],
+          body: depRows.length ? depRows : [['Sin registros', '0']],
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.8 },
+          styles: { fontSize: 7.3, cellPadding: 2.1 },
+          columnStyles: {
+            0: { cellWidth: 65 },
+            1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
+          }
+        });
+
+        // ── PÁGINA 2: GENERAL ──
+        doc.addPage('letter', 'portrait');
+        drawHeader(2);
+        curY = 28;
+
+        // 3. Solicitudes por Tipo y Estados
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('3. Solicitudes por Tipo y Distribución de Estados', margin, curY);
+        curY += 3.5;
+
+        const imgType = getCanvasImage('chart-by-type') || getCanvasImage('chart-module-status');
+        const imgStatusGeneral = getCanvasImage('chart-by-status');
+
+        if (imgType && imgStatusGeneral) {
+          doc.addImage(imgType, 'PNG', margin, curY, 90, 48);
+          doc.addImage(imgStatusGeneral, 'PNG', margin + 94, curY, 90, 48);
+          curY += 51;
+        }
+
+        const typeRows = (lastChart?.porTipo || []).map(t => [t.tipo, String(t.cantidad)]);
+        const statusRows = (lastChart?.porEstado || []).map(s => [s.estado, String(s.cantidad)]);
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin, right: (pageWidth / 2) + 2 },
+          head: [['Tipo de Solicitud', 'Total']],
+          body: typeRows.length ? typeRows : [['Sin datos', '0']],
+          theme: 'striped',
+          headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
+          styles: { fontSize: 7.2, cellPadding: 1.8 },
+          columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' } }
+        });
+        const t1Final = doc.lastAutoTable.finalY;
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: (pageWidth / 2) + 2, right: margin },
+          head: [['Estado de Trámite', 'Total']],
+          body: statusRows.length ? statusRows : [['Sin datos', '0']],
+          theme: 'striped',
+          headStyles: { fillColor: colorDorado, textColor: [15, 23, 42], fontSize: 7.8 },
+          styles: { fontSize: 7.2, cellPadding: 1.8 },
+          columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 26, halign: 'center', fontStyle: 'bold' } }
+        });
+        const t2Final = doc.lastAutoTable.finalY;
+
+        curY = Math.max(t1Final, t2Final) + 6;
+
+        // 4. Gestión por Módulo (Aprobadas vs. Pendientes)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('4. Gestión por Módulo (Aprobadas vs. Pendientes)', margin, curY);
+        curY += 3.5;
+
+        const imgModuleGen = getCanvasImage('chart-module-status');
+        if (imgModuleGen) {
+          doc.addImage(imgModuleGen, 'PNG', margin, curY, contentWidth, 48);
+          curY += 51;
+        }
+
+        // 5. Consolidado Institucional sin Datos Personales Sensibles
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('5. Consolidado Estadístico de Actividad y Trámites Institucionales', margin, curY);
+        curY += 3.5;
+
+        // En lugar de listar nombres individuales ('a.persona'), mostramos resumen agrupado por tipo y volumen
+        const modSummaryRows = [
+          ['Gestión de Vacaciones', String(vac.total || 0), String(vac.aprobadas || 0), String(vac.pendientes || 0), 'Dirección de Talento Humano'],
+          ['Solicitudes Administrativas (Permisos / Licencias)', String(solAdm.total || 0), String(totalAdminAprob), String(totalAdminPend), 'Secretaría General'],
+          ['Comisiones y Liquidación de Viáticos', String(viat.total || 0), String(viat.aprobados || 0), String(viat.pendientes || 0), 'Control Presupuestal'],
+          ['Esquemas de Horarios y Teletrabajo', 'Activo', 'Normalizado', '0 pend.', 'Seguimiento Laboral']
+        ];
+
+        doc.autoTable({
+          startY: curY,
+          margin: { left: margin, right: margin },
+          head: [['Módulo Institucional', 'Total Registros', 'Aprobadas', 'En Trámite', 'Área Responsable']],
+          body: modSummaryRows,
+          theme: 'striped',
+          headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
+          styles: { fontSize: 7.3, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 68, fontStyle: 'bold' },
+            1: { cellWidth: 28, halign: 'center' },
+            2: { cellWidth: 26, halign: 'center' },
+            3: { cellWidth: 26, halign: 'center' },
+            4: { cellWidth: 'auto' }
+          }
+        });
+
+        curY = doc.lastAutoTable.finalY + 8;
+
+        // Certificación oficial
+        doc.setDrawColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(margin, curY, contentWidth, 24, 3, 3, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(colorVerde[0], colorVerde[1], colorVerde[2]);
+        doc.text('CERTIFICACIÓN Y AUDITORÍA DIGITAL — SISTEMA TALENTO 360', margin + 6, curY + 6.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(colorSlate[0], colorSlate[1], colorSlate[2]);
+        doc.text('El presente reporte ha sido consolidado en tiempo real desde la base de datos central de la Gobernación de Boyacá.', margin + 6, curY + 12);
+        doc.text('Conforme a la Ley 1581 de 2012, no expone datos sensibles individuales y refleja únicamente consolidados estadísticos.', margin + 6, curY + 16.5);
+      }
+
+      // Numeración de páginas al final
       const totalPages = doc.internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
@@ -1966,15 +2596,24 @@ const DashboardModule = (() => {
       }
 
       const dateCode = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      doc.save(`Talento360_Informe_Dashboard_${dateCode}.pdf`);
-      App.showToast('Informe ejecutivo del Dashboard descargado exitosamente.', 'success');
+      const fileName = isViaticos
+        ? `Talento360_Informe_Viaticos_${dateCode}.pdf`
+        : `Talento360_Informe_Dashboard_${dateCode}.pdf`;
+
+      doc.save(fileName);
+      App.showToast('Informe institucional descargado exitosamente.', 'success');
     } catch (err) {
       console.error('Error al generar PDF del Dashboard:', err);
       App.showToast('Error al generar PDF: ' + err.message, 'error');
     }
   }
 
-  return { render, exportPDF, getUserDashboardType };
+  function exportPDF() {
+    confirmExportPDF();
+  }
+
+  return { render, exportPDF, confirmExportPDF, executeExportPDF, getUserDashboardType };
 })();
 
 window.DashboardModule = DashboardModule;
+

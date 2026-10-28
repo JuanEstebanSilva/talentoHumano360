@@ -26,7 +26,8 @@ const ViaticosModule = (() => {
   ];
 
   let state = {
-    activeView: 'packages',
+    activeView: 'years',
+    selectedYear: null,
     activePackage: null,
     packages: [],
     data: [],
@@ -212,8 +213,8 @@ const ViaticosModule = (() => {
     `).join('');
   }
 
-  function renderStatsSkeletons() {
-    return Array.from({ length: 3 }).map(() => `
+  function renderStatsSkeletons(count = 4) {
+    return Array.from({ length: count }).map(() => `
       <div class="stat-card" role="progressbar" aria-busy="true" aria-label="Cargando estadísticas...">
         <div class="stat-icon skeleton" style="width: 48px; height: 48px; border-radius: 12px;" aria-hidden="true"></div>
         <div class="stat-info" style="display: flex; flex-direction: column; gap: 6px;">
@@ -441,7 +442,7 @@ const ViaticosModule = (() => {
         <div id="tab-vit-servidor" class="form-tab-pane active" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group span-2 autocomplete-wrapper">
-              <label class="form-label">Nombre Completo del Servidor * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar cédula, cargo y dependencia)</span></label>
+              <label class="form-label">Nombre Completo del Servidor *</label>
               <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
@@ -522,7 +523,7 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Motivo o Justificación del Desplazamiento</label>
-              <input id="vf-motivo" class="form-input" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." enterkeyhint="next" value="${escHtml(r.motivo||'')}" ${dis} />
+              <textarea id="vf-motivo" class="form-input" rows="2" style="min-height:56px; resize:none; line-height:1.45; word-break:break-word;" placeholder="Ej: Comisión oficial para inspección técnica en territorio..." enterkeyhint="next" ${dis}>${escHtml(r.motivo||'')}</textarea>
             </div>
           </div>
         </div>
@@ -603,7 +604,7 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Observaciones Adicionales</label>
-              <input id="vf-obs" class="form-input" placeholder="Anotaciones de gestión o trámite..." enterkeyhint="done" value="${escHtml(r.observaciones||'')}" ${dis} />
+              <textarea id="vf-obs" class="form-input" rows="2" style="min-height:56px; resize:none; line-height:1.45; word-break:break-word;" placeholder="Anotaciones de gestión o trámite..." enterkeyhint="done" ${dis}>${escHtml(r.observaciones||'')}</textarea>
             </div>
           </div>
         </div>
@@ -1387,9 +1388,23 @@ const ViaticosModule = (() => {
     }
   }
 
+  function getPackagesByYear() {
+    const pkgs = state.packages || [];
+    const map = {};
+    pkgs.forEach(p => {
+      const y = parseInt(p.anio) || 2026;
+      if (!map[y]) map[y] = [];
+      map[y].push(p);
+    });
+    const sortedYears = Object.keys(map).map(Number).sort((a, b) => b - a);
+    return { map, sortedYears };
+  }
+
   function loadStats() {
-    if (state.activeView === 'packages') {
+    if (state.activeView === 'years') {
       loadStatsGlobal();
+    } else if (state.activeView === 'year_packages') {
+      loadStatsYear(state.selectedYear);
     } else if (state.activePackage && state.activePackage.id_paquete) {
       loadStatsPackage(state.activePackage.id_paquete);
     }
@@ -1399,20 +1414,88 @@ const ViaticosModule = (() => {
     API.getViaticosStats().then(s => {
       const strip = document.getElementById('vit-stats-strip');
       if (!strip) return;
+      const { sortedYears } = getPackagesByYear();
+      const count = sortedYears.length;
+      const minYear = sortedYears[sortedYears.length - 1] || '2022';
+      const maxYear = sortedYears[0] || '2026';
+      const rangeText = count > 1 ? `${minYear} — ${maxYear}` : `${maxYear}`;
+
       strip.innerHTML = `
         <div class="stat-card">
-          <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${(parseInt(s.total)||0).toLocaleString('es-CO')}</span><span class="stat-label">Viáticos Totales</span></div>
+          <div class="stat-icon stat-icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">${count} ${count === 1 ? 'Vigencia' : 'Años'}</span>
+            <span class="stat-label">Histórico (${rangeText})</span>
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${(parseInt(s.pendientes)||0).toLocaleString('es-CO')}</span><span class="stat-label">Pendientes</span></div>
+          <div class="stat-icon stat-icon--gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">${(parseInt(s.total)||0).toLocaleString('es-CO')}</span>
+            <span class="stat-label">Viáticos Totales</span>
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(s.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
+          <div class="stat-icon stat-icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">${(parseInt(s.aprobadas)||0).toLocaleString('es-CO')}</span>
+            <span class="stat-label">Viáticos Aprobados</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(s.valor_aprobado)}</span>
+            <span class="stat-label">Total Aprobado</span>
+          </div>
         </div>`;
     }).catch(() => {});
+  }
+
+  function loadStatsYear(year) {
+    const strip = document.getElementById('vit-year-stats-strip');
+    if (!strip) return;
+    const yearPkgs = (state.packages || []).filter(p => parseInt(p.anio, 10) === parseInt(year, 10));
+    const totalViaticos = yearPkgs.reduce((acc, p) => acc + (parseInt(p.total_viaticos) || 0), 0);
+    const pendientes = yearPkgs.reduce((acc, p) => acc + (parseInt(p.pendientes) || 0), 0);
+    const totalAprobado = yearPkgs.reduce((acc, p) => acc + (parseFloat(p.valor_aprobado || p.total_aprobado) || 0), 0);
+
+    strip.innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--gold">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${totalViaticos.toLocaleString('es-CO')}</span>
+          <span class="stat-label">Viáticos en ${year}</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${pendientes.toLocaleString('es-CO')}</span>
+          <span class="stat-label">Pendientes</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(totalAprobado)}</span>
+          <span class="stat-label">Total Aprobado</span>
+        </div>
+      </div>`;
   }
 
   function loadStatsPackage(id_paquete) {
@@ -1421,16 +1504,31 @@ const ViaticosModule = (() => {
       if (!pkgStrip) return;
       pkgStrip.innerHTML = `
         <div class="stat-card">
-          <div class="stat-icon stat-icon--gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${(parseInt(ps.total)||0).toLocaleString('es-CO')}</span><span class="stat-label">Viáticos en este Paquete</span></div>
+          <div class="stat-icon stat-icon--gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">${(parseInt(ps.total)||0).toLocaleString('es-CO')}</span>
+            <span class="stat-label">Viáticos en este Paquete</span>
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon stat-icon--orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <div class="stat-info"><span class="stat-value">${(parseInt(ps.pendientes)||0).toLocaleString('es-CO')}</span><span class="stat-label">Pendientes</span></div>
+          <div class="stat-icon stat-icon--orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">${(parseInt(ps.pendientes)||0).toLocaleString('es-CO')}</span>
+            <span class="stat-label">Pendientes</span>
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon stat-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="stat-info"><span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span><span class="stat-label">Total Aprobado</span></div>
+          <div class="stat-icon stat-icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span>
+            <span class="stat-label">Total Aprobado</span>
+          </div>
         </div>`;
     }).catch(() => {});
   }
@@ -1555,7 +1653,84 @@ const ViaticosModule = (() => {
     });
   }
 
-  // ─── Control de Vistas (Paquetes / Detalle) ──────────────────────────────────
+  // ─── Control de Vistas Jerárquicas y Sincronización con Historial del Navegador ───
+  function updateViaticosHash(replace = false) {
+    let target = 'viaticos';
+    if (state.activeView === 'detail' && state.activePackage) {
+      target += `?year=${state.activePackage.anio}&pkg=${state.activePackage.id_paquete}`;
+    } else if (state.activeView === 'year_packages' && state.selectedYear) {
+      target += `?year=${state.selectedYear}`;
+    }
+    const current = (window.location.hash || '').replace(/^#\/?/, '').trim();
+    if (current !== target) {
+      if (replace && window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', `#${target}`);
+      } else if (window.history && window.history.pushState) {
+        window.history.pushState(null, '', `#${target}`);
+      } else {
+        window.location.hash = target;
+      }
+    }
+  }
+
+  function syncStateFromURL(options = {}) {
+    const hash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+    const [mod, query] = hash.split('?');
+    if (mod !== 'viaticos') return false;
+    const params = new URLSearchParams(query || '');
+    const yearParam = options.year || params.get('year');
+    const pkgParam = options.pkg || params.get('pkg');
+
+    if (pkgParam) {
+      const pkgId = parseInt(pkgParam, 10);
+      const pkg = (state.packages || []).find(p => p.id_paquete === pkgId);
+      if (pkg) {
+        state.activeView = 'detail';
+        state.activePackage = pkg;
+        state.selectedYear = pkg.anio;
+        state.filters = { id_paquete: pkg.id_paquete };
+        state.page = 1;
+        return true;
+      }
+    }
+    if (yearParam) {
+      state.activeView = 'year_packages';
+      state.selectedYear = parseInt(yearParam, 10);
+      state.activePackage = null;
+      state.filters = {};
+      state.page = 1;
+      return true;
+    }
+    state.activeView = 'years';
+    state.selectedYear = null;
+    state.activePackage = null;
+    state.filters = {};
+    state.page = 1;
+    return true;
+  }
+
+  async function enterYear(year) {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
+    state.activeView = 'year_packages';
+    state.selectedYear = parseInt(year, 10);
+    state.activePackage = null;
+    state.filters = {};
+    state.page = 1;
+    updateViaticosHash(false);
+    await renderCurrentView();
+  }
+
+  async function backToYears() {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
+    state.activeView = 'years';
+    state.selectedYear = null;
+    state.activePackage = null;
+    state.filters = {};
+    state.page = 1;
+    updateViaticosHash(false);
+    await renderCurrentView();
+  }
+
   async function enterPackage(id_paquete) {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
     const pkg = state.packages.find(p => p.id_paquete === id_paquete);
@@ -1565,33 +1740,48 @@ const ViaticosModule = (() => {
     }
     state.activeView = 'detail';
     state.activePackage = pkg;
+    state.selectedYear = pkg.anio;
     state.page = 1;
     state.filters = { id_paquete: pkg.id_paquete };
+    updateViaticosHash(false);
+    await renderCurrentView();
+  }
+
+  async function backToYearPackages() {
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
+    state.activeView = 'year_packages';
+    if (!state.selectedYear && state.activePackage) {
+      state.selectedYear = state.activePackage.anio;
+    }
+    state.activePackage = null;
+    state.filters = {};
+    state.page = 1;
+    updateViaticosHash(false);
     await renderCurrentView();
   }
 
   async function backToPackages() {
-    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
-    state.activeView = 'packages';
-    state.activePackage = null;
-    state.filters = {};
-    state.page = 1;
-    await renderCurrentView();
+    if (state.selectedYear) {
+      await backToYearPackages();
+    } else {
+      await backToYears();
+    }
   }
 
-  async function renderPackagesView(container) {
+  // ─── Vista de Años (Histórico Anual) ──────────────────────────────────────────
+  async function renderYearsView(container) {
     container.innerHTML = `
       <div class="viaticos-pkg-section">
         <div class="viaticos-pkg-section-header">
           <div class="viaticos-pkg-section-title">
-            <span>Vigencias y Carpetas de Viáticos</span>
-            <span class="viaticos-pkg-section-badge" id="vit-pkg-badge-count">Cargando...</span>
+            <span>Histórico Anual de Viáticos</span>
+            <span class="viaticos-pkg-section-badge" id="vit-years-badge-count">Cargando...</span>
           </div>
           <div style="font-size:12.5px;color:var(--text-secondary);">
-            Selecciona una vigencia o archivo Excel para gestionar sus viáticos específicos
+            Selecciona una vigencia anual para explorar sus carpetas, archivos y liquidaciones presupuestales
           </div>
         </div>
-        <div class="viaticos-pkg-grid" id="vit-packages-grid">
+        <div class="viaticos-pkg-grid" id="vit-years-grid">
           ${Array.from({ length: 4 }).map(() => `
             <div class="viaticos-pkg-card" style="opacity:0.6;">
               <div class="skeleton skeleton-line" style="width:50%;height:18px;margin-bottom:12px;"></div>
@@ -1605,13 +1795,141 @@ const ViaticosModule = (() => {
     `;
 
     const packages = await loadPackages();
-    const grid = document.getElementById('vit-packages-grid');
-    const badge = document.getElementById('vit-pkg-badge-count');
-    if (badge) badge.textContent = `${packages.length} vigencias / Excels`;
+    const grid = document.getElementById('vit-years-grid');
+    const badge = document.getElementById('vit-years-badge-count');
+    const { map, sortedYears } = getPackagesByYear();
 
+    if (badge) badge.textContent = `${sortedYears.length} ${sortedYears.length === 1 ? 'año registrado' : 'años registrados'}`;
     if (!grid) return;
 
-    const cardsHtml = packages.map(pkg => `
+    const cardsHtml = sortedYears.map(year => {
+      const yearPkgs = map[year] || [];
+      const totalViaticos = yearPkgs.reduce((acc, p) => acc + (parseInt(p.total_viaticos) || 0), 0);
+      const pendientes = yearPkgs.reduce((acc, p) => acc + (parseInt(p.pendientes) || 0), 0);
+      const totalAprobado = yearPkgs.reduce((acc, p) => acc + (parseFloat(p.valor_aprobado || p.total_aprobado) || 0), 0);
+      
+      const rawNames = yearPkgs.map(p => (p.nombre || '').trim()).filter(Boolean);
+      const uniqueNames = [...new Set(rawNames)];
+      let pkgNamesSummary = '';
+      if (uniqueNames.length === 1) {
+        pkgNamesSummary = yearPkgs.length > 1 
+          ? `${yearPkgs.length} carpetas consolidadas: ${escHtml(uniqueNames[0])}`
+          : `${escHtml(uniqueNames[0])}`;
+      } else if (uniqueNames.length > 1) {
+        pkgNamesSummary = uniqueNames.map(n => escHtml(n)).join(', ');
+      } else {
+        pkgNamesSummary = `Vigencia fiscal ${year}`;
+      }
+
+      const pctTramitado = totalViaticos > 0 
+        ? Math.round(((totalViaticos - pendientes) / totalViaticos) * 100) 
+        : 100;
+
+      return `
+        <div class="viaticos-pkg-card viaticos-year-card" role="button" tabindex="0" onclick="ViaticosModule.enterYear(${year})" onkeydown="if(event.key==='Enter')ViaticosModule.enterYear(${year})">
+          <div class="viaticos-year-card-body">
+            <div class="viaticos-pkg-card-top">
+              <div class="viaticos-pkg-icon-wrap" title="Vigencia Fiscal ${year}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </div>
+              <span class="viaticos-pkg-year-pill viaticos-pkg-year-pill--hero">${year}</span>
+            </div>
+
+            <div class="viaticos-year-title-block">
+              <span class="viaticos-year-subheading">Vigencia Fiscal</span>
+              <h3 class="viaticos-pkg-name">Año ${year}</h3>
+            </div>
+
+            <div class="viaticos-pkg-desc" title="${pkgNamesSummary}">
+              ${yearPkgs.length ? `Consolidado: ${pkgNamesSummary}` : `Vigencia fiscal oficial ${year} de la Gobernación de Boyacá`}
+            </div>
+
+            <div class="viaticos-pkg-stats">
+              <div class="viaticos-pkg-stat-item">
+                <span class="viaticos-pkg-stat-val">${totalViaticos.toLocaleString('es-CO')}</span>
+                <span class="viaticos-pkg-stat-lbl">Viáticos</span>
+              </div>
+              <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
+              <div class="viaticos-pkg-stat-item">
+                <span class="viaticos-pkg-stat-val is-pending">${pendientes.toLocaleString('es-CO')}</span>
+                <span class="viaticos-pkg-stat-lbl">Pendientes</span>
+              </div>
+              <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
+              <div class="viaticos-pkg-stat-item">
+                <span class="viaticos-pkg-stat-val is-approved" title="${formatCOP(totalAprobado)}">${formatCOP(totalAprobado)}</span>
+                <span class="viaticos-pkg-stat-lbl">Aprobado</span>
+              </div>
+            </div>
+
+            <div class="viaticos-year-progress-wrap">
+              <div class="viaticos-year-progress-header">
+                <span>Avance de trámite</span>
+                <span class="viaticos-year-pct">${pctTramitado}%</span>
+              </div>
+              <div class="viaticos-year-progress-track">
+                <div class="viaticos-year-progress-bar" style="width: ${pctTramitado}%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
+            <div class="viaticos-excel-badge" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span>${yearPkgs.length} ${yearPkgs.length === 1 ? 'Ejecución' : 'Ejecuciones'}</span>
+            </div>
+            <button
+              type="button"
+              class="viaticos-pkg-btn-enter"
+              onclick="ViaticosModule.enterYear(${year})"
+              title="Entrar a ver carpetas de ${year}"
+              aria-label="Ver carpetas de ${year}"
+            >
+              <span>Ver Carpetas</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-arrow-icon" style="width:15px;height:15px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const addCardHtml = `
+      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
+        <div class="viaticos-pkg-add-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:32px;height:32px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </div>
+        <div class="viaticos-pkg-add-title">Agregar uno nuevo</div>
+        <div class="viaticos-pkg-add-desc">Sube un nuevo archivo Excel anual o crea una vigencia limpia</div>
+      </div>
+    `;
+
+    grid.innerHTML = cardsHtml + addCardHtml;
+  }
+
+  // ─── Vista de Carpetas de un Año Específico ──────────────────────────────────
+  async function renderYearPackagesView(container) {
+    const year = state.selectedYear;
+    const packages = await loadPackages();
+    const yearPkgs = packages.filter(p => p.anio === year);
+
+    container.innerHTML = `
+      <div class="viaticos-pkg-section">
+        <div class="viaticos-pkg-section-header">
+          <div class="viaticos-pkg-section-title">
+            <span>Carpetas y Excels — Vigencia ${year}</span>
+            <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge">${yearPkgs.length} ${yearPkgs.length === 1 ? 'carpeta' : 'carpetas'}</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--text-secondary);">
+            Selecciona un archivo Excel específico o gestiona las carpetas presupuestales de ${year}
+          </div>
+        </div>
+        <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid"></div>
+      </div>
+    `;
+
+    const grid = document.getElementById('vit-year-pkgs-grid');
+    if (!grid) return;
+
+    const cardsHtml = yearPkgs.map(pkg => `
       <div class="viaticos-pkg-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
         <div>
           <div class="viaticos-pkg-card-top">
@@ -1652,7 +1970,7 @@ const ViaticosModule = (() => {
               type="button"
               class="btn-action-delete"
               onclick="ViaticosModule.confirmDeletePackage(${pkg.id_paquete}, '${escHtml(pkg.nombre)}')"
-              title="Eliminar esta vigencia y sus viáticos"
+              title="Eliminar esta carpeta y sus viáticos"
               aria-label="Eliminar ${escHtml(pkg.nombre)}"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -1662,11 +1980,20 @@ const ViaticosModule = (() => {
               type="button"
               class="btn-action-edit"
               onclick="ViaticosModule.openEditPackageModal(${pkg.id_paquete})"
-              title="Editar vigencia o nombre"
+              title="Editar nombre, año o archivo fuente"
               aria-label="Editar ${escHtml(pkg.nombre)}"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>` : ''}
+            <button
+              type="button"
+              class="btn-action-download"
+              onclick="ViaticosModule.exportExcelPackage(${pkg.id_paquete})"
+              title="Descargar este archivo Excel (.xlsx)"
+              aria-label="Descargar ${escHtml(pkg.nombre)}"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
           </div>
 
           <button
@@ -1683,34 +2010,43 @@ const ViaticosModule = (() => {
       </div>
     `).join('');
 
-    // Tarjeta para AGREGAR UNO NUEVO (círculo con + y texto "Agregar uno nuevo")
     const addCardHtml = `
-      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
+      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal(${year})" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal(${year})" title="Agregar nuevo archivo Excel a la vigencia ${year}">
         <div class="viaticos-pkg-add-circle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:32px;height:32px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </div>
-        <div class="viaticos-pkg-add-title">Agregar uno nuevo</div>
-        <div class="viaticos-pkg-add-desc">Sube un nuevo archivo Excel anual o crea una vigencia limpia</div>
+        <div class="viaticos-pkg-add-title">Agregar a ${year}</div>
+        <div class="viaticos-pkg-add-desc">Sube otro archivo Excel para el año ${year} o crea una nueva carpeta</div>
       </div>
     `;
 
     grid.innerHTML = cardsHtml + addCardHtml;
   }
 
+  // ─── Enrutador Principal de Vistas ───────────────────────────────────────────
   async function renderCurrentView() {
     const root = mainContainer || document.getElementById('main-content') || document.querySelector('.main-content');
     if (!root) return;
 
-    if (state.activeView === 'packages') {
+    if (state.activeView === 'years') {
       root.innerHTML = `
-        <div class="module-enter" id="vit-root-packages">
+        <div class="module-enter" id="vit-root-years">
           <!-- Encabezado General del Módulo Viáticos -->
-          <div class="page-header">
-            <div class="page-header-info">
-              <h1 class="page-heading">Viáticos</h1>
-              <p class="page-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos del personal institucional</p>
+          <div class="page-header viaticos-header-hero">
+            <div class="viaticos-header-main">
+              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+                <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
+                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
+                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+                  <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                </span>
+              </div>
+              <h1 class="viaticos-hero-title">Viáticos</h1>
+              <p class="viaticos-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la <strong>Gobernación de Boyacá</strong></p>
             </div>
-            <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <!-- Dropdown de Opciones Secundarias -->
               <div class="actions-dropdown-wrap">
                 <button
@@ -1771,7 +2107,7 @@ const ViaticosModule = (() => {
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     <div>
-                      <strong>Nueva Carpeta / Importar Excel</strong>
+                      <strong>Nueva Vigencia / Carpeta</strong>
                       <small>Crear nueva vigencia o cargar archivo Excel</small>
                     </div>
                   </button>` : ''}
@@ -1780,47 +2116,127 @@ const ViaticosModule = (() => {
             </div>
           </div>
 
-          <!-- Estadísticas Globales (Solo en vista de paquetes) -->
-          <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-            ${renderStatsSkeletons()}
+          <!-- Estadísticas Globales (Histórico de Años, Totales, Pendientes, Aprobado) -->
+          <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:var(--space-5)">
+            ${renderStatsSkeletons(4)}
           </div>
 
-          <!-- Contenedor de Vigencias y Carpetas de Viáticos -->
-          <div id="vit-packages-container"></div>
+          <!-- Contenedor del Histórico Anual -->
+          <div id="vit-years-container"></div>
         </div>
       `;
 
       bindDropdownOutsideClick();
+      await loadPackages();
       loadStatsGlobal();
-      const pkgContainer = document.getElementById('vit-packages-container');
-      if (pkgContainer) {
-        await renderPackagesView(pkgContainer);
+      const yearsContainer = document.getElementById('vit-years-container');
+      if (yearsContainer) {
+        await renderYearsView(yearsContainer);
+      }
+    } else if (state.activeView === 'year_packages') {
+      const year = state.selectedYear;
+      root.innerHTML = `
+        <div class="module-enter" id="vit-root-year-packages">
+          <!-- Cabecera Superior Hero de la Vigencia Seleccionada -->
+          <div class="page-header viaticos-header-hero">
+            <div class="viaticos-header-main">
+              <!-- Navegación Breadcrumb y Marca Oficial -->
+              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToYears()" title="Volver al histórico anual de viáticos">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  <span>Volver a Años</span>
+                </button>
+                <span class="viaticos-header-sep" style="color:var(--text-tertiary);font-weight:600;">/</span>
+                <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
+                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
+                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+                  <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                </span>
+              </div>
+
+              <!-- Título con Badge de Año Destacado -->
+              <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
+                <span class="viaticos-hero-year-badge">${year}</span>
+                <h1 class="viaticos-hero-title" style="margin:0;">Vigencia Fiscal ${year}</h1>
+              </div>
+
+              <p class="viaticos-hero-desc">
+                Gestión de carpetas, liquidaciones presupuestales y comisiones de servicio para el año fiscal <strong>${year}</strong> de la Gobernación de Boyacá.
+              </p>
+            </div>
+
+            <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelYear(${year})" title="Descargar todos los viáticos de la vigencia ${year} en ZIP con Excels individuales y consolidado">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Exportar Año ${year}</span>
+              </button>
+              ${Auth.canEdit() ? `
+              <button type="button" class="btn btn-primary-cta" onclick="ViaticosModule.openCreatePackageModal(${year})" title="Agregar nuevo archivo Excel a la vigencia ${year}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Nueva Carpeta en ${year}</span>
+              </button>` : ''}
+            </div>
+          </div>
+
+          <!-- Estadísticas Específicas de este Año Fiscal -->
+          <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
+            ${renderStatsSkeletons(3)}
+          </div>
+
+          <!-- Contenedor de Carpetas del Año -->
+          <div id="vit-year-packages-container"></div>
+        </div>
+      `;
+
+      loadStatsYear(year);
+      const yearPkgsContainer = document.getElementById('vit-year-packages-container');
+      if (yearPkgsContainer) {
+        await renderYearPackagesView(yearPkgsContainer);
       }
     } else {
-      // ─── Vista Detalle del Paquete ───
+      // ─── Vista Detalle del Paquete / Carpeta ───
       const pkg = state.activePackage;
       if (!pkg) {
-        await backToPackages();
+        await backToYears();
         return;
       }
 
       root.innerHTML = `
         <div class="module-enter" id="vit-root-detail">
-          <!-- Cabecera Superior del Paquete (Reemplaza por completo el encabezado general) -->
-          <div class="viaticos-header-detail">
-            <div class="viaticos-detail-nav-left">
-              <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToPackages()" title="Volver al listado general de carpetas de viáticos">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                <span>Volver a Paquetes</span>
-              </button>
-              <div class="viaticos-detail-title-wrap">
-                <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
-                <h1 class="viaticos-detail-heading" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
+          <!-- Cabecera Superior Hero del Paquete -->
+          <div class="page-header viaticos-header-hero">
+            <div class="viaticos-header-main">
+              <!-- Navegación Breadcrumb y Marca Oficial -->
+              <div class="viaticos-header-eyebrow" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+                <button type="button" class="viaticos-btn-back" onclick="ViaticosModule.backToYearPackages()" title="Volver a las carpetas del año ${pkg.anio}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  <span>Volver a Carpetas (${pkg.anio})</span>
+                </button>
+                <span class="viaticos-header-sep" style="color:var(--text-tertiary);font-weight:600;">/</span>
+                <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
+                <span class="viaticos-header-sep" style="color:var(--text-tertiary);">·</span>
+                <span class="badge badge--talento360" style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(0,123,199,0.12),rgba(40,135,27,0.1));border:1px solid rgba(0,123,199,0.25);padding:3px 10px;border-radius:20px;font-weight:800;font-size:0.75rem;color:var(--text-primary);">
+                  <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
+                  <span>Talento <span style="color:#007BC7;">360</span></span>
+                </span>
               </div>
+
+              <!-- Título con Badge de Año y Nombre -->
+              <div style="display:flex;align-items:center;gap:12px;margin:4px 0 6px 0;flex-wrap:wrap;">
+                <span class="viaticos-hero-year-badge">${pkg.anio}</span>
+                <h1 class="viaticos-hero-title" style="margin:0;" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
+              </div>
+
+              <p class="viaticos-hero-desc">
+                Registros de solicitudes y comisiones del archivo <strong>${escHtml(pkg.archivo_origen || pkg.nombre)}</strong> en la Vigencia Fiscal ${pkg.anio}.
+              </p>
             </div>
 
-            <div class="viaticos-detail-actions">
-              <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage()" title="Descargar registros de este archivo Excel">
+            <div class="page-actions viaticos-header-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-secondary" onclick="ViaticosModule.exportExcelPackage(${pkg.id_paquete})" title="Descargar registros de este archivo Excel">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 <span>Descargar Excel</span>
               </button>
@@ -1834,7 +2250,7 @@ const ViaticosModule = (() => {
 
           <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete -->
           <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-            ${renderStatsSkeletons()}
+            ${renderStatsSkeletons(3)}
           </div>
 
           <!-- Filtros de Búsqueda para este Paquete -->
@@ -1892,13 +2308,17 @@ const ViaticosModule = (() => {
     }
   }
 
-  async function render(container) {
+  async function render(container, options = {}) {
     if (container) mainContainer = container;
+    if (!state.packages || !state.packages.length) {
+      await loadPackages();
+    }
+    syncStateFromURL(options);
     await renderCurrentView();
   }
 
   // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────
-  function openCreatePackageModal() {
+  function openCreatePackageModal(preselectedYear = null) {
     if (!Auth.canEdit()) {
       App.showToast('No tienes permisos para crear paquetes de viáticos.', 'warning');
       return;
@@ -1906,43 +2326,33 @@ const ViaticosModule = (() => {
 
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
-    const currentYear = new Date().getFullYear();
     let selectedPackageFile = null;
 
     const modalBody = `
-      <form id="vit-pkg-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
-        <div class="form-group">
-          <label class="form-label required">Nombre de la Carpeta / Vigencia</label>
-          <input id="vpkg-nombre" class="form-input form-input--no-icon" placeholder="Ej: Ejecución Presupuestal 2026" value="Ejecución Presupuestal ${currentYear}" required />
-          <span class="form-help-text">Nombre con el que se identificará este conjunto de viáticos.</span>
+      <form id="vit-pkg-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
+        <div class="form-group floating-group">
+          <label class="form-label required" for="vpkg-nombre">Nombre de la Carpeta o Vigencia</label>
+          <input id="vpkg-nombre" class="form-input" placeholder="Ej: Ejecución Presupuestal 2026" required value="" autocomplete="off" />
         </div>
 
-        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
-          <div class="form-group">
-            <label class="form-label required">Año de Vigencia Fiscal</label>
-            <input id="vpkg-anio" type="number" min="2000" max="2050" class="form-input form-input--no-icon" value="${currentYear}" required />
-            <span class="form-help-text">Por defecto año actual (${currentYear}).</span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Nombre del Archivo Fuente (Opcional)</label>
-            <input id="vpkg-archivo" class="form-input form-input--no-icon" placeholder="Ej: EJECUCION PRESUPUESTAL ${currentYear}.xlsx" value="EJECUCION PRESUPUESTAL ${currentYear}.xlsx" />
-          </div>
+        <div class="form-group floating-group">
+          <label class="form-label required" for="vpkg-anio">Año de Vigencia Fiscal</label>
+          <input id="vpkg-anio" type="number" min="2000" max="2050" class="form-input font-mono" placeholder="Ej: 2026" required value="${preselectedYear || ''}" />
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Descripción o Notas</label>
-          <input id="vpkg-desc" class="form-input form-input--no-icon" placeholder="Ej: Vigencia fiscal institucional en curso" value="Vigencia fiscal ${currentYear} en curso" />
+        <div class="form-group floating-group">
+          <label class="form-label" for="vpkg-desc">Descripción o Notas (Opcional)</label>
+          <textarea id="vpkg-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" autocomplete="off"></textarea>
         </div>
 
-        <div class="form-group" style="margin-top:4px;">
-          <label class="form-label">Cargar Archivo Excel (.xlsx) para este Paquete (Opcional)</label>
-          <div class="excel-dropzone" id="vpkg-dropzone" style="padding:20px; border-radius:12px; border:2px dashed var(--border); text-align:center; cursor:pointer; background:var(--bg-primary);">
+        <div style="margin-top:2px;">
+          <div class="excel-dropzone" id="vpkg-dropzone" style="padding:22px 20px; border-radius:14px; border:2px dashed rgba(22, 163, 74, 0.45); text-align:center; cursor:pointer; background:rgba(22, 163, 74, 0.03); transition:all 0.2s ease;">
             <input type="file" id="vpkg-file-input" accept=".xlsx, .xls" style="display:none;" />
             <div style="margin-bottom:8px; color:#16a34a;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:38px;height:38px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
             </div>
-            <div id="vpkg-file-name" style="font-size:13px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra tu archivo Excel</div>
-            <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Formatos admitidos: .xlsx, .xls de comisiones y viáticos</div>
+            <div id="vpkg-file-name" style="font-size:13.5px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra tu archivo Excel</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Formatos admitidos: archivos Excel (.xlsx, .xls) de comisiones y viáticos</div>
           </div>
         </div>
       </form>
@@ -1952,14 +2362,23 @@ const ViaticosModule = (() => {
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Guardar Paquete', cls: 'btn-primary-cta', id: 'btn-save-vpkg', action: async () => {
         const nombre = document.getElementById('vpkg-nombre')?.value.trim();
-        const anio = parseInt(document.getElementById('vpkg-anio')?.value) || currentYear;
-        const archivoOrigen = document.getElementById('vpkg-archivo')?.value.trim() || `${nombre}.xlsx`;
+        const anioVal = document.getElementById('vpkg-anio')?.value;
+        const anio = parseInt(anioVal, 10);
         const descripcion = document.getElementById('vpkg-desc')?.value.trim();
 
         if (!nombre) {
-          App.showToast('El nombre del paquete o Excel es requerido.', 'warning');
+          App.showToast('El nombre de la carpeta o vigencia es requerido.', 'warning');
+          document.getElementById('vpkg-nombre')?.focus();
           return;
         }
+
+        if (!anio || isNaN(anio) || anio < 2000 || anio > 2050) {
+          App.showToast('El año de vigencia fiscal es obligatorio (entre 2000 y 2050).', 'warning');
+          document.getElementById('vpkg-anio')?.focus();
+          return;
+        }
+
+        const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
@@ -1969,7 +2388,7 @@ const ViaticosModule = (() => {
           const newPkg = await API.createViaticosPaquete({
             nombre,
             anio,
-            archivoOrigen: selectedPackageFile ? selectedPackageFile.name : archivoOrigen,
+            archivoOrigen,
             descripcion
           });
 
@@ -1981,11 +2400,14 @@ const ViaticosModule = (() => {
 
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           App.closeModal();
-          App.showToast(`Paquete "${nombre}" creado exitosamente.`, 'success');
+          App.showToast(`Carpeta "${nombre}" (${anio}) creada exitosamente.`, 'success');
           await loadPackages();
-          if (state.activeView === 'packages') {
-            await renderCurrentView();
+          if (state.activeView === 'year_packages') {
+            if (state.selectedYear !== anio) {
+              state.selectedYear = anio;
+            }
           }
+          await renderCurrentView();
           loadStats();
         } catch (err) {
           App.showToast(err.message || 'Error al crear paquete.', 'error');
@@ -1993,51 +2415,60 @@ const ViaticosModule = (() => {
           if (btn) { btn.disabled = false; btn.textContent = 'Guardar Paquete'; }
         }
       }},
-    ]);
+    ], 'modal-package');
 
-    // Setup drag and drop for modal
+    // Inicializar UX de formulario y setup de drag and drop
     setTimeout(() => {
+      const modalBodyEl = document.getElementById('modal-body');
+      if (modalBodyEl && typeof App !== 'undefined') {
+        if (App.initFormUX) App.initFormUX(modalBodyEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+
       const dropzone = document.getElementById('vpkg-dropzone');
       const fileInput = document.getElementById('vpkg-file-input');
       const nameEl = document.getElementById('vpkg-file-name');
       const nombreInput = document.getElementById('vpkg-nombre');
-      const archivoInput = document.getElementById('vpkg-archivo');
       const anioInput = document.getElementById('vpkg-anio');
 
       if (!dropzone || !fileInput) return;
 
       dropzone.onclick = () => fileInput.click();
-      fileInput.onchange = (e) => {
-        const f = e.target.files[0];
-        if (f) {
-          selectedPackageFile = f;
-          nameEl.innerHTML = `<span style="color:#16a34a;">✓ Archivo seleccionado:</span> <strong>${escHtml(f.name)}</strong> (${(f.size/1024).toFixed(1)} KB)`;
-          if (archivoInput) archivoInput.value = f.name;
 
-          // Deducir año del nombre del archivo si tiene 4 dígitos (e.g. 2024)
-          const m = f.name.match(/\b(20\d\d)\b/);
-          if (m && m[1]) {
-            if (anioInput) anioInput.value = m[1];
-            if (nombreInput && nombreInput.value.includes(String(currentYear))) {
-              nombreInput.value = f.name.replace(/\.[^/.]+$/, '');
-            }
-          }
+      function handleFile(f) {
+        if (!f) return;
+        selectedPackageFile = f;
+        nameEl.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span style="color:#16a34a;font-size:18px;">✓</span>
+            <span style="color:var(--text-primary);font-weight:700;">${escHtml(f.name)}</span>
+            <span style="color:var(--text-muted);font-size:12px;">(${(f.size/1024).toFixed(1)} KB)</span>
+          </div>
+        `;
+        // Deducir año del nombre del archivo si tiene 4 dígitos (e.g. 2026) y el año está vacío
+        const m = f.name.match(/\b(20\d\d)\b/);
+        if (m && m[1] && (!anioInput.value || anioInput.value === '')) {
+          anioInput.value = m[1];
         }
-      };
+        // Deducir nombre sugerido si está vacío
+        if (!nombreInput.value || nombreInput.value.trim() === '') {
+          nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+        }
+        if (modalBodyEl && App.refreshFloatingLabels) {
+          App.refreshFloatingLabels(modalBodyEl);
+        }
+      }
 
-      dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; };
-      dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; };
+      fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+      dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; dropzone.style.background = 'rgba(22,163,74,0.05)'; };
+      dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; dropzone.style.background = 'var(--bg-primary)'; };
       dropzone.ondrop = (e) => {
         e.preventDefault();
         dropzone.style.borderColor = 'var(--border)';
+        dropzone.style.background = 'var(--bg-primary)';
         const f = e.dataTransfer.files[0];
-        if (f) {
-          selectedPackageFile = f;
-          nameEl.innerHTML = `<span style="color:#16a34a;">✓ Archivo seleccionado:</span> <strong>${escHtml(f.name)}</strong> (${(f.size/1024).toFixed(1)} KB)`;
-          if (archivoInput) archivoInput.value = f.name;
-          const m = f.name.match(/\b(20\d\d)\b/);
-          if (m && m[1] && anioInput) anioInput.value = m[1];
-        }
+        handleFile(f);
       };
     }, 50);
   }
@@ -2069,7 +2500,7 @@ const ViaticosModule = (() => {
               <span class="viaticos-pkg-year-pill">${pkg.anio}</span>
             </div>
             <div class="vpkg-modal-hero-file">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
               <span>${escHtml(pkg.archivo_origen || `${pkg.nombre}.xlsx`)}</span>
             </div>
             <div class="vpkg-modal-hero-badges">
@@ -2082,34 +2513,31 @@ const ViaticosModule = (() => {
 
         <!-- Formulario estilizado -->
         <form id="vit-pkg-edit-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:16px;">
-          <div class="form-group">
+          <div class="form-group floating-group">
             <label class="form-label required" for="vedit-nombre">Nombre de la Carpeta o Vigencia</label>
             <input id="vedit-nombre" class="form-input" value="${escHtml(pkg.nombre)}" placeholder="Ej: Ejecución Presupuestal 2026" required />
-            <span class="form-help-text">Nombre descriptivo institucional con el que se identifica este paquete.</span>
           </div>
 
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:16px;">
-            <div class="form-group">
+          <div class="form-grid" style="grid-template-columns: 140px 1fr; gap:16px;">
+            <div class="form-group floating-group">
               <label class="form-label required" for="vedit-anio">Año de Vigencia Fiscal</label>
               <input id="vedit-anio" type="number" min="2000" max="2050" class="form-input font-mono" value="${pkg.anio || new Date().getFullYear()}" required />
-              <span class="form-help-text">Año fiscal para categorización y filtros.</span>
             </div>
 
-            <div class="form-group">
+            <div class="form-group floating-group">
               <label class="form-label" for="vedit-archivo">Archivo Origen (.xlsx)</label>
               <input id="vedit-archivo" class="form-input font-mono" value="${escHtml(pkg.archivo_origen || '')}" placeholder="Ej: EJECUCION PRESUPUESTAL 2026.xlsx" />
-              <span class="form-help-text">Nombre del archivo Excel fuente institucional.</span>
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group floating-group">
             <label class="form-label" for="vedit-desc">Descripción o Notas de la Vigencia</label>
-            <input id="vedit-desc" class="form-input" value="${escHtml(pkg.descripcion || '')}" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" />
+            <textarea id="vedit-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales">${escHtml(pkg.descripcion || '')}</textarea>
           </div>
 
           <div class="vpkg-modal-notice">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>Los cambios de nombre o año se sincronizan automáticamente con todas las consultas y exportaciones.</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Al modificar el año de vigencia, la carpeta se reubicará automáticamente en el año correspondiente.</span>
           </div>
         </form>
       </div>
@@ -2119,7 +2547,7 @@ const ViaticosModule = (() => {
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Guardar Cambios', cls: 'btn-primary-cta', id: 'btn-update-vpkg', action: async () => {
         const nombre = document.getElementById('vedit-nombre')?.value.trim();
-        const anio = parseInt(document.getElementById('vedit-anio')?.value) || pkg.anio;
+        const anio = parseInt(document.getElementById('vedit-anio')?.value, 10) || pkg.anio;
         const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
         const descripcion = document.getElementById('vedit-desc')?.value.trim();
 
@@ -2140,14 +2568,29 @@ const ViaticosModule = (() => {
           if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
             state.activePackage = state.packages.find(p => p.id_paquete === id_paquete) || state.activePackage;
           }
+          // Si el año cambió y estábamos en la vista de carpetas del año previo, sincronizar año
+          if (state.activeView === 'year_packages') {
+            if (state.selectedYear !== anio) {
+              state.selectedYear = anio;
+            }
+          }
           await renderCurrentView();
+          loadStats();
         } catch (err) {
           App.showToast(err.message || 'Error al actualizar carpeta.', 'error');
         } finally {
           if (btn) { btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
         }
       }},
-    ]);
+    ], 'modal-package');
+
+    setTimeout(() => {
+      const modalBodyEl = document.getElementById('modal-body');
+      if (modalBodyEl && typeof App !== 'undefined') {
+        if (App.initFormUX) App.initFormUX(modalBodyEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+    }, 50);
   }
 
   // ─── Confirmación de Eliminación de Paquete ──────────────────────────────────
@@ -2177,7 +2620,7 @@ const ViaticosModule = (() => {
           App.closeModal();
           App.showToast(`Carpeta "${nombre}" eliminada exitosamente.`, 'success');
           if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
-            state.activeView = 'packages';
+            state.activeView = state.selectedYear ? 'year_packages' : 'years';
             state.activePackage = null;
           }
           await loadPackages();
@@ -2190,14 +2633,17 @@ const ViaticosModule = (() => {
     ]);
   }
 
-  // ─── Exportar Excel exclusivo del Paquete Activo ─────────────────────────────
-  async function exportExcelPackage() {
-    if (!state.activePackage) return exportExcel();
+  // ─── Exportar Excel exclusivo de un Paquete / Carpeta ─────────────────────────
+  async function exportExcelPackage(id_paquete = null) {
+    const targetPkg = id_paquete 
+      ? (state.packages.find(p => p.id_paquete === id_paquete) || state.activePackage)
+      : state.activePackage;
+    if (!targetPkg) return exportExcel();
     try {
-      App.showToast(`Generando Excel para "${state.activePackage.nombre}"...`, 'info');
-      const res = await API.getViaticos({ id_paquete: state.activePackage.id_paquete, page: 1, limit: 20000 });
+      App.showToast(`Generando Excel para "${targetPkg.nombre}"...`, 'info');
+      const res = await API.getViaticos({ id_paquete: targetPkg.id_paquete, page: 1, limit: 20000 });
       const records = res.data || [];
-      const cleanName = (state.activePackage.nombre || 'Viaticos').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const cleanName = (targetPkg.archivo_origen || targetPkg.nombre || 'Viaticos').replace(/\.xlsx$/i, '').replace(/[^a-zA-Z0-9_\-]/g, '_');
       ExcelService.exportToExcel({
         filename: cleanName,
         sheetName: 'Viáticos',
@@ -2205,9 +2651,96 @@ const ViaticosModule = (() => {
         data: records
       });
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-      App.showToast(`Se exportaron ${records.length.toLocaleString('es-CO')} registros exitosamente.`, 'success');
+      App.showToast(`Se exportaron ${records.length.toLocaleString('es-CO')} registros de "${targetPkg.nombre}" exitosamente.`, 'success');
     } catch (err) {
       App.showToast('Error al exportar: ' + err.message, 'error');
+    }
+  }
+
+  // ─── Exportar Excel de todo un Año Fiscal (Descarga Carpeta ZIP con los Excels) ────
+  async function exportExcelYear(year) {
+    const yNum = parseInt(year, 10);
+    try {
+      App.showToast(`Preparando exportación completa para la Vigencia Fiscal ${yNum}...`, 'info');
+      
+      const yearPkgs = (state.packages || []).filter(p => parseInt(p.anio, 10) === yNum);
+      
+      if (typeof JSZip !== 'undefined') {
+        const zip = new JSZip();
+        const folderName = `Vigencia_Fiscal_${yNum}`;
+        const zipFolder = zip.folder(folderName);
+        
+        let allRecordsYear = [];
+        
+        // 1. Para cada carpeta de la vigencia, generar su archivo Excel individual e incluirlo en el ZIP
+        for (const pkg of yearPkgs) {
+          const res = await API.getViaticos({ id_paquete: pkg.id_paquete, page: 1, limit: 25000 });
+          const pkgRecords = res.data || [];
+          allRecordsYear = allRecordsYear.concat(pkgRecords);
+          
+          let cleanFileName = (pkg.archivo_origen || pkg.nombre || `Carpeta_${pkg.id_paquete}`)
+            .replace(/\.xlsx$/i, '')
+            .replace(/[/\\?%*:|"<>]/g, '_');
+          if (!cleanFileName.toLowerCase().endsWith('.xlsx')) cleanFileName += '.xlsx';
+
+          const buffer = ExcelService.buildWorkbookBuffer({
+            sheetName: (pkg.nombre || 'Viáticos').substring(0, 31).replace(/[/\\?*:[\]]/g, '_'),
+            columns: EXCEL_COLUMNS,
+            data: pkgRecords
+          });
+          
+          if (buffer) {
+            zipFolder.file(cleanFileName, buffer);
+          }
+        }
+        
+        // 2. Si hay registros acumulados o directamente por año, generar también el Libro Consolidado
+        if (allRecordsYear.length === 0) {
+          const resYear = await API.getViaticos({ anio: yNum, page: 1, limit: 35000 });
+          allRecordsYear = resYear.data || [];
+        }
+        
+        if (allRecordsYear.length > 0) {
+          const consolidatedBuffer = ExcelService.buildWorkbookBuffer({
+            sheetName: `Consolidado ${yNum}`,
+            columns: EXCEL_COLUMNS,
+            data: allRecordsYear
+          });
+          if (consolidatedBuffer) {
+            zipFolder.file(`CONSOLIDADO_GENERAL_VIATICOS_${yNum}.xlsx`, consolidatedBuffer);
+          }
+        }
+        
+        App.showToast(`Comprimiendo carpeta con ${yearPkgs.length} archivo(s) Excel...`, 'info');
+        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+        
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Vigencia_Fiscal_${yNum}_Archivos_Excel.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+        App.showToast(`¡Carpeta ZIP de la Vigencia ${yNum} descargada exitosamente!`, 'success');
+      } else {
+        // Respaldo directo en caso de no disponer de JSZip
+        const res = await API.getViaticos({ anio: yNum, page: 1, limit: 35000 });
+        const records = res.data || [];
+        ExcelService.exportToExcel({
+          filename: `Viaticos_Vigencia_${yNum}`,
+          sheetName: `Viáticos ${yNum}`,
+          columns: EXCEL_COLUMNS,
+          data: records
+        });
+        if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+        App.showToast(`Se exportó el reporte consolidado de la vigencia ${yNum}.`, 'success');
+      }
+    } catch (err) {
+      console.error('[ViaticosModule.exportExcelYear] Error:', err);
+      App.showToast('Error al exportar año: ' + err.message, 'error');
     }
   }
 
@@ -2995,12 +3528,16 @@ const ViaticosModule = (() => {
 
   return {
     render,
+    enterYear,
+    backToYears,
     enterPackage,
+    backToYearPackages,
     backToPackages,
     openCreatePackageModal,
     openEditPackageModal,
     confirmDeletePackage,
     exportExcelPackage,
+    exportExcelYear,
     openCreate,
     openView,
     openEdit,

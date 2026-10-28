@@ -36,6 +36,24 @@
   --color-blue-light:   #007BC7;
   --color-navy:         #005387;
 
+  /* Variables de Colorimetría Oficial (docs/branding/colorimetria.md) */
+  --color-rosa-intenso:     #CF3A78;
+  --color-magenta:          #B84BA7;
+  --color-vino-rosado:      #914169;
+  --color-rojo:             #E32431;
+  --color-marron-grisaceo:  #857352;
+  --color-mostaza:          #D1AD2A;
+  --color-naranja-quemado:  #D14600;
+  --color-terracota:        #A5451B;
+  --color-verde-oliva:      #628001;
+  --color-verde-vivo:       #28871B;
+  --color-verde-bosque:     #287522;
+  --color-verde-oscuro:     #355833;
+  --color-gris-azulado:     #738993;
+  --color-azul-petroleo:    #1D8096;
+  --color-azul-brillante:   #007BC7;
+  --color-azul-profundo:    #005387;
+
   /* Aliases Semánticos de Paleta Institucional (Gobernación de Boyacá) */
   --color-primary:        var(--color-green-dark);   /* #287522 Branding base institucional */
   --color-primary-cta:    var(--color-green-bright); /* #28871B Acción principal (CTA) de alto contraste */
@@ -873,6 +891,7 @@ body {
 .btn-action-edit,
 .btn-action-delete,
 .btn-action-soporte,
+.btn-action-download,
 .btn-icon {
   width: 34px !important;
   height: 34px !important;
@@ -892,6 +911,7 @@ body {
 .btn-action-edit svg,
 .btn-action-delete svg,
 .btn-action-soporte svg,
+.btn-action-download svg,
 .btn-icon svg {
   width: 17px !important;
   height: 17px !important;
@@ -902,6 +922,7 @@ body {
 .btn-action-edit:hover svg,
 .btn-action-delete:hover svg,
 .btn-action-soporte:hover svg,
+.btn-action-download:hover svg,
 .btn-icon:hover svg {
   transform: scale(1.15);
 }
@@ -997,6 +1018,33 @@ body {
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%) !important;
 }
 .btn-action-soporte.btn-action-soporte--has-file:hover svg {
+  stroke: #ffffff !important;
+}
+
+/* 5. DESCARGAR EXCEL (Download) — Morado Institucional (#914169) */
+.btn-action-download {
+  background: linear-gradient(180deg, rgba(145, 65, 105, 0.16) 0%, rgba(145, 65, 105, 0.32) 100%) !important;
+  border: 1px solid rgba(145, 65, 105, 0.55) !important;
+  color: #914169 !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(145, 65, 105, 0.22) !important;
+}
+.btn-action-download svg {
+  width: 17px !important;
+  height: 17px !important;
+  stroke: #914169 !important;
+  stroke-width: 2.2 !important;
+  fill: none !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+.btn-action-download:hover {
+  transform: translateY(-2px) scale(1.06) !important;
+  background: linear-gradient(180deg, #aa4c7b 0%, #914169 100%) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), 0 6px 16px rgba(145, 65, 105, 0.45) !important;
+}
+.btn-action-download:hover svg {
   stroke: #ffffff !important;
 }
 
@@ -2825,6 +2873,29 @@ body {
   color: #ffffff !important;
 }
 [data-theme="dark"] .btn-action-edit:hover svg {
+  stroke: #ffffff !important;
+}
+[data-theme="dark"] .btn-action-download {
+  background: rgba(145, 65, 105, 0.28) !important;
+  border: 1px solid rgba(207, 58, 120, 0.5) !important;
+  color: #e8a5c3 !important;
+}
+[data-theme="dark"] .btn-action-download svg {
+  width: 17px !important;
+  height: 17px !important;
+  stroke: #e8a5c3 !important;
+  stroke-width: 2.2 !important;
+  fill: none !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+[data-theme="dark"] .btn-action-download:hover {
+  background: linear-gradient(180deg, #aa4c7b 0%, #914169 100%) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 6px 16px rgba(145, 65, 105, 0.5) !important;
+}
+[data-theme="dark"] .btn-action-download:hover svg {
   stroke: #ffffff !important;
 }
 [data-theme="dark"] .pagination {
