@@ -657,7 +657,7 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* 3. Botón Circular Verde Agregar (+) */
+/* 3. Botón Circular Verde Oliva Institucional Agregar (+) */
 .btn-action-icon-add,
 .btn-action-add-circle {
   width: 46px;
@@ -666,21 +666,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #168735;
-  border: none;
+  background: #355833;
+  border: 1px solid #284426;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 4px 14px rgba(22, 135, 53, 0.35);
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.35);
   padding: 0;
   flex-shrink: 0;
 }
 
 .btn-action-icon-add:hover,
 .btn-action-add-circle:hover {
-  background: #126e2a;
+  background: #436a40;
+  border-color: #355833;
   transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 6px 18px rgba(22, 135, 53, 0.45);
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45);
 }
 
 .btn-action-icon-add:active,
@@ -691,7 +692,7 @@
 .btn-action-icon-add:focus-visible,
 .btn-action-add-circle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.35);
+  box-shadow: 0 0 0 3px rgba(53, 88, 51, 0.35);
 }
 
 .btn-action-icon-add svg,
@@ -703,14 +704,16 @@
 
 [data-theme="dark"] .btn-action-icon-add,
 [data-theme="dark"] .btn-action-add-circle {
-  background: #16a34a;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.4);
+  background: #3d663b;
+  border-color: #4a7c47;
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.4);
 }
 
 [data-theme="dark"] .btn-action-icon-add:hover,
 [data-theme="dark"] .btn-action-add-circle:hover {
-  background: #22c55e;
-  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.5);
+  background: #4a7c47;
+  border-color: #5b9657;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.55);
 }
 
 @media (max-width: 768px) {
@@ -2451,10 +2454,10 @@ tbody tr:last-child td {
   font-size: 0.98rem !important;
   font-weight: 800 !important;
   color: #ffffff !important;
-  background: linear-gradient(135deg, var(--color-green-bright, #28871B) 0%, var(--color-green-dark, #287522) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  background: #355833 !important;
+  border: 1px solid #284426 !important;
   border-radius: var(--radius-full, 9999px) !important;
-  box-shadow: 0 4px 18px rgba(40, 135, 27, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   cursor: pointer !important;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
   letter-spacing: 0.2px !important;
@@ -2462,23 +2465,26 @@ tbody tr:last-child td {
 
 .btn-primary-cta:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 26px rgba(40, 135, 27, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-  background: linear-gradient(135deg, #2ea320 0%, #206d15 100%) !important;
+  box-shadow: 0 8px 24px rgba(53, 88, 51, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  background: #436a40 !important;
+  border-color: #355833 !important;
 }
 
 .btn-primary-cta:active {
-  transform: translateY(0) !important;
-  box-shadow: 0 2px 10px rgba(40, 135, 27, 0.3) !important;
+  transform: translateY(0) scale(0.98) !important;
+  box-shadow: 0 2px 8px rgba(53, 88, 51, 0.3) !important;
 }
 
 [data-theme="dark"] .btn-primary-cta {
-  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%) !important;
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  background: #3d663b !important;
+  border-color: #4a7c47 !important;
+  box-shadow: 0 4px 16px rgba(53, 88, 51, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
 }
 
 [data-theme="dark"] .btn-primary-cta:hover {
-  background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%) !important;
-  box-shadow: 0 8px 28px rgba(34, 197, 94, 0.6) !important;
+  background: #4a7c47 !important;
+  border-color: #5b9657 !important;
+  box-shadow: 0 8px 24px rgba(53, 88, 51, 0.55) !important;
 }
 
 /* ─── Dropdown de Opciones Secundarias (Ley de Hick & Accesibilidad WCAG) ─ */
@@ -8230,8 +8236,8 @@ input.flatpickr-input:hover {
 
 .viaticos-pkg-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
 }
 
 @media (max-width: 640px) {
@@ -8244,13 +8250,13 @@ input.flatpickr-input:hover {
 .viaticos-pkg-card {
   background: var(--bg-surface, #ffffff);
   border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 20px;
-  padding: 22px 22px 18px;
+  border-radius: 16px;
+  padding: 16px 18px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 245px;
-  box-shadow: 0 4px 20px -3px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  min-height: auto;
+  box-shadow: 0 4px 16px -3px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
@@ -8268,9 +8274,9 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-pkg-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(40, 135, 27, 0.42);
-  box-shadow: 0 16px 36px -6px rgba(40, 135, 27, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  transform: translateY(-4px);
+  border-color: rgba(53, 88, 51, 0.42);
+  box-shadow: 0 12px 28px -6px rgba(53, 88, 51, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
 }
 
 .viaticos-pkg-card:hover::before {
@@ -8288,8 +8294,8 @@ input.flatpickr-input:hover {
 }
 
 [data-theme="dark"] .viaticos-pkg-card:hover {
-  border-color: rgba(74, 222, 128, 0.45);
-  box-shadow: 0 16px 36px -8px rgba(74, 222, 128, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.6);
+  border-color: rgba(53, 88, 51, 0.6);
+  box-shadow: 0 14px 30px -8px rgba(53, 88, 51, 0.25), 0 4px 14px -2px rgba(0, 0, 0, 0.6);
 }
 
 .viaticos-pkg-card-top {
@@ -8404,7 +8410,7 @@ input.flatpickr-input:hover {
 .viaticos-folder-header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 4px;
 }
 
@@ -8413,18 +8419,22 @@ input.flatpickr-input:hover {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
 }
 
 .viaticos-folder-hero-icon svg {
-  width: 38px;
-  height: 38px;
-  stroke: #16a34a !important;
+  width: 28px;
+  height: 28px;
+  stroke: #355833 !important;
+}
+
+[data-theme="dark"] .viaticos-folder-hero-icon svg {
+  stroke: #4ade80 !important;
 }
 
 .viaticos-folder-card .viaticos-pkg-name {
-  font-size: 1.25rem !important;
+  font-size: 1.12rem !important;
   font-weight: 800 !important;
   color: var(--text-primary, #0f172a);
   letter-spacing: -0.02em;
@@ -8433,9 +8443,9 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-folder-subtitle {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text-secondary, #64748b);
-  margin-bottom: 14px;
+  margin-bottom: 8px;
   line-height: 1.4;
 }
 
@@ -8448,24 +8458,24 @@ input.flatpickr-input:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 2px auto 14px auto;
+  gap: 6px;
+  margin: 2px auto 8px auto;
   max-width: 100%;
   text-align: center;
 }
 
 .viaticos-folder-file-center .viaticos-folder-file-ext {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 900;
-  padding: 2.5px 7px;
+  padding: 2px 6px;
   border-radius: 4px;
-  background: #16a34a;
+  background: #355833;
   color: #ffffff;
   letter-spacing: 0.5px;
 }
 
 .viaticos-folder-file-center .viaticos-folder-file-name {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-secondary, #64748b);
   letter-spacing: 0.2px;
@@ -8572,17 +8582,17 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-folder-file-ext {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 900;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #28871B;
+  background: #355833;
   color: #ffffff;
   letter-spacing: 0.5px;
 }
 
 .viaticos-folder-file-name {
-  font-size: 11.5px;
+  font-size: 11px;
   font-family: var(--font-mono, monospace);
   font-weight: 600;
   color: var(--text-secondary);
@@ -8605,11 +8615,11 @@ input.flatpickr-input:hover {
   display: flex !important;
   align-items: center !important;
   justify-content: space-around !important;
-  padding: 12px 10px !important;
+  padding: 8px 12px !important;
   background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.7) 100%) !important;
   border: 1px solid rgba(226, 232, 240, 0.9) !important;
-  border-radius: 14px !important;
-  margin-bottom: 14px !important;
+  border-radius: 12px !important;
+  margin-bottom: 10px !important;
   box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
 }
 
@@ -8622,14 +8632,14 @@ input.flatpickr-input:hover {
 .viaticos-pkg-stat-item {
   display: flex !important;
   flex-direction: column !important;
-  gap: 3px !important;
+  gap: 2px !important;
   text-align: center !important;
   padding: 0 4px !important;
   flex: 1 !important;
 }
 
 .viaticos-pkg-stat-val {
-  font-size: 15px !important;
+  font-size: 13.5px !important;
   font-weight: 800 !important;
   color: var(--text-primary, #0f172a) !important;
   letter-spacing: -0.01em !important;
@@ -8664,11 +8674,11 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-pkg-stat-lbl {
-  font-size: 9.5px !important;
+  font-size: 8.5px !important;
   font-weight: 700 !important;
   color: var(--text-tertiary, #94a3b8) !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.6px !important;
+  letter-spacing: 0.5px !important;
 }
 
 /* ─── Acciones en la base de la tarjeta ─── */
@@ -8677,7 +8687,7 @@ input.flatpickr-input:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   margin-top: auto;
 }
@@ -8693,34 +8703,35 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-pkg-btn-enter {
-  height: 38px;
-  padding: 0 18px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(40, 135, 27, 0.4);
-  background: linear-gradient(135deg, #28871B 0%, #206d15 100%);
+  border: 1px solid #284426;
+  background: #355833;
   color: #ffffff !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 800;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.2px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 3px 10px rgba(40, 135, 27, 0.28);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3);
 }
 
 .viaticos-pkg-btn-enter .btn-arrow-icon {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   transition: transform 0.25s ease;
 }
 
 .viaticos-pkg-btn-enter:hover {
-  background: linear-gradient(135deg, #2ea320 0%, #28871B 100%);
+  background: #436a40;
+  border-color: #355833;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(40, 135, 27, 0.45);
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45);
 }
 
 .viaticos-pkg-btn-enter:hover .btn-arrow-icon {
@@ -8732,80 +8743,83 @@ input.flatpickr-input:hover {
 }
 
 [data-theme="dark"] .viaticos-pkg-btn-enter {
-  background: linear-gradient(135deg, #28871B 0%, #206d15 100%);
-  border-color: rgba(74, 222, 128, 0.4);
+  background: #3d663b;
+  border-color: #4a7c47;
   color: #ffffff !important;
-  box-shadow: 0 3px 10px rgba(40, 135, 27, 0.35);
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.4);
 }
 
 [data-theme="dark"] .viaticos-pkg-btn-enter:hover {
-  background: linear-gradient(135deg, #2ea320 0%, #28871B 100%);
-  box-shadow: 0 6px 18px rgba(74, 222, 128, 0.45);
+  background: #4a7c47;
+  border-color: #5b9657;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.6);
 }
 
 /* ─── Tarjeta para AGREGAR UNO NUEVO (Dibujada como un círculo '+' en el boceto) ─── */
 .viaticos-pkg-card-add {
-  background: rgba(22, 163, 74, 0.03);
-  border: 2px dashed rgba(22, 163, 74, 0.35);
-  border-radius: 18px;
-  padding: 24px 20px;
+  background: rgba(53, 88, 51, 0.03);
+  border: 2px dashed rgba(53, 88, 51, 0.35);
+  border-radius: 16px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   cursor: pointer;
-  min-height: 220px;
+  min-height: 180px;
   transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
 }
 
 .viaticos-pkg-card-add:hover {
-  background: rgba(22, 163, 74, 0.08);
-  border-color: #16a34a;
+  background: rgba(53, 88, 51, 0.08);
+  border-color: #355833;
   border-style: solid;
   transform: translateY(-4px);
-  box-shadow: 0 12px 28px -6px rgba(22, 163, 74, 0.18);
+  box-shadow: 0 10px 24px -6px rgba(53, 88, 51, 0.22);
 }
 
 [data-theme="dark"] .viaticos-pkg-card-add {
-  background: rgba(251, 191, 36, 0.04);
-  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(53, 88, 51, 0.06);
+  border-color: rgba(53, 88, 51, 0.4);
 }
 
 [data-theme="dark"] .viaticos-pkg-card-add:hover {
-  background: rgba(251, 191, 36, 0.09);
-  border-color: #fbbf24;
-  box-shadow: 0 12px 28px -6px rgba(251, 191, 36, 0.2);
+  background: rgba(53, 88, 51, 0.14);
+  border-color: #4a7c47;
+  box-shadow: 0 10px 24px -6px rgba(53, 88, 51, 0.3);
 }
 
 .viaticos-pkg-add-circle {
-  width: 68px;
-  height: 68px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: #355833;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
-  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.3);
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.35);
   transition: all 0.25s ease;
 }
 
 .viaticos-pkg-card-add:hover .viaticos-pkg-add-circle {
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.45);
+  background: #436a40;
+  transform: scale(1.08) rotate(90deg);
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45);
 }
 
 [data-theme="dark"] .viaticos-pkg-add-circle {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #111827;
-  box-shadow: 0 6px 18px rgba(251, 191, 36, 0.3);
+  background: #3d663b;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.4);
 }
 
 [data-theme="dark"] .viaticos-pkg-card-add:hover .viaticos-pkg-add-circle {
-  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.45);
+  background: #4a7c47;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.55);
 }
 
 .viaticos-pkg-add-title {
@@ -9010,16 +9024,16 @@ input.flatpickr-input:hover {
   gap: 16px;
   padding: 16px 18px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.10) 0%, rgba(22, 163, 74, 0.03) 100%);
-  border: 1.5px solid rgba(22, 163, 74, 0.28);
-  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.08);
+  background: linear-gradient(135deg, rgba(53, 88, 51, 0.10) 0%, rgba(53, 88, 51, 0.03) 100%);
+  border: 1.5px solid rgba(53, 88, 51, 0.28);
+  box-shadow: 0 4px 16px rgba(53, 88, 51, 0.08);
   position: relative;
   overflow: hidden;
 }
 
 [data-theme="dark"] .vpkg-modal-hero {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(251, 191, 36, 0.03) 100%);
-  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, rgba(53, 88, 51, 0.18) 0%, rgba(53, 88, 51, 0.05) 100%);
+  border-color: rgba(53, 88, 51, 0.4);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
@@ -9027,19 +9041,19 @@ input.flatpickr-input:hover {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #16a34a, #15803d);
+  background: #355833;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.35);
 }
 
 [data-theme="dark"] .vpkg-modal-hero-icon {
-  background: linear-gradient(135deg, #fbbf24, #d97706);
-  color: #111827;
-  box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);
+  background: #3d663b;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(53, 88, 51, 0.4);
 }
 
 .vpkg-modal-hero-icon svg {
@@ -9162,13 +9176,13 @@ input.flatpickr-input:hover {
 .viaticos-year-card {
   background: var(--bg-surface, #ffffff);
   border: 1px solid var(--border, rgba(226, 232, 240, 0.85));
-  border-radius: 20px;
-  padding: 22px 22px 18px;
+  border-radius: 16px;
+  padding: 16px 18px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 285px;
-  box-shadow: 0 4px 20px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  min-height: auto;
+  box-shadow: 0 4px 16px -3px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
@@ -9180,9 +9194,9 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(0, 123, 199, 0.4);
-  box-shadow: 0 18px 38px -8px rgba(0, 123, 199, 0.15), 0 6px 16px -2px rgba(0, 0, 0, 0.04);
+  transform: translateY(-4px);
+  border-color: rgba(53, 88, 51, 0.4);
+  box-shadow: 0 14px 32px -8px rgba(53, 88, 51, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
 }
 
 .viaticos-year-card:hover::before {
@@ -9196,8 +9210,8 @@ input.flatpickr-input:hover {
 }
 
 [data-theme="dark"] .viaticos-year-card:hover {
-  border-color: rgba(0, 123, 199, 0.55);
-  box-shadow: 0 18px 38px -8px rgba(0, 123, 199, 0.25), 0 6px 16px -2px rgba(0, 0, 0, 0.4);
+  border-color: rgba(53, 88, 51, 0.65);
+  box-shadow: 0 14px 32px -8px rgba(53, 88, 51, 0.25), 0 4px 14px -2px rgba(0, 0, 0, 0.4);
 }
 
 .viaticos-year-card-body {
@@ -9208,8 +9222,8 @@ input.flatpickr-input:hover {
 
 /* Icono Calendario Limpio — Sin recuadro de fondo, color púrpura/ciruela corporativo Boyacá */
 .viaticos-year-clean-icon {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -9222,8 +9236,8 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-clean-icon svg {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
   stroke: #914169 !important;
   stroke-width: 2.2 !important;
   display: block;
@@ -9236,7 +9250,7 @@ input.flatpickr-input:hover {
 /* Número de Año Grande Hero — Tipografía Serif en tono ciruela, sin recuadro ni contenedor */
 .viaticos-year-hero-num {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.85rem !important;
+  font-size: 1.45rem !important;
   font-weight: 800 !important;
   color: #914169 !important;
   letter-spacing: -0.02em;
@@ -9250,14 +9264,14 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-title-block {
-  margin: 12px 0 6px;
+  margin: 8px 0 4px;
 }
 
 .viaticos-year-card .viaticos-year-subheading {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   color: #857352;
   display: block;
   margin-bottom: 2px;
@@ -9269,7 +9283,7 @@ input.flatpickr-input:hover {
 
 .viaticos-year-card .viaticos-pkg-name {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.55rem;
+  font-size: 1.22rem;
   font-weight: 800;
   color: var(--text-primary, #0f172a);
   letter-spacing: -0.025em;
@@ -9279,11 +9293,11 @@ input.flatpickr-input:hover {
 
 .viaticos-year-card .viaticos-pkg-desc,
 .viaticos-folder-card .viaticos-pkg-desc {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: var(--text-secondary, #64748b);
-  line-height: 1.5;
-  margin-bottom: 14px;
-  min-height: 38px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  min-height: auto;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -9296,11 +9310,11 @@ input.flatpickr-input:hover {
   grid-template-columns: 1fr auto 1fr auto 1.35fr !important;
   align-items: center !important;
   gap: 0 !important;
-  padding: 11px 12px !important;
+  padding: 8px 12px !important;
   background: var(--bg-surface-elevated, rgba(248, 250, 252, 0.9)) !important;
   border: 1px solid var(--border, rgba(226, 232, 240, 0.8)) !important;
-  border-radius: 14px !important;
-  margin-bottom: 14px !important;
+  border-radius: 12px !important;
+  margin-bottom: 10px !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
@@ -9312,7 +9326,7 @@ input.flatpickr-input:hover {
 
 .viaticos-pkg-stat-divider {
   width: 1px;
-  height: 28px;
+  height: 22px;
   background: var(--border, rgba(0, 0, 0, 0.08));
 }
 
@@ -9324,14 +9338,14 @@ input.flatpickr-input:hover {
 .viaticos-folder-card .viaticos-pkg-stat-item {
   display: flex !important;
   flex-direction: column !important;
-  gap: 3px !important;
+  gap: 2px !important;
   text-align: center !important;
   padding: 0 4px !important;
 }
 
 .viaticos-year-card .viaticos-pkg-stat-val,
 .viaticos-folder-card .viaticos-pkg-stat-val {
-  font-size: 15px !important;
+  font-size: 13.5px !important;
   font-weight: 800 !important;
   color: var(--text-primary, #0f172a) !important;
   letter-spacing: -0.01em !important;
@@ -9364,16 +9378,16 @@ input.flatpickr-input:hover {
 
 .viaticos-year-card .viaticos-pkg-stat-lbl,
 .viaticos-folder-card .viaticos-pkg-stat-lbl {
-  font-size: 9.5px !important;
+  font-size: 8.5px !important;
   font-weight: 700 !important;
   color: var(--text-tertiary, #94a3b8) !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.6px !important;
+  letter-spacing: 0.5px !important;
 }
 
 /* ─── Barra de Progreso de Trámite Anual (Diseño Moderno & Atractivo) ─── */
 .viaticos-year-progress-wrap {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   padding: 0 1px;
 }
 
@@ -9381,15 +9395,15 @@ input.flatpickr-input:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-secondary, #475569);
-  letter-spacing: 0.25px;
-  margin-bottom: 7px;
+  letter-spacing: 0.2px;
+  margin-bottom: 5px;
 }
 
 .viaticos-year-pct {
-  font-size: 13px !important;
+  font-size: 12px !important;
   font-weight: 800 !important;
   color: inherit;
   background: transparent !important;
@@ -9410,10 +9424,10 @@ input.flatpickr-input:hover {
 
 .viaticos-year-progress-track {
   width: 100%;
-  height: 8px;
+  height: 6px;
   background: rgba(15, 23, 42, 0.06);
   border-radius: 999px;
-  padding: 1.5px;
+  padding: 1px;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.04);
   position: relative;
@@ -9449,6 +9463,7 @@ input.flatpickr-input:hover {
 }
 
 /* ─── Botón Verde Oliva Institucional (Guía Visual Boyacá) ─── */
+.btn-olive,
 .viaticos-btn-olive {
   background: #355833 !important;
   border: 1px solid #284426 !important;
@@ -9456,10 +9471,26 @@ input.flatpickr-input:hover {
   box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3) !important;
 }
 
+.btn-olive:hover,
 .viaticos-btn-olive:hover {
   background: #436a40 !important;
   border-color: #355833 !important;
   box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45) !important;
+}
+
+[data-theme="dark"] .btn-olive,
+[data-theme="dark"] .viaticos-btn-olive {
+  background: #3d663b !important;
+  border-color: #4a7c47 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-olive:hover,
+[data-theme="dark"] .viaticos-btn-olive:hover {
+  background: #4a7c47 !important;
+  border-color: #5b9657 !important;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.6) !important;
 }
 
 /* ─── Acciones Inferiores en Tarjeta de Año ─── */
@@ -9467,8 +9498,8 @@ input.flatpickr-input:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding-top: 14px;
+  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   margin-top: auto;
 }
@@ -9480,21 +9511,21 @@ input.flatpickr-input:hover {
 .viaticos-year-card .viaticos-excel-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 13px;
+  gap: 5px;
+  padding: 4px 10px;
   background: rgba(0, 123, 199, 0.08);
   border: 1px solid rgba(0, 123, 199, 0.22);
   border-radius: 999px;
   color: #007BC7;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2px;
   transition: all 0.2s ease;
 }
 
 .viaticos-year-card .viaticos-excel-badge svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   color: #007BC7;
 }
 
@@ -9514,34 +9545,35 @@ input.flatpickr-input:hover {
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter {
-  height: 38px;
-  padding: 0 18px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(40, 135, 27, 0.4);
-  background: linear-gradient(135deg, #28871B 0%, #206d15 100%);
+  border: 1px solid #284426;
+  background: #355833;
   color: #ffffff !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 800;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.2px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 3px 10px rgba(40, 135, 27, 0.28);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3);
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter .btn-arrow-icon {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   transition: transform 0.25s ease;
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter:hover {
-  background: linear-gradient(135deg, #2ea320 0%, #28871B 100%);
+  background: #436a40;
+  border-color: #355833;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(40, 135, 27, 0.45);
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45);
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter:hover .btn-arrow-icon {
@@ -9550,6 +9582,19 @@ input.flatpickr-input:hover {
 
 .viaticos-year-card .viaticos-pkg-btn-enter:active {
   transform: scale(0.96);
+}
+
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-btn-enter {
+  background: #3d663b;
+  border-color: #4a7c47;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.4);
+}
+
+[data-theme="dark"] .viaticos-year-card .viaticos-pkg-btn-enter:hover {
+  background: #4a7c47;
+  border-color: #5b9657;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.6);
 }
 
 /* ─── Badge Destacado de Año en Encabezado Hero ─── */

@@ -1891,7 +1891,7 @@ const ViaticosModule = (() => {
     const addCardHtml = `
       <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
         <div class="viaticos-pkg-add-circle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:32px;height:32px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:26px;height:26px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </div>
         <div class="viaticos-pkg-add-title">Agregar uno nuevo</div>
         <div class="viaticos-pkg-add-desc">Sube un nuevo archivo Excel anual o crea una vigencia limpia</div>
@@ -2020,7 +2020,7 @@ const ViaticosModule = (() => {
 
           <button
             type="button"
-            class="viaticos-pkg-btn-enter"
+            class="viaticos-pkg-btn-enter viaticos-btn-olive"
             onclick="ViaticosModule.enterPackage(${pkg.id_paquete})"
             title="Entrar a ver los viáticos de este Excel"
             aria-label="Entrar a ${escHtml(pkg.nombre)}"
@@ -2036,7 +2036,7 @@ const ViaticosModule = (() => {
     const addCardHtml = `
       <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal(${year})" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal(${year})" title="Agregar nuevo archivo Excel a la vigencia ${year}">
         <div class="viaticos-pkg-add-circle">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:32px;height:32px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:26px;height:26px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </div>
         <div class="viaticos-pkg-add-title">Agregar a ${year}</div>
         <div class="viaticos-pkg-add-desc">Sube otro archivo Excel para el año ${year} o crea una nueva carpeta</div>

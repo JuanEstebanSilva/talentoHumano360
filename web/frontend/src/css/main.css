@@ -545,7 +545,7 @@ body {
   justify-content: center;
   gap: 0.7rem;
   padding: 17px 1.5rem;
-  background: linear-gradient(135deg, var(--color-green-bright) 0%, var(--color-green-dark) 100%);
+  background: linear-gradient(135deg, #436a40 0%, #355833 100%);
   color: #ffffff;
   font-size: 1rem;
   font-weight: 700;
@@ -554,7 +554,7 @@ body {
   cursor: pointer;
   transition: all 0.25s;
   letter-spacing: 0.4px;
-  box-shadow: 0 6px 20px rgba(40, 117, 34, 0.35);
+  box-shadow: 0 6px 20px rgba(53, 88, 51, 0.35);
   margin-top: 0.75rem;
   position: relative;
   overflow: hidden;
@@ -569,7 +569,8 @@ body {
 .btn-login-new:hover::before { opacity: 1; }
 .btn-login-new:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(40, 117, 34, 0.45);
+  background: linear-gradient(135deg, #4d7a4a 0%, #3d663b 100%);
+  box-shadow: 0 8px 24px rgba(53, 88, 51, 0.45);
 }
 .btn-login-new:active { transform: scale(0.98); }
 .btn-login-new svg { width: 18px; height: 18px; }
@@ -778,12 +779,21 @@ body {
   box-shadow: inset 0 1px 1px #ffffff, 0 4px 10px rgba(0, 0, 0, 0.1) !important;
 }
 
+.btn-olive,
 .btn-success {
-  background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+  background: #355833 !important;
   color: white !important;
   border-radius: 9999px !important;
-  border: 1px solid rgba(255,255,255,0.25) !important;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.5), 0 4px 12px rgba(16,185,129,0.3) !important;
+  border: 1px solid #284426 !important;
+  box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3) !important;
+}
+
+.btn-olive:hover,
+.btn-success:hover {
+  background: #436a40 !important;
+  border-color: #355833 !important;
+  box-shadow: 0 6px 18px rgba(53, 88, 51, 0.45) !important;
+  transform: translateY(-2px) !important;
 }
 .btn-danger, .btn-liquid-danger {
   background: linear-gradient(180deg, #ff453a 0%, #d32f2f 100%) !important;
