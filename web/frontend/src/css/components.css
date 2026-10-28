@@ -2873,15 +2873,16 @@ tbody tr:last-child td {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: var(--color-red, #E32431);
-  color: #fff;
+  background: var(--user-avatar-color, #E32431);
+  color: var(--user-avatar-text-color, #ffffff);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   font-weight: 800;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .profile-header-info {

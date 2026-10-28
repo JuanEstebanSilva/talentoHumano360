@@ -1707,23 +1707,23 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 12px 14px;
-  margin: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
-  background: var(--avatar-bg-tint, rgba(255, 255, 255, 0.08));
-  border: 1px solid var(--avatar-border-tint, rgba(255, 255, 255, 0.16));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px var(--avatar-glow-tint, rgba(0, 0, 0, 0.12));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  padding: 11px 14px;
+  margin: var(--space-2) 12px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 4px 14px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   overflow: hidden;
   transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
 }
 .sidebar-user:hover {
-  background: var(--avatar-hover-tint, rgba(255, 255, 255, 0.16));
-  border-color: var(--avatar-border-tint-hover, rgba(255, 255, 255, 0.32));
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 8px 24px var(--avatar-glow-tint, rgba(0, 0, 0, 0.2));
+  background: rgba(0, 0, 0, 0.38);
+  border-color: rgba(255, 255, 255, 0.30);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .sidebar-settings-btn {
@@ -1774,21 +1774,32 @@ body {
 .user-avatar {
   width: 38px; height: 38px;
   border-radius: 50%;
-  background: var(--color-red, #E32431);
-  color: #fff;
+  background: var(--user-avatar-color, #E32431);
+  color: var(--user-avatar-text-color, #ffffff);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 800;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.35);
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 .user-info { flex: 1; overflow: hidden; transition: opacity var(--transition-base); }
 .user-name { display: block; font-size: var(--text-sm); font-weight: 700; color: #ffffff !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
 .user-job-title { display: block; font-size: var(--text-xs); color: rgba(255, 255, 255, 0.78) !important; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; margin-top: 1px; }
-.user-role { display: block; font-size: 0.72rem; color: var(--color-mustard) !important; font-weight: 700; white-space: nowrap; letter-spacing: 0.02em; margin-top: 2px; line-height: 1.2; }
+.user-role {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--user-role-color, #ffffff);
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+  line-height: 1.2;
+  transition: color 0.25s ease;
+}
 
 .app.sidebar-collapsed .sidebar-footer {
   padding: var(--space-2) 0;
@@ -2808,13 +2819,13 @@ body {
   border-top: 1px solid rgba(115, 137, 147, 0.25) !important;
 }
 [data-theme="dark"] .sidebar-user {
-  background: var(--avatar-bg-tint, rgba(255, 255, 255, 0.06)) !important;
-  border-color: var(--avatar-border-tint, rgba(255, 255, 255, 0.15)) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px var(--avatar-glow-tint, rgba(0, 0, 0, 0.3)) !important;
+  background: rgba(0, 0, 0, 0.40) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.4) !important;
 }
 [data-theme="dark"] .sidebar-user:hover {
-  background: var(--avatar-hover-tint, rgba(255, 255, 255, 0.14)) !important;
-  border-color: var(--avatar-border-tint-hover, rgba(255, 255, 255, 0.3)) !important;
+  background: rgba(0, 0, 0, 0.52) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
 }
 [data-theme="dark"] .app.sidebar-collapsed .sidebar-user,
 .app.sidebar-collapsed [data-theme="dark"] .sidebar-user {
@@ -2829,7 +2840,7 @@ body {
   color: var(--color-slate) !important;
 }
 [data-theme="dark"] #user-role {
-  color: var(--color-mustard) !important;
+  color: var(--user-role-color, #ffffff) !important;
   background: transparent !important;
   border: none !important;
   padding: 0 !important;

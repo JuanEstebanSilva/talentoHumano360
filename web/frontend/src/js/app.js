@@ -724,6 +724,7 @@ const App = (() => {
     { id: 'purple', name: 'Púrpura Andino', bg: '#B84BA7' },
     { id: 'plum', name: 'Ciruela', bg: '#914169' },
     { id: 'forest', name: 'Verde Bosque', bg: '#287522' },
+    { id: 'white', name: 'Blanco Puro', bg: '#FFFFFF' },
   ];
 
   let currentAvatarColor = null;
@@ -836,6 +837,34 @@ const App = (() => {
       }
       return hexColor;
     }
+  }  function getAvatarTextColor(hexColor) {
+    if (!hexColor) return '#ffffff';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+    // Si el fondo del avatar es muy claro (ej: blanco #ffffff o colores pálidos con luminancia > 0.65), la letra DEBE ser oscura
+    if (lum > 0.65) {
+      return '#0f172a';
+    }
+    return '#ffffff';
+  }
+
+  function getRoleTextColor(hexColor) {
+    if (!hexColor) return '#ffffff';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+    // Si el avatar es blanco (#ffffff) o muy claro, blanco tiene un contraste perfecto contra el fondo oscuro del perfil
+    if (lum > 0.8) {
+      return '#ffffff';
+    }
+    // Si es un color muy oscuro (por ejemplo azul oscuro o verde bosque que se perdería en el fondo oscuro)
+    if (lum < 0.15) {
+      const factor = 0.55;
+      const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * factor));
+      const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * factor));
+      const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * factor));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    return hexColor;
   }
 
   function applyAvatarTheming(color) {
@@ -851,29 +880,39 @@ const App = (() => {
     const nameColor = getAccessibleTextColor(avatarColor, isDark);
     const nameColorLight = getAccessibleTextColor(avatarColor, false);
     const nameColorDark = getAccessibleTextColor(avatarColor, true);
+    const avatarTextColor = getAvatarTextColor(avatarColor);
+    const roleColor = getRoleTextColor(avatarColor);
 
     // Variables globales en :root para que apliquen a TODO el software
     const rootEl = document.documentElement;
     rootEl.style.setProperty('--user-avatar-color', avatarColor);
+    rootEl.style.setProperty('--user-avatar-text-color', avatarTextColor);
     rootEl.style.setProperty('--user-name-color', nameColor);
     rootEl.style.setProperty('--user-name-color-light', nameColorLight);
     rootEl.style.setProperty('--user-name-color-dark', nameColorDark);
+    rootEl.style.setProperty('--user-role-color', roleColor);
 
     const sidebarUserEl = document.getElementById('sidebar-user');
     if (sidebarUserEl) {
-      // Tono muy tenue según el color del avatar
-      const bgTint = hexToRgba(avatarColor, 0.16);
-      const bgTintHover = hexToRgba(avatarColor, 0.26);
-      const borderTint = hexToRgba(avatarColor, 0.35);
-      const borderTintHover = hexToRgba(avatarColor, 0.55);
-      const glowTint = hexToRgba(avatarColor, 0.20);
+      sidebarUserEl.style.setProperty('--avatar-accent-color', roleColor);
+      sidebarUserEl.style.setProperty('--user-role-color', roleColor);
+    }
 
-      sidebarUserEl.style.setProperty('--avatar-accent-color', avatarColor);
-      sidebarUserEl.style.setProperty('--avatar-bg-tint', bgTint);
-      sidebarUserEl.style.setProperty('--avatar-hover-tint', bgTintHover);
-      sidebarUserEl.style.setProperty('--avatar-border-tint', borderTint);
-      sidebarUserEl.style.setProperty('--avatar-border-tint-hover', borderTintHover);
-      sidebarUserEl.style.setProperty('--avatar-glow-tint', glowTint);
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl) {
+      avatarEl.style.background = avatarColor;
+      avatarEl.style.color = avatarTextColor;
+    }
+
+    const topAvatarEl = document.getElementById('topbar-avatar');
+    if (topAvatarEl) {
+      topAvatarEl.style.background = avatarColor;
+      topAvatarEl.style.color = avatarTextColor;
+    }
+
+    const roleEl = document.getElementById('user-role');
+    if (roleEl) {
+      roleEl.style.setProperty('color', roleColor, 'important');
     }
   }
 
@@ -950,8 +989,10 @@ const App = (() => {
     const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
     const initial = name.charAt(0).toUpperCase();
     const avatarColor = getAvatarColor(user.username);
+    const avatarTextColor = getAvatarTextColor(avatarColor);
+    const roleColor = getRoleTextColor(avatarColor);
 
-    // Aplicar tema dinámico tenue del recuadro de usuario según el color del avatar
+    // Aplicar tema dinámico del recuadro de usuario según el color del avatar
     applyAvatarTheming(avatarColor);
 
     // Sidebar
@@ -965,17 +1006,14 @@ const App = (() => {
       jobTitleEl.style.display = 'none';
     }
     if (roleEl) {
-      if (isAdmin) {
-        roleEl.textContent = 'Administrador General';
-        roleEl.style.color = 'var(--color-mustard)';
-      } else {
-        roleEl.textContent = 'Gobernación de Boyacá · Talento Humano';
-        roleEl.style.color = 'rgba(255, 255, 255, 0.78)';
-      }
+      const userArea = user.area || user.dependencia || (isAdmin ? 'Administración General' : 'Talento Humano');
+      roleEl.textContent = userArea;
+      roleEl.style.setProperty('color', roleColor, 'important');
     }
     if (avatarEl) {
       avatarEl.textContent = initial;
       avatarEl.style.background = avatarColor;
+      avatarEl.style.color = avatarTextColor;
       if (typeof FX !== 'undefined') FX.animateAvatarUpdate();
     }
 
@@ -995,9 +1033,9 @@ const App = (() => {
     if (topAvatarEl) {
       topAvatarEl.textContent = initial;
       topAvatarEl.style.background = avatarColor;
+      topAvatarEl.style.color = avatarTextColor;
     }
-
-    // Aplicar filtrado dinámico de navegación según permisos de módulos
+// Aplicar filtrado dinámico de navegación según permisos de módulos
     applyNavigationPermissions(user);
   }
 
@@ -1019,7 +1057,7 @@ const App = (() => {
 
     const bodyHtml = `
       <div class="profile-card-header">
-        <div class="profile-avatar-large" id="prof-avatar-preview" style="background:${currentAvatarColor};">${initial}</div>
+        <div class="profile-avatar-large" id="prof-avatar-preview" style="background:${currentAvatarColor}; color:${getAvatarTextColor(currentAvatarColor)};">${initial}</div>
         <div class="profile-header-info">
           <div class="profile-name-display">${escHtml(name)}</div>
           ${isAdmin ? '<span class="profile-role-pill">Administrador</span>' : ''}
@@ -1149,6 +1187,7 @@ const App = (() => {
           const bg = btn.dataset.bg;
           currentAvatarColor = bg;
           previewAvatar.style.background = bg;
+          previewAvatar.style.color = getAvatarTextColor(bg);
           // Actualizar en tiempo real el tono del recuadro del sidebar
           applyAvatarTheming(bg);
 
@@ -1169,6 +1208,7 @@ const App = (() => {
           const hex = e.target.value;
           currentAvatarColor = hex;
           previewAvatar.style.background = hex;
+          previewAvatar.style.color = getAvatarTextColor(hex);
           // Actualizar en tiempo real el tono del recuadro del sidebar
           applyAvatarTheming(hex);
 
@@ -1687,7 +1727,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor };
+  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)
