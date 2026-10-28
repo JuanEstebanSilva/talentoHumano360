@@ -1869,9 +1869,9 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
-            <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#0284c7; font-weight:700; font-size:13px;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span>${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
+            <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#1D8096; font-weight:700; font-size:12.5px; white-space:nowrap; flex-shrink:0;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span style="white-space:nowrap;">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
             </div>
             <button
               type="button"
@@ -1879,9 +1879,10 @@ const ViaticosModule = (() => {
               onclick="ViaticosModule.enterYear(${year})"
               title="Ver ejecuciones de ${year}"
               aria-label="Ver ejecuciones de ${year}"
+              style="white-space:nowrap; flex-shrink:0;"
             >
-              <span>Ver ejecuciones</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-arrow-icon" style="width:15px;height:15px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              <span style="white-space:nowrap;">Ver ejecuciones</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-arrow-icon" style="width:14px;height:14px;flex-shrink:0;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
             </button>
           </div>
         </div>

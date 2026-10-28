@@ -8236,7 +8236,7 @@ input.flatpickr-input:hover {
 
 .viaticos-pkg-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
 
@@ -9498,10 +9498,12 @@ input.flatpickr-input:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border, rgba(0, 0, 0, 0.06));
   margin-top: auto;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 [data-theme="dark"] .viaticos-year-card .viaticos-pkg-actions {
@@ -9558,9 +9560,30 @@ input.flatpickr-input:hover {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2px;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 3px 10px rgba(53, 88, 51, 0.3);
+}
+
+.viaticos-year-card .viaticos-pkg-btn-enter span {
+  white-space: nowrap;
+}
+
+.viaticos-pkg-exec-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1D8096 !important;
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.viaticos-pkg-exec-count span {
+  white-space: nowrap;
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter .btn-arrow-icon {
