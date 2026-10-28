@@ -2157,11 +2157,12 @@ const ViaticosModule = (() => {
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Estadísticas Globales (Histórico de Años, Totales, Pendientes, Aprobado) -->
-          <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));margin-bottom:var(--space-5)">
-            ${renderStatsSkeletons(4)}
-          </div>
+        <!-- Estadísticas Globales (Histórico de Años, Totales, Pendientes, Aprobado) -->
+        <div id="vit-stats-strip" class="stats-grid stats-grid--4" style="grid-template-columns:repeat(4, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(4)}
+        </div>
 
           <!-- Contenedor del Histórico Anual -->
           <div id="vit-years-container"></div>
@@ -2224,11 +2225,12 @@ const ViaticosModule = (() => {
               </button>` : ''}
             </div>
           </div>
+        </div>
 
-          <!-- Estadísticas Específicas de este Año Fiscal -->
-          <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-            ${renderStatsSkeletons(3)}
-          </div>
+        <!-- Estadísticas Específicas de este Año Fiscal -->
+        <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(3)}
+        </div>
 
           <!-- Contenedor de Carpetas del Año -->
           <div id="vit-year-packages-container"></div>
@@ -2295,11 +2297,12 @@ const ViaticosModule = (() => {
               </button>` : ''}
             </div>
           </div>
+        </div>
 
-          <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete -->
-          <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5)">
-            ${renderStatsSkeletons(3)}
-          </div>
+        <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete -->
+        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(3)}
+        </div>
 
           <!-- Filtros de Búsqueda para este Paquete -->
           <div class="filters-card">
