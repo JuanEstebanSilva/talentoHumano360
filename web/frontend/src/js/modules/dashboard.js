@@ -475,42 +475,47 @@ const DashboardModule = (() => {
 
     container.innerHTML = `
       <div class="module-enter">
-        <div class="page-header viaticos-header-hero">
-          <!-- Fila Superior de Identidad: Gobernación a la izquierda y Talento 360 completamente a la derecha -->
-          <div class="viaticos-header-top-row">
-            <div class="viaticos-header-eyebrow-left">
-              <span class="viaticos-dept-tag" style="font-weight:700;letter-spacing:0.4px;">Gobernación de Boyacá</span>
+        <!-- Encabezado General: Control de Viáticos y Comisiones (Gobernación de Boyacá) -->
+        <div class="module-header-card viaticos-header-hero">
+          <div class="module-header-info">
+            <div class="module-header-brand">
+              <img src="imgs/logoCondor.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-dark-theme" />
+              <span class="module-header-brand-text">Gobernación de Boyacá</span>
             </div>
-            <div class="viaticos-header-eyebrow-right">
-              <span class="badge badge--talento360">
-                <img src="imgs/logoCondor.png" alt="Talento 360" class="logo-light-theme" style="width:16px;height:16px;object-fit:contain;" />
-                <img src="imgs/logoCondorBlanco.png" alt="Talento 360" class="logo-dark-theme" style="width:16px;height:16px;object-fit:contain;" />
-                <span>Talento <span class="t360-highlight" style="color:#D1AD2A;font-weight:900;">360</span></span>
-              </span>
-            </div>
+            <h1 class="module-hero-title">Control de Viáticos y Comisiones</h1>
+            <p class="module-hero-desc">
+              ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
+            </p>
           </div>
-
-          <!-- Fila Principal: Título y descripción a la izquierda, botones de acción a la derecha -->
-          <div class="viaticos-header-body-row">
-            <div class="viaticos-header-main">
-              <h1 class="viaticos-hero-title">Control de Viáticos y Comisiones</h1>
-              <p class="viaticos-hero-desc">
-                ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
-              </p>
-            </div>
-            <div class="page-actions viaticos-header-actions">
-              <button class="btn btn-secondary-ghost" id="btn-refresh-dashboard" onclick="DashboardModule.render('viaticos')" title="Actualizar métricas en tiempo real">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <span>Actualizar</span>
-              </button>
-              <button class="btn btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px; font-weight:700; padding:10px 20px; border-radius:12px;" title="Exportar informe oficial de viáticos en PDF">
-                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                  <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-                </svg>
-                <span>Exportar Informe</span>
-              </button>
-            </div>
+          <div class="module-header-actions">
+            <button
+              type="button"
+              class="btn-action-icon-download"
+              id="btn-refresh-dashboard"
+              onclick="DashboardModule.render('viaticos')"
+              title="Actualizar métricas en tiempo real"
+              aria-label="Actualizar métricas en tiempo real"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="btn-action-icon-add btn-action-export-pdf"
+              id="btn-export-dashboard-pdf"
+              onclick="DashboardModule.exportPDF()"
+              title="Exportar informe oficial de viáticos en PDF"
+              aria-label="Exportar informe en PDF"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </button>
           </div>
         </div>
 
