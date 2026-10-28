@@ -1058,6 +1058,12 @@
 .vstatus-chip--aprobada { border-left: 3.5px solid #28871B; }
 .vstatus-chip--pendiente { border-left: 3.5px solid #D14600; }
 .vstatus-chip--otra { border-left: 3.5px solid #914169; }
+.vstatus-chip--activos { border-left: 3.5px solid #28871B; }
+.vstatus-chip--vacantes { border-left: 3.5px solid #D14600; }
+.vstatus-chip--inactivos { border-left: 3.5px solid #E32431; }
+.vstatus-chip--presencial { border-left: 3.5px solid #28871B; }
+.vstatus-chip--teletrabajo { border-left: 3.5px solid #007BC7; }
+.vstatus-chip--flexible { border-left: 3.5px solid #D1AD2A; }
 
 .vstatus-chip-dot {
   width: 8px;
@@ -1069,6 +1075,12 @@
 .vstatus-chip--aprobada .vstatus-chip-dot { background: #28871B; box-shadow: 0 0 8px rgba(40, 135, 27, 0.6); }
 .vstatus-chip--pendiente .vstatus-chip-dot { background: #D14600; box-shadow: 0 0 8px rgba(209, 70, 0, 0.6); }
 .vstatus-chip--otra .vstatus-chip-dot { background: #914169; box-shadow: 0 0 8px rgba(145, 65, 105, 0.6); }
+.vstatus-chip--activos .vstatus-chip-dot { background: #28871B; box-shadow: 0 0 8px rgba(40, 135, 27, 0.6); }
+.vstatus-chip--vacantes .vstatus-chip-dot { background: #D14600; box-shadow: 0 0 8px rgba(209, 70, 0, 0.6); }
+.vstatus-chip--inactivos .vstatus-chip-dot { background: #E32431; box-shadow: 0 0 8px rgba(227, 36, 49, 0.6); }
+.vstatus-chip--presencial .vstatus-chip-dot { background: #28871B; box-shadow: 0 0 8px rgba(40, 135, 27, 0.6); }
+.vstatus-chip--teletrabajo .vstatus-chip-dot { background: #007BC7; box-shadow: 0 0 8px rgba(0, 123, 199, 0.6); }
+.vstatus-chip--flexible .vstatus-chip-dot { background: #D1AD2A; box-shadow: 0 0 8px rgba(209, 173, 42, 0.6); }
 
 .vstatus-chip-info {
   display: flex;
