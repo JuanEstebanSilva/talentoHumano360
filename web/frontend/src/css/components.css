@@ -513,10 +513,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* ─── Donut Center KPI Overlay ───────────────────────────────────────────── */
+/* ─── Donut Center KPI Overlay (Centrado Perfecto 50%/50%) ──────────────── */
 .donut-center-kpi {
   position: absolute;
-  top: 39%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -526,6 +526,8 @@
   pointer-events: none;
   text-align: center;
   z-index: 2;
+  margin: 0;
+  padding: 0;
 }
 
 .donut-center-title {
@@ -534,6 +536,8 @@
   letter-spacing: 1.2px;
   color: var(--text-tertiary, #94a3b8);
   text-transform: uppercase;
+  line-height: 1;
+  margin: 0 0 2px 0;
 }
 
 .donut-center-val {
@@ -543,6 +547,7 @@
   line-height: 1.05;
   font-feature-settings: "tnum";
   letter-spacing: -0.03em;
+  margin: 0;
 }
 
 .donut-center-sub {
@@ -551,7 +556,8 @@
   color: #28871B;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  margin-top: 1px;
+  line-height: 1;
+  margin: 2px 0 0 0;
 }
 
 /* ─── Viáticos Status Chips ──────────────────────────────────────────────── */
