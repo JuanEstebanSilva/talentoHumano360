@@ -3193,21 +3193,25 @@ tbody tr:last-child td {
   background: #ffffff;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  max-height: 220px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+  max-height: 260px;
   overflow-y: auto;
-  z-index: 1000;
-  padding: var(--space-1);
+  z-index: 1050;
+  padding: 6px;
 }
 
 .autocomplete-item {
-  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   transition: all var(--transition-fast);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.autocomplete-item:last-child {
+  border-bottom: none;
 }
 
 .autocomplete-item:hover,
@@ -9892,4 +9896,154 @@ input.flatpickr-input:hover {
   background: #229bb7 !important;
   border-color: #2bb2d0 !important;
   box-shadow: 0 6px 18px rgba(29, 128, 150, 0.55) !important;
+}
+
+/* ─── Servidor Autocomplete, Flash Sync & Locked State ───────────────────────── */
+@keyframes inputFlashSync {
+  0% {
+    background-color: rgba(40, 135, 27, 0.28) !important;
+    border-color: #28871b !important;
+    box-shadow: 0 0 0 3px rgba(40, 135, 27, 0.35) !important;
+  }
+  30% {
+    background-color: rgba(40, 135, 27, 0.20) !important;
+    border-color: #28871b !important;
+    box-shadow: 0 0 0 2px rgba(40, 135, 27, 0.25) !important;
+  }
+  70% {
+    background-color: rgba(40, 135, 27, 0.08) !important;
+  }
+  100% {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+}
+
+.input-flash-sync {
+  animation: inputFlashSync 2s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+}
+
+/* Campos de servidor bloqueados contra edición al estar vinculados */
+.input-locked-servidor,
+.field-locked-readonly {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
+  cursor: not-allowed !important;
+  user-select: none;
+}
+
+/* Badge de Servidor Vinculado */
+.badge-servidor-vinculado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: rgba(40, 135, 27, 0.12);
+  color: #1d6113;
+  border: 1px solid rgba(40, 135, 27, 0.3);
+}
+
+/* Botón para Desvincular / Ingreso manual */
+.btn-unlock-servidor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-unlock-servidor:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* Enriquecimiento de Autocomplete Dropdown */
+.autocomplete-item-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1d6113, #28871b);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.autocomplete-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.autocomplete-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.autocomplete-badge-doc {
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.autocomplete-empty-state {
+  padding: 14px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .input-locked-servidor,
+[data-theme="dark"] .field-locked-readonly {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .badge-servidor-vinculado {
+  background: rgba(40, 135, 27, 0.25) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.35) !important;
+}
+
+[data-theme="dark"] .btn-unlock-servidor {
+  background: rgba(220, 38, 38, 0.15) !important;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+[data-theme="dark"] .autocomplete-badge-doc {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #cbd5e1 !important;
 }

@@ -1667,19 +1667,19 @@ const EmployeesModule = (() => {
         </div>
         <div class="form-grid">
           <div class="form-group span-2">
-            <label class="form-label" for="ef-nombre">Denominación de la Plaza *</label>
+            <label class="form-label" for="ef-nombre">Denominación de la Plaza</label>
             <input id="ef-nombre" class="form-input" value="${escHtml(emp.nombreCompleto || 'PLAZA VACANTE')}" required />
           </div>
           <input type="hidden" id="ef-cedula" value="" />
           <div class="form-group span-2">
-            <label class="form-label" for="ef-dep">Dependencia *</label>
+            <label class="form-label" for="ef-dep">Dependencia</label>
             <select id="ef-dep" class="filter-select">
               <option value="">Seleccionar Dependencia...</option>
               ${cats.dependencias.map(d => `<option value="${escHtml(d)}" ${d === emp.dependencia ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
             </select>
           </div>
           <div class="form-group span-2">
-            <label class="form-label" for="ef-cargo">Cargo *</label>
+            <label class="form-label" for="ef-cargo">Cargo</label>
             <select id="ef-cargo" class="filter-select">
               <option value="${escHtml(emp.cargoActual || '')}">${escHtml(emp.cargoActual || 'Seleccionar Cargo...')}</option>
             </select>
@@ -1727,17 +1727,17 @@ const EmployeesModule = (() => {
         <div id="tab-form-personales" class="form-tab-pane active" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label" for="ef-nombres">Nombres *</label>
+              <label class="form-label" for="ef-nombres">Nombres</label>
               <input id="ef-nombres" class="form-input" placeholder="Ej: JUAN CARLOS" value="${escHtml(nombresVal)}" enterkeyhint="next" required />
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-apellidos">Apellidos *</label>
+              <label class="form-label" for="ef-apellidos">Apellidos</label>
               <input id="ef-apellidos" class="form-input" placeholder="Ej: PEREZ RODRIGUEZ" value="${escHtml(apellidosVal)}" enterkeyhint="next" required />
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-cedula">Cédula de Ciudadanía *</label>
+              <label class="form-label" for="ef-cedula">Cédula de Ciudadanía</label>
               <input id="ef-cedula" class="form-input font-mono" placeholder="Ej: 1000000000" value="${escHtml(emp.cedula || '')}" inputmode="numeric" enterkeyhint="next" required />
             </div>
 
@@ -1920,11 +1920,11 @@ const EmployeesModule = (() => {
                 ${periodosList.map((p, idx) => `
                   <div class="periodo-row" style="display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);">
                     <div>
-                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde *</label>
+                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde</label>
                       <input type="date" class="form-input ef-periodo-desde" value="${escHtml(p.desde || '')}" required />
                     </div>
                     <div>
-                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
+                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta</label>
                       <input type="date" class="form-input ef-periodo-hasta" value="${escHtml(p.hasta || '')}" required />
                     </div>
                     <div class="ef-periodo-duracion">
@@ -2403,11 +2403,11 @@ const EmployeesModule = (() => {
         div.style = 'display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);';
         div.innerHTML = `
           <div>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde *</label>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde</label>
             <input type="date" class="form-input ef-periodo-desde" required />
           </div>
           <div>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta *</label>
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta</label>
             <input type="date" class="form-input ef-periodo-hasta" required />
           </div>
           <div class="ef-periodo-duracion"></div>

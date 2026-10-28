@@ -423,7 +423,7 @@ const ViaticosModule = (() => {
     currentUploadedFile = r.soporte || null;
 
     const isIntl = r.tipoDestino === 'Internacional' || (r.destino && PAISES_INTERNACIONAL.some(p => r.destino.includes(p)));
-    const defaultDepto = 'Boyacá';
+    const defaultDepto = r.departamento || '';
 
     return `
       <div class="emp-form-wrapper">
@@ -453,7 +453,18 @@ const ViaticosModule = (() => {
         <div id="tab-vit-servidor" class="form-tab-pane active" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group span-2 autocomplete-wrapper">
-              <label class="form-label">Nombre Completo del Servidor *</label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label class="form-label" style="margin:0;">Nombre Completo del Servidor</label>
+                <div id="vf-locked-box" style="display:none; align-items:center; gap:8px;">
+                  <span class="badge-servidor-vinculado" title="Información protegida procedente de la base de datos de servidores públicos">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Servidor Vinculado (Protegido)
+                  </span>
+                  <button type="button" class="btn-unlock-servidor" onclick="ViaticosModule.unlockServidor()" title="Desvincular servidor y permitir edición manual">
+                    ✕ Desvincular / Editar manual
+                  </button>
+                </div>
+              </div>
               <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
@@ -474,7 +485,7 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Vigencia Fiscal / Carpeta de Viáticos *</label>
+              <label class="form-label">Vigencia Fiscal / Carpeta de Viáticos</label>
               <select id="vf-id-paquete" class="filter-select" ${dis}>
                 ${(state.packages || []).map(p => {
                   const isSel = (r.id_paquete && parseInt(r.id_paquete, 10) === parseInt(p.id_paquete, 10)) ||
@@ -490,7 +501,7 @@ const ViaticosModule = (() => {
         <div id="tab-vit-comision" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group span-2">
-              <label class="form-label">Tipo de Desplazamiento *</label>
+              <label class="form-label">Tipo de Desplazamiento</label>
               <div class="dest-toggle-group">
                 <label class="dest-toggle-opt">
                   <input type="radio" name="vf-tipo-dest" value="Nacional" ${!isIntl ? 'checked' : ''} onchange="ViaticosModule.onTipoDestinoChange('Nacional')" ${dis}>
@@ -506,13 +517,13 @@ const ViaticosModule = (() => {
             <!-- Destino Nacional -->
             <div id="vf-dest-nacional" class="form-subgrid span-2" style="display:${!isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
               <div class="form-group">
-                <label class="form-label">Departamento *</label>
+                <label class="form-label">Departamento</label>
                 <select id="vf-depto" class="filter-select" onchange="ViaticosModule.onDeptoChange()" ${dis}>
-                  ${Object.keys(COLOMBIA_GEO).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
+                  <option value="" ${!defaultDepto ? 'selected' : ''}>Seleccione Departamento...</option>${Object.keys(COLOMBIA_GEO).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">Municipio / Ciudad *</label>
+                <label class="form-label">Municipio / Ciudad</label>
                 <select id="vf-muni" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
                   <!-- Poblado dinámicamente -->
                 </select>
@@ -522,24 +533,24 @@ const ViaticosModule = (() => {
             <!-- Destino Internacional -->
             <div id="vf-dest-internacional" class="form-subgrid span-2" style="display:${isIntl ? 'grid' : 'none'}; grid-template-columns:1fr 1fr; gap:var(--space-3);">
               <div class="form-group">
-                <label class="form-label">País de Destino *</label>
+                <label class="form-label">País de Destino</label>
                 <select id="vf-pais" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
                   ${PAISES_INTERNACIONAL.map(p => `<option value="${p}">${p}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">Ciudad Internacional *</label>
+                <label class="form-label">Ciudad Internacional</label>
                 <input id="vf-ciudad-int" class="form-input" placeholder="Ej: Washington D.C., Madrid..." enterkeyhint="next" oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
               </div>
             </div>
 
-            <input type="hidden" id="vf-destino" value="${escHtml(r.destino || 'Tunja, Boyacá')}" />
+            <input type="hidden" id="vf-destino" value="${escHtml(r.destino || '')}" />
 
             <div class="form-group span-2">
               <div class="dest-preview-box">
                 <span class="dest-preview-icon">📍</span>
                 <span class="dest-preview-label">Destino Consolidado:</span>
-                <strong id="vf-dest-preview-text" class="dest-preview-val">${escHtml(r.destino || 'Tunja, Boyacá')}</strong>
+                <strong id="vf-dest-preview-text" class="dest-preview-val">${escHtml(r.destino || 'Sin definir')}</strong>
               </div>
             </div>
 
@@ -554,28 +565,28 @@ const ViaticosModule = (() => {
         <div id="tab-vit-liquidacion" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group">
-              <label class="form-label">Fecha de Inicio *</label>
+              <label class="form-label">Fecha de Inicio</label>
               <input id="vf-fi" type="date" class="form-input" value="${toIsoDate(r.fechaInicio)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
             </div>
 
             <div class="form-group">
-              <label class="form-label">Fecha de Finalización *</label>
+              <label class="form-label">Fecha de Finalización</label>
               <input id="vf-ff" type="date" class="form-input" value="${toIsoDate(r.fechaFin)}" onchange="ViaticosModule.onDatesChange()" ${dis} required />
             </div>
 
             <div class="form-group">
               <label class="form-label">Número de Días (calculado)</label>
-              <input id="vf-dias" class="form-input" type="number" min="1" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.dias||'1')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <input id="vf-dias" class="form-input" type="number" min="1" inputmode="numeric" enterkeyhint="next" placeholder="Ej: 3" value="${escHtml(r.dias != null ? r.dias : '')}" oninput="ViaticosModule.calcTotal()" ${dis} />
             </div>
 
             <div class="form-group">
               <label class="form-label">Valor Diario ($ COP)</label>
-              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.valorDiario||'0')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.valorDiario != null ? r.valorDiario : '')}" oninput="ViaticosModule.calcTotal()" ${dis} />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label">Valor Total del Viático (Cálculo automático)</label>
-              <input id="vf-vtotal" class="form-input" placeholder="Calculado automáticamente" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${formatCOP(r.valorTotal||0)}" />
+              <input id="vf-vtotal" class="form-input" placeholder="Calculado automáticamente" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal ? formatCOP(r.valorTotal) : ''}" />
             </div>
 
             <div class="form-group">
@@ -601,7 +612,7 @@ const ViaticosModule = (() => {
             <div class="form-group span-2">
               <label class="form-label">Estado de la Solicitud</label>
               <select id="vf-estado" class="filter-select" onchange="ViaticosModule.onEstadoChange()" ${dis}>
-                ${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${r.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
+                <option value="" ${!r.estado ? 'selected' : ''} disabled>Seleccione Estado...</option>${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${r.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
               </select>
             </div>
 
@@ -650,7 +661,9 @@ const ViaticosModule = (() => {
           }
         }
       }
-      onDeptoChange();
+      if (deptoSelect.value) {
+        onDeptoChange();
+      }
     }
     calcTotal();
     onEstadoChange();
@@ -672,16 +685,27 @@ const ViaticosModule = (() => {
         const res = await API.getEmployees({ q: query, limit: 6 });
         const list = res.data || [];
         if (!list.length) {
-          drop.innerHTML = `<div class="autocomplete-item"><span class="autocomplete-item-meta">No se encontraron funcionarios</span></div>`;
+          drop.innerHTML = `<div class="autocomplete-empty-state"><span>🔍 No se encontraron funcionarios con ese nombre o documento</span></div>`;
           drop.style.display = 'block';
           return;
         }
-        drop.innerHTML = list.map(emp => `
-          <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-            <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-            <span class="autocomplete-item-meta">C.C. ${escHtml(emp.cedula || '—')} • ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}</span>
-          </div>
-        `).join('');
+        drop.innerHTML = list.map(emp => {
+          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          return `
+            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="autocomplete-item-avatar">${initial}</div>
+              <div class="autocomplete-item-body">
+                <div class="autocomplete-item-header">
+                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
+                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+                </div>
+                <div class="autocomplete-item-meta">
+                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
         drop.style.display = 'block';
       } catch {
         drop.style.display = 'none';
@@ -696,6 +720,7 @@ const ViaticosModule = (() => {
     const cargoInput = document.getElementById('vf-cargo');
     const depInput = document.getElementById('vf-dep');
     const drop = document.getElementById('vf-autocomplete-list');
+    const lockedBox = document.getElementById('vf-locked-box');
 
     if (nombreInput) nombreInput.value = emp.nombre_completo || '';
     if (docInput) docInput.value = emp.cedula || '';
@@ -703,11 +728,48 @@ const ViaticosModule = (() => {
     if (depInput) depInput.value = emp.dependencia || '';
     if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
 
+    // Bloquear campos y aplicar destello visual
+    const fields = [nombreInput, docInput, cargoInput, depInput];
+    fields.forEach(el => {
+      if (el) {
+        el.readOnly = true;
+        el.classList.add('field-locked-readonly');
+        el.classList.remove('input-flash-sync');
+        void el.offsetWidth;
+        el.classList.add('input-flash-sync');
+        setTimeout(() => {
+          el.classList.remove('input-flash-sync');
+        }, 2200);
+      }
+    });
+
+    if (lockedBox) lockedBox.style.display = 'inline-flex';
+
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
 
-    App.showToast(`Datos autocompletados para ${emp.nombre_completo}.`, 'info');
+    App.showToast(`Datos vinculados y protegidos para ${emp.nombre_completo}.`, 'info');
+  }
+
+  function unlockServidor() {
+    const nombreInput = document.getElementById('vf-nombre');
+    const docInput = document.getElementById('vf-doc');
+    const cargoInput = document.getElementById('vf-cargo');
+    const depInput = document.getElementById('vf-dep');
+    const lockedBox = document.getElementById('vf-locked-box');
+
+    const fields = [nombreInput, docInput, cargoInput, depInput];
+    fields.forEach(el => {
+      if (el) {
+        el.readOnly = false;
+        el.classList.remove('field-locked-readonly');
+        el.classList.remove('input-flash-sync');
+      }
+    });
+
+    if (lockedBox) lockedBox.style.display = 'none';
+    App.showToast('Campos de servidor desbloqueados para edición manual.', 'info');
   }
 
   // ─── Gestión de Destinos ──────────────────────────────────────────────────
@@ -726,11 +788,16 @@ const ViaticosModule = (() => {
   }
 
   function onDeptoChange(selectedMuni = '') {
-    const depto = document.getElementById('vf-depto')?.value || 'Boyacá';
+    const depto = document.getElementById('vf-depto')?.value;
     const muniSelect = document.getElementById('vf-muni');
     if (!muniSelect) return;
+    if (!depto) {
+      muniSelect.innerHTML = '<option value="">Seleccione Municipio...</option>';
+      updateDestinoFinal();
+      return;
+    }
     const munis = COLOMBIA_GEO[depto] || ['Capital / Ciudad Principal', 'Otro municipio'];
-    muniSelect.innerHTML = munis.map(m => `<option value="${m}" ${m === selectedMuni ? 'selected' : ''}>${m}</option>`).join('');
+    muniSelect.innerHTML = '<option value="">Seleccione Municipio...</option>' + munis.map(m => `<option value="${m}" ${m === selectedMuni ? 'selected' : ''}>${m}</option>`).join('');
     updateDestinoFinal();
   }
 
@@ -738,18 +805,26 @@ const ViaticosModule = (() => {
     const tipo = document.querySelector('input[name="vf-tipo-dest"]:checked')?.value || 'Nacional';
     let destText = '';
     if (tipo === 'Nacional') {
-      const depto = document.getElementById('vf-depto')?.value || 'Boyacá';
-      const muni = document.getElementById('vf-muni')?.value || 'Tunja';
-      destText = `${muni}, ${depto}`;
+      const depto = document.getElementById('vf-depto')?.value || '';
+      const muni = document.getElementById('vf-muni')?.value || '';
+      if (muni && depto) {
+        destText = `${muni}, ${depto}`;
+      } else if (depto) {
+        destText = depto;
+      }
     } else {
-      const pais = document.getElementById('vf-pais')?.value || 'Estados Unidos';
-      const ciudad = document.getElementById('vf-ciudad-int')?.value.trim() || 'Ciudad Principal';
-      destText = `${ciudad}, ${pais}`;
+      const pais = document.getElementById('vf-pais')?.value || '';
+      const ciudad = document.getElementById('vf-ciudad-int')?.value.trim() || '';
+      if (ciudad && pais) {
+        destText = `${ciudad}, ${pais}`;
+      } else if (pais) {
+        destText = pais;
+      }
     }
     const hiddenDest = document.getElementById('vf-destino');
     const previewText = document.getElementById('vf-dest-preview-text');
     if (hiddenDest) hiddenDest.value = destText;
-    if (previewText) previewText.textContent = destText;
+    if (previewText) previewText.textContent = destText || 'Sin definir';
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
@@ -782,7 +857,7 @@ const ViaticosModule = (() => {
     const daily = parseFloat(document.getElementById('vf-vdiario')?.value) || 0;
     const total = dias * daily;
     const el = document.getElementById('vf-vtotal');
-    if (el) el.value = formatCOP(total);
+    if (el) el.value = (dias > 0 && daily > 0) ? formatCOP(total) : '';
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
@@ -3619,6 +3694,7 @@ const ViaticosModule = (() => {
     calcTotal,
     onNombreInput,
     selectEmployee,
+    unlockServidor,
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,

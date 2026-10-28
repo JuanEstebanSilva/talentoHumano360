@@ -769,17 +769,17 @@ const HorariosModule = (() => {
     const curModalidad = item?.modalidad || 'Teletrabajo';
     const curTipoCalc  = item?.tipo_calculo || 'Hábiles';
 
-    // Parsear días iniciales si es Teletrabajo
-    const initialDaysLower = (item?.dias_teletrabajo || 'martes y jueves').toLowerCase();
-    const hasLun = initialDaysLower.includes('lun');
-    const hasMar = initialDaysLower.includes('mar');
-    const hasMie = initialDaysLower.includes('mie') || initialDaysLower.includes('mié');
-    const hasJue = initialDaysLower.includes('jue');
-    const hasVie = initialDaysLower.includes('vie');
+    // Parsear días iniciales si es Teletrabajo (sólo si es edición)
+    const initialDaysLower = (item?.dias_teletrabajo || '').toLowerCase();
+    const hasLun = isEdit ? initialDaysLower.includes('lun') : false;
+    const hasMar = isEdit ? initialDaysLower.includes('mar') : false;
+    const hasMie = isEdit ? (initialDaysLower.includes('mie') || initialDaysLower.includes('mié')) : false;
+    const hasJue = isEdit ? initialDaysLower.includes('jue') : false;
+    const hasVie = isEdit ? initialDaysLower.includes('vie') : false;
 
-    // Determinar duración inicial sugerida según modalidad
+    // Determinar duración inicial sugerida según modalidad (sólo si es edición)
     let defaultDuracion = item?.duracion_texto || '';
-    if (!defaultDuracion) {
+    if (!defaultDuracion && isEdit) {
       if (curModalidad === 'Teletrabajo') {
         const count = [hasLun, hasMar, hasMie, hasJue, hasVie].filter(Boolean).length || 2;
         defaultDuracion = `${count} días / semana`;
@@ -829,21 +829,21 @@ const HorariosModule = (() => {
         </div>` : ''}
 
         <div class="form-group">
-          <label for="horario-nombre" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">NOMBRES Y APELLIDOS</label>
+          <label for="horario-nombre" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">NOMBRES Y APELLIDOS</label>
           <input type="text" id="horario-nombre" class="form-input font-bold" placeholder="Nombres y apellidos completos" enterkeyhint="next" value="${escHtml(
             item?.apellidos_nombres || ''
           )}" />
         </div>
 
         <div class="form-group">
-          <label for="horario-documento" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DOCUMENTO DE IDENTIDAD (C.C.)</label>
+          <label for="horario-documento" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DOCUMENTO DE IDENTIDAD (C.C.)</label>
           <input type="text" id="horario-documento" class="form-input font-mono font-bold" placeholder="Número de cédula" inputmode="numeric" enterkeyhint="next" value="${escHtml(
             item?.documento || ''
           )}" />
         </div>
 
         <div class="form-group">
-          <label for="horario-cargo" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CARGO</label>
+          <label for="horario-cargo" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">CARGO</label>
           <input type="text" id="horario-cargo" class="form-input" placeholder="Cargo institucional..." enterkeyhint="next" value="${escHtml(item?.cargo || '')}" />
         </div>
 
@@ -862,7 +862,7 @@ const HorariosModule = (() => {
         </div>
 
         <div class="form-group">
-          <label for="horario-dependencia" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DEPENDENCIA</label>
+          <label for="horario-dependencia" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">DEPENDENCIA</label>
           <input type="text" id="horario-dependencia" class="form-input" placeholder="Ej: CONTROL INTERNO DE GESTION..." enterkeyhint="next" value="${escHtml(
             item?.dependencia || ''
           )}" />
@@ -876,7 +876,7 @@ const HorariosModule = (() => {
         </div>
 
         <div class="form-group span-2">
-          <label for="horario-estado" class="form-label required" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">ESTADO DEL ESQUEMA</label>
+          <label for="horario-estado" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">ESTADO DEL ESQUEMA</label>
           <select id="horario-estado" class="filter-select">
             <option value="Activa" ${item?.estado === 'Activa' ? 'selected' : ''}>Activa (En vigencia)</option>
             <option value="Pendiente" ${item?.estado === 'Pendiente' ? 'selected' : ''}>Pendiente de inicio</option>
@@ -976,7 +976,7 @@ const HorariosModule = (() => {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
             <div class="form-group">
               <label for="dias-teletrabajo" class="form-label">Días de Teletrabajo (Texto)</label>
-              <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder="Ej: martes y jueves" enterkeyhint="next" value="${escHtml(item?.dias_teletrabajo || 'martes y jueves')}" />
+              <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder="Ej: martes y jueves" enterkeyhint="next" value="${escHtml(item?.dias_teletrabajo || '')}" />
               <small class="field-hint" style="font-size:11px; color:var(--text-muted);">Se actualiza automáticamente al hacer clic en los días</small>
             </div>
             <div class="form-group">
@@ -1009,8 +1009,8 @@ const HorariosModule = (() => {
           </div>
 
           <div class="form-group">
-            <label for="franja-ingreso" class="form-label required">Franja Horaria Concertada</label>
-            <input type="text" id="franja-ingreso" class="form-input font-bold" placeholder="Ej: 8 AM A 12 M, 1 A 5 PM" enterkeyhint="next" value="${escHtml(item?.franja_ingreso || item?.dias_teletrabajo || '8 AM A 12 M, 1 A 5 PM')}" />
+            <label for="franja-ingreso" class="form-label">Franja Horaria Concertada</label>
+            <input type="text" id="franja-ingreso" class="form-input font-bold" placeholder="Ej: 8 AM A 12 M, 1 A 5 PM" enterkeyhint="next" value="${escHtml(item?.franja_ingreso || (isEdit ? (item?.dias_teletrabajo || '') : ''))}" />
           </div>
         </div>
 
@@ -1382,11 +1382,11 @@ const HorariosModule = (() => {
         el.readOnly = locked;
         if (locked) {
           el.setAttribute('readonly', 'readonly');
-          el.classList.add('input-locked-servidor');
+          el.classList.add('input-locked-servidor', 'field-locked-readonly');
           el.setAttribute('title', 'Dato institucional vinculado desde la base de datos (bloqueado contra modificación o borrado)');
         } else {
           el.removeAttribute('readonly');
-          el.classList.remove('input-locked-servidor');
+          el.classList.remove('input-locked-servidor', 'field-locked-readonly');
           el.removeAttribute('title');
         }
       });
