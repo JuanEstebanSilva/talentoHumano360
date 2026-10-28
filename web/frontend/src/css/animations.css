@@ -132,12 +132,7 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
 /* ─── Topbar Logo Glow ───────────────────────────────────────────────────── */
 .sidebar-logo svg,
 .sidebar-logo img {
-  filter: drop-shadow(0 0 8px rgba(209, 173, 42, 0.45));
-  transition: filter 0.3s ease;
-}
-.sidebar:hover .sidebar-logo svg,
-.sidebar:hover .sidebar-logo img {
-  filter: drop-shadow(0 0 14px rgba(209, 173, 42, 0.75));
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ─── Input Focus Ring ───────────────────────────────────────────────────── */
