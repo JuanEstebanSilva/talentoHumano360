@@ -326,7 +326,7 @@ const HorariosModule = (() => {
               <label class="filter-label" for="horarios-search">Buscar</label>
               <input id="horarios-search" class="filter-input" placeholder="Nombre, cédula, cargo o resolución..." value="${escHtml(
                 state.filters.q || ''
-              )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" />
+              )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" oninput="HorariosModule.onSearchInput(this.value)" />
             </div>
             <div class="filter-group" style="flex:1; min-width:160px;">
               <label class="filter-label" for="filter-estado">Estado</label>
@@ -341,11 +341,7 @@ const HorariosModule = (() => {
               </select>
             </div>
             <div style="display:flex; gap:8px; align-items:flex-end;">
-              <button class="btn btn-primary" onclick="HorariosModule.applyFilters()" aria-label="Ejecutar búsqueda">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar
-              </button>
-              <button class="btn btn-secondary" onclick="HorariosModule.clearFilters()">Limpiar</button>
+              <button class="btn btn-secondary" onclick="HorariosModule.clearFilters()" title="Restablecer todos los filtros" aria-label="Limpiar filtros">Limpiar</button>
             </div>
           </div>
         </div>
@@ -2832,6 +2828,14 @@ const HorariosModule = (() => {
     );
   }
 
+  let horarioSearchDebounce = null;
+  function onSearchInput(val) {
+    clearTimeout(horarioSearchDebounce);
+    horarioSearchDebounce = setTimeout(() => {
+      applyFilters();
+    }, 300);
+  }
+
   function applyFilters() {
     const q = document.getElementById('horarios-search')?.value.trim() || '';
     const dep = document.getElementById('filter-dependencia')?.value || '';
@@ -3666,6 +3670,7 @@ const HorariosModule = (() => {
     selectQuickStatus,
     confirmDelete,
     applyFilters,
+    onSearchInput,
     clearFilters,
     toggleModalidadFilter,
     goPage,

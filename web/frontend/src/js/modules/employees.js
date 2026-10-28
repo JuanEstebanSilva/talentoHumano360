@@ -3598,11 +3598,7 @@ const EmployeesModule = (() => {
               </select>
             </div>
             <div style="display:flex; gap:8px; align-items:flex-end;">
-              <button class="btn btn-primary" onclick="EmployeesModule.search()" aria-label="Ejecutar búsqueda">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar
-              </button>
-              <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
+              <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" title="Restablecer todos los filtros" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
             </div>
           </div>
         </div>

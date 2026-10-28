@@ -1667,6 +1667,14 @@ const ViaticosModule = (() => {
     ]);
   }
 
+  let vitSearchDebounce = null;
+  function onSearchInput(val) {
+    clearTimeout(vitSearchDebounce);
+    vitSearchDebounce = setTimeout(() => {
+      applyFilters();
+    }, 300);
+  }
+
   function applyFilters() {
     state.page = 1;
     const dep = document.getElementById('vit-dependencia')?.value || '';
@@ -2402,7 +2410,7 @@ const ViaticosModule = (() => {
             <div class="filters-row">
               <div class="filter-group" style="flex:2">
                 <label class="filter-label">Buscar en ${escHtml(pkg.nombre)}</label>
-                <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." />
+                <input id="vit-q" class="filter-input" placeholder="Nombre, cédula, destino..." oninput="ViaticosModule.onSearchInput(this.value)" onkeypress="if(event.key==='Enter')ViaticosModule.applyFilters()" />
               </div>
               <div class="filter-group" style="flex:1.5">
                 <label class="filter-label">Dependencia</label>
@@ -2416,11 +2424,7 @@ const ViaticosModule = (() => {
                   ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
                 </select>
               </div>
-              <button class="btn btn-primary" onclick="ViaticosModule.applyFilters()" aria-label="Ejecutar búsqueda">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Buscar
-              </button>
-              <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()">Limpiar</button>
+              <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()" title="Restablecer todos los filtros" aria-label="Limpiar filtros">Limpiar</button>
             </div>
           </div>
 
@@ -3689,6 +3693,7 @@ const ViaticosModule = (() => {
     selectQuickStatus,
     confirmDelete,
     applyFilters,
+    onSearchInput,
     clearFilters,
     goPage,
     calcTotal,
