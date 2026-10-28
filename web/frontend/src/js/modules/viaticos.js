@@ -213,10 +213,11 @@ const ViaticosModule = (() => {
     `).join('');
   }
 
-  function renderStatsSkeletons(count = 4) {
+  function renderStatsSkeletons(count = 5) {
     return Array.from({ length: count }).map(() => `
-      <div class="stat-card" role="progressbar" aria-busy="true" aria-label="Cargando estadísticas...">
-        <div class="stat-icon skeleton" style="width: 48px; height: 48px; border-radius: 12px;" aria-hidden="true"></div>
+      <div class="stat-card db-glass-card" role="progressbar" aria-busy="true" aria-label="Cargando estadísticas...">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon skeleton" style="width: 42px; height: 42px; border-radius: 12px;" aria-hidden="true"></div>
         <div class="stat-info" style="display: flex; flex-direction: column; gap: 6px;">
           <span class="skeleton" style="width: 70px; height: 24px; border-radius: 4px; display: block;" aria-hidden="true"></span>
           <span class="skeleton" style="width: 95px; height: 12px; border-radius: 4px; display: block;" aria-hidden="true"></span>
@@ -1410,53 +1411,78 @@ const ViaticosModule = (() => {
     }
   }
 
+  function renderStatCards5(data = {}) {
+    const total = parseInt(data.total, 10) || 0;
+    const aprobadas = parseInt(data.aprobadas, 10) || 0;
+    const pendientes = parseInt(data.pendientes, 10) || 0;
+    const valorAprobado = Math.round(parseFloat(data.valor_aprobado) || 0);
+    const destinos = data.total_destinos !== undefined && data.total_destinos !== null
+      ? (typeof data.total_destinos === 'number' ? data.total_destinos.toLocaleString('es-CO') : data.total_destinos)
+      : '0';
+
+    return `
+      <div class="stat-card db-glass-card stat-card--gold">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon stat-icon--gold">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${total.toLocaleString('es-CO')}</span>
+          <span class="stat-label">TOTAL SOLICITUDES</span>
+        </div>
+      </div>
+
+      <div class="stat-card db-glass-card stat-card--green">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon stat-icon--green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${aprobadas.toLocaleString('es-CO')}</span>
+          <span class="stat-label">VIÁTICOS APROBADOS</span>
+        </div>
+      </div>
+
+      <div class="stat-card db-glass-card stat-card--orange">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon stat-icon--orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${pendientes.toLocaleString('es-CO')}</span>
+          <span class="stat-label">EN TRÁMITE / PENDIENTE</span>
+        </div>
+      </div>
+
+      <div class="stat-card db-glass-card stat-card--blue">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon stat-icon--blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${valorAprobado.toLocaleString('es-CO')}</span>
+          <span class="stat-label">PRESUPUESTO APROBADO</span>
+        </div>
+      </div>
+
+      <div class="stat-card db-glass-card stat-card--purple">
+        <div class="stat-top-stripe"></div>
+        <div class="stat-icon stat-icon--purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">${destinos}</span>
+          <span class="stat-label">DESTINOS ASIGNADOS</span>
+        </div>
+      </div>
+    `;
+  }
+
   function loadStatsGlobal() {
     API.getViaticosStats().then(s => {
       const strip = document.getElementById('vit-stats-strip');
       if (!strip) return;
-      const { sortedYears } = getPackagesByYear();
-      const count = sortedYears.length;
-      const minYear = sortedYears[sortedYears.length - 1] || '2022';
-      const maxYear = sortedYears[0] || '2026';
-      const rangeText = count > 1 ? `${minYear} — ${maxYear}` : `${maxYear}`;
-
-      strip.innerHTML = `
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${count} ${count === 1 ? 'Vigencia' : 'Años'}</span>
-            <span class="stat-label">Histórico (${rangeText})</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${(parseInt(s.total)||0).toLocaleString('es-CO')}</span>
-            <span class="stat-label">Viáticos Totales</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${(parseInt(s.aprobadas)||0).toLocaleString('es-CO')}</span>
-            <span class="stat-label">Viáticos Aprobados</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(s.valor_aprobado)}</span>
-            <span class="stat-label">Total Aprobado</span>
-          </div>
-        </div>`;
+      strip.innerHTML = renderStatCards5(s);
     }).catch(() => {});
   }
 
@@ -1464,72 +1490,46 @@ const ViaticosModule = (() => {
     const strip = document.getElementById('vit-year-stats-strip');
     if (!strip) return;
     const yearPkgs = (state.packages || []).filter(p => parseInt(p.anio, 10) === parseInt(year, 10));
-    const totalViaticos = yearPkgs.reduce((acc, p) => acc + (parseInt(p.total_viaticos) || 0), 0);
-    const pendientes = yearPkgs.reduce((acc, p) => acc + (parseInt(p.pendientes) || 0), 0);
+    const totalViaticos = yearPkgs.reduce((acc, p) => acc + (parseInt(p.total_viaticos, 10) || 0), 0);
+    const aprobadas = yearPkgs.reduce((acc, p) => acc + (parseInt(p.aprobadas, 10) || 0), 0);
+    const pendientes = yearPkgs.reduce((acc, p) => acc + (parseInt(p.pendientes, 10) || 0), 0);
     const totalAprobado = yearPkgs.reduce((acc, p) => acc + (parseFloat(p.valor_aprobado || p.total_aprobado) || 0), 0);
 
-    strip.innerHTML = `
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--gold">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">${totalViaticos.toLocaleString('es-CO')}</span>
-          <span class="stat-label">Viáticos en ${year}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--orange">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">${pendientes.toLocaleString('es-CO')}</span>
-          <span class="stat-label">Pendientes</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon stat-icon--green">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(totalAprobado)}</span>
-          <span class="stat-label">Total Aprobado</span>
-        </div>
-      </div>`;
+    const render = (s) => {
+      if (!document.getElementById('vit-year-stats-strip')) return;
+      document.getElementById('vit-year-stats-strip').innerHTML = renderStatCards5({
+        total: s.total ?? totalViaticos,
+        aprobadas: s.aprobadas ?? aprobadas,
+        pendientes: s.pendientes ?? pendientes,
+        valor_aprobado: s.valor_aprobado ?? totalAprobado,
+        total_destinos: s.total_destinos ?? (yearPkgs.length ? '-' : 0)
+      });
+    };
+
+    render({ total: totalViaticos, aprobadas, pendientes, valor_aprobado: totalAprobado });
+
+    API.getViaticosStats({ anio: year }).then(s => {
+      render(s);
+    }).catch(() => {});
   }
 
   function loadStatsPackage(id_paquete) {
+    const pkgStrip = document.getElementById('vit-pkg-stats-strip');
+    if (!pkgStrip) return;
+    const pkg = (state.packages || []).find(p => parseInt(p.id_paquete, 10) === parseInt(id_paquete, 10));
+    if (pkg) {
+      pkgStrip.innerHTML = renderStatCards5({
+        total: pkg.total_viaticos || 0,
+        aprobadas: pkg.aprobadas || 0,
+        pendientes: pkg.pendientes || 0,
+        valor_aprobado: pkg.valor_aprobado || 0,
+        total_destinos: '-'
+      });
+    }
     API.getViaticosStats({ id_paquete }).then(ps => {
-      const pkgStrip = document.getElementById('vit-pkg-stats-strip');
-      if (!pkgStrip) return;
-      pkgStrip.innerHTML = `
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${(parseInt(ps.total)||0).toLocaleString('es-CO')}</span>
-            <span class="stat-label">Viáticos en este Paquete</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">${(parseInt(ps.pendientes)||0).toLocaleString('es-CO')}</span>
-            <span class="stat-label">Pendientes</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon stat-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value" style="font-size:var(--text-xl)">${formatCOP(ps.valor_aprobado)}</span>
-            <span class="stat-label">Total Aprobado</span>
-          </div>
-        </div>`;
+      if (document.getElementById('vit-pkg-stats-strip')) {
+        document.getElementById('vit-pkg-stats-strip').innerHTML = renderStatCards5(ps);
+      }
     }).catch(() => {});
   }
 
@@ -2159,9 +2159,9 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Estadísticas Globales (Histórico de Años, Totales, Pendientes, Aprobado) -->
-        <div id="vit-stats-strip" class="stats-grid stats-grid--4" style="grid-template-columns:repeat(4, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(4)}
+        <!-- Estadísticas Globales (5 Tarjetas Glassmorphism Idénticas al Dashboard) -->
+        <div id="vit-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(5)}
         </div>
 
           <!-- Contenedor del Histórico Anual -->
@@ -2227,9 +2227,9 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Estadísticas Específicas de este Año Fiscal -->
-        <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(3)}
+        <!-- Estadísticas Específicas de este Año Fiscal (5 Tarjetas Glassmorphism) -->
+        <div id="vit-year-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(5)}
         </div>
 
           <!-- Contenedor de Carpetas del Año -->
@@ -2299,9 +2299,9 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete -->
-        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-5);width:100%;">
-          ${renderStatsSkeletons(3)}
+        <!-- Estadísticas Específicas ÚNICAMENTE de esta Vigencia / Paquete (5 Tarjetas Glassmorphism) -->
+        <div id="vit-pkg-stats-strip" class="stats-grid" style="grid-template-columns:repeat(5, minmax(0, 1fr));margin-bottom:var(--space-5);width:100%;">
+          ${renderStatsSkeletons(5)}
         </div>
 
           <!-- Filtros de Búsqueda para este Paquete -->

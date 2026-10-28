@@ -270,37 +270,44 @@ router.get('/', auth, async (req, res) => {
 
 // ─── GET /api/viaticos/stats ──────────────────────────────────────────────────
 router.get('/stats', auth, async (req, res) => {
-  const { id_paquete } = req.query;
+  const { id_paquete, anio } = req.query;
   try {
     let where = '1=1';
     const params = [];
     if (id_paquete && id_paquete !== 'todos' && id_paquete !== 'all') {
-      where = 'id_paquete = $1';
-      params.push(parseInt(id_paquete));
+      where = 'v.id_paquete = $1';
+      params.push(parseInt(id_paquete, 10));
+    } else if (anio && anio !== 'todos' && anio !== 'all') {
+      where = 'p.anio = $1';
+      params.push(parseInt(anio, 10));
     }
     const r = await pool.query(`
       SELECT COUNT(*)::int AS total,
-             COUNT(*) FILTER (WHERE estado='Pendiente')::int AS pendientes,
-             COUNT(*) FILTER (WHERE estado='Aprobada' OR estado='Finalizada')::int AS aprobadas,
-             COALESCE(SUM(valor_total) FILTER (WHERE estado='Aprobada' OR estado='Finalizada'), 0)::numeric(15,2) AS valor_aprobado,
-             COUNT(DISTINCT UPPER(TRIM(destino)))::int AS total_destinos
-      FROM viaticos WHERE ${where}`, params);
+             COUNT(*) FILTER (WHERE v.estado='Pendiente')::int AS pendientes,
+             COUNT(*) FILTER (WHERE v.estado='Aprobada' OR v.estado='Finalizada')::int AS aprobadas,
+             COALESCE(SUM(v.valor_total) FILTER (WHERE v.estado='Aprobada' OR v.estado='Finalizada'), 0)::numeric(15,2) AS valor_aprobado,
+             COUNT(DISTINCT UPPER(TRIM(v.destino)))::int AS total_destinos
+      FROM viaticos v
+      LEFT JOIN paquetes_viaticos p ON v.id_paquete = p.id_paquete
+      WHERE ${where}`, params);
 
     // Destinos más frecuentes (Top 5)
     const destRes = await pool.query(`
-      SELECT UPPER(TRIM(destino)) AS destino, COUNT(*)::int AS count
-      FROM viaticos
-      WHERE ${where} AND destino IS NOT NULL AND TRIM(destino) != ''
+      SELECT UPPER(TRIM(v.destino)) AS destino, COUNT(*)::int AS count
+      FROM viaticos v
+      LEFT JOIN paquetes_viaticos p ON v.id_paquete = p.id_paquete
+      WHERE ${where} AND v.destino IS NOT NULL AND TRIM(v.destino) != ''
       GROUP BY 1
       ORDER BY count DESC
       LIMIT 5`, params);
 
     // Presupuesto y comisiones agrupadas por dependencia
     const depRes = await pool.query(`
-      SELECT COALESCE(NULLIF(TRIM(dependencia), ''), 'SECRETARÍA GENERAL') AS dep,
+      SELECT COALESCE(NULLIF(TRIM(v.dependencia), ''), 'SECRETARÍA GENERAL') AS dep,
              COUNT(*)::int AS count,
-             COALESCE(SUM(valor_total), 0)::numeric(15,2) AS valor_total
-      FROM viaticos
+             COALESCE(SUM(v.valor_total), 0)::numeric(15,2) AS valor_total
+      FROM viaticos v
+      LEFT JOIN paquetes_viaticos p ON v.id_paquete = p.id_paquete
       WHERE ${where}
       GROUP BY 1`, params);
 
