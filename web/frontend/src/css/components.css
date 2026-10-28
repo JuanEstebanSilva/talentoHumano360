@@ -530,9 +530,9 @@
   gap: 6px;
   padding: 5px 14px;
   border-radius: 9999px;
-  background: rgba(2, 132, 199, 0.05);
-  border: 1.5px solid #38bdf8;
-  color: #0284c7;
+  background: rgba(29, 128, 150, 0.06);
+  border: 1.5px solid rgba(29, 128, 150, 0.35);
+  color: #1D8096;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -544,23 +544,23 @@
 
 .btn-back-pill:hover,
 .viaticos-btn-back:hover {
-  background: rgba(2, 132, 199, 0.12);
-  border-color: #0284c7;
-  color: #0369a1;
+  background: rgba(29, 128, 150, 0.14);
+  border-color: #1D8096;
+  color: #166475;
   transform: translateX(-2px);
 }
 
 [data-theme="dark"] .btn-back-pill,
 [data-theme="dark"] .viaticos-btn-back {
-  background: rgba(56, 189, 248, 0.1);
+  background: rgba(29, 128, 150, 0.15);
   border-color: #38bdf8;
-  color: #7dd3fc;
+  color: #2bb2d0;
 }
 
 [data-theme="dark"] .btn-back-pill:hover,
 [data-theme="dark"] .viaticos-btn-back:hover {
-  background: rgba(56, 189, 248, 0.2);
-  border-color: #7dd3fc;
+  background: rgba(29, 128, 150, 0.28);
+  border-color: #2bb2d0;
   color: #bae6fd;
 }
 
@@ -7930,16 +7930,16 @@ span.flatpickr-weekday {
 }
 
 .flatpickr-custom-footer .fp-btn-today {
-  color: #0284c7 !important;
-  background: rgba(2, 132, 199, 0.12) !important;
-  border-color: rgba(2, 132, 199, 0.38) !important;
+  color: #1D8096 !important;
+  background: rgba(29, 128, 150, 0.12) !important;
+  border-color: rgba(29, 128, 150, 0.38) !important;
 }
 
 .flatpickr-custom-footer .fp-btn-today:hover {
-  background: #0284c7 !important;
-  border-color: #0284c7 !important;
+  background: #1D8096 !important;
+  border-color: #1D8096 !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(29, 128, 150, 0.35) !important;
 }
 
 .flatpickr-custom-footer .fp-btn-clear {
@@ -8078,7 +8078,7 @@ span.flatpickr-weekday {
 }
 
 [data-theme="dark"] .flatpickr-custom-footer .fp-btn-today:hover {
-  background: #0284c7 !important;
+  background: #1D8096 !important;
   border-color: #38bdf8 !important;
   color: #ffffff !important;
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.45) !important;
@@ -8867,9 +8867,9 @@ input.flatpickr-input:hover {
   gap: 8px;
   padding: 8px 18px;
   border-radius: 999px;
-  border: 1.5px solid rgba(0, 123, 199, 0.38);
-  background: linear-gradient(135deg, #ffffff 0%, #f0f7fc 100%);
-  color: #005387 !important;
+  border: 1.5px solid rgba(29, 128, 150, 0.35);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f8fa 100%);
+  color: #166475 !important;
   font-size: 13.5px;
   font-weight: 800;
   letter-spacing: 0.15px;
@@ -8881,17 +8881,17 @@ input.flatpickr-input:hover {
 .viaticos-btn-back svg {
   width: 16px;
   height: 16px;
-  stroke: #007BC7;
+  stroke: #1D8096;
   stroke-width: 2.5;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .viaticos-btn-back:hover {
-  background: linear-gradient(135deg, #007BC7 0%, #005387 100%);
-  border-color: #005387;
+  background: #1D8096;
+  border-color: #166475;
   color: #ffffff !important;
   transform: translateX(-4px);
-  box-shadow: 0 4px 14px rgba(0, 123, 199, 0.32);
+  box-shadow: 0 4px 14px rgba(29, 128, 150, 0.35);
 }
 
 .viaticos-btn-back:hover svg {
@@ -8911,10 +8911,10 @@ input.flatpickr-input:hover {
 }
 
 [data-theme="dark"] .viaticos-btn-back:hover {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  background: #1D8096;
   border-color: #38bdf8;
   color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  box-shadow: 0 4px 14px rgba(29, 128, 150, 0.45);
 }
 
 [data-theme="dark"] .viaticos-btn-back:hover svg {
@@ -9513,10 +9513,10 @@ input.flatpickr-input:hover {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  background: rgba(0, 123, 199, 0.08);
-  border: 1px solid rgba(0, 123, 199, 0.22);
+  background: rgba(29, 128, 150, 0.08);
+  border: 1px solid rgba(29, 128, 150, 0.25);
   border-radius: 999px;
-  color: #007BC7;
+  color: #1D8096;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2px;
@@ -9526,22 +9526,22 @@ input.flatpickr-input:hover {
 .viaticos-year-card .viaticos-excel-badge svg {
   width: 13px;
   height: 13px;
-  color: #007BC7;
+  color: #1D8096;
 }
 
 .viaticos-year-card:hover .viaticos-excel-badge {
-  background: rgba(0, 123, 199, 0.12);
-  border-color: rgba(0, 123, 199, 0.35);
+  background: rgba(29, 128, 150, 0.14);
+  border-color: rgba(29, 128, 150, 0.4);
 }
 
 [data-theme="dark"] .viaticos-year-card .viaticos-excel-badge {
-  background: rgba(0, 123, 199, 0.18);
-  border-color: rgba(0, 123, 199, 0.35);
-  color: #93c5fd;
+  background: rgba(29, 128, 150, 0.18);
+  border-color: rgba(29, 128, 150, 0.4);
+  color: #2bb2d0;
 }
 
 [data-theme="dark"] .viaticos-year-card .viaticos-excel-badge svg {
-  color: #93c5fd;
+  color: #2bb2d0;
 }
 
 .viaticos-year-card .viaticos-pkg-btn-enter {
@@ -9620,4 +9620,42 @@ input.flatpickr-input:hover {
   border-color: rgba(96, 165, 250, 0.45);
   color: #93c5fd;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+
+/* ─── Botones Azul Petróleo Institucional (Guía Visual Boyacá) ─── */
+.btn-petroleo,
+.btn-azul-petroleo,
+.btn-teal {
+  background: #1D8096 !important;
+  border: 1px solid #166475 !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 3px 12px rgba(29, 128, 150, 0.35) !important;
+}
+
+.btn-petroleo:hover,
+.btn-azul-petroleo:hover,
+.btn-teal:hover {
+  background: #229bb7 !important;
+  border-color: #1D8096 !important;
+  box-shadow: 0 6px 18px rgba(29, 128, 150, 0.45) !important;
+  transform: translateY(-2px) !important;
+}
+
+[data-theme="dark"] .btn-petroleo,
+[data-theme="dark"] .btn-azul-petroleo,
+[data-theme="dark"] .btn-teal {
+  background: #1D8096 !important;
+  border-color: rgba(45, 182, 209, 0.45) !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 12px rgba(29, 128, 150, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-petroleo:hover,
+[data-theme="dark"] .btn-azul-petroleo:hover,
+[data-theme="dark"] .btn-teal:hover {
+  background: #229bb7 !important;
+  border-color: #2bb2d0 !important;
+  box-shadow: 0 6px 18px rgba(29, 128, 150, 0.55) !important;
 }

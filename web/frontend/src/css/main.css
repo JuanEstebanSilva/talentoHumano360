@@ -731,28 +731,40 @@ body {
 .btn:active { transform: scale(0.98); }
 
 /* ─── Modern Action Button System (Crear, Ver, Editar, Eliminar) ────────── */
-.btn-primary, .btn-liquid-create {
-  background: linear-gradient(180deg, #1f7cff 0%, #0062e3 100%) !important;
+.btn-petroleo,
+.btn-azul-petroleo,
+.btn-primary,
+.btn-liquid-create {
+  background: #1D8096 !important;
   color: #ffffff !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   border-radius: 9999px !important;
-  padding: 8px 18px !important;
+  padding: 8px 20px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0, 0, 0, 0.2), 0 4px 14px rgba(0, 98, 227, 0.35) !important;
+  border: 1px solid #166475 !important;
+  box-shadow: 0 4px 14px rgba(29, 128, 150, 0.35) !important;
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  text-shadow: none !important;
   cursor: pointer;
 }
-.btn-primary:hover, .btn-liquid-create:hover {
+.btn-petroleo:hover,
+.btn-azul-petroleo:hover,
+.btn-primary:hover,
+.btn-liquid-create:hover {
   transform: translateY(-2px) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), inset 0 -1px 2px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 98, 227, 0.5) !important;
+  background: #229bb7 !important;
+  border-color: #1D8096 !important;
+  box-shadow: 0 6px 18px rgba(29, 128, 150, 0.45) !important;
 }
-.btn-primary:active, .btn-liquid-create:active {
+.btn-petroleo:active,
+.btn-azul-petroleo:active,
+.btn-primary:active,
+.btn-liquid-create:active {
   transform: translateY(0) scale(0.98) !important;
+  box-shadow: 0 2px 6px rgba(29, 128, 150, 0.3) !important;
 }
 
 .btn-secondary {
@@ -859,8 +871,7 @@ body {
 }
 .btn-soporte-adjuntar:hover {
   background: #e2e8f0 !important;
-  border-color: #0284c7 !important;
-  color: #0284c7 !important;
+  border-color: #1D8096 !important; color: #1D8096 !important;
   transform: translateY(-1px);
 }
 
@@ -937,22 +948,22 @@ body {
   transform: scale(1.15);
 }
 
-/* 1. VER (View) — Liquid Cyan / Electric Blue */
+/* 1. VER (View) — Azul Petróleo Institucional */
 .btn-action-view {
-  background: linear-gradient(180deg, rgba(14, 165, 233, 0.22) 0%, rgba(2, 132, 199, 0.40) 100%) !important;
-  border: 1px solid rgba(56, 189, 248, 0.5) !important;
-  color: #0369a1 !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(14, 165, 233, 0.22) !important;
+  background: rgba(29, 128, 150, 0.12) !important;
+  border: 1px solid rgba(29, 128, 150, 0.4) !important;
+  color: #1D8096 !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 2px 8px rgba(29, 128, 150, 0.18) !important;
 }
 .btn-action-view svg {
-  stroke: #0369a1 !important;
+  stroke: #1D8096 !important;
 }
 .btn-action-view:hover {
   transform: translateY(-2px) scale(1.06) !important;
-  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  background: #1D8096 !important;
+  border-color: #166475 !important;
   color: #ffffff !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), 0 6px 16px rgba(14, 165, 233, 0.5) !important;
+  box-shadow: 0 6px 16px rgba(29, 128, 150, 0.45) !important;
 }
 .btn-action-view:hover svg {
   stroke: #ffffff !important;
@@ -2896,15 +2907,16 @@ body {
   color: var(--color-teal) !important;
 }
 [data-theme="dark"] .btn-action-view {
-  background: rgba(14, 165, 233, 0.22) !important;
-  border: 1px solid rgba(56, 189, 248, 0.45) !important;
-  color: #38bdf8 !important;
+  background: rgba(29, 128, 150, 0.22) !important;
+  border: 1px solid rgba(45, 182, 209, 0.45) !important;
+  color: #2bb2d0 !important;
 }
 [data-theme="dark"] .btn-action-view svg {
-  stroke: #38bdf8 !important;
+  stroke: #2bb2d0 !important;
 }
 [data-theme="dark"] .btn-action-view:hover {
-  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%) !important;
+  background: #1D8096 !important;
+  border-color: #2bb2d0 !important;
   color: #ffffff !important;
 }
 [data-theme="dark"] .btn-action-view:hover svg {
@@ -2979,30 +2991,31 @@ body {
 }
 
 /* ─── Buttons in Dark Mode (Morado suave y tranquilillo) ──────────────────── */
+[data-theme="dark"] .btn-petroleo,
+[data-theme="dark"] .btn-azul-petroleo,
 [data-theme="dark"] .btn-primary,
-[data-theme="dark"] .btn-liquid-create,
-[data-theme="dark"] .btn-success {
-  background: linear-gradient(180deg, #8170ba 0%, #64559c 100%) !important;
+[data-theme="dark"] .btn-liquid-create {
+  background: #1D8096 !important;
   color: #ffffff !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
   border-radius: 9999px !important;
-  padding: 8px 18px !important;
+  padding: 8px 20px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.50), inset 0 -1px 2px rgba(0, 0, 0, 0.22), 0 3px 12px rgba(100, 85, 156, 0.35) !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(45, 182, 209, 0.45) !important;
+  box-shadow: 0 3px 12px rgba(29, 128, 150, 0.4) !important;
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
   cursor: pointer;
 }
+[data-theme="dark"] .btn-petroleo:hover,
+[data-theme="dark"] .btn-azul-petroleo:hover,
 [data-theme="dark"] .btn-primary:hover,
-[data-theme="dark"] .btn-liquid-create:hover,
-[data-theme="dark"] .btn-success:hover {
-  background: linear-gradient(180deg, #8f7fc7 0%, #7262ab 100%) !important;
-  border-color: rgba(255, 255, 255, 0.45) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.75), inset 0 -1px 2px rgba(0, 0, 0, 0.22), 0 5px 18px rgba(114, 98, 171, 0.45) !important;
+[data-theme="dark"] .btn-liquid-create:hover {
+  background: #229bb7 !important;
+  border-color: #2bb2d0 !important;
+  box-shadow: 0 6px 20px rgba(29, 128, 150, 0.55) !important;
   transform: translateY(-2px) !important;
 }
 [data-theme="dark"] .btn-primary:active,
