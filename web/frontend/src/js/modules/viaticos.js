@@ -997,6 +997,20 @@ const ViaticosModule = (() => {
     }
   }
 
+  function onDestinoManualInput(val) {
+    const previewText = document.getElementById('vf-dest-preview-text');
+    if (previewText) previewText.textContent = val || 'Sin definir';
+    const isIntl = (PAISES_INTERNACIONAL || []).some(p => (val || '').toUpperCase().includes(p));
+    const radNac = document.getElementById('vf-dest-nac');
+    const radInt = document.getElementById('vf-dest-int');
+    if (isIntl) {
+      if (radInt && !radInt.checked) {
+        radInt.checked = true;
+        onTipoDestinoChange('Internacional');
+      }
+    }
+  }
+
   // ─── Cálculo de Días y Valores ────────────────────────────────────────────
   function onDatesChange() {
     const fiVal = document.getElementById('vf-fi')?.value;
@@ -1532,7 +1546,6 @@ const ViaticosModule = (() => {
     const tipoDestino = document.querySelector('input[name="vf-tipo-dest"]:checked')?.value || 'Nacional';
 
     return {
-    onDestinoManualInput,
       persona: nombre,
       documento: document.getElementById('vf-doc')?.value.trim() || '',
       dependencia: document.getElementById('vf-dep')?.value.trim() || '',
@@ -4222,6 +4235,7 @@ const ViaticosModule = (() => {
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,
+    onDestinoManualInput,
     onDatesChange,
     onEstadoChange,
     onFileSelected,
