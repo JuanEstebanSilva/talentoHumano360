@@ -657,7 +657,7 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* 3. Botón Expandible Verde Oliva Institucional Agregar (+) */
+/* 3. Botón Expandible Verde Oliva Institucional Agregar (+) — Animación Tranquila y Serena */
 .btn-action-icon-add,
 .btn-action-add-circle {
   height: 46px;
@@ -677,11 +677,13 @@
   white-space: nowrap;
   position: relative;
   box-shadow: 0 4px 14px rgba(53, 88, 51, 0.35);
-  transition: padding 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.22s ease,
-              border-color 0.22s ease,
-              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.25s ease;
+  will-change: padding, transform;
+  /* Transición pausada y serena al replegarse (amigable para personas mayores) */
+  transition: padding 0.55s cubic-bezier(0.25, 1, 0.5, 1),
+              background 0.35s ease,
+              border-color 0.35s ease,
+              transform 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.4s ease;
 }
 
 .btn-action-icon-add svg,
@@ -690,16 +692,16 @@
   height: 20px;
   stroke: #ffffff;
   flex-shrink: 0;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.55s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Etiqueta animada que se expande elegantemente al hacer hover */
+/* Etiqueta animada que se expande elegantemente y con calma al hacer hover */
 .btn-action-add-label {
   display: inline-block;
   max-width: 0;
   opacity: 0;
   margin-left: 0;
-  transform: translateX(-6px);
+  transform: translateX(-8px);
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
@@ -709,10 +711,12 @@
   color: #ffffff;
   line-height: 1;
   user-select: none;
-  transition: max-width 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.22s ease,
-              margin-left 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: max-width, opacity, transform;
+  /* Transición tranquila al replegarse sin cerrarse de golpe */
+  transition: max-width 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+              opacity 0.32s ease,
+              margin-left 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+              transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .btn-action-icon-add:hover,
@@ -724,28 +728,41 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(53, 88, 51, 0.45);
   padding: 0 18px 0 14px;
+  /* Expansión relajada y legible */
+  transition: padding 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.35s ease,
+              border-color 0.35s ease,
+              transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s ease;
 }
 
 .btn-action-icon-add:not(.btn-action-export-pdf):hover svg,
 .btn-action-add-circle:hover svg,
 .btn-action-icon-add:not(.btn-action-export-pdf):focus-visible svg,
 .btn-action-add-circle:focus-visible svg {
-  transform: rotate(90deg) scale(1.08);
+  transform: rotate(90deg) scale(1.06);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-action-export-pdf:hover svg,
 .btn-action-export-pdf:focus-visible svg {
-  transform: translateY(-1px) scale(1.08);
+  transform: translateY(-2px) scale(1.08);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-action-icon-add:hover .btn-action-add-label,
 .btn-action-add-circle:hover .btn-action-add-label,
 .btn-action-icon-add:focus-visible .btn-action-add-label,
 .btn-action-add-circle:focus-visible .btn-action-add-label {
-  max-width: 200px;
+  max-width: 220px;
   opacity: 1;
   margin-left: 8px;
   transform: translateX(0);
+  /* Entrada suave con micro-delay para que el texto sea perfectamente legible */
+  transition: max-width 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.48s ease 0.08s,
+              margin-left 0.62s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-action-icon-add:active,
@@ -11294,4 +11311,240 @@ input.flatpickr-input:hover {
 
 [data-theme="dark"] .retire-periods-footer .total-val {
   color: #4ade80;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MICRO-ANIMACIONES DE ALTO RENDIMIENTO (GPU 60FPS — SERVIDORES, VIÁTICOS Y HORARIOS)
+   Cero costo de layout (reflows). Únicamente transform y opacity acelerados por hardware.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Botones de Guardar, Confirmar y Finalizar ─────────────────────────── */
+.btn-primary,
+.btn-gold,
+.btn-save-action,
+#btn-wizard-finish,
+#btn-confirm-reactivate-action {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.3s ease,
+              background-color 0.25s ease,
+              border-color 0.25s ease !important;
+  will-change: transform;
+}
+
+.btn-primary:hover,
+.btn-gold:hover,
+.btn-save-action:hover,
+#btn-wizard-finish:hover,
+#btn-confirm-reactivate-action:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 22px rgba(40, 117, 34, 0.38) !important;
+}
+
+.btn-primary:active,
+.btn-gold:active,
+.btn-save-action:active,
+#btn-wizard-finish:active,
+#btn-confirm-reactivate-action:active {
+  transform: translateY(0) scale(0.97) !important;
+  transition-duration: 0.1s !important;
+}
+
+.btn-primary svg,
+.btn-gold svg,
+#btn-wizard-finish svg,
+#btn-confirm-reactivate-action svg {
+  transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-primary:hover svg,
+.btn-gold:hover svg,
+#btn-wizard-finish:hover svg,
+#btn-confirm-reactivate-action:hover svg {
+  transform: scale(1.12);
+}
+
+/* ─── Botones de Eliminar y Retiro (Acciones Delicadas) ───────────────────── */
+.btn-danger,
+.btn-retire-action,
+#btn-confirm-retire-action,
+.modal-confirm-delete .btn-danger {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.3s ease,
+              background-color 0.25s ease !important;
+  will-change: transform;
+}
+
+.btn-danger:hover,
+.btn-retire-action:hover,
+#btn-confirm-retire-action:hover,
+.modal-confirm-delete .btn-danger:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.45) !important;
+}
+
+.btn-danger:active,
+.btn-retire-action:active,
+#btn-confirm-retire-action:active,
+.modal-confirm-delete .btn-danger:active {
+  transform: translateY(0) scale(0.97) !important;
+  transition-duration: 0.1s !important;
+}
+
+.btn-danger svg,
+.btn-retire-action svg,
+#btn-confirm-retire-action svg {
+  transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-danger:hover svg,
+.btn-retire-action:hover svg,
+#btn-confirm-retire-action:hover svg {
+  transform: scale(1.14) rotate(4deg);
+}
+
+/* ─── Icono de Advertencia Amigable en Modales de Eliminación ───────────── */
+.modal-warning-icon,
+.modal-danger-icon,
+.delete-warning-icon,
+.modal-box.modal-confirm-delete .modal-icon-badge,
+.modal-box .warning-badge-icon,
+.modal-box .modal-icon-warn {
+  animation: attention-gentle-pop 0.55s cubic-bezier(0.25, 1, 0.5, 1) both;
+  will-change: transform, opacity;
+}
+
+@keyframes attention-gentle-pop {
+  0% {
+    transform: scale(0.7) translateY(6px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06) translateY(-2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ─── Botones de Acción en Tablas (Ver, Editar, Eliminar) ────────────────── */
+.btn-action-view,
+.btn-action-edit,
+.btn-action-delete,
+.btn-action-soporte,
+.btn-action-download {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              background 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.3s ease !important;
+  will-change: transform;
+}
+
+.btn-action-view:hover {
+  transform: translateY(-2px) scale(1.08) !important;
+}
+
+.btn-action-view:hover svg {
+  transform: scale(1.18);
+  transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-action-edit:hover {
+  transform: translateY(-2px) scale(1.08) !important;
+}
+
+.btn-action-edit:hover svg {
+  transform: rotate(-12deg) scale(1.18);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-action-delete:hover {
+  transform: translateY(-2px) scale(1.08) !important;
+}
+
+.btn-action-delete:hover svg {
+  transform: scale(1.18) rotate(6deg);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-action-soporte:hover svg {
+  transform: translateY(-2px) scale(1.15);
+  transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-action-download:hover svg {
+  transform: translateY(2px) scale(1.15);
+  transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-action-view:active,
+.btn-action-edit:active,
+.btn-action-delete:active,
+.btn-action-soporte:active,
+.btn-action-download:active {
+  transform: translateY(0) scale(0.94) !important;
+  transition-duration: 0.1s !important;
+}
+
+/* ─── Botones de Filtros y Limpieza (Rotación e Inclinación Suaves) ─────── */
+.btn-filter,
+#btn-open-adv-filters,
+#btn-emp-filters {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              background-color 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.3s ease !important;
+}
+
+.btn-filter svg,
+#btn-open-adv-filters svg,
+#btn-emp-filters svg {
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-filter:hover svg,
+#btn-open-adv-filters:hover svg,
+#btn-emp-filters:hover svg {
+  transform: rotate(-12deg) scale(1.12);
+}
+
+.btn-clear,
+#btn-clear-filters,
+#btn-emp-clear {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              background-color 0.25s ease,
+              border-color 0.25s ease,
+              box-shadow 0.3s ease !important;
+}
+
+.btn-clear svg,
+#btn-clear-filters svg,
+#btn-emp-clear svg {
+  transition: transform 0.48s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-clear:hover svg,
+#btn-clear-filters:hover svg,
+#btn-emp-clear:hover svg {
+  transform: rotate(-180deg) scale(1.1);
+}
+
+/* ─── Badges Clickeables de Estado (Activo / Retirado) ──────────────────── */
+.badge--clickable {
+  transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 0.28s ease,
+              filter 0.25s ease !important;
+  will-change: transform;
+}
+
+.badge--clickable:hover {
+  transform: translateY(-1px) scale(1.05) !important;
+  filter: brightness(1.05);
+}
+
+.badge--clickable:active {
+  transform: translateY(0) scale(0.96) !important;
+  transition-duration: 0.1s !important;
 }
