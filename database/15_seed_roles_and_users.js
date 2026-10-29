@@ -9,7 +9,7 @@ const pool = new Pool(
         ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
       }
     : {
-        host:     process.env.DB_HOST     || 'localhost',
+        host:     process.env.DB_HOST     || 'db',
         port:     parseInt(process.env.DB_PORT) || 5432,
         database: process.env.DB_NAME     || 'talento360',
         user:     process.env.DB_USER     || 'postgres',
@@ -40,23 +40,23 @@ async function main() {
         nombre: 'Angela Ussa',
         rol: 'Usuario',
         cargo: 'Gestión de Servidores Públicos',
-        modulos: 'dashboard,employees'
+        modulos: 'dashboard,employees,viaticos,horarios'
       },
       {
         username: 'bergenet.gutierrez@boyaca.gov.co',
         pass: '@Bergenet123',
-        nombre: 'Bergenet Gutierrez',
+        nombre: 'Bergenet Gutiérrez',
         rol: 'Usuario',
         cargo: 'Gestión de Viáticos',
-        modulos: 'dashboard,viaticos'
+        modulos: 'dashboard,employees,viaticos,horarios'
       },
       {
         username: 'doris.canon@boyaca.gov.co',
         pass: '@Doris123',
-        nombre: 'Doris Cañon',
+        nombre: 'Doris Canon',
         rol: 'Usuario',
         cargo: 'Gestión de Horarios y Modalidades',
-        modulos: 'dashboard,horarios'
+        modulos: 'dashboard,employees,viaticos,horarios'
       }
     ];
 
@@ -65,15 +65,15 @@ async function main() {
       const hash = await bcrypt.hash(u.pass, 10);
       // Eliminar variantes previas si existen
       if (u.username === 'admin') {
-        await client.query(`DELETE FROM usuarios WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co')`);
+        await client.query("DELETE FROM usuarios WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co')");
       } else {
-        await client.query(`DELETE FROM usuarios WHERE LOWER(username) = LOWER($1)`, [u.username]);
+        await client.query("DELETE FROM usuarios WHERE LOWER(username) = LOWER('" + u.username + "')");
       }
 
-      await client.query(`
-        INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos)
-        VALUES ($1, $2, $3, $4, $5, 'ACTIVO', $6)
-      `, [u.username, hash, u.nombre, u.rol, u.cargo, u.modulos]);
+      await client.query(
+        "INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos) VALUES ($1, $2, $3, $4, $5, 'ACTIVO', $6)",
+        [u.username, hash, u.nombre, u.rol, u.cargo, u.modulos]
+      );
 
       console.log(`  -> Usuario listo: ${u.username} (${u.nombre}) | Módulos: ${u.modulos}`);
     }

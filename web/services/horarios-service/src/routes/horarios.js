@@ -60,10 +60,11 @@ function canEdit(roleOrUser) {
   if (!roleOrUser) return false;
   const role = String(typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.role || roleOrUser.rol || '')).toLowerCase();
   const uname = String(typeof roleOrUser === 'object' ? (roleOrUser.username || '') : '').toLowerCase();
-  const mods = (typeof roleOrUser === 'object' && Array.isArray(roleOrUser.modules)) ? roleOrUser.modules : [];
+  const name  = String(typeof roleOrUser === 'object' ? (roleOrUser.name || roleOrUser.nombre || '') : '').toLowerCase();
+  const mods  = (typeof roleOrUser === 'object' && Array.isArray(roleOrUser.modules)) ? roleOrUser.modules : [];
   if (role.includes('administrador') || role.includes('coordinador') || role.includes('admin') || uname === 'admin') return true;
-  if (mods.includes('*') || mods.includes('all') || mods.includes('horarios')) return true;
-  if (uname.includes('doris')) return true;
+  if (mods.includes('*') || mods.includes('all') || mods.includes('horarios_write')) return true;
+  if (uname.includes('doris') || name.includes('doris')) return true;
   return false;
 }
 
@@ -489,6 +490,21 @@ router.get('/', auth, async (req, res) => {
     modalidad = '',
     estado = '',
     dependencia = '',
+    cargo = '',
+    codigo = '',
+    grado = '',
+    subtipoTeletrabajo = '',
+    fechaInicioDesde = '',
+    fechaInicioHasta = '',
+    fechaFinDesde = '',
+    fechaFinHasta = '',
+    numeroResolucion = '',
+    diasSemana = '',
+    notificacionArl = '',
+    prorroga = '',
+    sortBy = '',
+    sort = '',
+    order = '',
     page = 1,
     limit = 20,
   } = req.query;
@@ -524,6 +540,68 @@ router.get('/', auth, async (req, res) => {
       idx++;
     }
 
+    // ── Filtros Avanzados Horarios ───────────────────────────────────────────
+    if (cargo && cargo.trim()) {
+      conditions.push(`TRANSLATE(LOWER(h.cargo), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
+      params.push(cargo.trim());
+    }
+    if (codigo && codigo.trim()) {
+      conditions.push(`h.codigo ILIKE $${idx++}`);
+      params.push(`%${codigo.trim()}%`);
+    }
+    if (grado && grado.trim()) {
+      conditions.push(`h.grado ILIKE $${idx++}`);
+      params.push(`%${grado.trim()}%`);
+    }
+    if (subtipoTeletrabajo && !['todos', 'todas', ''].includes(subtipoTeletrabajo.trim().toLowerCase())) {
+      conditions.push(`LOWER(h.subtipo_teletrabajo) = LOWER($${idx++})`);
+      params.push(subtipoTeletrabajo.trim());
+    }
+    if (numeroResolucion && numeroResolucion.trim()) {
+      conditions.push(`h.numero_resolucion ILIKE $${idx++}`);
+      params.push(`%${numeroResolucion.trim()}%`);
+    }
+    if (fechaInicioDesde) {
+      conditions.push(`h.fecha_inicio >= $${idx++}::date`);
+      params.push(fechaInicioDesde);
+    }
+    if (fechaInicioHasta) {
+      conditions.push(`h.fecha_inicio <= $${idx++}::date`);
+      params.push(fechaInicioHasta);
+    }
+    if (fechaFinDesde) {
+      conditions.push(`h.fecha_fin >= $${idx++}::date`);
+      params.push(fechaFinDesde);
+    }
+    if (fechaFinHasta) {
+      conditions.push(`h.fecha_fin <= $${idx++}::date`);
+      params.push(fechaFinHasta);
+    }
+    if (diasSemana && diasSemana.trim()) {
+      conditions.push(`(
+        TRANSLATE(LOWER(COALESCE(h.dias_teletrabajo, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR TRANSLATE(LOWER(COALESCE(h.dias_presencial, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`);
+      params.push(diasSemana.trim());
+      idx++;
+    }
+    if (notificacionArl) {
+      const v = notificacionArl.trim().toLowerCase();
+      if (v === 'si' || v === 'true') {
+        conditions.push(`h.notificacion_arl IS TRUE`);
+      } else if (v === 'no' || v === 'false') {
+        conditions.push(`(h.notificacion_arl IS FALSE OR h.notificacion_arl IS NULL)`);
+      }
+    }
+    if (prorroga) {
+      const v = prorroga.trim().toLowerCase();
+      if (v === 'si' || v === 'true') {
+        conditions.push(`h.prorroga IS TRUE`);
+      } else if (v === 'no' || v === 'false') {
+        conditions.push(`(h.prorroga IS FALSE OR h.prorroga IS NULL)`);
+      }
+    }
+
     const where = conditions.join(' AND ');
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM horarios h WHERE ${where}`,
@@ -536,12 +614,46 @@ router.get('/', auth, async (req, res) => {
     const limitNum = isAll ? 100000 : Math.max(1, parseInt(limit, 10) || 20);
     const offset = (pageNum - 1) * limitNum;
 
-    const orderDir = (req.query.order && String(req.query.order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
-    let orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
-    if (req.query.sort === 'nombre') {
-      orderByClause = `ORDER BY h.apellidos_nombres ${orderDir}`;
-    } else if (req.query.sort === 'fecha') {
-      orderByClause = `ORDER BY h.fecha_inicio ${orderDir}`;
+    let orderByClause = '';
+    const effectiveSort = sortBy || (sort ? `${sort}_${order || 'asc'}` : '');
+    switch (effectiveSort) {
+      case 'consecutivo_desc':
+        orderByClause = 'ORDER BY COALESCE(h.numero_consecutivo, 0) DESC, h.id_horario DESC';
+        break;
+      case 'consecutivo_asc':
+        orderByClause = 'ORDER BY COALESCE(h.numero_consecutivo, 999999) ASC, h.id_horario ASC';
+        break;
+      case 'fecha_inicio_desc':
+      case 'fecha_desc':
+        orderByClause = 'ORDER BY h.fecha_inicio DESC NULLS LAST, h.id_horario DESC';
+        break;
+      case 'fecha_inicio_asc':
+      case 'fecha_asc':
+        orderByClause = 'ORDER BY h.fecha_inicio ASC NULLS LAST, h.id_horario ASC';
+        break;
+      case 'fecha_fin_asc':
+        orderByClause = 'ORDER BY h.fecha_fin ASC NULLS LAST, h.id_horario ASC';
+        break;
+      case 'fecha_fin_desc':
+        orderByClause = 'ORDER BY h.fecha_fin DESC NULLS LAST, h.id_horario DESC';
+        break;
+      case 'nombre_asc':
+      case 'nombre':
+        orderByClause = 'ORDER BY h.apellidos_nombres ASC NULLS LAST';
+        break;
+      case 'nombre_desc':
+        orderByClause = 'ORDER BY h.apellidos_nombres DESC NULLS LAST';
+        break;
+      case 'cedula_asc':
+        orderByClause = 'ORDER BY h.documento ASC NULLS LAST';
+        break;
+      case 'cedula_desc':
+        orderByClause = 'ORDER BY h.documento DESC NULLS LAST';
+        break;
+      default: {
+        const orderDir = (order && String(order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
+        orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
+      }
     }
 
     params.push(limitNum, offset);
@@ -870,7 +982,7 @@ router.post('/bulk', auth, async (req, res) => {
       estado = matchedEst || 'Activa';
 
       // Fecha del acto / solicitud con soporte para números de serie de Excel y Date objects
-      const rawFechaVal = row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || null;
+      const rawFechaVal = row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['fecha_inicio'] || row['Fecha Inicio'] || row['Fecha de Inicio'] || row['FECHA INICIO'] || row['FECHA DE INICIO'] || row['Fecha inicio'] || null;
       let fecha_inicio = null;
       if (rawFechaVal != null && rawFechaVal !== '') {
         if (typeof rawFechaVal === 'number' && rawFechaVal > 30000 && rawFechaVal < 60000) {
@@ -910,6 +1022,7 @@ router.post('/bulk', auth, async (req, res) => {
         }
       }
 
+      if (!fecha_inicio) fecha_inicio = new Date().toISOString().split('T')[0];
       // Cómputo de duración realista basado estrictamente en los datos del archivo:
       // - Teletrabajo: contar los días de la semana autorizados (ej: martes y jueves = 2 días / semana)
       // - Horario flexible: jornada por horas pactada (ej: 8 horas / día)
@@ -942,7 +1055,36 @@ router.post('/bulk', auth, async (req, res) => {
         finalDuracionTexto = 'Jornada ordinaria';
       }
 
-      const finalFechaFin = row.fecha_fin || null;
+      // Fecha Fin con soporte para nombres oficiales de columna, seriales y texto
+      const rawFechaFinVal = row.fecha_fin || row['Fecha Fin'] || row['Fecha de Fin'] || row['Fecha Finalización'] || row['Fecha Finalizacion'] || row['FECHA FIN'] || row['FECHA DE FIN'] || null;
+      let finalFechaFin = null;
+      if (rawFechaFinVal != null && rawFechaFinVal !== '') {
+        if (typeof rawFechaFinVal === 'number' && rawFechaFinVal > 30000 && rawFechaFinVal < 60000) {
+          finalFechaFin = excelSerialToIsoDate(rawFechaFinVal);
+        } else if (rawFechaFinVal instanceof Date) {
+          const d = String(rawFechaFinVal.getUTCDate()).padStart(2, '0');
+          const m = String(rawFechaFinVal.getUTCMonth() + 1).padStart(2, '0');
+          const y = rawFechaFinVal.getUTCFullYear();
+          finalFechaFin = `${y}-${m}-${d}`;
+        } else {
+          const rawFechaFin = String(rawFechaFinVal).trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawFechaFin)) {
+            finalFechaFin = rawFechaFin;
+          } else if (rawFechaFin.includes('/')) {
+            const parts = rawFechaFin.split('/');
+            if (parts.length === 3) {
+              let yr = parts[2];
+              if (yr.length === 2) yr = '20' + yr;
+              finalFechaFin = `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          } else if (/^\d{5}$/.test(rawFechaFin)) {
+            const num = parseInt(rawFechaFin, 10);
+            if (num > 30000 && num < 60000) {
+              finalFechaFin = excelSerialToIsoDate(num);
+            }
+          }
+        }
+      }
       const isBusiness = true;
 
       const rawRes = (

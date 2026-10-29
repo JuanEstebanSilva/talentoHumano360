@@ -12,6 +12,7 @@ const EmployeesModule = (() => {
     q: '',
     dependencia: '',
     cargo: '',
+    advancedFilters: {},
     catalogs: {
       dependencias: [],
       cargos: [],
@@ -37,7 +38,7 @@ const EmployeesModule = (() => {
         'Trabajador Oficial',
         'Sin clasificar'
       ],
-      estadosServidor: ['Activo', 'Inactivo', 'Pensionado'],
+      estadosServidor: ['Activo', 'Retirado', 'Inactivo', 'Pensionado'],
       sexos: ['Femenino', 'Masculino', 'Prefiero no decirlo'],
       discapacidades: [
         'FÍSICA / MOTRIZ',
@@ -192,37 +193,21 @@ const EmployeesModule = (() => {
     const val = (est || 'Activo').toLowerCase();
     if (val === 'activo') return '<span class="badge badge--activo">Activo</span>';
     if (val === 'pensionado') return '<span class="badge badge--pensionado">Pensionado</span>';
-    return '<span class="badge badge--inactivo">Inactivo</span>';
+    return '<span class="badge badge--retirado">Retirado</span>';
   }
 
-  const pendingInactivations = {};
-
   function renderEstadoBadge(emp, itemKey) {
-    const pending = pendingInactivations[itemKey];
-    const est = (emp.estadoServidor || 'Activo').toLowerCase();
+    const est = (emp.estadoServidor || emp.situacion || 'Activo').toLowerCase();
     const canEdit = Auth.canEdit();
-
-    if (pending) {
-      return `
-        <button type="button"
-                id="btn-estado-${itemKey}"
-                class="badge badge--inactivo badge--clickable"
-                onclick="EmployeesModule.cancelInactivation('${itemKey}')"
-                title="Deshacer: Click para cancelar inactivación"
-                aria-label="Inactivo pendiente. Click para cancelar."
-                tabindex="0">
-          Inactivo
-        </button>`;
-    }
 
     if (est === 'activo') {
       return `
         <button type="button"
                 id="btn-estado-${itemKey}"
                 class="badge badge--activo ${canEdit ? 'badge--clickable' : ''}"
-                ${canEdit ? `onclick="EmployeesModule.startInactivation('${itemKey}')"` : 'disabled'}
-                title="${canEdit ? 'Click para inactivar (3s para deshacer)' : 'Servidor Activo'}"
-                aria-label="Estado Activo. ${canEdit ? 'Click para inactivar' : ''}"
+                ${canEdit ? `onclick="EmployeesModule.promptRetireEmployee('${itemKey}')"` : 'disabled'}
+                title="${canEdit ? 'Click para registrar Retiro del servidor' : 'Servidor Activo'}"
+                aria-label="Estado Activo. ${canEdit ? 'Click para retirar' : ''}"
                 tabindex="${canEdit ? '0' : '-1'}">
           Activo
         </button>`;
@@ -235,92 +220,178 @@ const EmployeesModule = (() => {
     return `
       <button type="button"
               id="btn-estado-${itemKey}"
-              class="badge badge--inactivo ${canEdit ? 'badge--clickable' : ''}"
-              ${canEdit ? `onclick="EmployeesModule.reactivateEmployee('${itemKey}')"` : 'disabled'}
-              title="${canEdit ? 'Click para reactivar como Activo' : 'Servidor Inactivo'}"
-              aria-label="Estado Inactivo. ${canEdit ? 'Click para reactivar' : ''}"
+              class="badge badge--retirado ${canEdit ? 'badge--clickable' : ''}"
+              ${canEdit ? `onclick="EmployeesModule.promptReactivateEmployee('${itemKey}')"` : 'disabled'}
+              title="${canEdit ? 'Click para reactivar servidor con nueva vinculación' : 'Servidor Retirado'}"
+              aria-label="Estado Retirado. ${canEdit ? 'Click para reactivar' : ''}"
               tabindex="${canEdit ? '0' : '-1'}">
-        Inactivo
+        Retirado
       </button>`;
   }
 
-  function startInactivation(itemKey) {
+  function promptRetireEmployee(itemKey) {
     if (!Auth.canEdit()) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
-    if (pendingInactivations[itemKey]) {
-      cancelInactivation(itemKey);
+    closeRetireModal();
+    closeReactivateModal();
+
+    const today = new Date().toISOString().split('T')[0];
+    const modalHtml = `
+      <div id="modal-retire-employee" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="retire-modal-title" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; padding:16px;">
+        <div class="modal-content" style="max-width:520px; width:100%; background:var(--color-bg-primary, #ffffff); border-radius:14px; border:1px solid var(--color-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); overflow:hidden;">
+          <div style="background:linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color:#ffffff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:22px;">⏹️</span>
+              <h3 id="retire-modal-title" style="margin:0; font-size:1.15rem; font-weight:700; color:#ffffff;">Registrar Retiro del Servidor</h3>
+            </div>
+            <button type="button" onclick="EmployeesModule.closeRetireModal()" style="background:none; border:none; color:#ffffff; opacity:0.85; font-size:22px; cursor:pointer;" aria-label="Cerrar modal">&times;</button>
+          </div>
+          <div style="padding:22px 24px;">
+            <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:10px; padding:12px 16px; margin-bottom:18px;">
+              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
+              <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:3px; display:flex; flex-wrap:wrap; gap:12px;">
+                <span>Cédula: <strong>${formatCedulaDots(emp.cedula)}</strong></span>
+                <span>Cargo: <strong>${escHtml(emp.cargoActual || emp.cargo || 'No registrado')}</strong></span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Vinculación actual desde: <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong>
+              </div>
+            </div>
+            <div style="background:rgba(239,68,68,0.08); border-left:4px solid #dc2626; border-radius:6px; padding:10px 14px; margin-bottom:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.4;">
+              ⚠️ <strong>Detención del Tiempo de Servicio:</strong> Al marcar como Retirado, el cálculo dinámico de tiempo de servicio se detendrá exactamente en la fecha de retiro seleccionada. Su acumulado en la Gobernación quedará congelado hasta esa fecha.
+            </div>
+            <div class="form-group" style="margin-bottom:14px;">
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="retire-fecha">
+                Fecha de Retiro <span style="color:#dc2626;">*</span>
+              </label>
+              <input type="date" id="retire-fecha" class="form-control" value="${today}" max="${today}" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);" required>
+              <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:4px;">Fecha efectiva en la que culminó sus funciones.</span>
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="retire-motivo">
+                Motivo o Justificación del Retiro (Opcional)
+              </label>
+              <input type="text" id="retire-motivo" class="form-control" placeholder="Ej. Renuncia voluntaria, Pensión, Vencimiento, etc." style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);">
+            </div>
+          </div>
+          <div style="padding:14px 24px; background:var(--color-bg-secondary, #f8fafc); border-top:1px solid var(--color-border); display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary" onclick="EmployeesModule.closeRetireModal()" style="padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button type="button" class="btn" onclick="EmployeesModule.confirmRetireEmployee('${itemKey}')" style="background:#dc2626; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              <span>⏹️</span> Confirmar Retiro
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function confirmRetireEmployee(itemKey) {
+    if (!Auth.canEdit()) return;
+    const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
+    if (!emp) return;
+
+    const fechaRetiroInput = document.getElementById('retire-fecha');
+    const motivoRetiroInput = document.getElementById('retire-motivo');
+    const fechaRetiro = fechaRetiroInput ? fechaRetiroInput.value : '';
+    const motivoRetiro = motivoRetiroInput ? motivoRetiroInput.value : '';
+
+    if (!fechaRetiro) {
+      App.showToast('Por favor ingrese la fecha de retiro.', 'warning');
       return;
     }
 
-    const record = {
-      emp,
-      timerId: null
-    };
-    pendingInactivations[itemKey] = record;
-
-    const td = document.getElementById(`td-estado-${itemKey}`);
-    if (td) {
-      td.innerHTML = renderEstadoBadge(emp, itemKey);
-    }
-
-    record.timerId = setTimeout(async () => {
-      await finalizeInactivation(itemKey);
-    }, 3000);
-  }
-
-  function cancelInactivation(itemKey) {
-    const record = pendingInactivations[itemKey];
-    if (!record) return;
-
-    if (record.timerId) clearTimeout(record.timerId);
-    delete pendingInactivations[itemKey];
-
-    const emp = record.emp || state.data.find(x => String(x.cedula || x.id) === String(itemKey));
-    if (emp) {
-      emp.estadoServidor = 'Activo';
-      const td = document.getElementById(`td-estado-${itemKey}`);
-      if (td) {
-        td.innerHTML = renderEstadoBadge(emp, itemKey);
-      }
-    }
-    App.showToast('Acción cancelada. El servidor continúa Activo.', 'info');
-  }
-
-  async function finalizeInactivation(itemKey) {
-    const record = pendingInactivations[itemKey];
-    if (!record) return;
-
-    if (record.timerId) clearTimeout(record.timerId);
-    delete pendingInactivations[itemKey];
-
-    const emp = record.emp;
     const targetCedula = emp.cedula || emp.id;
-
     try {
-      await API.updateEmployeeStatus(targetCedula, 'Inactivo');
-      emp.estadoServidor = 'Inactivo';
-      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} inactivado y archivado.`, 'warning');
+      App.showToast('Registrando retiro del servidor...', 'info');
+      await API.updateEmployeeStatus(targetCedula, 'Retirado', { fechaRetiro, motivoRetiro });
+      closeRetireModal();
+      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} registrado como Retirado. Contador de tiempo detenido.`, 'success');
       await load();
     } catch (err) {
-      console.error('[employees] Error al inactivar servidor:', err);
-      App.showToast(`Error al inactivar servidor: ${err.message}`, 'error');
-      emp.estadoServidor = 'Activo';
-      await load();
+      console.error('[employees] Error al retirar servidor:', err);
+      App.showToast(`Error al retirar servidor: ${err.message}`, 'error');
     }
   }
 
-  async function reactivateEmployee(itemKey) {
+  function closeRetireModal() {
+    const el = document.getElementById('modal-retire-employee');
+    if (el) el.remove();
+  }
+
+  function promptReactivateEmployee(itemKey) {
     if (!Auth.canEdit()) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
+    closeRetireModal();
+    closeReactivateModal();
+
+    const today = new Date().toISOString().split('T')[0];
+    const modalHtml = `
+      <div id="modal-reactivate-employee" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reactivate-modal-title" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; padding:16px;">
+        <div class="modal-content" style="max-width:540px; width:100%; background:var(--color-bg-primary, #ffffff); border-radius:14px; border:1px solid var(--color-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); overflow:hidden;">
+          <div style="background:linear-gradient(135deg, #16a34a 0%, #15803d 100%); color:#ffffff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:22px;">🔄</span>
+              <h3 id="reactivate-modal-title" style="margin:0; font-size:1.15rem; font-weight:700; color:#ffffff;">Reactivar Servidor (Nueva Vinculación)</h3>
+            </div>
+            <button type="button" onclick="EmployeesModule.closeReactivateModal()" style="background:none; border:none; color:#ffffff; opacity:0.85; font-size:22px; cursor:pointer;" aria-label="Cerrar modal">&times;</button>
+          </div>
+          <div style="padding:22px 24px;">
+            <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:10px; padding:12px 16px; margin-bottom:18px;">
+              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
+              <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:3px; display:flex; flex-wrap:wrap; gap:12px;">
+                <span>Cédula: <strong>${formatCedulaDots(emp.cedula)}</strong></span>
+                <span>Estado actual: <span class="badge badge--retirado" style="font-size:11px;">Retirado</span></span>
+              </div>
+            </div>
+            <div style="background:rgba(22,163,74,0.08); border-left:4px solid #16a34a; border-radius:6px; padding:12px 14px; margin-bottom:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.45;">
+              📋 <strong>Traslado Automático de Periodo:</strong> El tiempo de servicio previo de este funcionario (desde <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong> hasta su retiro el <strong>${escHtml(emp.fechaRetiro || 'No registrada')}</strong>) se trasladará automáticamente a <strong>Otro Tiempo con la Gobernación (Experiencia Histórica / Múltiple)</strong>, acreditando dicho periodo acumulado de <strong>${escHtml(emp.tiempoServicioCalculado || '—')}</strong>.
+            </div>
+            <div class="form-group" style="margin-bottom:8px;">
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="reactivate-nueva-fecha">
+                Nueva Fecha de Ingreso a la Gobernación <span style="color:#16a34a;">*</span>
+              </label>
+              <input type="date" id="reactivate-nueva-fecha" class="form-control" value="${today}" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);" required>
+              <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:4px;">
+                A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio actual, sumándose al tiempo histórico acreditado.
+              </span>
+            </div>
+          </div>
+          <div style="padding:14px 24px; background:var(--color-bg-secondary, #f8fafc); border-top:1px solid var(--color-border); display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-secondary" onclick="EmployeesModule.closeReactivateModal()" style="padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
+            <button type="button" class="btn" onclick="EmployeesModule.confirmReactivateEmployee('${itemKey}')" style="background:#16a34a; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              <span>🔄</span> Confirmar Reactivación
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function confirmReactivateEmployee(itemKey) {
+    if (!Auth.canEdit()) return;
+    const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
+    if (!emp) return;
+
+    const nuevaFechaInput = document.getElementById('reactivate-nueva-fecha');
+    const nuevaFechaIngreso = nuevaFechaInput ? nuevaFechaInput.value : '';
+
+    if (!nuevaFechaIngreso) {
+      App.showToast('Por favor ingrese la nueva fecha de ingreso.', 'warning');
+      return;
+    }
+
     const targetCedula = emp.cedula || emp.id;
     try {
-      await API.updateEmployeeStatus(targetCedula, 'Activo');
-      emp.estadoServidor = 'Activo';
-      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} reactivado como Activo.`, 'success');
+      App.showToast('Reactivando servidor y archivando periodo anterior...', 'info');
+      await API.updateEmployeeStatus(targetCedula, 'Activo', { action: 'reactivate', nuevaFechaIngreso });
+      closeReactivateModal();
+      App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} reactivado exitosamente con nueva vinculación.`, 'success');
       await load();
     } catch (err) {
       console.error('[employees] Error al reactivar servidor:', err);
@@ -328,12 +399,15 @@ const EmployeesModule = (() => {
     }
   }
 
-  function clearPendingInactivations() {
-    Object.keys(pendingInactivations).forEach(k => {
-      if (pendingInactivations[k].timerId) clearTimeout(pendingInactivations[k].timerId);
-      delete pendingInactivations[k];
-    });
+  function closeReactivateModal() {
+    const el = document.getElementById('modal-reactivate-employee');
+    if (el) el.remove();
   }
+
+  // Funciones de compatibilidad
+  function startInactivation(k) { promptRetireEmployee(k); }
+  function cancelInactivation() {}
+  async function reactivateEmployee(k) { promptReactivateEmployee(k); }
 
   const CLASIFICACION_MAP = {
     'C.A': 'Carrera Administrativa',
@@ -567,6 +641,344 @@ const EmployeesModule = (() => {
     tbody.innerHTML = skeletonRows;
   }
 
+  function getActiveFiltersCount() {
+    return Object.keys(state.advancedFilters || {}).filter(k => {
+      const v = state.advancedFilters[k];
+      return v !== null && v !== undefined && String(v).trim() !== '' && v !== 'Todos' && v !== 'Todas' && v !== 'TODOS' && v !== 'TODAS';
+    }).length;
+  }
+
+  function updateAdvFilterBadge() {
+    const badge = document.getElementById('emp-adv-filter-badge');
+    const count = getActiveFiltersCount();
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+    const btn = document.getElementById('emp-btn-adv-filter');
+    if (btn) {
+      if (count > 0) btn.classList.add('btn-filter-active');
+      else btn.classList.remove('btn-filter-active');
+    }
+  }
+
+  function openAdvancedFiltersModal() {
+    const af = state.advancedFilters || {};
+    const gruposSanguineos = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    const situaciones = ['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'DISCAPACIDAD', 'RETIRADO'];
+    const vinculaciones = state.catalogs.clasificaciones || [
+      'Carrera Administrativa',
+      'Libre Nombramiento y Remoción',
+      'Provisionalidad',
+      'Temporal',
+      'Aprendiz o Contrato SENA',
+      'Trabajador Oficial'
+    ];
+
+    const modalBodyHtml = `
+      <div class="adv-filter-modal-body">
+        <!-- Tarjeta 1: Datos Personales y Demográficos -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#1D8096;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Datos Demográficos y Personales</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label for="adv-tipo-sangre">Grupo Sanguíneo</label>
+              <select id="adv-tipo-sangre">
+                <option value="">Todos</option>
+                ${gruposSanguineos.map(g => `<option value="${g}" ${af.tipoSangre === g ? 'selected' : ''}>${g}</option>`).join('')}
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-sexo">Sexo Biológico</label>
+              <select id="adv-sexo">
+                <option value="">Todos</option>
+                <option value="MASCULINO" ${af.sexo === 'MASCULINO' ? 'selected' : ''}>Masculino (M)</option>
+                <option value="FEMENINO" ${af.sexo === 'FEMENINO' ? 'selected' : ''}>Femenino (F)</option>
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-edad-min">Edad Mínima (Años)</label>
+              <input type="number" id="adv-edad-min" placeholder="Ej: 18" min="16" max="99" value="${escHtml(af.edadMin || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-edad-max">Edad Máxima (Años)</label>
+              <input type="number" id="adv-edad-max" placeholder="Ej: 65" min="16" max="99" value="${escHtml(af.edadMax || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-discapacidad-toggle">¿Tiene Discapacidad?</label>
+              <select id="adv-discapacidad-toggle">
+                <option value="">Todos</option>
+                <option value="si" ${af.tieneDiscapacidad === 'si' ? 'selected' : ''}>Sí (Con Discapacidad)</option>
+                <option value="no" ${af.tieneDiscapacidad === 'no' ? 'selected' : ''}>No (Sin Discapacidad)</option>
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-tipo-discapacidad">Tipo de Discapacidad</label>
+              <select id="adv-tipo-discapacidad">
+                <option value="">Todas las condiciones</option>
+                ${(state.catalogs.discapacidades || []).map(d => `<option value="${escHtml(d)}" ${af.tipoDiscapacidad === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Cargo, Vinculación y Concurso -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#d97706;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Cargo, Vinculación y Situación Administrativa</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label for="adv-situacion">Situación Administrativa</label>
+              <select id="adv-situacion">
+                <option value="">Todas</option>
+                ${situaciones.map(s => `<option value="${s}" ${af.situacion === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-clasificacion">Tipo de Vinculación</label>
+              <select id="adv-clasificacion">
+                <option value="">Todas</option>
+                ${vinculaciones.map(v => `<option value="${escHtml(v)}" ${af.clasificacion === v ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-codigo-cargo">Código del Cargo</label>
+              <input type="text" id="adv-codigo-cargo" placeholder="Ej: 105, 219..." value="${escHtml(af.codigoCargo || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-grado">Grado del Cargo</label>
+              <select id="adv-grado">
+                <option value="">Todos</option>
+                ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.grado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-concurso-toggle">¿Registra Concurso / OPEC?</label>
+              <select id="adv-concurso-toggle">
+                <option value="">Todos</option>
+                <option value="si" ${af.concurso === 'si' ? 'selected' : ''}>Sí (Con OPEC / Concurso)</option>
+                <option value="no" ${af.concurso === 'no' ? 'selected' : ''}>No (Sin OPEC Registrada)</option>
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-opec">Número o Texto OPEC</label>
+              <input type="text" id="adv-opec" placeholder="Ej: OPEC-2023, 243471..." value="${escHtml(af.opec || '')}" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 3: Encargo Administrativo -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#d97706;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span>Situación de Encargo Administrativo</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label for="adv-encargo-toggle">¿Tiene Encargo Administrativo?</label>
+              <select id="adv-encargo-toggle">
+                <option value="">Todos</option>
+                <option value="si" ${af.tieneEncargo === 'si' ? 'selected' : ''}>Sí (Con Encargo)</option>
+                <option value="no" ${af.tieneEncargo === 'no' ? 'selected' : ''}>No (Sin Encargo)</option>
+              </select>
+            </div>
+            <div class="adv-filter-field" style="grid-column: span 2;">
+              <label for="adv-encargo-denominacion">Denominación del Cargo en Encargo</label>
+              <input type="text" id="adv-encargo-denominacion" placeholder="Ej: PROFESIONAL UNIVERSITARIO..." value="${escHtml(af.encargoDenominacion || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-encargo-codigo">Cód. Encargo</label>
+              <input type="text" id="adv-encargo-codigo" placeholder="Ej: 219" value="${escHtml(af.encargoCodigo || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-encargo-grado">Grado Encargo</label>
+              <select id="adv-encargo-grado">
+                <option value="">Todos</option>
+                ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.encargoGrado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 4: Tiempos de Servicio y Ordenamiento -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#10b981;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Tiempos de Servicio y Ordenamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label for="adv-fecha-ingreso-desde">Fecha Ingreso Desde</label>
+              <input type="text" id="adv-fecha-ingreso-desde" class="input-date" placeholder="AAAA-MM-DD" value="${escHtml(af.fechaIngresoDesde || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-fecha-ingreso-hasta">Fecha Ingreso Hasta</label>
+              <input type="text" id="adv-fecha-ingreso-hasta" class="input-date" placeholder="AAAA-MM-DD" value="${escHtml(af.fechaIngresoHasta || '')}" />
+            </div>
+            <div class="adv-filter-field" style="grid-column: span 2;">
+              <label for="adv-sort-by" style="color:#b45309;">Criterio de Ordenamiento</label>
+              <select id="adv-sort-by" style="border-color:rgba(217,119,6,0.4);font-weight:600;">
+                <option value="" ${!af.sortBy ? 'selected' : ''}>Predeterminado (Activos con cédula de primeras)</option>
+                <option value="fecha_ingreso_asc" ${af.sortBy === 'fecha_ingreso_asc' ? 'selected' : ''}>📅 Fecha de Ingreso: Menor a Mayor (Más antiguos primero)</option>
+                <option value="fecha_ingreso_desc" ${af.sortBy === 'fecha_ingreso_desc' ? 'selected' : ''}>📅 Fecha de Ingreso: Mayor a Menor (Más recientes primero)</option>
+                <option value="tiempo_servicio_asc" ${af.sortBy === 'tiempo_servicio_asc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Menor a Mayor</option>
+                <option value="tiempo_servicio_desc" ${af.sortBy === 'tiempo_servicio_desc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Mayor a Menor</option>
+                <option value="edad_asc" ${af.sortBy === 'edad_asc' ? 'selected' : ''}>🎂 Edad: Menor a Mayor (Más jóvenes primero)</option>
+                <option value="edad_desc" ${af.sortBy === 'edad_desc' ? 'selected' : ''}>🎂 Edad: Mayor a Menor (Más mayores primero)</option>
+                <option value="alfabetico_asc" ${af.sortBy === 'alfabetico_asc' ? 'selected' : ''}>🔤 Alfabético por Nombre: A - Z</option>
+                <option value="alfabetico_desc" ${af.sortBy === 'alfabetico_desc' ? 'selected' : ''}>🔤 Alfabético por Nombre: Z - A</option>
+                <option value="cedula_asc" ${af.sortBy === 'cedula_asc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Menor a Mayor</option>
+                <option value="cedula_desc" ${af.sortBy === 'cedula_desc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Mayor a Menor</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 5: Educación y Formación Académica -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#8b5cf6;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span>Educación y Formación Académica</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label for="adv-estudios">Título o Carrera de Estudios</label>
+              <input type="text" id="adv-estudios" placeholder="Ej: ABOGADO, INGENIERO..." value="${escHtml(af.estudios || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-institucion-estudios">Universidad o Institución</label>
+              <input type="text" id="adv-institucion-estudios" placeholder="Ej: UPTC, ESAP, UNAL..." value="${escHtml(af.institucionEstudios || '')}" />
+            </div>
+            <div class="adv-filter-field">
+              <label for="adv-diplomado-toggle">Diplomado / Capacitación SENA</label>
+              <select id="adv-diplomado-toggle">
+                <option value="">Todos</option>
+                <option value="si" ${af.tieneDiplomado === 'si' ? 'selected' : ''}>Sí (Tiene Diplomado / SENA)</option>
+                <option value="no" ${af.tieneDiplomado === 'no' ? 'selected' : ''}>No (Sin Diplomado)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    App.openModal('Filtros Avanzados — Servidores Públicos', modalBodyHtml, [
+      {
+        text: 'Restablecer Filtros',
+        cls: 'btn-secondary',
+        action: () => {
+          state.advancedFilters = {};
+          updateAdvFilterBadge();
+          App.closeModal();
+          state.page = 1;
+          load();
+          App.showToast('Filtros avanzados restablecidos.', 'info');
+        }
+      },
+      {
+        text: 'Cancelar',
+        cls: 'btn-outline',
+        action: () => App.closeModal()
+      },
+      {
+        text: 'Aplicar Filtros',
+        cls: 'btn-primary',
+        id: 'btn-apply-adv-filters',
+        action: () => {
+          const newFilters = {};
+          const getVal = id => document.getElementById(id)?.value?.trim() || '';
+
+          const valTipoSangre = getVal('adv-tipo-sangre');
+          if (valTipoSangre) newFilters.tipoSangre = valTipoSangre;
+
+          const valSexo = getVal('adv-sexo');
+          if (valSexo) newFilters.sexo = valSexo;
+
+          const valEdadMin = getVal('adv-edad-min');
+          if (valEdadMin) newFilters.edadMin = valEdadMin;
+
+          const valEdadMax = getVal('adv-edad-max');
+          if (valEdadMax) newFilters.edadMax = valEdadMax;
+
+          const valDiscToggle = getVal('adv-discapacidad-toggle');
+          if (valDiscToggle) newFilters.tieneDiscapacidad = valDiscToggle;
+
+          const valTipoDisc = getVal('adv-tipo-discapacidad');
+          if (valTipoDisc) newFilters.tipoDiscapacidad = valTipoDisc;
+
+          const valSituacion = getVal('adv-situacion');
+          if (valSituacion) newFilters.situacion = valSituacion;
+
+          const valClasif = getVal('adv-clasificacion');
+          if (valClasif) newFilters.clasificacion = valClasif;
+
+          const valCodCargo = getVal('adv-codigo-cargo');
+          if (valCodCargo) newFilters.codigoCargo = valCodCargo;
+
+          const valGrado = getVal('adv-grado');
+          if (valGrado) newFilters.grado = valGrado;
+
+          const valConcurso = getVal('adv-concurso-toggle');
+          if (valConcurso) newFilters.concurso = valConcurso;
+
+          const valOpec = getVal('adv-opec');
+          if (valOpec) newFilters.opec = valOpec;
+
+          const valTieneEncargo = getVal('adv-encargo-toggle');
+          if (valTieneEncargo) newFilters.tieneEncargo = valTieneEncargo;
+
+          const valEncargoDenom = getVal('adv-encargo-denominacion');
+          if (valEncargoDenom) newFilters.encargoDenominacion = valEncargoDenom;
+
+          const valEncargoCod = getVal('adv-encargo-codigo');
+          if (valEncargoCod) newFilters.encargoCodigo = valEncargoCod;
+
+          const valEncargoGra = getVal('adv-encargo-grado');
+          if (valEncargoGra) newFilters.encargoGrado = valEncargoGra;
+
+          const valFechaIngDesde = getVal('adv-fecha-ingreso-desde');
+          if (valFechaIngDesde) newFilters.fechaIngresoDesde = valFechaIngDesde;
+
+          const valFechaIngHasta = getVal('adv-fecha-ingreso-hasta');
+          if (valFechaIngHasta) newFilters.fechaIngresoHasta = valFechaIngHasta;
+
+          const valSortBy = getVal('adv-sort-by');
+          if (valSortBy) newFilters.sortBy = valSortBy;
+
+          const valEstudios = getVal('adv-estudios');
+          if (valEstudios) newFilters.estudios = valEstudios;
+
+          const valInstEstudios = getVal('adv-institucion-estudios');
+          if (valInstEstudios) newFilters.institucionEstudios = valInstEstudios;
+
+          const valDiplomado = getVal('adv-diplomado-toggle');
+          if (valDiplomado) newFilters.tieneDiplomado = valDiplomado;
+
+          state.advancedFilters = newFilters;
+          updateAdvFilterBadge();
+          App.closeModal();
+          state.page = 1;
+          load();
+          const count = Object.keys(newFilters).length;
+          App.showToast(count > 0 ? `Filtros avanzados aplicados (${count} activo${count > 1 ? 's' : ''}).` : 'Filtros aplicados.', 'success');
+        }
+      }
+    ], 'modal-lg');
+
+    // Inicializar calendarios en el modal
+    setTimeout(() => {
+      if (typeof flatpickr !== 'undefined') {
+        flatpickr('#adv-fecha-ingreso-desde', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true });
+        flatpickr('#adv-fecha-ingreso-hasta', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true });
+      }
+    }, 150);
+  }
+
   async function load() {
     renderSkeletonTable();
     try {
@@ -574,6 +986,7 @@ const EmployeesModule = (() => {
         q: state.q,
         dependencia: state.dependencia,
         cargo: state.cargo,
+        ...state.advancedFilters,
         page: state.page,
         limit: 25
       });
@@ -695,11 +1108,25 @@ const EmployeesModule = (() => {
           <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">
             ${escHtml(e.tiempoServicioCalculado || '—')}
           </div>
+          ${(e.esRetirado || (e.estadoServidor || '').toLowerCase() === 'retirado' || (e.situacion || '').toLowerCase() === 'retirado') ? `
+            <div style="font-size:10.5px; color:#dc2626; font-weight:700; margin-top:2px;" title="Periodo finalizado al retiro (${escHtml(e.fechaRetiro || '—')})">
+              ⏹️ Retirado (${escHtml(e.fechaRetiro || 'congelado')})
+            </div>
+          ` : ''}
           <div class="emp-tiempo-otros" title="Otros tiempos en Gobernación: ${escHtml(e.otroTiempoCalculado || '0 años, 0 meses, 0 días')}">
             Otros: <span>${escHtml(e.otroTiempoCalculado || '0 años, 0 meses, 0 días')}</span>
           </div>
         </td>
-        <td class="td-tiempo-total" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</td>
+        <td class="td-tiempo-total" title="Tiempo Total Calculado: ${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')} (${escHtml(e.tiempoServicioCalculado || '0')} + ${escHtml(e.otroTiempoCalculado || '0')})">
+          <div>${escHtml(e.tiempoTotalGobernacion || e.tiempoServicioCalculado || '—')}</div>
+          ${(e.esRetirado || (e.estadoServidor || '').toLowerCase() === 'retirado' || (e.situacion || '').toLowerCase() === 'retirado') ? `
+            <div style="margin-top:3px;">
+              <span class="badge badge--retirado" style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; display:inline-flex; align-items:center; gap:3px;" title="Tiempo total acumulado al momento del retiro (${escHtml(e.fechaRetiro || '—')})">
+                ⏹️ Retiro: ${escHtml(e.fechaRetiro || 'congelado')}
+              </span>
+            </div>
+          ` : ''}
+        </td>
         <td id="td-estado-${itemKey}">${renderEstadoBadge(e, itemKey)}</td>
         <td class="td-actions">
           <div class="td-actions-wrap">
@@ -1255,6 +1682,19 @@ const EmployeesModule = (() => {
           <!-- ─── Tab 3: Tiempos de Servicio ─── -->
           <div class="ficha-tab-pane" id="ficha-tiempos">
             <div class="ficha-grid">
+              ${(emp.esRetirado || (emp.estadoServidor || '').toLowerCase() === 'retirado' || (emp.situacion || '').toLowerCase() === 'retirado') ? `
+                <div class="ficha-grid--full" style="background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 14px;">
+                  <span style="font-size: 26px;">⏹️</span>
+                  <div>
+                    <strong style="color: #dc2626; font-size: 0.95rem; display: block; margin-bottom: 2px;">Servidor Público en Estado Retirado</strong>
+                    <div style="font-size: 0.84rem; color: var(--text-primary); line-height: 1.4;">
+                      Fecha de Retiro: <strong>${escHtml(emp.fechaRetiro || 'Registrada')}</strong>.
+                      El cómputo de servicio se encuentra detenido. Al momento de su retiro acreditó un tiempo acumulado de <strong>${escHtml(emp.tiempoTotalGobernacion || emp.tiempoServicioCalculado || '0 años, 0 meses, 0 días')}</strong>.
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+
               <!-- Grand Highlight: Tiempo Total Acumulado -->
               <div class="ficha-card ficha-card--featured ficha-grid--full ficha-card-tiempo-total" style="padding: 18px 20px;">
                 <div class="ficha-card-top">
@@ -1290,10 +1730,12 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-val ficha-val-tiempo-servicio" style="font-weight:800;">
                   ${escHtml(emp.tiempoServicioCalculado || '—')}
                 </div>
-                <div class="ficha-card-sub">Cálculo dinámico a partir de la fecha de ingreso</div>
+                <div class="ficha-card-sub" style="${(emp.esRetirado || (emp.estadoServidor || '').toLowerCase() === 'retirado' || (emp.situacion || '').toLowerCase() === 'retirado') ? 'color:#dc2626; font-weight:600;' : ''}">
+                  ${(emp.esRetirado || (emp.estadoServidor || '').toLowerCase() === 'retirado' || (emp.situacion || '').toLowerCase() === 'retirado')
+                    ? `⏹️ Periodo finalizado al retiro (${escHtml(emp.fechaRetiro || '—')}) - Contador inactivo`
+                    : 'Cálculo dinámico a partir de la fecha de ingreso'}
+                </div>
               </div>
-
-
 
               <!-- Experiencia Múltiple / Otro Tiempo -->
               <div class="ficha-card ficha-grid--full">
@@ -1310,22 +1752,24 @@ const EmployeesModule = (() => {
                           <th style="padding: 7px 12px;">Fecha Desde</th>
                           <th style="padding: 7px 12px;">Fecha Hasta</th>
                           <th style="padding: 7px 12px;">Duración Acreditada</th>
+                          <th style="padding: 7px 12px;">Detalle / Cargo</th>
                         </tr>
                       </thead>
                       <tbody>
                         ${emp.otroTiempoPeriodos.map((p, idx) => `
                           <tr style="border-bottom: 1px solid var(--color-border);">
                             <td style="padding: 7px 12px; color: var(--text-muted);">${idx + 1}</td>
-                            <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.desde)}</td>
-                            <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.hasta)}</td>
+                            <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.desde || '—')}</td>
+                            <td style="padding: 7px 12px; font-weight: 600;">${escHtml(p.hasta || '—')}</td>
                             <td style="padding: 7px 12px; font-weight: 700;" class="ficha-val-otro-tiempo">${escHtml(p.duracionTexto || '—')}</td>
+                            <td style="padding: 7px 12px; font-size: 11px; color: var(--text-secondary);">${escHtml(p.cargo ? `${p.cargo} (${p.entidad || 'Gobernación'})` : (p.entidad || 'Gobernación de Boyacá'))}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
                         <tr class="ficha-tfoot-otro-tiempo" style="background: rgba(40, 135, 27, 0.08); font-weight: 700;">
-                          <td colspan="3" style="padding: 8px 12px; text-align: right; color: var(--text-primary);">Total Acumulado Otros Tiempos:</td>
-                          <td style="padding: 8px 12px; font-weight: 800;" class="ficha-val-otro-tiempo">${escHtml(emp.otroTiempoGobernacion || '—')}</td>
+                          <td colspan="4" style="padding: 8px 12px; text-align: right; color: var(--text-primary);">Total Acumulado Otros Tiempos:</td>
+                          <td style="padding: 8px 12px; font-weight: 800;" class="ficha-val-otro-tiempo">${escHtml(emp.otroTiempoGobernacion || emp.otroTiempoCalculado || '—')}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -3217,6 +3661,10 @@ const EmployeesModule = (() => {
     ]);
   }
 
+  function clearPendingInactivations() {
+    // No-op de seguridad: la gestión de estado activo/retirado se realiza mediante modal oficial
+  }
+
   function goPage(p) {
     if (p < 1 || p > state.totalPages) return;
     clearPendingInactivations();
@@ -3280,7 +3728,7 @@ const EmployeesModule = (() => {
   async function exportExcel() {
     try {
       App.showToast('Generando archivo Excel oficial de Servidores Públicos...', 'info');
-      const res = await API.getEmployees({ q: state.q, page: 1, limit: 10000 });
+      const res = await API.getEmployees({ q: state.q, dependencia: state.dependencia, cargo: state.cargo, ...state.advancedFilters, page: 1, limit: 10000 });
       const recordsRaw = res.data || state.data;
 
       // Mapeo a las 34 columnas oficiales solicitadas
@@ -3871,6 +4319,13 @@ const EmployeesModule = (() => {
               </select>
             </div>
             <div style="display:flex; gap:8px; align-items:flex-end;">
+              <button type="button" class="btn btn-outline btn-filter-adv ${getActiveFiltersCount() > 0 ? 'btn-filter-active' : ''}" id="emp-btn-adv-filter" onclick="EmployeesModule.openAdvancedFiltersModal()" title="Filtros avanzados detallados" aria-label="Abrir filtros avanzados">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="width:16px;height:16px;">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span>Filtros</span>
+                <span id="emp-adv-filter-badge" class="filter-count-badge" style="${getActiveFiltersCount() > 0 ? '' : 'display:none;'}">${getActiveFiltersCount()}</span>
+              </button>
               <button class="btn btn-secondary" onclick="EmployeesModule.clearSearch()" title="Restablecer todos los filtros" aria-label="Limpiar filtro de búsqueda">Limpiar</button>
             </div>
           </div>
@@ -3945,6 +4400,8 @@ const EmployeesModule = (() => {
     state.q = '';
     state.dependencia = '';
     state.cargo = '';
+    state.advancedFilters = {};
+    updateAdvFilterBadge();
     state.page = 1;
     load();
   }
@@ -3961,6 +4418,7 @@ const EmployeesModule = (() => {
     goPage,
     search,
     clearSearch,
+    openAdvancedFiltersModal,
     exportExcel,
     downloadTemplate,
     openImportModal,
@@ -3973,6 +4431,12 @@ const EmployeesModule = (() => {
     handleDropdownKeydown,
     handleMenuKeydown,
     renderSkeletonTable,
+    promptRetireEmployee,
+    confirmRetireEmployee,
+    closeRetireModal,
+    promptReactivateEmployee,
+    confirmReactivateEmployee,
+    closeReactivateModal,
     startInactivation,
     cancelInactivation,
     reactivateEmployee

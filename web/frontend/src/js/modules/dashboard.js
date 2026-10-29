@@ -117,18 +117,19 @@ const DashboardModule = (() => {
   function getUserDashboardType() {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const uname = (user.username || '').toLowerCase();
+    const name  = (user.name || '').toLowerCase();
     const modules = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : [];
 
     // Angela Ussa -> Servidores Públicos
-    if (uname.includes('angela') || (modules.includes('employees') && !modules.includes('*') && !modules.includes('viaticos') && !modules.includes('horarios'))) {
+    if (uname.includes('angela') || name.includes('angela') || (modules.includes('employees') && !modules.includes('*') && !modules.includes('viaticos') && !modules.includes('horarios'))) {
       return 'employees';
     }
     // Bergenet Gutierrez -> Viáticos
-    if (uname.includes('bergenet') || (modules.includes('viaticos') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('horarios'))) {
+    if (uname.includes('bergenet') || name.includes('bergenet') || (modules.includes('viaticos') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('horarios'))) {
       return 'viaticos';
     }
     // Doris Cañon -> Horarios y Modalidades
-    if (uname.includes('doris') || (modules.includes('horarios') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('viaticos'))) {
+    if (uname.includes('doris') || name.includes('doris') || (modules.includes('horarios') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('viaticos'))) {
       return 'horarios';
     }
     // Administrador General

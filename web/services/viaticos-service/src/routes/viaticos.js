@@ -33,10 +33,11 @@ function canEdit(roleOrUser) {
   if (!roleOrUser) return false;
   const role = String(typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.role || roleOrUser.rol || '')).toLowerCase();
   const uname = String(typeof roleOrUser === 'object' ? (roleOrUser.username || '') : '').toLowerCase();
-  const mods = (typeof roleOrUser === 'object' && Array.isArray(roleOrUser.modules)) ? roleOrUser.modules : [];
+  const name  = String(typeof roleOrUser === 'object' ? (roleOrUser.name || roleOrUser.nombre || '') : '').toLowerCase();
+  const mods  = (typeof roleOrUser === 'object' && Array.isArray(roleOrUser.modules)) ? roleOrUser.modules : [];
   if (role.includes('administrador') || role.includes('coordinador') || role.includes('admin') || uname === 'admin') return true;
-  if (mods.includes('*') || mods.includes('all') || mods.includes('viaticos')) return true;
-  if (uname.includes('bergenet')) return true;
+  if (mods.includes('*') || mods.includes('all') || mods.includes('viaticos_write')) return true;
+  if (uname.includes('bergenet') || name.includes('bergenet')) return true;
   return false;
 }
 
@@ -54,12 +55,42 @@ async function ensureViaticosColumns() {
         creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS vigencias_viaticos (
+        anio INT PRIMARY KEY,
+        descripcion TEXT,
+        creado_por VARCHAR(120) DEFAULT 'admin',
+        creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO vigencias_viaticos(anio)
+      SELECT DISTINCT anio FROM paquetes_viaticos
+      ON CONFLICT (anio) DO NOTHING;
+      INSERT INTO vigencias_viaticos(anio) VALUES (2027), (2026), (2025), (2024), (2023), (2022) ON CONFLICT (anio) DO NOTHING;
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT REFERENCES paquetes_viaticos(id_paquete) ON DELETE CASCADE;
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS numero_resolucion VARCHAR(120);
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS saldo NUMERIC(15,2);
       CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion ON viaticos(numero_resolucion);
       CREATE INDEX IF NOT EXISTS idx_viaticos_paquete ON viaticos(id_paquete);
       CREATE INDEX IF NOT EXISTS idx_paquetes_anio ON paquetes_viaticos(anio);
+      CREATE OR REPLACE FUNCTION safe_parse_date(d text) RETURNS date AS $FUNC$
+      BEGIN
+        IF d IS NULL OR d = '' THEN RETURN NULL; END IF;
+        IF d ~ '^\\d{4}-\\d{2}-\\d{2}' THEN
+          BEGIN
+            RETURN to_date(SUBSTRING(d FROM 1 FOR 10), 'YYYY-MM-DD');
+          EXCEPTION WHEN others THEN
+            RETURN NULL;
+          END;
+        END IF;
+        IF d ~ '^\\d{1,2}/\\d{1,2}/\\d{4}' THEN
+          BEGIN
+            RETURN to_date(d, 'DD/MM/YYYY');
+          EXCEPTION WHEN others THEN
+            RETURN NULL;
+          END;
+        END IF;
+        RETURN NULL;
+      END;
+      $FUNC$ LANGUAGE plpgsql IMMUTABLE;
     `);
     console.log('[viaticos-service] Columnas y tabla paquetes_viaticos garantizadas.');
   } catch (err) {
@@ -108,6 +139,68 @@ function formatCurrency(v) {
   return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 }).format(n);
 }
 
+// ─── RUTAS DE HISTÓRICOS ANUALES (VIGENCIAS FISCALES) ──────────────────────────
+
+// GET /api/viaticos/anios — Lista todos los años de vigencias fiscales registrados
+router.get('/anios', auth, async (req, res) => {
+  try {
+    const q = `
+      SELECT anio, descripcion, creado_por, creado_en
+      FROM vigencias_viaticos
+      ORDER BY anio DESC
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows);
+  } catch (err) {
+    console.error('[viaticos] anios error:', err.message);
+    res.status(500).json({ error: 'Error al listar las vigencias fiscales.' });
+  }
+});
+
+// POST /api/viaticos/anios — Crear un nuevo histórico anual de vigencia fiscal
+router.post('/anios', auth, async (req, res) => {
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const { anio, descripcion } = req.body;
+  const anioNum = parseInt(anio, 10);
+  if (!anioNum || isNaN(anioNum) || anioNum < 2000 || anioNum > 2100) {
+    return res.status(400).json({ error: 'Año fiscal inválido (debe ser entre 2000 y 2100).' });
+  }
+  try {
+    const exists = await pool.query('SELECT anio FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    if (exists.rows.length > 0) {
+      return res.status(400).json({ error: `La vigencia fiscal ${anioNum} ya se encuentra registrada.` });
+    }
+    const r = await pool.query(
+      `INSERT INTO vigencias_viaticos (anio, descripcion, creado_por)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [anioNum, descripcion || null, req.user.username || 'admin']
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    console.error('[viaticos] create anio error:', err.message);
+    res.status(500).json({ error: 'Error al registrar vigencia fiscal.' });
+  }
+});
+
+// DELETE /api/viaticos/anios/:anio — Eliminar un histórico anual y todas sus ejecuciones/viáticos
+router.delete('/anios/:anio', auth, async (req, res) => {
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const anioNum = parseInt(req.params.anio, 10);
+  if (!anioNum || isNaN(anioNum)) return res.status(400).json({ error: 'Año fiscal inválido.' });
+  try {
+    // 1. Eliminar viáticos pertenecientes a paquetes de ese año
+    await pool.query('DELETE FROM viaticos WHERE id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)', [anioNum]);
+    // 2. Eliminar paquetes de ese año
+    await pool.query('DELETE FROM paquetes_viaticos WHERE anio = $1', [anioNum]);
+    // 3. Eliminar la vigencia
+    await pool.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    res.json({ message: `Vigencia fiscal ${anioNum} y todos sus registros asociados fueron eliminados correctamente.` });
+  } catch (err) {
+    console.error('[viaticos] delete anio error:', err.message);
+    res.status(500).json({ error: 'Error al eliminar la vigencia fiscal.' });
+  }
+});
+
 // ─── RUTAS DE PAQUETES DE VIÁTICOS (EXCELS / VIGENCIAS) ───────────────────────
 
 // GET /api/viaticos/paquetes — Lista todos los paquetes con conteos y totales
@@ -150,6 +243,7 @@ router.post('/paquetes', auth, async (req, res) => {
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre del paquete o Excel es requerido.' });
   const finalYear = parseInt(anio) || new Date().getFullYear();
   try {
+    await pool.query('INSERT INTO vigencias_viaticos(anio) VALUES($1) ON CONFLICT (anio) DO NOTHING', [finalYear]);
     const r = await pool.query(
       `INSERT INTO paquetes_viaticos(nombre, archivo_origen, anio, descripcion, creado_por)
        VALUES($1, $2, $3, $4, $5) RETURNING *`,
@@ -246,7 +340,28 @@ router.get('/dependencias', auth, async (req, res) => {
 
 // ─── GET /api/viaticos ────────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q='', estado='', departamento='', dependencia='', id_paquete='', anio='', page=1, limit=20 } = req.query;
+  const {
+    q='',
+    estado='',
+    departamento='',
+    dependencia='',
+    id_paquete='',
+    anio='',
+    tipoDestino='',
+    destino='',
+    fechaSalidaDesde='',
+    fechaSalidaHasta='',
+    fechaRegresoDesde='',
+    fechaRegresoHasta='',
+    valorMin='',
+    valorMax='',
+    diasMin='',
+    diasMax='',
+    numeroResolucion='',
+    sortBy='',
+    page=1,
+    limit=20
+  } = req.query;
   const depFilter = dependencia || departamento || '';
   try {
     const conditions = ['1=1']; const params = []; let idx = 1;
@@ -280,6 +395,56 @@ router.get('/', auth, async (req, res) => {
       idx++;
     }
 
+    // ── Filtros Avanzados Viáticos ───────────────────────────────────────────
+    if (tipoDestino && !['todos', 'todas', ''].includes(tipoDestino.trim().toLowerCase())) {
+      conditions.push(`LOWER(v.tipo_destino) = LOWER($${idx++})`);
+      params.push(tipoDestino.trim());
+    }
+    if (destino && destino.trim()) {
+      conditions.push(`TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
+      params.push(destino.trim());
+    }
+    if (numeroResolucion && numeroResolucion.trim()) {
+      conditions.push(`v.numero_resolucion ILIKE $${idx++}`);
+      params.push(`%${numeroResolucion.trim()}%`);
+    }
+    if (valorMin && !isNaN(Number(valorMin))) {
+      conditions.push(`v.valor_total >= $${idx++}`);
+      params.push(Number(valorMin));
+    }
+    if (valorMax && !isNaN(Number(valorMax))) {
+      conditions.push(`v.valor_total <= $${idx++}`);
+      params.push(Number(valorMax));
+    }
+    if (diasMin && !isNaN(Number(diasMin))) {
+      conditions.push(`v.dias >= $${idx++}`);
+      params.push(parseInt(diasMin, 10));
+    }
+    if (diasMax && !isNaN(Number(diasMax))) {
+      conditions.push(`v.dias <= $${idx++}`);
+      params.push(parseInt(diasMax, 10));
+    }
+
+    const dateExprInicio = 'safe_parse_date(v.fecha_inicio)';
+    const dateExprFin = 'safe_parse_date(v.fecha_fin)';
+
+    if (fechaSalidaDesde) {
+      conditions.push(`${dateExprInicio} >= $${idx++}::date`);
+      params.push(fechaSalidaDesde);
+    }
+    if (fechaSalidaHasta) {
+      conditions.push(`${dateExprInicio} <= $${idx++}::date`);
+      params.push(fechaSalidaHasta);
+    }
+    if (fechaRegresoDesde) {
+      conditions.push(`${dateExprFin} >= $${idx++}::date`);
+      params.push(fechaRegresoDesde);
+    }
+    if (fechaRegresoHasta) {
+      conditions.push(`${dateExprFin} <= $${idx++}::date`);
+      params.push(fechaRegresoHasta);
+    }
+
     const where = conditions.join(' AND ');
     const countQuery = `SELECT COUNT(*) FROM viaticos v LEFT JOIN paquetes_viaticos p ON p.id_paquete = v.id_paquete WHERE ${where}`;
     const total = parseInt((await pool.query(countQuery, params)).rows[0].count);
@@ -287,6 +452,37 @@ router.get('/', auth, async (req, res) => {
     const isAll = limit === 'all' || limit === '0' || parseInt(limit, 10) >= 10000;
     const limitNum = isAll ? 100000 : Math.max(1, parseInt(limit, 10) || 20);
     const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * limitNum;
+
+    let orderBy = 'v.id_viatico DESC';
+    switch (sortBy) {
+      case 'fecha_desc':
+        orderBy = `${dateExprInicio} DESC NULLS LAST, v.id_viatico DESC`;
+        break;
+      case 'fecha_asc':
+        orderBy = `${dateExprInicio} ASC NULLS LAST, v.id_viatico ASC`;
+        break;
+      case 'valor_desc':
+        orderBy = `v.valor_total DESC NULLS LAST, v.id_viatico DESC`;
+        break;
+      case 'valor_asc':
+        orderBy = `v.valor_total ASC NULLS LAST, v.id_viatico ASC`;
+        break;
+      case 'radicado_desc':
+        orderBy = 'v.id_viatico DESC';
+        break;
+      case 'radicado_asc':
+        orderBy = 'v.id_viatico ASC';
+        break;
+      case 'persona_asc':
+        orderBy = 'v.apellidos_nombres ASC NULLS LAST';
+        break;
+      case 'persona_desc':
+        orderBy = 'v.apellidos_nombres DESC NULLS LAST';
+        break;
+      default:
+        orderBy = 'v.id_viatico DESC';
+    }
+
     params.push(limitNum, offset);
 
     const rows = await pool.query(
@@ -294,7 +490,7 @@ router.get('/', auth, async (req, res) => {
        FROM viaticos v
        LEFT JOIN paquetes_viaticos p ON p.id_paquete = v.id_paquete
        WHERE ${where}
-       ORDER BY v.id_viatico DESC
+       ORDER BY ${orderBy}
        LIMIT $${idx} OFFSET $${idx+1}`,
       params
     );
@@ -415,6 +611,37 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+// ─── GET /api/viaticos/:id — Obtener detalle de un viático por ID ──────────────
+router.get('/:id', auth, async (req, res) => {
+  const { id } = req.params;
+  const numId = parseInt(id, 10);
+  if (!numId || isNaN(numId)) return res.status(400).json({ error: 'ID inválido.' });
+  try {
+    const r = await pool.query(
+      `SELECT v.*, p.nombre as paquete_nombre, p.archivo_origen as paquete_archivo
+       FROM viaticos v
+       LEFT JOIN paquetes_viaticos p ON v.id_paquete = p.id_paquete
+       WHERE v.id_viatico = $1`,
+      [numId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Viático no encontrado.' });
+    const row = r.rows[0];
+    res.json({
+      ...row,
+      id: row.id_viatico,
+      persona: row.apellidos_nombres,
+      valorTotal: row.valor_total,
+      fechaInicio: row.fecha_inicio,
+      fechaFin: row.fecha_fin,
+      numeroResolucion: row.numero_resolucion,
+      radicado: `VIT-2026-${String(row.id_viatico).padStart(5, '0')}`
+    });
+  } catch (err) {
+    console.error('[viaticos] getById error:', err.message);
+    res.status(500).json({ error: 'Error al obtener viático.' });
+  }
+});
+
 // ─── POST /api/viaticos ───────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
@@ -424,7 +651,20 @@ router.post('/', auth, async (req, res) => {
   const d = new Date();
   const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   try {
-    const pkgId = id_paquete ? parseInt(id_paquete) : 5;
+    let pkgId = id_paquete ? parseInt(id_paquete, 10) : null;
+    if (!pkgId) {
+      const pRes = await pool.query('SELECT id_paquete FROM paquetes_viaticos ORDER BY anio DESC, id_paquete DESC LIMIT 1');
+      if (pRes.rows.length > 0) {
+        pkgId = pRes.rows[0].id_paquete;
+      } else {
+        const curYear = new Date().getFullYear();
+        const newPkg = await pool.query(
+          'INSERT INTO paquetes_viaticos (nombre, archivo_origen, anio, descripcion) VALUES ($1, $2, $3, $4) RETURNING id_paquete',
+          [`Ejecución Presupuestal ${curYear}`, `EJECUCION_PRESUPUESTAL_${curYear}.xlsx`, curYear, 'Vigencia en curso']
+        );
+        pkgId = newPkg.rows[0].id_paquete;
+      }
+    }
     const r = await pool.query(
       `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo,id_paquete)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id_viatico`,

@@ -63,12 +63,16 @@ const Auth = (() => {
       return user.modules;
     }
     const uname = (user.username || '').toLowerCase();
+    const name = (user.name || '').toLowerCase();
     if (uname === 'admin' || (user.role && user.role.toLowerCase().includes('admin'))) {
       return ['*'];
     }
-    if (uname.includes('angela')) return ['dashboard', 'employees'];
-    if (uname.includes('bergenet')) return ['dashboard', 'viaticos'];
-    if (uname.includes('doris')) return ['dashboard', 'horarios'];
+    // Todas las funcionarias tienen acceso de consulta a los 3 módulos misionales
+    if (uname.includes('angela') || name.includes('angela') ||
+        uname.includes('bergenet') || name.includes('bergenet') ||
+        uname.includes('doris') || name.includes('doris')) {
+      return ['dashboard', 'employees', 'viaticos', 'horarios'];
+    }
     return ['dashboard'];
   }
 
@@ -84,21 +88,60 @@ const Auth = (() => {
     return mods.includes(mod);
   }
 
+  /**
+   * canEdit(moduleName):
+   * Verifica permisos de ESCRITURA (crear, editar, eliminar) según la Matriz Oficial:
+   * - Administrador / Coordinador: Escritura en todos los módulos
+   * - Angela Ussa: Escritura en Servidores Públicos ('employees'); Sólo Lectura en Viáticos y Horarios
+   * - Bergenet Gutiérrez: Escritura en Viáticos ('viaticos'); Sólo Lectura en Servidores Públicos y Horarios
+   * - Doris Canon: Escritura en Horarios ('horarios'); Sólo Lectura en Servidores Públicos y Viáticos
+   */
   function canEdit(moduleName) {
     const user = getUser();
     if (!user) return false;
     const uname = (user.username || '').toLowerCase();
+    const name  = (user.name || '').toLowerCase();
+
+    // 1. Superadministrador y Coordinadores del sistema
     if (uname === 'admin') return true;
     const r = (user.role || '').toLowerCase();
     if (r.includes('administrador') || r.includes('coordinador')) return true;
 
-    if (moduleName) {
-      return hasModuleAccess(moduleName);
+    // 2. Determinar módulo objetivo (explícito o inferido de la vista activa)
+    let targetMod = (moduleName || '').toLowerCase().trim();
+    if (!targetMod) {
+      if (typeof App !== 'undefined' && App.getCurrentModule && App.getCurrentModule()) {
+        targetMod = App.getCurrentModule().toLowerCase().trim();
+      } else {
+        const hash = (window.location.hash || '').replace(/^#\/?/, '').split('?')[0].toLowerCase().trim();
+        targetMod = hash;
+      }
     }
-    const mods = getUserModules(user);
-    return mods.length > 0;
+
+    // 3. Matriz Estricta de Permisos por Funcionario
+    // 3.1 Angela Ussa -> Únicamente Servidores Públicos
+    if (uname.includes('angela') || name.includes('angela')) {
+      return targetMod === 'employees' || targetMod === 'servidores' || targetMod === 'servidores-publicos';
+    }
+
+    // 3.2 Bergenet Gutiérrez -> Únicamente Viáticos
+    if (uname.includes('bergenet') || name.includes('bergenet')) {
+      return targetMod === 'viaticos';
+    }
+
+    // 3.3 Doris Canon -> Únicamente Horarios
+    if (uname.includes('doris') || name.includes('doris')) {
+      return targetMod === 'horarios';
+    }
+
+    // 4. Permisos explícitos por lista de módulos si vinieran definidos
+    if (Array.isArray(user.modules)) {
+      if (user.modules.includes('*') || user.modules.includes('all')) return true;
+      if (targetMod && user.modules.includes(`${targetMod}_write`)) return true;
+    }
+
+    return false;
   }
 
   return { save, getToken, getUser, clear, isLoggedIn, canEdit, hasModuleAccess, getUserModules };
 })();
-

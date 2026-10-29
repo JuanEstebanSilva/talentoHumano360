@@ -1597,26 +1597,26 @@ tbody tr:last-child td {
   box-shadow: 0 0 8px #4ade80, 0 0 0 2px rgba(74, 222, 128, 0.35) !important;
 }
 
-.badge--inactivo {
+.badge--inactivo, .badge--retirado {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.2) 100%) !important;
   color: #b91c1c !important;
   border: 1px solid rgba(239, 68, 68, 0.35) !important;
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.12) !important;
 }
 
-.badge--inactivo::before {
+.badge--inactivo::before, .badge--retirado::before {
   background: #ef4444 !important;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.8), 0 0 0 2px rgba(239, 68, 68, 0.22) !important;
 }
 
-[data-theme="dark"] .badge--inactivo {
+[data-theme="dark"] .badge--inactivo, [data-theme="dark"] .badge--retirado {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.18) 0%, rgba(220, 38, 38, 0.28) 100%) !important;
   color: #f87171 !important;
   border-color: rgba(248, 113, 113, 0.45) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
 }
 
-[data-theme="dark"] .badge--inactivo::before {
+[data-theme="dark"] .badge--inactivo::before, [data-theme="dark"] .badge--retirado::before {
   background: #f87171 !important;
   box-shadow: 0 0 8px #f87171, 0 0 0 2px rgba(248, 113, 113, 0.35) !important;
 }
@@ -6706,41 +6706,99 @@ tbody tr:last-child td {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
-/* Selección elegante: no inunda el fondo de morado ni naranja */
+/* Selección elegante y sutil: tinturado leve del color del ícono sin bordes toscos */
 .stat-card.clickable.active {
-  border-color: #16a34a !important;
-  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.18), 0 0 0 2px #16a34a !important;
-  background: var(--color-surface, #ffffff) !important;
   transform: translateY(-2px);
+  position: relative;
 }
 
-.stat-card.clickable.active::after {
+/* Verde: Total Esquemas */
+.stat-card--active-green.active {
+  background: rgba(16, 185, 129, 0.07) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.12) !important;
+}
+.stat-card--active-green.active::after {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: #16a34a;
+  height: 3px;
+  background: #10b981;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-/* Modo oscuro: selección con borde y acento dorado sutil */
-[data-theme="dark"] .stat-card.clickable.active {
-  border-color: #fbbf24 !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 0 1.5px #fbbf24 !important;
-  background: var(--color-surface) !important;
+/* Morado: Teletrabajo */
+.stat-card--active-purple.active {
+  background: rgba(147, 51, 234, 0.07) !important;
+  border-color: rgba(147, 51, 234, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(147, 51, 234, 0.12) !important;
+}
+.stat-card--active-purple.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #9333ea;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-[data-theme="dark"] .stat-card.clickable.active::after {
-  background: #fbbf24 !important;
+/* Naranja: Trabajo en Casa */
+.stat-card--active-orange.active {
+  background: rgba(249, 115, 22, 0.07) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.12) !important;
+}
+.stat-card--active-orange.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #f97316;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.stat-card--active-blue.active,
-.stat-card--active-purple.active,
-.stat-card--active-orange.active,
-.stat-card--active-teal.active {
-  background: var(--color-surface) !important;
+/* Azul / Teal: Horario Flexible */
+.stat-card--active-teal.active,
+.stat-card--active-blue.active {
+  background: rgba(14, 165, 233, 0.07) !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.12) !important;
+}
+.stat-card--active-teal.active::after,
+.stat-card--active-blue.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #0ea5e9;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* Modo oscuro: tintes translúcidos adaptados con su borde correspondiente */
+[data-theme="dark"] .stat-card--active-green.active {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+[data-theme="dark"] .stat-card--active-purple.active {
+  background: rgba(147, 51, 234, 0.14) !important;
+  border-color: rgba(147, 51, 234, 0.45) !important;
+}
+[data-theme="dark"] .stat-card--active-orange.active {
+  background: rgba(249, 115, 22, 0.14) !important;
+  border-color: rgba(249, 115, 22, 0.45) !important;
+}
+[data-theme="dark"] .stat-card--active-teal.active,
+[data-theme="dark"] .stat-card--active-blue.active {
+  background: rgba(14, 165, 233, 0.14) !important;
+  border-color: rgba(14, 165, 233, 0.45) !important;
 }
 
 /* ─── Barra de Desplazamiento Personalizada y Elegante para Modales ─── */
@@ -10058,4 +10116,134 @@ input.flatpickr-input:hover {
 [data-theme="dark"] .autocomplete-badge-doc {
   background: rgba(255, 255, 255, 0.1) !important;
   color: #cbd5e1 !important;
+}
+
+
+/* ─── Botón y Componentes de Filtros Avanzados (REQ-FILTROS) ─────────────────── */
+.btn-filter-adv {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+  border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+  height: 38px;
+  font-size: 0.85rem;
+}
+.btn-filter-adv:hover {
+  background: rgba(29, 128, 150, 0.08);
+  border-color: #1D8096;
+  color: #1D8096;
+}
+.btn-filter-adv.btn-filter-active {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: #d97706;
+  color: #b45309;
+}
+[data-theme="dark"] .btn-filter-adv {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(71, 85, 105, 0.8);
+  color: #f1f5f9;
+}
+[data-theme="dark"] .btn-filter-adv:hover {
+  background: rgba(43, 178, 208, 0.15);
+  border-color: #2bb2d0;
+  color: #2bb2d0;
+}
+[data-theme="dark"] .btn-filter-adv.btn-filter-active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+.filter-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #d97706;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  line-height: 1;
+}
+.adv-filter-modal-body {
+  max-height: 72vh;
+  overflow-y: auto;
+  padding: 10px 4px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.adv-filter-card {
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+[data-theme="dark"] .adv-filter-card {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(51, 65, 85, 0.8);
+}
+.adv-filter-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding-bottom: 6px;
+}
+[data-theme="dark"] .adv-filter-card-header {
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+.adv-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.adv-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.adv-filter-field label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary, #64748b);
+}
+.adv-filter-field select,
+.adv-filter-field input {
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+  padding: 0 10px;
+  font-size: 0.88rem;
+  background: var(--bg-input, #fff);
+  color: var(--text-primary, #1e293b);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.adv-filter-field select:focus,
+.adv-filter-field input:focus {
+  border-color: #1D8096;
+}
+[data-theme="dark"] .adv-filter-field select,
+[data-theme="dark"] .adv-filter-field input {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(51, 65, 85, 0.9);
+  color: #f8fafc;
 }

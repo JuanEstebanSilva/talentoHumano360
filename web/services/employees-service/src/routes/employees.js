@@ -66,10 +66,11 @@ function canEdit(user) {
   if (!user) return false;
   const role = String(typeof user === 'string' ? user : (user.role || user.rol || '')).toLowerCase();
   const uname = String(typeof user === 'object' ? (user.username || '') : '').toLowerCase();
-  const mods = (typeof user === 'object' && Array.isArray(user.modules)) ? user.modules : [];
+  const name  = String(typeof user === 'object' ? (user.name || user.nombre || '') : '').toLowerCase();
+  const mods  = (typeof user === 'object' && Array.isArray(user.modules)) ? user.modules : [];
   if (role.includes('administrador') || role.includes('coordinador') || uname === 'admin') return true;
-  if (mods.includes('*') || mods.includes('all') || mods.includes('employees')) return true;
-  if (uname.includes('angela')) return true;
+  if (mods.includes('*') || mods.includes('all') || mods.includes('employees_write')) return true;
+  if (uname.includes('angela') || name.includes('angela')) return true;
   return false;
 }
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
@@ -210,7 +211,39 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q = '', dependencia = '', cargo = '', page = 1, limit = 30 } = req.query;
+  const {
+    q = '',
+    dependencia = '',
+    cargo = '',
+    codigoCargo = '',
+    grado = '',
+    tipoSangre = '',
+    sexo = '',
+    edadMin = '',
+    edadMax = '',
+    fechaNacDesde = '',
+    fechaNacHasta = '',
+    tieneDiscapacidad = '',
+    tipoDiscapacidad = '',
+    situacion = '',
+    clasificacion = '',
+    concurso = '',
+    opec = '',
+    fechaIngresoDesde = '',
+    fechaIngresoHasta = '',
+    fechaEncargoDesde = '',
+    fechaEncargoHasta = '',
+    tieneEncargo = '',
+    encargoDenominacion = '',
+    encargoCodigo = '',
+    encargoGrado = '',
+    estudios = '',
+    institucionEstudios = '',
+    tieneDiplomado = '',
+    sortBy = '',
+    page = 1,
+    limit = 30
+  } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
   try {
     const trimmedQ = (q || '').trim();
@@ -274,10 +307,198 @@ router.get('/', auth, async (req, res) => {
         OR LOWER(cb.cargo) = LOWER($${cargoIdx})
       )`);
     }
+    // ─── FILTROS AVANZADOS ────────────────────────────────────────────────────────
+    if (codigoCargo && codigoCargo.trim()) {
+      params.push(codigoCargo.trim());
+      const idx = params.length;
+      whereConditions.push('(ca.codigo = $' + idx + ' OR cb.codigo = $' + idx + ' OR r.encargo_codigo = $' + idx + ')');
+    }
+
+    if (grado && grado.trim()) {
+      params.push(grado.trim());
+      const idx = params.length;
+      whereConditions.push('(ca.grado = $' + idx + ' OR cb.grado = $' + idx + ' OR r.encargo_grado = $' + idx + ')');
+    }
+
+    if (tipoSangre && tipoSangre.trim()) {
+      params.push(tipoSangre.trim());
+      const idx = params.length;
+      whereConditions.push('REPLACE(UPPER(COALESCE(p.tipo_sangre, \'\')), \'0\', \'O\') = REPLACE(UPPER($' + idx + '), \'0\', \'O\')');
+    }
+
+    if (sexo && sexo.trim()) {
+      const s = sexo.trim().toUpperCase();
+      if (s === 'M' || s.startsWith('MASC')) {
+        whereConditions.push('(UPPER(COALESCE(p.sexo, \'\')) LIKE \'M%\' OR UPPER(COALESCE(p.sexo, \'\')) = \'M\')');
+      } else if (s === 'F' || s.startsWith('FEM')) {
+        whereConditions.push('(UPPER(COALESCE(p.sexo, \'\')) LIKE \'F%\' OR UPPER(COALESCE(p.sexo, \'\')) = \'F\')');
+      } else {
+        params.push(s);
+        whereConditions.push('UPPER(COALESCE(p.sexo, \'\')) = UPPER($' + params.length + ')');
+      }
+    }
+
+    if (edadMin && !isNaN(parseInt(edadMin, 10))) {
+      params.push(parseInt(edadMin, 10));
+      whereConditions.push('(p.fecha_nacimiento ~ \'^\\d{4}-\\d{2}-\\d{2}$\' AND DATE_PART(\'year\', AGE(CURRENT_DATE, p.fecha_nacimiento::date)) >= $' + params.length + ')');
+    }
+
+    if (edadMax && !isNaN(parseInt(edadMax, 10))) {
+      params.push(parseInt(edadMax, 10));
+      whereConditions.push('(p.fecha_nacimiento ~ \'^\\d{4}-\\d{2}-\\d{2}$\' AND DATE_PART(\'year\', AGE(CURRENT_DATE, p.fecha_nacimiento::date)) <= $' + params.length + ')');
+    }
+
+    if (fechaNacDesde && fechaNacDesde.trim()) {
+      params.push(fechaNacDesde.trim());
+      whereConditions.push('p.fecha_nacimiento >= $' + params.length);
+    }
+
+    if (fechaNacHasta && fechaNacHasta.trim()) {
+      params.push(fechaNacHasta.trim());
+      whereConditions.push('p.fecha_nacimiento <= $' + params.length);
+    }
+
+    if (tieneDiscapacidad) {
+      const td = tieneDiscapacidad.trim().toLowerCase();
+      if (td === 'si' || td === 'true' || td === '1') {
+        whereConditions.push('(p.tipo_discapacidad IS NOT NULL AND TRIM(p.tipo_discapacidad) != \'\' AND UPPER(p.tipo_discapacidad) NOT IN (\'NINGUNA\', \'NINGUNO\', \'NO REGISTRA\', \'SIN ESPECIFICAR\'))');
+      } else if (td === 'no' || td === 'false' || td === '0') {
+        whereConditions.push('(p.tipo_discapacidad IS NULL OR TRIM(p.tipo_discapacidad) = \'\' OR UPPER(p.tipo_discapacidad) IN (\'NINGUNA\', \'NINGUNO\', \'NO REGISTRA\', \'SIN ESPECIFICAR\'))');
+      }
+    }
+
+    if (tipoDiscapacidad && tipoDiscapacidad.trim()) {
+      params.push('%' + tipoDiscapacidad.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(p.tipo_discapacidad, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (situacion && situacion.trim()) {
+      params.push('%' + situacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (clasificacion && clasificacion.trim()) {
+      params.push('%' + clasificacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (concurso) {
+      const cc = concurso.trim().toLowerCase();
+      if (cc === 'si' || cc === 'true' || cc === '1') {
+        whereConditions.push('(e.opec IS NOT NULL AND TRIM(e.opec) != \'\' AND UPPER(e.opec) NOT IN (\'NO\', \'NO REGISTRADO\', \'NINGUNA\', \'NINGUNO\', \'0\'))');
+      } else if (cc === 'no' || cc === 'false' || cc === '0') {
+        whereConditions.push('(e.opec IS NULL OR TRIM(e.opec) = \'\' OR UPPER(e.opec) IN (\'NO\', \'NO REGISTRADO\', \'NINGUNA\', \'NINGUNO\', \'0\'))');
+      }
+    }
+
+    if (opec && opec.trim()) {
+      params.push('%' + opec.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.opec, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (fechaIngresoDesde && fechaIngresoDesde.trim()) {
+      params.push(fechaIngresoDesde.trim());
+      whereConditions.push('r.fecha_ingreso >= $' + params.length);
+    }
+
+    if (fechaIngresoHasta && fechaIngresoHasta.trim()) {
+      params.push(fechaIngresoHasta.trim());
+      whereConditions.push('r.fecha_ingreso <= $' + params.length);
+    }
+
+    if (fechaEncargoDesde && fechaEncargoDesde.trim()) {
+      params.push(fechaEncargoDesde.trim());
+      whereConditions.push('r.fecha_encargo >= $' + params.length);
+    }
+
+    if (fechaEncargoHasta && fechaEncargoHasta.trim()) {
+      params.push(fechaEncargoHasta.trim());
+      whereConditions.push('r.fecha_encargo <= $' + params.length);
+    }
+
+    if (tieneEncargo) {
+      const te = tieneEncargo.trim().toLowerCase();
+      if (te === 'si' || te === 'true' || te === '1') {
+        whereConditions.push('((r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != \'\') OR UPPER(COALESCE(e.situacion, \'\')) = \'ENCARGO\')');
+      } else if (te === 'no' || te === 'false' || te === '0') {
+        whereConditions.push('((r.encargo_denominacion IS NULL OR TRIM(r.encargo_denominacion) = \'\') AND UPPER(COALESCE(e.situacion, \'\')) != \'ENCARGO\')');
+      }
+    }
+
+    if (encargoDenominacion && encargoDenominacion.trim()) {
+      params.push('%' + encargoDenominacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(r.encargo_denominacion, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (encargoCodigo && encargoCodigo.trim()) {
+      params.push(encargoCodigo.trim());
+      whereConditions.push('r.encargo_codigo = $' + params.length);
+    }
+
+    if (encargoGrado && encargoGrado.trim()) {
+      params.push(encargoGrado.trim());
+      whereConditions.push('r.encargo_grado = $' + params.length);
+    }
+
+    if (estudios && estudios.trim()) {
+      params.push('%' + estudios.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(edu.estudios, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (institucionEstudios && institucionEstudios.trim()) {
+      params.push('%' + institucionEstudios.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(edu.institucion_estudios, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (tieneDiplomado) {
+      const td = tieneDiplomado.trim().toLowerCase();
+      if (td === 'si' || td === 'true' || td === '1') {
+        whereConditions.push('edu.tiene_diplomado = true');
+      } else if (td === 'no' || td === 'false' || td === '0') {
+        whereConditions.push('(edu.tiene_diplomado = false OR edu.tiene_diplomado IS NULL)');
+      }
+    }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const limitParam = `$${params.length + 1}`;
     const offsetParam = `$${params.length + 2}`;
+
+    let orderClause = `
+      CASE 
+        -- 1. Inactivos de últimas (prioridad 2)
+        WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) != 'activo' THEN 2
+        -- 2. Sin cédula de penúltimas (prioridad 1): documento_pendiente, prefijo PROV-, nulo/vacío, o vacantes
+        WHEN COALESCE(p.documento_pendiente, false) = true
+          OR p.cedula LIKE 'PROV-%'
+          OR p.cedula IS NULL
+          OR TRIM(p.cedula) = ''
+          OR TRIM(p.cedula) = '0'
+          OR COALESCE(p.es_vacante, false) = true
+          OR p.primer_apellido = 'VACANTE'
+          OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+          THEN 1
+        -- 3. Activos con cédula de primeras (prioridad 0)
+        ELSE 0 
+      END ASC,
+      p.nombre_completo ASC`;
+
+    if (sortBy === 'fecha_ingreso_asc' || sortBy === 'tiempo_servicio_desc') {
+      orderClause = `r.fecha_ingreso ASC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'fecha_ingreso_desc' || sortBy === 'tiempo_servicio_asc') {
+      orderClause = `r.fecha_ingreso DESC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'edad_asc') {
+      orderClause = `p.fecha_nacimiento DESC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'edad_desc') {
+      orderClause = `p.fecha_nacimiento ASC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'alfabetico_asc') {
+      orderClause = `p.nombre_completo ASC`;
+    } else if (sortBy === 'alfabetico_desc') {
+      orderClause = `p.nombre_completo DESC`;
+    } else if (sortBy === 'cedula_asc') {
+      orderClause = `NULLIF(REGEXP_REPLACE(p.cedula, '[^0-9]', '', 'g'), '')::BIGINT ASC NULLS LAST`;
+    } else if (sortBy === 'cedula_desc') {
+      orderClause = `NULLIF(REGEXP_REPLACE(p.cedula, '[^0-9]', '', 'g'), '')::BIGINT DESC NULLS LAST`;
+    }
 
     const sql = `
       WITH vacantes_enum AS (
@@ -339,6 +560,7 @@ router.get('/', auth, async (req, res) => {
              COALESCE(e.opec,'') AS opec,
              COALESCE(e.novedades,'') AS novedades,
              COALESCE(r.fecha_ingreso,'') AS fecha_ingreso,
+             COALESCE(r.fecha_retiro,'') AS fecha_retiro,
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
@@ -357,24 +579,7 @@ router.get('/', auth, async (req, res) => {
       LEFT JOIN educacion edu  ON edu.id_educacion   = r.id_educacion
       LEFT JOIN estados e      ON e.id_estado         = r.id_estado
       ${whereClause}
-      ORDER BY 
-        CASE 
-          -- 1. Inactivos de últimas (prioridad 2)
-          WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) != 'activo' THEN 2
-          -- 2. Sin cédula de penúltimas (prioridad 1): documento_pendiente, prefijo PROV-, nulo/vacío, o vacantes
-          WHEN COALESCE(p.documento_pendiente, false) = true
-            OR p.cedula LIKE 'PROV-%'
-            OR p.cedula IS NULL
-            OR TRIM(p.cedula) = ''
-            OR TRIM(p.cedula) = '0'
-            OR COALESCE(p.es_vacante, false) = true
-            OR p.primer_apellido = 'VACANTE'
-            OR p.nombre_completo LIKE 'PLAZA VACANTE%'
-            THEN 1
-          -- 3. Activos con cédula de primeras (prioridad 0)
-          ELSE 0 
-        END ASC,
-        p.nombre_completo ASC
+      ORDER BY ${orderClause}
       LIMIT ${limitParam} OFFSET ${offsetParam}`;
 
     const allParams = [...params, parseInt(limit), offset];
@@ -409,8 +614,10 @@ router.get('/', auth, async (req, res) => {
         // Cálculo dinámico estricto: "X años, Y meses, Z días"
         const dateNac = parseExcelDate(r.fecha_nacimiento);
         const dateIng = parseExcelDate(r.fecha_ingreso);
+        const esRetirado = (r.estado_servidor || '').toLowerCase() === 'retirado' || (r.situacion || '').toLowerCase() === 'retirado';
+        const dateRetiro = esRetirado ? parseExcelDate(r.fecha_retiro) : null;
         const edadCalc = dateNac ? calcularDiferenciaFechasExacta(dateNac) : null;
-        const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng) : null;
+        const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRetiro || undefined) : null;
         const esVacante = Boolean(r.es_vacante);
         const numeroVacante = r.numero_vacante ? parseInt(r.numero_vacante) : null;
         const codigoVacante = r.codigo_vacante || (numeroVacante ? `PLAZA VACANTE ${String(numeroVacante).padStart(4, '0')}` : (esVacante ? 'PLAZA VACANTE' : null));
@@ -498,6 +705,8 @@ router.get('/', auth, async (req, res) => {
           opec: esVacante ? null : r.opec,
           novedades: esVacante ? 'PLAZA VACANTE' : r.novedades,
           fechaIngreso: esVacante ? null : r.fecha_ingreso,
+          fechaRetiro: esVacante ? null : (r.fecha_retiro || null),
+          esRetirado: esRetirado,
           fechaEncargo: esVacante ? null : r.fecha_encargo,
           tiempoServicioCalculado: esVacante ? null : (tiempoCalc ? tiempoCalc.texto : 'No disponible'),
           otroTiempoGobernacion: esVacante ? null : r.otro_tiempo_gobernacion,
@@ -532,7 +741,7 @@ router.get('/catalogs', auth, async (_, res) => {
   try {
     const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes, discRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
-      pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
+      pool.query(`SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> '' AND cargo !~ '^[0-9]' AND cargo NOT IN ('NO REGISTRADO', 'XXXXX', 'CARGO POR DEFINIR') ORDER BY cargo`),
       pool.query(`
         SELECT DISTINCT d.dependencia, c.cargo, c.codigo, c.grado, c.asignacion_sueldo, c.nivel
         FROM rel_principal r
@@ -587,7 +796,7 @@ router.get('/catalogs', auth, async (_, res) => {
     const cargosSet = new Set();
     for (const r of cargosRes.rows) {
       const cName = clean(r.cargo)?.toUpperCase();
-      if (cName && !cargosSet.has(cName)) {
+      if (cName && !cargosSet.has(cName) && !cName.match(/^[0-9]/) && !['NO REGISTRADO', 'XXXXX', 'CARGO POR DEFINIR'].includes(cName)) {
         cargosSet.add(cName);
         cargosList.push({
           cargo: cName,
@@ -1057,6 +1266,7 @@ router.get('/:cedula', auth, async (req, res) => {
              COALESCE(e.opec,'') AS opec,
              COALESCE(e.novedades,'') AS novedades,
              COALESCE(r.fecha_ingreso,'') AS fecha_ingreso,
+             COALESCE(r.fecha_retiro,'') AS fecha_retiro,
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
@@ -1097,8 +1307,10 @@ router.get('/:cedula', auth, async (req, res) => {
     const r = result.rows[0];
     const dateNac = parseExcelDate(r.fecha_nacimiento);
     const dateIng = parseExcelDate(r.fecha_ingreso);
+    const esRetirado = (r.estado_servidor || '').toLowerCase() === 'retirado' || (r.situacion || '').toLowerCase() === 'retirado';
+    const dateRetiro = esRetirado ? parseExcelDate(r.fecha_retiro) : null;
     const edadCalc = dateNac ? calcularDiferenciaFechasExacta(dateNac) : null;
-    const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng) : null;
+    const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRetiro || undefined) : null;
     const esVacante = Boolean(r.es_vacante);
     const numeroVacante = r.numero_vacante ? parseInt(r.numero_vacante) : null;
     const codigoVacante = r.codigo_vacante || (numeroVacante ? `PLAZA VACANTE ${String(numeroVacante).padStart(4, '0')}` : (esVacante ? 'PLAZA VACANTE' : null));
@@ -1181,6 +1393,8 @@ router.get('/:cedula', auth, async (req, res) => {
       opec: esVacante ? null : r.opec,
       novedades: esVacante ? 'PLAZA VACANTE' : r.novedades,
       fechaIngreso: esVacante ? null : r.fecha_ingreso,
+      fechaRetiro: esVacante ? null : (r.fecha_retiro || null),
+      esRetirado: esRetirado,
       fechaEncargo: esVacante ? null : r.fecha_encargo,
       tiempoServicioCalculado: esVacante ? null : (tiempoCalc ? tiempoCalc.texto : 'No disponible'),
       otroTiempoGobernacion: esVacante ? null : r.otro_tiempo_gobernacion,
@@ -1579,11 +1793,11 @@ router.put('/:cedula', auth, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/employees/:cedula/status ─────────────────────────────────────
+// ─── PATCH /api/employees/:cedula/status (Gestión de Activo, Retirado y Reactivación) ───
 router.patch('/:cedula/status', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
-  const { estadoServidor } = req.body;
+  const { estadoServidor, fechaRetiro, motivoRetiro, action, nuevaFechaIngreso } = req.body;
   if (!estadoServidor) return res.status(400).json({ error: 'estadoServidor es requerido.' });
 
   const estadoServidorValidado = validateEstadoServidor(estadoServidor);
@@ -1591,13 +1805,21 @@ router.patch('/:cedula/status', auth, async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const cleanTarget = (cedula || '').trim();
     const numericTarget = cleanTarget.replace(/\D/g, '');
 
     const r = await client.query(
-      `SELECT r.id_estado, p.nombre_completo 
+      `SELECT r.id_registro, r.id_estado, r.id_cargo_actual, r.id_cargo_base,
+              r.fecha_ingreso, r.fecha_retiro, r.tiempo_servicio, r.otro_tiempo_gobernacion,
+              r.otros_tiempos_periodos, r.tiempo_total_gobernacion,
+              e.estado_servidor, e.situacion,
+              ca.cargo AS cargo_actual_nombre,
+              p.nombre_completo, p.cedula
        FROM rel_principal r 
        LEFT JOIN personas p ON p.id_persona = r.id_persona 
+       LEFT JOIN estados e ON e.id_estado = r.id_estado
+       LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
        WHERE r.id_registro = $1 
           OR r.id_persona = $1 
           OR p.id_persona = $1 
@@ -1609,21 +1831,135 @@ router.patch('/:cedula/status', auth, async (req, res) => {
     );
 
     if (r.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Servidor no encontrado.' });
     }
 
-    const { id_estado, nombre_completo } = r.rows[0];
+    const row = r.rows[0];
+    const { id_registro, id_estado } = row;
+    const nuevoEstado = estadoServidorValidado.valor;
+    const estadoAnterior = row.estado_servidor || 'Activo';
+
+    // ─── CASO 1: RETIRO (Activo -> Retirado) ───
+    if (nuevoEstado === 'Retirado') {
+      const fRetiro = fechaRetiro ? fechaRetiro.trim() : new Date().toISOString().split('T')[0];
+      const dateIng = parseExcelDate(row.fecha_ingreso);
+      const dateRet = parseExcelDate(fRetiro) || new Date();
+      const tiempoCongelado = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRet) : { texto: '0 años, 0 meses, 0 días' };
+
+      const otroCalc = calcularOtroTiempoNormalizado(row.otros_tiempos_periodos, row.otro_tiempo_gobernacion, dateIng);
+      const totalCongelado = sumarTiemposExactos(tiempoCongelado, otroCalc);
+
+      await client.query(
+        `UPDATE estados SET estado_servidor = 'Retirado', situacion = 'RETIRADO' WHERE id_estado = $1`,
+        [id_estado]
+      );
+
+      await client.query(
+        `UPDATE rel_principal 
+         SET fecha_retiro = $1, 
+             tiempo_servicio = $2,
+             tiempo_total_gobernacion = $3
+         WHERE id_registro = $4`,
+        [fRetiro, tiempoCongelado.texto, totalCongelado.texto, id_registro]
+      );
+
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: `Servidor ${row.nombre_completo || cedula} marcado como Retirado el ${fRetiro}. Contador de servicio detenido.`,
+        estadoServidor: 'Retirado',
+        fechaRetiro: fRetiro,
+        tiempoServicioCalculado: tiempoCongelado.texto,
+        tiempoTotalGobernacion: totalCongelado.texto
+      });
+    }
+
+    // ─── CASO 2: REACTIVACIÓN (Retirado -> Activo) ───
+    if (nuevoEstado === 'Activo' && (estadoAnterior === 'Retirado' || action === 'reactivate')) {
+      const fNuevaIngreso = nuevaFechaIngreso ? nuevaFechaIngreso.trim() : new Date().toISOString().split('T')[0];
+      const fRetiroAnterior = row.fecha_retiro || new Date().toISOString().split('T')[0];
+      const fIngresoAnterior = row.fecha_ingreso || null;
+
+      // 1. Archivar periodo anterior en otros_tiempos_periodos
+      let periodosExistentes = Array.isArray(row.otros_tiempos_periodos) ? [...row.otros_tiempos_periodos] : [];
+      if (fIngresoAnterior) {
+        const dateIngAnt = parseExcelDate(fIngresoAnterior);
+        const dateRetAnt = parseExcelDate(fRetiroAnterior) || new Date();
+        const duracionAnt = dateIngAnt ? calcularDiferenciaFechasExacta(dateIngAnt, dateRetAnt) : { texto: 'No disponible' };
+
+        periodosExistentes.push({
+          desde: fIngresoAnterior,
+          hasta: fRetiroAnterior,
+          duracionTexto: duracionAnt.texto,
+          cargo: row.cargo_actual_nombre || 'Servidor Público',
+          entidad: 'Gobernación de Boyacá',
+          tipo: 'Periodo Gobernación Anterior'
+        });
+      }
+
+      // 2. Calcular nuevo acumulado de Otro Tiempo
+      const nuevoOtroTiempoCalc = calcularOtroTiempoNormalizado(periodosExistentes, null);
+      const nuevoOtroTiempoTexto = nuevoOtroTiempoCalc.tieneValor ? nuevoOtroTiempoCalc.texto : row.otro_tiempo_gobernacion;
+
+      // 3. Iniciar nuevo periodo de servicio actual desde la nueva fecha de ingreso
+      const dateNuevoIng = parseExcelDate(fNuevaIngreso) || new Date();
+      const nuevoServicioCalc = calcularDiferenciaFechasExacta(dateNuevoIng, new Date());
+
+      // 4. Nuevo tiempo total sumado
+      const nuevoTotalCalc = sumarTiemposExactos(nuevoServicioCalc, nuevoOtroTiempoCalc);
+
+      await client.query(
+        `UPDATE estados SET estado_servidor = 'Activo', situacion = 'ACTIVO' WHERE id_estado = $1`,
+        [id_estado]
+      );
+
+      await client.query(
+        `UPDATE rel_principal 
+         SET fecha_ingreso = $1,
+             fecha_retiro = NULL,
+             otros_tiempos_periodos = $2,
+             otro_tiempo_gobernacion = $3,
+             tiempo_servicio = $4,
+             tiempo_total_gobernacion = $5
+         WHERE id_registro = $6`,
+        [
+          fNuevaIngreso,
+          JSON.stringify(periodosExistentes),
+          nuevoOtroTiempoTexto,
+          nuevoServicioCalc.texto,
+          nuevoTotalCalc.texto,
+          id_registro
+        ]
+      );
+
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: `Servidor reactivado exitosamente con nueva vinculación desde el ${fNuevaIngreso}. Periodo anterior archivado en Otro Tiempo.`,
+        estadoServidor: 'Activo',
+        fechaIngreso: fNuevaIngreso,
+        tiempoServicioCalculado: nuevoServicioCalc.texto,
+        otroTiempoPeriodos: periodosExistentes,
+        otroTiempoGobernacion: nuevoOtroTiempoTexto,
+        tiempoTotalGobernacion: nuevoTotalCalc.texto
+      });
+    }
+
+    // ─── OTROS CAMBIOS DIRECTOS DE ESTADO ───
     await client.query(
       `UPDATE estados SET estado_servidor = $1 WHERE id_estado = $2`,
-      [estadoServidorValidado.valor, id_estado]
+      [nuevoEstado, id_estado]
     );
 
+    await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Estado actualizado a ${estadoServidorValidado.valor}`,
-      estadoServidor: estadoServidorValidado.valor
+      message: `Estado actualizado a ${nuevoEstado}`,
+      estadoServidor: nuevoEstado
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[employees-service] error updating status:', err.message);
     res.status(500).json({ error: 'Error al actualizar el estado: ' + err.message });
   } finally {
@@ -1631,7 +1967,7 @@ router.patch('/:cedula/status', auth, async (req, res) => {
   }
 });
 
-// ─── DELETE /api/employees/:cedula ───────────────────────────────────────────
+// ─── DELETE /api/employees/:cedula ───
 router.delete('/:cedula', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;

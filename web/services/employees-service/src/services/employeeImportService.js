@@ -56,7 +56,11 @@ class EmployeeImportService {
    * Busca o crea un cargo evitando duplicados.
    */
   async findOrCreateCargo(client, cargoCache, idGenerators, cargoData, defaultNombre = 'PROFESIONAL') {
-    const denominacion = (cargoData?.denominacion || defaultNombre).trim().toUpperCase();
+    let rawDenom = (cargoData?.denominacion || defaultNombre || '').trim().toUpperCase();
+    if (!rawDenom || rawDenom.match(/^[0-9]+$/) || rawDenom.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/)) {
+      rawDenom = (defaultNombre && !defaultNombre.match(/^[0-9]/)) ? defaultNombre.trim().toUpperCase() : 'PROFESIONAL UNIVERSITARIO';
+    }
+    const denominacion = rawDenom;
     const codigo = cargoData?.codigo || 'N/A';
     const grado = cargoData?.grado || 'N/A';
     const asignacion = cargoData?.asignacion != null ? `$${Number(cargoData.asignacion).toLocaleString('es-CO')}` : '$0';

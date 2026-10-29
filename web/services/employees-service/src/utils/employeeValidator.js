@@ -182,7 +182,7 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   };
 }
 
-const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
+const ESTADOS_SERVIDOR = ['Activo', 'Retirado', 'Inactivo', 'Pensionado'];
 
 const SEXOS_VALIDOS = ['Femenino', 'Masculino', 'Prefiero no decirlo'];
 

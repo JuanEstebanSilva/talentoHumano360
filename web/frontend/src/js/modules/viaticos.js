@@ -34,7 +34,9 @@ const ViaticosModule = (() => {
     total: 0,
     page: 1,
     totalPages: 1,
-    filters: {}
+    filters: {},
+    advancedFilters: {},
+    years: []
   };
   let mainContainer = null;
   let currentUploadedFile = null;
@@ -271,10 +273,207 @@ const ViaticosModule = (() => {
       </div>`;
   }
 
+  
+  function getActiveFiltersCount() {
+    return Object.values(state.advancedFilters || {}).filter(v => v !== null && v !== undefined && String(v).trim() !== '').length;
+  }
+
+  function updateAdvFilterBadge() {
+    const badge = document.getElementById('vit-adv-filter-count');
+    const btn = document.getElementById('vit-btn-adv-filter');
+    const count = getActiveFiltersCount();
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if (btn) {
+      btn.classList.toggle('btn-filter-active', count > 0);
+    }
+  }
+
+  function openAdvancedFiltersModal() {
+    const current = state.advancedFilters || {};
+    const html = `
+      <div class="adv-filter-modal-body">
+        <!-- Tarjeta 1: Fechas de Comisión -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Fechas de Comisión y Desplazamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label>Fecha Salida Desde</label>
+              <input type="text" id="vit-filter-salida-desde" class="filter-datepicker" placeholder="AAAA-MM-DD" value="${escHtml(current.fechaSalidaDesde || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Fecha Salida Hasta</label>
+              <input type="text" id="vit-filter-salida-hasta" class="filter-datepicker" placeholder="AAAA-MM-DD" value="${escHtml(current.fechaSalidaHasta || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Fecha Regreso Desde</label>
+              <input type="text" id="vit-filter-regreso-desde" class="filter-datepicker" placeholder="AAAA-MM-DD" value="${escHtml(current.fechaRegresoDesde || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Fecha Regreso Hasta</label>
+              <input type="text" id="vit-filter-regreso-hasta" class="filter-datepicker" placeholder="AAAA-MM-DD" value="${escHtml(current.fechaRegresoHasta || '')}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Destino y Parámetros de Comisión -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <span>Destino y Acto Administrativo</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label>Tipo de Destino</label>
+              <select id="vit-filter-tipo-destino">
+                <option value="">TODOS</option>
+                <option value="Nacional" ${current.tipoDestino === 'Nacional' ? 'selected' : ''}>Nacional</option>
+                <option value="Departamental" ${current.tipoDestino === 'Departamental' ? 'selected' : ''}>Departamental</option>
+                <option value="Internacional" ${current.tipoDestino === 'Internacional' ? 'selected' : ''}>Internacional</option>
+              </select>
+            </div>
+            <div class="adv-filter-field">
+              <label>Municipio / Destino</label>
+              <input type="text" id="vit-filter-destino" placeholder="Ej: Tunja, Bogotá, Paipa..." value="${escHtml(current.destino || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Número de Resolución</label>
+              <input type="text" id="vit-filter-resolucion" placeholder="Ej: 0045, Res-2026..." value="${escHtml(current.numeroResolucion || '')}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 3: Valores Liquidados y Duración -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Montos Liquidados y Duración</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field">
+              <label>Valor Total Mínimo ($)</label>
+              <input type="number" id="vit-filter-valor-min" placeholder="Ej: 100000" value="${escHtml(current.valorMin || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Valor Total Máximo ($)</label>
+              <input type="number" id="vit-filter-valor-max" placeholder="Ej: 2000000" value="${escHtml(current.valorMax || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Días Mínimos</label>
+              <input type="number" id="vit-filter-dias-min" placeholder="Ej: 1" value="${escHtml(current.diasMin || '')}">
+            </div>
+            <div class="adv-filter-field">
+              <label>Días Máximos</label>
+              <input type="number" id="vit-filter-dias-max" placeholder="Ej: 15" value="${escHtml(current.diasMax || '')}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 4: Ordenamiento y Visualización -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="7 10 12 15 17 10"/><polyline points="7 14 12 9 17 14"/></svg>
+            <span>Criterio de Ordenamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field" style="grid-column: 1 / -1;">
+              <label>Ordenar resultados por</label>
+              <select id="vit-filter-sort-by">
+                <option value="" ${!current.sortBy ? 'selected' : ''}>Predeterminado (Últimos registrados)</option>
+                <option value="fecha_desc" ${current.sortBy === 'fecha_desc' ? 'selected' : ''}>Fecha de Salida (Más recientes primero)</option>
+                <option value="fecha_asc" ${current.sortBy === 'fecha_asc' ? 'selected' : ''}>Fecha de Salida (Más antiguas primero)</option>
+                <option value="valor_desc" ${current.sortBy === 'valor_desc' ? 'selected' : ''}>Valor Liquidado (Mayor a menor)</option>
+                <option value="valor_asc" ${current.sortBy === 'valor_asc' ? 'selected' : ''}>Valor Liquidado (Menor a mayor)</option>
+                <option value="radicado_desc" ${current.sortBy === 'radicado_desc' ? 'selected' : ''}>Radicado (Descendente)</option>
+                <option value="radicado_asc" ${current.sortBy === 'radicado_asc' ? 'selected' : ''}>Radicado (Ascendente)</option>
+                <option value="persona_asc" ${current.sortBy === 'persona_asc' ? 'selected' : ''}>Servidor Público (A - Z)</option>
+                <option value="persona_desc" ${current.sortBy === 'persona_desc' ? 'selected' : ''}>Servidor Público (Z - A)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    App.openModal('Filtros Avanzados de Viáticos', html, [
+      {
+        label: 'Limpiar Filtros',
+        type: 'btn-secondary',
+        onClick: () => {
+          state.advancedFilters = {};
+          updateAdvFilterBadge();
+          App.closeModal();
+          state.page = 1;
+          load();
+          App.showToast('Filtros avanzados restablecidos', 'info');
+        }
+      },
+      {
+        label: 'Aplicar Filtros',
+        type: 'btn-primary',
+        onClick: () => {
+          const newFilters = {};
+          const fSalidaDesde = document.getElementById('vit-filter-salida-desde')?.value.trim();
+          const fSalidaHasta = document.getElementById('vit-filter-salida-hasta')?.value.trim();
+          const fRegresoDesde = document.getElementById('vit-filter-regreso-desde')?.value.trim();
+          const fRegresoHasta = document.getElementById('vit-filter-regreso-hasta')?.value.trim();
+          const tipoDestino = document.getElementById('vit-filter-tipo-destino')?.value;
+          const destino = document.getElementById('vit-filter-destino')?.value.trim();
+          const numeroResolucion = document.getElementById('vit-filter-resolucion')?.value.trim();
+          const valorMin = document.getElementById('vit-filter-valor-min')?.value.trim();
+          const valorMax = document.getElementById('vit-filter-valor-max')?.value.trim();
+          const diasMin = document.getElementById('vit-filter-dias-min')?.value.trim();
+          const diasMax = document.getElementById('vit-filter-dias-max')?.value.trim();
+          const sortBy = document.getElementById('vit-filter-sort-by')?.value;
+
+          if (fSalidaDesde) newFilters.fechaSalidaDesde = fSalidaDesde;
+          if (fSalidaHasta) newFilters.fechaSalidaHasta = fSalidaHasta;
+          if (fRegresoDesde) newFilters.fechaRegresoDesde = fRegresoDesde;
+          if (fRegresoHasta) newFilters.fechaRegresoHasta = fRegresoHasta;
+          if (tipoDestino) newFilters.tipoDestino = tipoDestino;
+          if (destino) newFilters.destino = destino;
+          if (numeroResolucion) newFilters.numeroResolucion = numeroResolucion;
+          if (valorMin) newFilters.valorMin = valorMin;
+          if (valorMax) newFilters.valorMax = valorMax;
+          if (diasMin) newFilters.diasMin = diasMin;
+          if (diasMax) newFilters.diasMax = diasMax;
+          if (sortBy) newFilters.sortBy = sortBy;
+
+          state.advancedFilters = newFilters;
+          updateAdvFilterBadge();
+          App.closeModal();
+          state.page = 1;
+          load();
+          const count = getActiveFiltersCount();
+          App.showToast(count > 0 ? `Se aplicaron ${count} filtros avanzados a viáticos` : 'Filtros aplicados', 'success');
+        }
+      }
+    ]);
+
+    setTimeout(() => {
+      if (typeof flatpickr !== 'undefined') {
+        flatpickr('.filter-datepicker', {
+          dateFormat: 'Y-m-d',
+          allowInput: true,
+          locale: { firstDayOfWeek: 1 }
+        });
+      }
+    }, 100);
+  }
+
   async function load() {
     renderSkeletonTable();
     try {
-      const params = { page: state.page, limit: 20, ...state.filters };
+      const params = { page: state.page, limit: 20, ...state.filters, ...state.advancedFilters };
       if (state.activePackage && state.activePackage.id_paquete) {
         params.id_paquete = state.activePackage.id_paquete;
       }
@@ -284,6 +483,7 @@ const ViaticosModule = (() => {
       state.totalPages = res.totalPages || 1;
       renderTable();
       renderPagination();
+      updateAdvFilterBadge();
       const countEl = document.getElementById('vit-count');
       if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
     } catch (err) { App.showToast('Error al cargar viáticos: ' + err.message, 'error'); }
@@ -385,18 +585,21 @@ const ViaticosModule = (() => {
       buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
     }
 
-    if (nextTab) {
-      if (currentFormIsEdit) {
-        buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
-      }
-      buttonsHtml += `<button type="button" class="btn btn-primary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+    if (prevTab) {
+      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     } else {
-      // Última pestaña (Soporte & Estado)
-      if (currentFormIsEdit) {
-        buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Actualizar Viático</span></button>`;
-      } else {
-        buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
-      }
+      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+    }
+
+    // Botón de Guardar/Crear disponible en todo momento sin requerir llegar a la última pestaña
+    if (currentFormIsEdit) {
+      buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
+    } else {
+      buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+    }
+
+    if (nextTab) {
+      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -455,17 +658,7 @@ const ViaticosModule = (() => {
             <div class="form-group span-2 autocomplete-wrapper">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <label class="form-label" style="margin:0;">Nombre Completo del Servidor</label>
-                <div id="vf-locked-box" style="display:none; align-items:center; gap:8px;">
-                  <span class="badge-servidor-vinculado" title="Información protegida procedente de la base de datos de servidores públicos">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    Servidor Vinculado (Protegido)
-                  </span>
-                  <button type="button" class="btn-unlock-servidor" onclick="ViaticosModule.unlockServidor()" title="Desvincular servidor y permitir edición manual">
-                    ✕ Desvincular / Editar manual
-                  </button>
-                </div>
-              </div>
-              <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
+                <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
@@ -484,16 +677,7 @@ const ViaticosModule = (() => {
               <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${dis} />
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Vigencia Fiscal / Carpeta de Viáticos</label>
-              <select id="vf-id-paquete" class="filter-select" ${dis}>
-                ${(state.packages || []).map(p => {
-                  const isSel = (r.id_paquete && parseInt(r.id_paquete, 10) === parseInt(p.id_paquete, 10)) ||
-                                (state.activePackage && parseInt(state.activePackage.id_paquete, 10) === parseInt(p.id_paquete, 10));
-                  return `<option value="${p.id_paquete}" ${isSel ? 'selected' : ''}>Vigencia ${p.anio} - ${escHtml(p.nombre)}` + (p.total_viaticos ? ` (${p.total_viaticos} registros)` : '') + `</option>`;
-                }).join('')}
-              </select>
-            </div>
+            
           </div>
         </div>
 
@@ -544,7 +728,10 @@ const ViaticosModule = (() => {
               </div>
             </div>
 
-            <input type="hidden" id="vf-destino" value="${escHtml(r.destino || '')}" />
+            <div class="form-group span-2">
+              <label class="form-label required">Destino de la Comisión (Municipio / Ciudad / País)</label>
+              <input id="vf-destino" class="form-input" placeholder="Ej: Tunja, Boyacá / Bogotá D.C. / Pajarito, Yopal..." value="${escHtml(r.destino || '')}" oninput="ViaticosModule.onDestinoManualInput(this.value)" enterkeyhint="next" required />
+            </div>
 
             <div class="form-group span-2">
               <div class="dest-preview-box">
@@ -685,8 +872,8 @@ const ViaticosModule = (() => {
         const res = await API.getEmployees({ q: query, limit: 6 });
         const list = res.data || [];
         if (!list.length) {
-          drop.innerHTML = `<div class="autocomplete-empty-state"><span>🔍 No se encontraron funcionarios con ese nombre o documento</span></div>`;
-          drop.style.display = 'block';
+          drop.style.display = 'none';
+          drop.innerHTML = '';
           return;
         }
         drop.innerHTML = list.map(emp => {
@@ -728,28 +915,7 @@ const ViaticosModule = (() => {
     if (depInput) depInput.value = emp.dependencia || '';
     if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
 
-    // Bloquear campos y aplicar destello visual
-    const fields = [nombreInput, docInput, cargoInput, depInput];
-    fields.forEach(el => {
-      if (el) {
-        el.readOnly = true;
-        el.classList.add('field-locked-readonly');
-        el.classList.remove('input-flash-sync');
-        void el.offsetWidth;
-        el.classList.add('input-flash-sync');
-        setTimeout(() => {
-          el.classList.remove('input-flash-sync');
-        }, 2200);
-      }
-    });
-
-    if (lockedBox) lockedBox.style.display = 'inline-flex';
-
-    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
-      App.refreshFloatingLabels(document.getElementById('modal-body'));
-    }
-
-    App.showToast(`Datos vinculados y protegidos para ${emp.nombre_completo}.`, 'info');
+    App.showToast(`Datos completados para ${emp.nombre_completo}.`, 'info');
   }
 
   function unlockServidor() {
@@ -1358,11 +1524,14 @@ const ViaticosModule = (() => {
     const ff = document.getElementById('vf-ff')?.value;
 
     if (!nombre) { App.showToast('El nombre del funcionario es requerido.', 'warning'); return null; }
-    if (!destino) { App.showToast('El destino del viático es requerido.', 'warning'); return null; }
+    if (!destino) {
+      destino = 'TUNJA, BOYACÁ';
+    }
 
     const tipoDestino = document.querySelector('input[name="vf-tipo-dest"]:checked')?.value || 'Nacional';
 
     return {
+    onDestinoManualInput,
       persona: nombre,
       documento: document.getElementById('vf-doc')?.value.trim() || '',
       dependencia: document.getElementById('vf-dep')?.value.trim() || '',
@@ -1380,7 +1549,7 @@ const ViaticosModule = (() => {
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
       saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
       soporte: currentUploadedFile || null,
-      id_paquete: parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.activePackage ? state.activePackage.id_paquete : (state.packages && state.packages[0] ? state.packages[0].id_paquete : 5)),
+      id_paquete: (state.activePackage ? state.activePackage.id_paquete : (parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.packages && state.packages[0] ? state.packages[0].id_paquete : null))),
     };
   }
 
@@ -1500,6 +1669,10 @@ const ViaticosModule = (() => {
   function getPackagesByYear() {
     const pkgs = state.packages || [];
     const map = {};
+    (state.years || []).forEach(yObj => {
+      const y = typeof yObj === 'object' ? parseInt(yObj.anio, 10) : parseInt(yObj, 10);
+      if (y && !map[y]) map[y] = [];
+    });
     pkgs.forEach(p => {
       const y = parseInt(p.anio) || 2026;
       if (!map[y]) map[y] = [];
@@ -1665,6 +1838,17 @@ const ViaticosModule = (() => {
     }
   }
 
+  async function loadYears() {
+    try {
+      const res = await API.getViaticosAnios();
+      state.years = Array.isArray(res) ? res : (res.data || []);
+      return state.years;
+    } catch (err) {
+      console.warn('[ViaticosModule] Error al cargar vigencias anuales:', err);
+      return [];
+    }
+  }
+
   async function loadPackages() {
     try {
       const pkgs = await API.getViaticosPaquetes();
@@ -1722,6 +1906,8 @@ const ViaticosModule = (() => {
     const depEl = document.getElementById('vit-dependencia');
     if (depEl) depEl.value = '';
     state.filters = {};
+    state.advancedFilters = {};
+    updateAdvFilterBadge();
     if (state.activePackage && state.activePackage.id_paquete) {
       state.filters.id_paquete = state.activePackage.id_paquete;
     }
@@ -1935,6 +2121,8 @@ const ViaticosModule = (() => {
       </div>
     `;
 
+    await loadYears();
+    await loadYears();
     const packages = await loadPackages();
     const grid = document.getElementById('vit-years-grid');
     const badge = document.getElementById('vit-years-badge-count');
@@ -2029,16 +2217,16 @@ const ViaticosModule = (() => {
     }).join('');
 
     const addCardHtml = `
-      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreatePackageModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreatePackageModal()" title="Agregar nuevo archivo Excel o vigencia limpia de viáticos">
+      <div class="viaticos-pkg-card-add" role="button" tabindex="0" onclick="ViaticosModule.openCreateYearModal()" onkeydown="if(event.key==='Enter')ViaticosModule.openCreateYearModal()" title="Agregar nuevo histórico anual de viáticos">
         <div class="viaticos-pkg-add-circle">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:26px;height:26px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </div>
         <div class="viaticos-pkg-add-title">Agregar uno nuevo</div>
-        <div class="viaticos-pkg-add-desc">Sube un nuevo archivo Excel anual o crea una vigencia limpia</div>
+        <div class="viaticos-pkg-add-desc">Crea un nuevo histórico anual de viáticos</div>
       </div>
     `;
 
-    grid.innerHTML = cardsHtml + addCardHtml;
+    grid.innerHTML = cardsHtml + (Auth.canEdit() ? addCardHtml : '');
   }
 
   // ─── Vista de Carpetas de un Año Específico ──────────────────────────────────
@@ -2050,8 +2238,8 @@ const ViaticosModule = (() => {
     container.innerHTML = `
       <div class="viaticos-pkg-section">
         <div class="viaticos-pkg-section-header">
-          <h2 class="viaticos-pkg-section-title">Carpetas y Excels — Vigencia ${year}</h2>
-          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge">${yearPkgs.length} ${yearPkgs.length === 1 ? 'carpeta registrada' : 'carpetas registradas'}</span>
+          <h2 class="viaticos-pkg-section-title">Ejecuciones Presupuestales</h2>
+          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución registrada' : 'ejecuciones registradas'}</span>
         </div>
         <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid"></div>
       </div>
@@ -2179,7 +2367,7 @@ const ViaticosModule = (() => {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:26px;height:26px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </div>
         <div class="viaticos-pkg-add-title">Agregar a ${year}</div>
-        <div class="viaticos-pkg-add-desc">Sube otro archivo Excel para el año ${year} o crea una nueva carpeta</div>
+        <div class="viaticos-pkg-add-desc">Sube un archivo Excel para el año ${year} o crea una nueva ejecución presupuestal</div>
       </div>
     `;
 
@@ -2205,92 +2393,6 @@ const ViaticosModule = (() => {
               <h1 class="module-hero-title">Viáticos</h1>
               <p class="module-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la Gobernación de Boyacá</p>
             </div>
-            <div class="module-header-actions">
-              <!-- Dropdown de Acciones de Excel (Cargas, Descargas y Plantillas) -->
-              <div class="actions-dropdown-wrap">
-                <button
-                  type="button"
-                  class="btn-action-icon-menu"
-                  id="vit-dropdown-toggle"
-                  aria-haspopup="true"
-                  aria-expanded="false"
-                  aria-controls="vit-dropdown-menu"
-                  onclick="ViaticosModule.toggleActionsDropdown(event)"
-                  onkeydown="ViaticosModule.handleDropdownKeydown(event)"
-                  title="Acciones de Excel (Cargas, descargas y plantillas)"
-                  aria-label="Acciones de Excel"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="5" r="1.5"></circle>
-                    <circle cx="12" cy="12" r="1.5"></circle>
-                    <circle cx="12" cy="19" r="1.5"></circle>
-                  </svg>
-                </button>
-                <div
-                  class="actions-dropdown-menu"
-                  id="vit-dropdown-menu"
-                  role="menu"
-                  aria-labelledby="vit-dropdown-toggle"
-                  hidden
-                >
-                  ${Auth.canEdit() ? `
-                  <button
-                    type="button"
-                    class="actions-dropdown-item"
-                    role="menuitem"
-                    tabindex="-1"
-                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal();"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <div>
-                      <strong>Nueva Vigencia / Carga Excel</strong>
-                      <small>Crear nueva vigencia o cargar archivo Excel</small>
-                    </div>
-                  </button>` : ''}
-                  <button
-                    type="button"
-                    class="actions-dropdown-item"
-                    role="menuitem"
-                    tabindex="-1"
-                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcel();"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    <div>
-                      <strong>Exportar Todos los Viáticos</strong>
-                      <small>Descargar base de datos completa (.xlsx)</small>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    class="actions-dropdown-item"
-                    role="menuitem"
-                    tabindex="-1"
-                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                    <div>
-                      <strong>Descargar Plantilla Oficial</strong>
-                      <small>Formato institucional de 17 secretarías (.xlsx)</small>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              ${Auth.canEdit() ? `
-              <button
-                type="button"
-                class="btn-action-icon-add"
-                onclick="ViaticosModule.openCreate()"
-                id="btn-nuevo-viatico-root"
-                title="Nuevo Viático"
-                aria-label="Registrar nuevo viático institucional"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span class="btn-action-add-label">Nuevo Viático</span>
-              </button>` : ''}
             </div>
           </div>
 
@@ -2329,12 +2431,97 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="module-header-actions">
+              <!-- Dropdown de Acciones de Excel para este Año -->
+              <div class="actions-dropdown-wrap">
+                <button
+                  type="button"
+                  class="btn-action-icon-menu"
+                  id="vit-dropdown-toggle"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  aria-controls="vit-dropdown-menu"
+                  onclick="ViaticosModule.toggleActionsDropdown(event)"
+                  onkeydown="ViaticosModule.handleDropdownKeydown(event)"
+                  title="Acciones de Excel para la Vigencia ${year}"
+                  aria-label="Acciones de Excel para la Vigencia ${year}"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="5" r="1.5"></circle>
+                    <circle cx="12" cy="12" r="1.5"></circle>
+                    <circle cx="12" cy="19" r="1.5"></circle>
+                  </svg>
+                </button>
+                <div
+                  class="actions-dropdown-menu"
+                  id="vit-dropdown-menu"
+                  role="menu"
+                  aria-labelledby="vit-dropdown-toggle"
+                  hidden
+                >
+                  ${Auth.canEdit() ? `
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal(${year});"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <div>
+                      <strong>Cargar Archivo Excel</strong>
+                      <small>Importar una nueva ejecución presupuestal a ${year}</small>
+                    </div>
+                  </button>` : ''}
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.exportExcelYear(${year});"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <div>
+                      <strong>Descargar Todas las Ejecuciones (.zip)</strong>
+                      <small>Carpeta "Año ${year}" con todos los archivos Excel</small>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.downloadOfficialTemplate();"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    <div>
+                      <strong>Descargar Plantilla Oficial</strong>
+                      <small>Formato oficial institucional (.xlsx)</small>
+                    </div>
+                  </button>
+                  ${Auth.canEdit() ? `
+                  <button
+                    type="button"
+                    class="actions-dropdown-item text-danger"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.confirmDeleteYear(${year});"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    <div>
+                      <strong style="color:#dc2626;">Eliminar Vigencia Fiscal ${year}</strong>
+                      <small>Eliminar esta vigencia y todas sus ejecuciones</small>
+                    </div>
+                  </button>` : ''}
+                </div>
+              </div>
+
+              <!-- Botón rápido para descargar carpeta ZIP del año -->
               <button
                 type="button"
                 class="btn-action-icon-download"
                 onclick="ViaticosModule.exportExcelYear(${year})"
-                title="Descargar vigencia ${year} en Excel / ZIP"
-                aria-label="Descargar vigencia ${year} en Excel"
+                title="Descargar carpeta con todas las ejecuciones del Año ${year} (ZIP)"
+                aria-label="Descargar carpeta con todas las ejecuciones del Año ${year}"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -2342,20 +2529,6 @@ const ViaticosModule = (() => {
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
               </button>
-              ${Auth.canEdit() ? `
-              <button
-                type="button"
-                class="btn-action-icon-add"
-                onclick="ViaticosModule.openCreate()"
-                title="Nuevo Viático"
-                aria-label="Registrar nuevo viático institucional"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span class="btn-action-add-label">Nuevo Viático</span>
-              </button>` : ''}
             </div>
           </div>
 
@@ -2369,6 +2542,7 @@ const ViaticosModule = (() => {
         </div>
       `;
 
+      bindDropdownOutsideClick();
       loadStatsYear(year);
       const yearPkgsContainer = document.getElementById('vit-year-packages-container');
       if (yearPkgsContainer) {
@@ -2389,7 +2563,7 @@ const ViaticosModule = (() => {
             <div class="module-header-info">
               <button type="button" class="btn-back-pill" onclick="ViaticosModule.backToYearPackages()" title="Volver a las carpetas del año ${pkg.anio}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                <span>Volver a Carpetas (${pkg.anio})</span>
+                <span>Volver a Ejecuciones (${pkg.anio})</span>
               </button>
               <h1 class="module-hero-title" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h1>
               <p class="module-hero-desc">
@@ -2454,6 +2628,11 @@ const ViaticosModule = (() => {
                 </select>
               </div>
               <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()" title="Restablecer todos los filtros" aria-label="Limpiar filtros">Limpiar</button>
+              <button id="vit-btn-adv-filter" class="btn-filter-adv" onclick="ViaticosModule.openAdvancedFiltersModal()" title="Abrir panel de filtros avanzados">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <span>Filtros</span>
+                <span class="filter-count-badge" id="vit-adv-filter-count" style="display:none;">0</span>
+              </button>
             </div>
           </div>
 
@@ -2495,6 +2674,108 @@ const ViaticosModule = (() => {
     await renderCurrentView();
   }
 
+
+  // ─── Modal para Crear Nuevo Histórico Anual (Sin Excel) ─────────────────────
+  function openCreateYearModal() {
+    if (!Auth.canEdit()) {
+      App.showToast('No tienes permisos para crear vigencias fiscales.', 'warning');
+      return;
+    }
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
+
+    const nextYear = new Date().getFullYear() + 1;
+    const modalBody = `
+      <form id="vit-year-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
+        <div class="form-group floating-group">
+          <label class="form-label required" for="vyear-input">Año de Vigencia Fiscal</label>
+          <input id="vyear-input" type="number" min="2000" max="2050" class="form-input font-mono" placeholder="Ej: ${nextYear}" required value="${nextYear}" />
+        </div>
+        <div class="form-group floating-group">
+          <label class="form-label" for="vyear-desc">Descripción o Notas (Opcional)</label>
+          <textarea id="vyear-desc" class="form-input" rows="3" placeholder="Ej: Histórico anual para liquidaciones presupuestales de comisiones y viáticos" autocomplete="off"></textarea>
+        </div>
+      </form>
+    `;
+
+    App.openModal('Crear Nuevo Histórico Anual de Viáticos', modalBody, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Guardar Vigencia', cls: 'btn-primary-cta', id: 'btn-save-vyear', action: async () => {
+        const anioVal = document.getElementById('vyear-input')?.value;
+        const anio = parseInt(anioVal, 10);
+        const descripcion = document.getElementById('vyear-desc')?.value.trim();
+
+        if (!anio || isNaN(anio) || anio < 2000 || anio > 2050) {
+          App.showToast('El año de vigencia fiscal es obligatorio (entre 2000 y 2050).', 'warning');
+          document.getElementById('vyear-input')?.focus();
+          return;
+        }
+
+        const btn = document.getElementById('btn-save-vyear');
+        if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+        try {
+          await API.createViaticosAnio({ anio, descripcion });
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+          App.closeModal();
+          App.showToast(`Histórico anual para la vigencia fiscal ${anio} creado exitosamente.`, 'success');
+          await loadYears();
+          await loadPackages();
+          await renderCurrentView();
+          loadStats();
+        } catch (err) {
+          App.showToast(err.message || 'Error al crear la vigencia fiscal.', 'error');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Vigencia'; }
+        }
+      }}
+    ], 'modal-package');
+
+    setTimeout(() => {
+      const modalBodyEl = document.getElementById('modal-body');
+      if (modalBodyEl && typeof App !== 'undefined') {
+        if (App.initFormUX) App.initFormUX(modalBodyEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+    }, 60);
+  }
+
+  // ─── Confirmar y Eliminar Histórico Anual Completo ──────────────────────────
+  function confirmDeleteYear(year) {
+    if (!Auth.canEdit()) {
+      App.showToast('No tienes permisos para eliminar vigencias fiscales.', 'warning');
+      return;
+    }
+    const html = `
+      <div style="padding:10px 0; text-align:center;">
+        <div style="width:52px;height:52px;margin:0 auto 14px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;color:#ef4444;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:28px;height:28px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="font-size:16.5px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Histórico Anual ${year}?</h3>
+        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.5;max-width:380px;margin:0 auto;">
+          Esta acción eliminará permanentemente la <strong>Vigencia Fiscal ${year}</strong> y todas las ejecuciones presupuestales y registros de viáticos que pertenezcan a este año.
+        </p>
+      </div>
+    `;
+
+    App.openModal('Confirmar Eliminación de Vigencia Fiscal', html, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Sí, Eliminar Vigencia', cls: 'btn-danger', action: async () => {
+        try {
+          await API.deleteViaticosAnio(year);
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.deleted();
+          App.closeModal();
+          App.showToast(`Histórico anual ${year} eliminado correctamente.`, 'success');
+          await loadYears();
+          await loadPackages();
+          await renderCurrentView();
+          loadStats();
+        } catch (err) {
+          App.showToast(err.message || 'Error al eliminar la vigencia.', 'error');
+        }
+      }}
+    ]);
+  }
+
   // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────
   function openCreatePackageModal(preselectedYear = null) {
     if (!Auth.canEdit()) {
@@ -2509,7 +2790,7 @@ const ViaticosModule = (() => {
     const modalBody = `
       <form id="vit-pkg-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
         <div class="form-group floating-group">
-          <label class="form-label required" for="vpkg-nombre">Nombre de la Carpeta o Vigencia</label>
+          <label class="form-label required" for="vpkg-nombre">Nombre de la Ejecución Presupuestal</label>
           <input id="vpkg-nombre" class="form-input" placeholder="Ej: Ejecución Presupuestal 2026" required value="" autocomplete="off" />
         </div>
 
@@ -2537,9 +2818,9 @@ const ViaticosModule = (() => {
       </form>
     `;
 
-    App.openModal('Agregar Nuevo Paquete de Viáticos', modalBody, [
+    App.openModal('Agregar Nueva Ejecución Presupuestal', modalBody, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Guardar Paquete', cls: 'btn-primary-cta', id: 'btn-save-vpkg', action: async () => {
+      { text: 'Guardar Vigencia', cls: 'btn-primary-cta', id: 'btn-save-vpkg', action: async () => {
         const nombre = document.getElementById('vpkg-nombre')?.value.trim();
         const anioVal = document.getElementById('vpkg-anio')?.value;
         const anio = parseInt(anioVal, 10);
@@ -2591,7 +2872,7 @@ const ViaticosModule = (() => {
         } catch (err) {
           App.showToast(err.message || 'Error al crear paquete.', 'error');
         } finally {
-          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Paquete'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Vigencia'; }
         }
       }},
     ], 'modal-package');
@@ -2630,9 +2911,7 @@ const ViaticosModule = (() => {
           anioInput.value = m[1];
         }
         // Deducir nombre sugerido si está vacío
-        if (!nombreInput.value || nombreInput.value.trim() === '') {
-          nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-        }
+        nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
 
         // Inspección y vista previa en tiempo real de las hojas y dependencias del Excel
         if (typeof XLSX !== 'undefined') {
@@ -2854,7 +3133,7 @@ const ViaticosModule = (() => {
     if (!targetPkg) return exportExcel();
     try {
       App.showToast(`Generando Excel para "${targetPkg.nombre}"...`, 'info');
-      const res = await API.getViaticos({ id_paquete: targetPkg.id_paquete, page: 1, limit: 20000 });
+      const res = await API.getViaticos({ id_paquete: targetPkg.id_paquete, ...state.filters, ...state.advancedFilters, page: 1, limit: 20000 });
       const records = res.data || [];
       const cleanName = (targetPkg.archivo_origen || targetPkg.nombre || 'Viaticos').replace(/\.xlsx$/i, '').replace(/[^a-zA-Z0-9_\-]/g, '_');
       ExcelService.exportToExcel({
@@ -2880,7 +3159,7 @@ const ViaticosModule = (() => {
       
       if (typeof JSZip !== 'undefined') {
         const zip = new JSZip();
-        const folderName = `Vigencia_Fiscal_${yNum}`;
+        const folderName = `Año ${yNum}`;
         const zipFolder = zip.folder(folderName);
         
         let allRecordsYear = [];
@@ -2930,7 +3209,7 @@ const ViaticosModule = (() => {
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Vigencia_Fiscal_${yNum}_Archivos_Excel.zip`;
+        a.download = `Año_${yNum}_Ejecuciones_Presupuestales.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -3016,7 +3295,7 @@ const ViaticosModule = (() => {
 
               allRows.push({
                 persona: nomStr,
-                dependencia: sheetName,
+                dependencia: (typeof SECRETARIA_MAP !== 'undefined' && SECRETARIA_MAP[sheetName.trim().toUpperCase()]) || sheetName,
                 destino: destVal,
                 motivo: 'Comisión institucional de servicios',
                 fechaInicio: dInfo.start,
@@ -3071,7 +3350,7 @@ const ViaticosModule = (() => {
   async function exportExcel() {
     try {
       App.showToast('Generando archivo Excel...', 'info');
-      const res = await API.getViaticos({ ...state.filters, page: 1, limit: 10000 });
+      const res = await API.getViaticos({ ...state.filters, ...state.advancedFilters, page: 1, limit: 10000 });
       const records = res.data || state.data;
       ExcelService.exportToExcel({
         filename: 'Talento360_Viaticos_Institucionales',
@@ -3789,6 +4068,8 @@ const ViaticosModule = (() => {
     enterPackage,
     backToYearPackages,
     backToPackages,
+    openCreateYearModal,
+    confirmDeleteYear,
     openCreatePackageModal,
     openEditPackageModal,
     confirmDeletePackage,
@@ -3803,6 +4084,7 @@ const ViaticosModule = (() => {
     applyFilters,
     onSearchInput,
     clearFilters,
+    openAdvancedFiltersModal,
     goPage,
     calcTotal,
     onNombreInput,

@@ -121,8 +121,8 @@ const API = (() => {
       return data;
     },
     updateEmployee: (cedula, data) => request(`/employees/${cedula}`, { method: 'PUT', body: JSON.stringify(data) }),
-    updateEmployeeStatus: (cedula, estadoServidor) =>
-      request(`/employees/${cedula}/status`, { method: 'PATCH', body: JSON.stringify({ estadoServidor }) }),
+    updateEmployeeStatus: (cedula, estadoServidor, extraData = {}) =>
+      request(`/employees/${cedula}/status`, { method: 'PATCH', body: JSON.stringify({ estadoServidor, ...extraData }) }),
     deleteEmployee: (cedula) => request(`/employees/${cedula}`, { method: 'DELETE' }),
 
     // Vacaciones
@@ -149,6 +149,9 @@ const API = (() => {
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
     getViaticosDependencias: (params = {}) => request('/viaticos/dependencias' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosStats: (params = {}) => request('/viaticos/stats' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
+    getViaticosAnios: () => request('/viaticos/anios'),
+    createViaticosAnio: (data) => request('/viaticos/anios', { method: 'POST', body: JSON.stringify(data) }),
+    deleteViaticosAnio: (anio) => request(`/viaticos/anios/${anio}`, { method: 'DELETE' }),
     getViaticosPaquetes: () => request('/viaticos/paquetes'),
     createViaticosPaquete: (data) => request('/viaticos/paquetes', { method: 'POST', body: JSON.stringify(data) }),
     updateViaticosPaquete: (id, data) => request(`/viaticos/paquetes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
