@@ -109,6 +109,8 @@ const App = (() => {
       inputs.forEach(input => {
         if (input._flatpickr) return;
         const currentVal = input.value || '';
+        const minVal = input.getAttribute('min') || undefined;
+        const maxVal = input.getAttribute('max') || undefined;
         flatpickr(input, {
           locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
           dateFormat: 'Y-m-d',
@@ -116,7 +118,13 @@ const App = (() => {
           altFormat: 'd/m/Y',
           altInputClass: ((input.className || 'form-input').replace(/\bflatpickr-input\b/g, '') + ' flatpickr-input-custom').trim(),
           defaultDate: currentVal || null,
+          minDate: minVal,
+          maxDate: maxVal,
           allowInput: true,
+          onChange: function(selectedDates, dateStr) {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          },
           disableMobile: true,
           monthSelectorType: 'dropdown',
           onReady: function(selectedDates, dateStr, instance) {

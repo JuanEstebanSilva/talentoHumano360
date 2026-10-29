@@ -193,7 +193,7 @@ const EmployeesModule = (() => {
     const val = (est || 'Activo').toLowerCase();
     if (val === 'activo') return '<span class="badge badge--activo">Activo</span>';
     if (val === 'pensionado') return '<span class="badge badge--pensionado">Pensionado</span>';
-    return '<span class="badge badge--retirado">Retirado</span>';
+    return '<span class="badge badge--retirado"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Retirado</span>';
   }
 
   function renderEstadoBadge(emp, itemKey) {
@@ -225,7 +225,7 @@ const EmployeesModule = (() => {
               title="${canEdit ? 'Click para reactivar servidor con nueva vinculación' : 'Servidor Retirado'}"
               aria-label="Estado Retirado. ${canEdit ? 'Click para reactivar' : ''}"
               tabindex="${canEdit ? '0' : '-1'}">
-        Retirado
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Retirado
       </button>`;
   }
 
@@ -271,30 +271,45 @@ const EmployeesModule = (() => {
           </div>
         </div>
 
-        <!-- Alerta Institucional de Congelamiento de Tiempo de Servicio -->
-        <div class="retire-alert-banner">
+        <!-- Alerta Institucional de Congelamiento con Auto-cierre Temporal (7s) -->
+        <div class="retire-alert-banner" id="retire-main-alert-banner">
           <div class="retire-alert-icon">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </div>
-          <div class="retire-alert-content">
-            <h4 class="retire-alert-title">Detención y Congelamiento del Tiempo de Servicio</h4>
+          <div class="retire-alert-content" style="width:100%;">
+            <div class="retire-alert-header-row">
+              <h4 class="retire-alert-title">Detención y Congelamiento del Tiempo de Servicio</h4>
+              <span class="retire-alert-timer-tag" id="retire-alert-timer-tag">Aviso visible por 7s</span>
+            </div>
             <p class="retire-alert-text">
               Al confirmar el retiro, el cálculo dinámico de tiempo de servicio se detendrá exactamente en la fecha seleccionada. Su acumulado en la Gobernación de Boyacá quedará congelado hasta esa fecha y certificado en su historial laboral. Si el servidor es vinculado nuevamente en el futuro, este periodo pasará automáticamente a su experiencia histórica acreditada.
             </p>
+            <div class="retire-alert-progress-track">
+              <div class="retire-alert-progress-bar" id="retire-alert-progress-bar"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Formulario de Retiro -->
-        <div class="retire-form-grid">
-          <div class="form-group">
-            <label class="form-label required" for="retire-fecha">Fecha Efectiva de Retiro</label>
-            <div style="position:relative;">
-              <input type="date" id="retire-fecha" class="form-input" data-datepicker="true" value="${today}" max="${today}" required />
-            </div>
-            <span class="form-hint">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
-          </div>
+        <!-- Botón discreto para reabrir aviso si ya se replegó -->
+        <div class="retire-alert-collapsed-wrap" id="retire-alert-collapsed-wrap" style="display:none;">
+          <button type="button" class="btn-toggle-retire-notice" onclick="EmployeesModule.toggleRetireNotice('retire-main-alert-banner', 'retire-alert-collapsed-wrap')">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Ver advertencia de detención de tiempo</span>
+          </button>
+        </div>
 
-          <div class="form-group">
+        <!-- Alerta Dinámica de Inconsistencia de Fechas -->
+        <div id="retire-date-inconsistency-alert" class="retire-date-inconsistency-alert" style="display:none;"></div>
+
+        <!-- Formulario de Retiro con Campos de 56px de Alto -->
+        <div class="retire-form-grid">
+          <div class="form-group retire-field-56">
+            <label class="form-label required" for="retire-fecha">Fecha Efectiva de Retiro</label>
+            <input type="text" id="retire-fecha" class="form-input" data-datepicker="true" max="${today}" value="${today}" required />
+          </div>
+          <span class="form-hint" style="margin-top:-6px; margin-bottom:4px;">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
+
+          <div class="form-group retire-field-56">
             <label class="form-label required" for="retire-causal">Causal Legal de Retiro</label>
             <select id="retire-causal" class="form-select" required>
               <option value="Renuncia voluntaria debidamente aceptada" selected>Renuncia voluntaria debidamente aceptada</option>
@@ -308,13 +323,11 @@ const EmployeesModule = (() => {
               <option value="Muerte del servidor público">Muerte del servidor público</option>
               <option value="Otro motivo legal">Otro motivo legal</option>
             </select>
-            <span class="form-hint">Causal legal según el régimen de la Ley 909 de 2004 y Decreto 1083 de 2015.</span>
           </div>
 
-          <div class="form-group">
+          <div class="form-group retire-field-56">
             <label class="form-label" for="retire-motivo">Acto Administrativo o Detalle (Opcional)</label>
             <input type="text" id="retire-motivo" class="form-input" placeholder="Ej: Decreto / Resolución Nro. 0482 de 2026 - Aceptación de renuncia" autocomplete="off" />
-            <span class="form-hint">Número de resolución o soporte documental que oficializa la desvinculación.</span>
           </div>
         </div>
       </div>
@@ -334,6 +347,101 @@ const EmployeesModule = (() => {
       ],
       'modal-retire-dialog'
     );
+
+    // Iniciar temporizador de desvanecimiento del banner de advertencia (7s)
+    setupNoticeAutoFade('retire-main-alert-banner', 'retire-alert-progress-bar', 'retire-alert-collapsed-wrap', 'retire-alert-timer-tag');
+
+    // Validación interactiva en tiempo real al cambiar fecha
+    setTimeout(() => {
+      const fechaInput = document.getElementById('retire-fecha');
+      if (fechaInput) {
+        const validateDate = () => {
+          const val = fechaInput.value ? fechaInput.value.trim() : '';
+          const alertEl = document.getElementById('retire-date-inconsistency-alert');
+          const btn = document.getElementById('btn-confirm-retire-action');
+          if (!val) return;
+
+          if (emp.fechaIngreso && val < emp.fechaIngreso) {
+            if (alertEl) {
+              alertEl.style.display = 'block';
+              alertEl.innerHTML = `
+                <div class="retire-inconsistency-card">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#dc2626" stroke-width="2.2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <div>
+                    <strong>Inconsistencia cronológica:</strong> La fecha de retiro (<span class="code-date">${val}</span>) no puede ser anterior a la fecha de ingreso actual del servidor (<span class="code-date">${emp.fechaIngreso}</span>). Por favor seleccione una fecha válida.
+                  </div>
+                </div>
+              `;
+            }
+            if (btn) {
+              btn.disabled = true;
+              btn.style.opacity = '0.5';
+              btn.style.cursor = 'not-allowed';
+            }
+          } else {
+            if (alertEl) alertEl.style.display = 'none';
+            if (btn) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              btn.style.cursor = 'pointer';
+            }
+          }
+        };
+
+        fechaInput.addEventListener('change', validateDate);
+        fechaInput.addEventListener('input', validateDate);
+      }
+    }, 150);
+  }
+
+  function setupNoticeAutoFade(bannerId, barId, collapsedWrapId, timerTagId) {
+    setTimeout(() => {
+      const bar = document.getElementById(barId);
+      if (bar) {
+        bar.style.width = '0%';
+      }
+    }, 50);
+
+    let remaining = 7;
+    const interval = setInterval(() => {
+      remaining--;
+      const tag = document.getElementById(timerTagId);
+      if (tag && remaining > 0) {
+        tag.textContent = `Aviso visible por ${remaining}s`;
+      }
+      if (remaining <= 0) {
+        clearInterval(interval);
+        const banner = document.getElementById(bannerId);
+        const wrap = document.getElementById(collapsedWrapId);
+        if (banner) {
+          banner.classList.add('is-collapsed');
+          setTimeout(() => {
+            banner.style.display = 'none';
+            if (wrap) wrap.style.display = 'flex';
+          }, 450);
+        }
+      }
+    }, 1000);
+  }
+
+  function toggleRetireNotice(bannerId, collapsedWrapId) {
+    const banner = document.getElementById(bannerId);
+    const wrap = document.getElementById(collapsedWrapId);
+    if (!banner) return;
+    const isHidden = banner.style.display === 'none' || banner.classList.contains('is-collapsed');
+    if (isHidden) {
+      banner.style.display = 'flex';
+      banner.classList.remove('is-collapsed');
+      const tag = banner.querySelector('.retire-alert-timer-tag');
+      if (tag) tag.textContent = 'Aviso legal permanente';
+      if (wrap) wrap.style.display = 'none';
+    } else {
+      banner.classList.add('is-collapsed');
+      setTimeout(() => {
+        banner.style.display = 'none';
+        if (wrap) wrap.style.display = 'flex';
+      }, 450);
+    }
   }
 
   async function confirmRetireEmployee(itemKey) {
@@ -351,6 +459,11 @@ const EmployeesModule = (() => {
 
     if (!fechaRetiro) {
       App.showToast('Por favor ingrese la fecha de retiro.', 'warning');
+      return;
+    }
+
+    if (emp.fechaIngreso && fechaRetiro < emp.fechaIngreso) {
+      App.showToast(`Inconsistencia: La fecha de retiro (${fechaRetiro}) no puede ser anterior a la fecha de ingreso actual (${emp.fechaIngreso}).`, 'warning');
       return;
     }
 
@@ -400,7 +513,10 @@ const EmployeesModule = (() => {
                 C.C. ${formatCedulaDots(emp.cedula)}
               </span>
               <span class="retire-chip">
-                <span class="badge badge--retirado" style="font-size:10.5px; padding:2px 6px;">Retirado</span>
+                <span class="badge badge--retirado" style="font-size:11px; padding:2px 7px;">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  Retirado
+                </span>
               </span>
               <span class="retire-chip">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -415,28 +531,45 @@ const EmployeesModule = (() => {
           </div>
         </div>
 
-        <!-- Banner de Traslado Automático a Experiencia Histórica -->
-        <div class="retire-alert-banner retire-alert-banner--reactivate">
+        <!-- Banner de Traslado Automático con Auto-cierre Temporal (7s) -->
+        <div class="retire-alert-banner retire-alert-banner--reactivate" id="reactivate-main-alert-banner">
           <div class="retire-alert-icon">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <div class="retire-alert-content">
-            <h4 class="retire-alert-title retire-alert-title--reactivate">Traslado Automático a Experiencia Histórica</h4>
+          <div class="retire-alert-content" style="width:100%;">
+            <div class="retire-alert-header-row">
+              <h4 class="retire-alert-title retire-alert-title--reactivate">Traslado Automático a Experiencia Histórica</h4>
+              <span class="retire-alert-timer-tag" id="reactivate-alert-timer-tag">Aviso visible por 7s</span>
+            </div>
             <p class="retire-alert-text">
               El tiempo previo laborado por este funcionario (<strong>${escHtml(emp.tiempoServicioCalculado || '—')}</strong>) se trasladará automáticamente a <strong>"Otro Tiempo con la Gobernación"</strong>. El contador de tiempo de servicio actual se reiniciará a partir de la nueva fecha de posesión.
             </p>
+            <div class="retire-alert-progress-track">
+              <div class="retire-alert-progress-bar" id="reactivate-alert-progress-bar"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Formulario de Reactivación -->
-        <div class="retire-form-grid retire-form-grid--reactivate">
-          <div class="form-group">
-            <label class="form-label required" for="reactivate-nueva-fecha">Nueva Fecha de Ingreso / Posesión</label>
-            <input type="date" id="reactivate-nueva-fecha" class="form-input" data-datepicker="true" value="${today}" required />
-            <span class="form-hint">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
-          </div>
+        <!-- Botón discreto para reabrir aviso si ya se replegó -->
+        <div class="retire-alert-collapsed-wrap" id="reactivate-alert-collapsed-wrap" style="display:none;">
+          <button type="button" class="btn-toggle-retire-notice" onclick="EmployeesModule.toggleRetireNotice('reactivate-main-alert-banner', 'reactivate-alert-collapsed-wrap')">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Ver detalle de traslado a Otro Tiempo</span>
+          </button>
+        </div>
 
-          <div class="form-group">
+        <!-- Alerta Dinámica de Inconsistencia de Fechas -->
+        <div id="reactivate-date-inconsistency-alert" class="retire-date-inconsistency-alert" style="display:none;"></div>
+
+        <!-- Formulario de Reactivación con Campos de 56px de Alto -->
+        <div class="retire-form-grid retire-form-grid--reactivate">
+          <div class="form-group retire-field-56">
+            <label class="form-label required" for="reactivate-nueva-fecha">Nueva Fecha de Ingreso / Posesión</label>
+            <input type="text" id="reactivate-nueva-fecha" class="form-input" data-datepicker="true" value="${today}" required />
+          </div>
+          <span class="form-hint" style="margin-top:-6px; margin-bottom:4px;">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
+
+          <div class="form-group retire-field-56">
             <label class="form-label" for="reactivate-tipo-vinculacion">Modalidad o Tipo de Nombramiento</label>
             <select id="reactivate-tipo-vinculacion" class="form-select">
               <option value="Carrera Administrativa" selected>Carrera Administrativa</option>
@@ -447,7 +580,7 @@ const EmployeesModule = (() => {
             </select>
           </div>
 
-          <div class="form-group">
+          <div class="form-group retire-field-56">
             <label class="form-label" for="reactivate-acto">Acto Administrativo de Posesión (Opcional)</label>
             <input type="text" id="reactivate-acto" class="form-input" placeholder="Ej: Decreto Nro. 0125 de 2026 - Posesión de cargo" autocomplete="off" />
           </div>
@@ -469,6 +602,51 @@ const EmployeesModule = (() => {
       ],
       'modal-retire-dialog'
     );
+
+    // Iniciar temporizador de desvanecimiento del banner de advertencia (7s)
+    setupNoticeAutoFade('reactivate-main-alert-banner', 'reactivate-alert-progress-bar', 'reactivate-alert-collapsed-wrap', 'reactivate-alert-timer-tag');
+
+    // Validación interactiva en tiempo real al cambiar fecha de reactivación
+    setTimeout(() => {
+      const fechaInput = document.getElementById('reactivate-nueva-fecha');
+      if (fechaInput) {
+        const validateDate = () => {
+          const val = fechaInput.value ? fechaInput.value.trim() : '';
+          const alertEl = document.getElementById('reactivate-date-inconsistency-alert');
+          const btn = document.getElementById('btn-confirm-reactivate-action');
+          if (!val) return;
+
+          if (emp.fechaRetiro && val < emp.fechaRetiro) {
+            if (alertEl) {
+              alertEl.style.display = 'block';
+              alertEl.innerHTML = `
+                <div class="retire-inconsistency-card">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#dc2626" stroke-width="2.2" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <div>
+                    <strong>Inconsistencia cronológica:</strong> La nueva fecha de posesión (<span class="code-date">${val}</span>) no puede ser anterior a la fecha en que se retiró el servidor (<span class="code-date">${emp.fechaRetiro}</span>). Por favor seleccione una fecha igual o posterior.
+                  </div>
+                </div>
+              `;
+            }
+            if (btn) {
+              btn.disabled = true;
+              btn.style.opacity = '0.5';
+              btn.style.cursor = 'not-allowed';
+            }
+          } else {
+            if (alertEl) alertEl.style.display = 'none';
+            if (btn) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              btn.style.cursor = 'pointer';
+            }
+          }
+        };
+
+        fechaInput.addEventListener('change', validateDate);
+        fechaInput.addEventListener('input', validateDate);
+      }
+    }, 150);
   }
 
   function closeReactivateModal() {
@@ -490,6 +668,11 @@ const EmployeesModule = (() => {
       return;
     }
 
+    if (emp.fechaRetiro && nuevaFechaIngreso < emp.fechaRetiro) {
+      App.showToast(`Inconsistencia: La fecha de reactivación (${nuevaFechaIngreso}) no puede ser anterior a la fecha de retiro previa (${emp.fechaRetiro}).`, 'warning');
+      return;
+    }
+
     const targetCedula = emp.cedula || emp.id;
     try {
       App.showToast('Reactivando servidor y archivando periodo anterior...', 'info');
@@ -503,11 +686,6 @@ const EmployeesModule = (() => {
       console.error('[employees] Error al reactivar servidor:', err);
       App.showToast(`Error al reactivar servidor: ${err.message}`, 'error');
     }
-  }
-
-  function closeReactivateModal() {
-    const el = document.getElementById('modal-reactivate-employee');
-    if (el) el.remove();
   }
 
   // Funciones de compatibilidad

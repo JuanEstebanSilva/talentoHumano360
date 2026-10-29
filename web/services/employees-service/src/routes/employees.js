@@ -1845,6 +1845,14 @@ router.patch('/:cedula/status', auth, async (req, res) => {
       const fRetiro = fechaRetiro ? fechaRetiro.trim() : new Date().toISOString().split('T')[0];
       const dateIng = parseExcelDate(row.fecha_ingreso);
       const dateRet = parseExcelDate(fRetiro) || new Date();
+
+      if (dateIng && dateRet < dateIng) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Inconsistencia cronológica: La fecha de retiro (${fRetiro}) no puede ser anterior a la fecha de ingreso actual del servidor (${row.fecha_ingreso}).`
+        });
+      }
+
       const tiempoCongelado = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRet) : { texto: '0 años, 0 meses, 0 días' };
 
       const otroCalc = calcularOtroTiempoNormalizado(row.otros_tiempos_periodos, row.otro_tiempo_gobernacion, dateIng);
@@ -1879,6 +1887,17 @@ router.patch('/:cedula/status', auth, async (req, res) => {
     if (nuevoEstado === 'Activo' && (estadoAnterior === 'Retirado' || action === 'reactivate')) {
       const fNuevaIngreso = nuevaFechaIngreso ? nuevaFechaIngreso.trim() : new Date().toISOString().split('T')[0];
       const fRetiroAnterior = row.fecha_retiro || new Date().toISOString().split('T')[0];
+
+      if (row.fecha_retiro) {
+        const dateRetAnt = parseExcelDate(row.fecha_retiro);
+        const dateNuevoIng = parseExcelDate(fNuevaIngreso);
+        if (dateRetAnt && dateNuevoIng && dateNuevoIng < dateRetAnt) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: `Inconsistencia cronológica: La nueva fecha de ingreso (${fNuevaIngreso}) no puede ser anterior a la fecha de retiro previa del servidor (${row.fecha_retiro}).`
+          });
+        }
+      }
       const fIngresoAnterior = row.fecha_ingreso || null;
 
       // 1. Archivar periodo anterior en otros_tiempos_periodos
