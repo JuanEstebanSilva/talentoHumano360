@@ -2122,7 +2122,6 @@ const ViaticosModule = (() => {
     `;
 
     await loadYears();
-    await loadYears();
     const packages = await loadPackages();
     const grid = document.getElementById('vit-years-grid');
     const badge = document.getElementById('vit-years-badge-count');
@@ -2393,7 +2392,13 @@ const ViaticosModule = (() => {
               <h1 class="module-hero-title">Viáticos</h1>
               <p class="module-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la Gobernación de Boyacá</p>
             </div>
-            </div>
+            ${Auth.canEdit() ? `
+            <div class="module-header-actions">
+              <button type="button" class="btn btn-primary" onclick="ViaticosModule.openCreateYearModal()" title="Crear nueva vigencia fiscal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Nuevo Histórico</span>
+              </button>
+            </div>` : ''}
           </div>
 
           <!-- Estadísticas Globales (5 Tarjetas Glassmorphism Idénticas al Dashboard) -->
