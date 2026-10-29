@@ -36,45 +36,90 @@ const uploadAny = upload.fields([{ name: 'archivo', maxCount: 1 }, { name: 'file
  */
 function detectarMapeoCargos(worksheet) {
   if (!worksheet || !worksheet['!ref']) {
-    return { colCargoNominal: 0, colCodNominal: 1, colGraNominal: 2, colCargoActual: 5, colCodActual: 6, colGraActual: 7 };
+    return {
+      colEncargo: 0,
+      colEncargoCod: 1,
+      colEncargoGra: 2,
+      colEncargoAsig: 3,
+      colDep: 4,
+      colCargoTitular: 5,
+      colCodTitular: 6,
+      colGraTitular: 7,
+      colCargoNominal: 5,
+      colCodNominal: 6,
+      colGraNominal: 7,
+      colCargoActual: 5,
+      colCodActual: 6,
+      colGraActual: 7
+    };
   }
   const range = XLSX.utils.decode_range(worksheet['!ref']);
-  const cargoCols = [];
-  const codCols = [];
-  const graCols = [];
-  let explicitActualCargo = null;
-  let explicitActualCod = null;
-  let explicitActualGra = null;
+  let colEncargo = null;
+  let colEncargoCod = null;
+  let colEncargoGra = null;
+  let colEncargoAsig = null;
+  let colDep = null;
+  let colCargoTitular = null;
+  let colCodTitular = null;
+  let colGraTitular = null;
 
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
     const val = String(cell?.v || '').trim().toUpperCase();
-    if (val.includes('CARGO ACTUAL') || val.includes('DENOMINACIÓN ACTUAL') || val.includes('DENOMINACION ACTUAL')) {
-      explicitActualCargo = C;
-    } else if (val.includes('DENOMINAC') || val === 'CARGO') {
-      cargoCols.push(C);
+
+    if (val.includes('DENOMINAC') && val.includes('ENCARGO')) {
+      colEncargo = C;
+    } else if (val.includes('DENOMINAC') && !val.includes('ENCARGO')) {
+      colCargoTitular = C;
+    } else if (val.includes('ASIGNAC')) {
+      colEncargoAsig = C;
+    } else if (val.includes('DEPEN')) {
+      colDep = C;
+    }
+  }
+
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+    const val = String(cell?.v || '').trim().toUpperCase();
+
+    if (val.startsWith('COD') || val.includes('CÓDIGO') || val.includes('CODIGO')) {
+      if (colDep !== null && C < colDep) {
+        if (colEncargoCod === null) colEncargoCod = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colCodTitular === null) colCodTitular = C;
+      } else {
+        if (colEncargoCod === null) colEncargoCod = C;
+        else if (colCodTitular === null) colCodTitular = C;
+      }
     }
 
-    if (val.includes('COD') && val.includes('ACTUAL')) {
-      explicitActualCod = C;
-    } else if (val.startsWith('COD') || val.includes('CÓDIGO') || val.includes('CODIGO')) {
-      codCols.push(C);
-    }
-
-    if (val.includes('GRA') && val.includes('ACTUAL')) {
-      explicitActualGra = C;
-    } else if (val.startsWith('GRA') || val.includes('GRADO')) {
-      graCols.push(C);
+    if (val.startsWith('GRA') || val.includes('GRADO')) {
+      if (colDep !== null && C < colDep) {
+        if (colEncargoGra === null) colEncargoGra = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colGraTitular === null) colGraTitular = C;
+      } else {
+        if (colEncargoGra === null) colEncargoGra = C;
+        else if (colGraTitular === null) colGraTitular = C;
+      }
     }
   }
 
   return {
-    colCargoNominal: cargoCols[0] !== undefined ? cargoCols[0] : 0,
-    colCodNominal: codCols[0] !== undefined ? codCols[0] : 1,
-    colGraNominal: graCols[0] !== undefined ? graCols[0] : 2,
-    colCargoActual: explicitActualCargo !== null ? explicitActualCargo : (cargoCols.length > 1 ? cargoCols[1] : (cargoCols[0] !== undefined ? cargoCols[0] : 5)),
-    colCodActual: explicitActualCod !== null ? explicitActualCod : (codCols.length > 1 ? codCols[1] : (codCols[0] !== undefined ? codCols[0] : 6)),
-    colGraActual: explicitActualGra !== null ? explicitActualGra : (graCols.length > 1 ? graCols[1] : (graCols[0] !== undefined ? graCols[0] : 7)),
+    colEncargo: colEncargo !== null ? colEncargo : 0,
+    colEncargoCod: colEncargoCod !== null ? colEncargoCod : 1,
+    colEncargoGra: colEncargoGra !== null ? colEncargoGra : 2,
+    colEncargoAsig: colEncargoAsig !== null ? colEncargoAsig : 3,
+    colDep: colDep !== null ? colDep : 4,
+    colCargoTitular: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodTitular: colCodTitular !== null ? colCodTitular : 6,
+    colGraTitular: colGraTitular !== null ? colGraTitular : 7,
+    colCargoNominal: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodNominal: colCodTitular !== null ? colCodTitular : 6,
+    colGraNominal: colGraTitular !== null ? colGraTitular : 7,
+    colCargoActual: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodActual: colCodTitular !== null ? colCodTitular : 6,
+    colGraActual: colGraTitular !== null ? colGraTitular : 7
   };
 }
 const uploadMiddleware = (req, res, next) => {
@@ -214,19 +259,36 @@ async function importarExcel(req, res, pool) {
           return null;
         };
 
-        const cellCargoActual = getCellVal(colMap.colCargoActual);
-        const cellCodActual = getCellVal(colMap.colCodActual);
-        const cellGraActual = getCellVal(colMap.colGraActual);
-        const cellCargoNominal = getCellVal(colMap.colCargoNominal);
-        const cellCodNominal = getCellVal(colMap.colCodNominal);
-        const cellGraNominal = getCellVal(colMap.colGraNominal);
+        const cellEncargo = getCellVal(colMap.colEncargo);
+        const cellEncargoCod = getCellVal(colMap.colEncargoCod);
+        const cellEncargoGra = getCellVal(colMap.colEncargoGra);
+        const cellEncargoAsig = getCellVal(colMap.colEncargoAsig);
+        const cellCargoTitular = getCellVal(colMap.colCargoTitular);
+        const cellCodTitular = getCellVal(colMap.colCodTitular);
+        const cellGraTitular = getCellVal(colMap.colGraTitular);
+        const cellDep = getCellVal(colMap.colDep);
 
-        if (cellCargoActual) rawRow['__CARGO_ACTUAL__'] = cellCargoActual;
-        if (cellCodActual) rawRow['__CODIGO_ACTUAL__'] = cellCodActual;
-        if (cellGraActual) rawRow['__GRADO_ACTUAL__'] = cellGraActual;
-        if (cellCargoNominal) rawRow['__CARGO_NOMINAL__'] = cellCargoNominal;
-        if (cellCodNominal) rawRow['__CODIGO_NOMINAL__'] = cellCodNominal;
-        if (cellGraNominal) rawRow['__GRADO_NOMINAL__'] = cellGraNominal;
+        if (cellEncargo) rawRow['__ENCARGO_DENOMINACION__'] = cellEncargo;
+        if (cellEncargoCod) rawRow['__ENCARGO_CODIGO__'] = cellEncargoCod;
+        if (cellEncargoGra) rawRow['__ENCARGO_GRADO__'] = cellEncargoGra;
+        if (cellEncargoAsig) rawRow['__ENCARGO_ASIGNACION__'] = cellEncargoAsig;
+
+        if (cellCargoTitular) {
+          rawRow['__CARGO_TITULAR__'] = cellCargoTitular;
+          rawRow['__CARGO_ACTUAL__'] = cellCargoTitular;
+          rawRow['__CARGO_NOMINAL__'] = cellCargoTitular;
+        }
+        if (cellCodTitular) {
+          rawRow['__CODIGO_TITULAR__'] = cellCodTitular;
+          rawRow['__CODIGO_ACTUAL__'] = cellCodTitular;
+          rawRow['__CODIGO_NOMINAL__'] = cellCodTitular;
+        }
+        if (cellGraTitular) {
+          rawRow['__GRADO_TITULAR__'] = cellGraTitular;
+          rawRow['__GRADO_ACTUAL__'] = cellGraTitular;
+          rawRow['__GRADO_NOMINAL__'] = cellGraTitular;
+        }
+        if (cellDep) rawRow['__DEPENDENCIA__'] = cellDep;
 
         // A. Detección y descarte de "Filas Fantasma" (espacios al final, celdas combinadas vacías)
         if (esFilaFantasma(rawRow)) {

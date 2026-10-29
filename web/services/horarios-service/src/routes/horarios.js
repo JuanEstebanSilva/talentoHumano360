@@ -831,6 +831,7 @@ router.post('/bulk', auth, async (req, res) => {
       const cargo = cleanString(row.cargo || row['CARGO'] || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
       const dependencia = cleanString(row.dependencia || row['DEPENDENCIA'] || row['Dependencia'] || 'SECRETARÍA GENERAL');
       const secretaria = cleanString(row.secretaria || row['SECRETARIA'] || row['Secretaría'] || row['Secretaria'] || dependencia);
+      const telefono = cleanString(row.telefono || row['tel.'] || row['tel'] || row['Tel.'] || row['Teléfono'] || row['Telefono'] || row['CELULAR'] || row['Celular'] || '') || null;
 
       // Situación laboral / Modalidad
       const rawSituacion = cleanString(row.situacion || row['SITUACION'] || row['SITUACIÓN'] || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
@@ -1004,8 +1005,9 @@ router.post('/bulk', auth, async (req, res) => {
              justificacion_flex = COALESCE($20, justificacion_flex),
              observaciones      = $21,
              aprobado_por       = COALESCE($22, aprobado_por),
+             telefono           = COALESCE($23, telefono),
              actualizado_en     = NOW()
-           WHERE id_horario = $23`,
+           WHERE id_horario = $24`,
           [
             consecToUse,
             apellidos_nombres.toUpperCase(),
@@ -1029,6 +1031,7 @@ router.post('/bulk', auth, async (req, res) => {
             justificacion_flex || null,
             observaciones,
             aprobado_por || null,
+            telefono,
             finalId,
           ]
         );
@@ -1048,14 +1051,14 @@ router.post('/bulk', auth, async (req, res) => {
              fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
              numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
              subtipo_teletrabajo, dias_teletrabajo, franja_ingreso, justificacion_flex,
-             observaciones, creado_por
+             observaciones, creado_por, telefono
            ) VALUES (
              $1, $2, $3, $4, $5,
              $6, $7, $8, $9, $10,
              $11, $12, $13, $14, $15,
              $16, $17, $18, $19, $20,
              $21, $22, $23, $24,
-             $25, $26
+             $25, $26, $27
            ) RETURNING id_horario`,
           [
             numConsecutivo,
@@ -1084,6 +1087,7 @@ router.post('/bulk', auth, async (req, res) => {
             justificacion_flex || null,
             observaciones,
             req.user.name || 'Carga Masiva',
+            telefono,
           ]
         );
 
@@ -1167,6 +1171,7 @@ router.post('/', auth, async (req, res) => {
     apellidos_nombres,
     dependencia,
     cargo,
+    telefono,
     modalidad,
     estado = 'Activa',
     fecha_inicio,
@@ -1273,7 +1278,7 @@ router.post('/', auth, async (req, res) => {
          subtipo_teletrabajo, dias_teletrabajo, dias_presencial, domicilio_laboral, notificacion_arl, fecha_reporte_arl,
          motivo_trabajo_casa, direccion_trabajo_casa, herramientas_tic, prorroga,
          franja_ingreso, franja_salida, horas_semanales, tiempo_almuerzo, justificacion_flex,
-         observaciones, creado_por
+         observaciones, creado_por, telefono
        ) VALUES (
          $1, $2, $3, $4,
          $5, $6, $7, $8, $9, $10,
@@ -1282,7 +1287,7 @@ router.post('/', auth, async (req, res) => {
          $21, $22, $23, $24, $25, $26,
          $27, $28, $29, $30,
          $31, $32, $33, $34, $35,
-         $36, $37
+         $36, $37, $38
        ) RETURNING *`,
       [
         finalConsecutivo,
@@ -1322,6 +1327,7 @@ router.post('/', auth, async (req, res) => {
         justificacion_flex || null,
         observaciones || null,
         req.user.username || 'admin',
+        telefono ? String(telefono).trim() : null,
       ]
     );
 
@@ -1384,6 +1390,7 @@ router.put('/:id', auth, async (req, res) => {
     secretaria = current.secretaria,
     dependencia = current.dependencia,
     cargo = current.cargo,
+    telefono = current.telefono,
     modalidad = current.modalidad,
     estado = current.estado,
     fecha_inicio = current.fecha_inicio,
@@ -1445,8 +1452,8 @@ router.put('/:id', auth, async (req, res) => {
          subtipo_teletrabajo = $19, dias_teletrabajo = $20, dias_presencial = $21, domicilio_laboral = $22, notificacion_arl = $23, fecha_reporte_arl = $24,
          motivo_trabajo_casa = $25, direccion_trabajo_casa = $26, herramientas_tic = $27, prorroga = $28,
          franja_ingreso = $29, franja_salida = $30, horas_semanales = $31, tiempo_almuerzo = $32, justificacion_flex = $33,
-         observaciones = $34, documento = $35, apellidos_nombres = $36, actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_horario = $37
+         observaciones = $34, documento = $35, apellidos_nombres = $36, telefono = $37, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_horario = $38
        RETURNING *`,
       [
         numero_consecutivo !== undefined && numero_consecutivo !== null && String(numero_consecutivo).trim() !== ''
@@ -1487,6 +1494,7 @@ router.put('/:id', auth, async (req, res) => {
         observaciones,
         upper(documento),
         upper(apellidos_nombres),
+        telefono !== undefined ? (telefono ? String(telefono).trim() : null) : current.telefono,
         id,
       ]
     );

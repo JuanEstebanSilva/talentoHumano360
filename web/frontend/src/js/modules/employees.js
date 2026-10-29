@@ -495,6 +495,12 @@ const EmployeesModule = (() => {
     </div>`;
   }
 
+  function formatAsignacionSalarial(val) {
+    if (!val) return '';
+    const cleanDigits = String(val).replace(/[^\d]/g, '');
+    if (!cleanDigits) return '';
+    return '$ ' + parseInt(cleanDigits, 10).toLocaleString('es-CO');
+  }
 
   function getInitials(name) {
     if (!name) return 'SP';
@@ -645,6 +651,9 @@ const EmployeesModule = (() => {
       const formattedCc = formatCedulaDots(e.cedula);
       const isVac = Boolean(e.es_vacante || e.situacion === 'VACANTE' || (e.nombreCompleto && e.nombreCompleto.startsWith('PLAZA VACANTE')));
       const initials = getInitials(e.nombreCompleto);
+      const cargoTitularDisplay = e.cargoTitular || e.cargoBase || e.cargoActual;
+      const codTitularDisplay = e.codigoTitular || e.codigoBase || e.codigoActual;
+      const graTitularDisplay = e.gradoTitular || e.gradoBase || e.gradoActual;
 
       return `
       <tr>
@@ -668,12 +677,19 @@ const EmployeesModule = (() => {
             </div>
           </div>
         </td>
-        <td title="${escHtml(e.cargoActual)}">
-          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">${escHtml(truncate(e.cargoActual, 28)) || '—'}</div>
+        <td title="${escHtml(cargoTitularDisplay)}${e.encargoDenominacion ? ` (Encargo: ${escHtml(e.encargoDenominacion)})` : ''}">
+          <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">${escHtml(truncate(cargoTitularDisplay, 28)) || '—'}</div>
           <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
-            ${(e.codigoActual && e.codigoActual !== 'N/A') ? `Cód. <strong>${escHtml(e.codigoActual)}</strong>` : 'Sin código'}
-            ${(e.gradoActual && e.gradoActual !== 'N/A') ? ` • Grado <strong>${escHtml(e.gradoActual)}</strong>` : ''}
+            ${(codTitularDisplay && codTitularDisplay !== 'N/A') ? `Cód. <strong>${escHtml(codTitularDisplay)}</strong>` : 'Sin código'}
+            ${(graTitularDisplay && graTitularDisplay !== 'N/A') ? ` • Grado <strong>${escHtml(graTitularDisplay)}</strong>` : ''}
           </div>
+          ${e.encargoDenominacion ? `
+            <div style="margin-top:3px;">
+              <span class="badge" style="background:rgba(234, 88, 12, 0.12); color:#c2410c; border:1px solid rgba(234, 88, 12, 0.25); font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:4px; display:inline-flex; align-items:center; gap:4px;" title="Encargado en: ${escHtml(e.encargoDenominacion)}">
+                🔄 Encargo: ${escHtml(truncate(e.encargoDenominacion, 22))}
+              </span>
+            </div>
+          ` : ''}
         </td>
         <td title="Tiempo de Servicio: ${escHtml(e.tiempoServicioCalculado || '—')}${e.otroTiempoCalculado ? ` • Otro Tiempo Gobernación: ${escHtml(e.otroTiempoCalculado)}` : ''}">
           <div style="font-weight:600; color:var(--text-primary); line-height:1.25;">
@@ -955,7 +971,9 @@ const EmployeesModule = (() => {
       const cleanApellidos = sanitizeText(emp.apellidos || emp.primerApellido || '—');
       const cleanNombres = sanitizeText(emp.nombres || '—');
       const cleanDep = sanitizeText(emp.dependencia || 'Sin dependencia asignada');
-      const cleanCargo = sanitizeText(emp.cargoActual || emp.cargoBase || 'Cargo no asignado');
+      const cleanCargo = sanitizeText(emp.cargoTitular || emp.cargoBase || emp.cargoActual || 'Cargo no asignado');
+      const cleanCod = sanitizeText(emp.codigoTitular || emp.codigoBase || emp.codigoActual || 'N/A');
+      const cleanGra = sanitizeText(emp.gradoTitular || emp.gradoBase || emp.gradoActual || 'N/A');
       const cleanMuni = sanitizeText(emp.municipioExpedicion || emp.ciudadExpedicion || emp.expedida || 'Tunja');
       const cleanDepto = sanitizeText(emp.departamentoExpedicion || 'Boyacá');
       const isProv = Boolean(emp.documento_pendiente || (emp.cedula && emp.cedula.startsWith('PROV-')));
@@ -994,6 +1012,11 @@ const EmployeesModule = (() => {
                   <span class="ficha-hero-pill">
                     💼 ${escHtml(cleanCargo)}
                   </span>
+                  ${emp.encargoDenominacion ? `
+                    <span class="ficha-hero-pill pill--gold" title="Encargado en: ${escHtml(emp.encargoDenominacion)}">
+                      🔄 Encargado en: <strong>${escHtml(emp.encargoDenominacion)}</strong>
+                    </span>
+                  ` : ''}
                   <span class="ficha-hero-pill">
                     🏢 ${escHtml(cleanDep)}
                   </span>
@@ -1122,27 +1145,24 @@ const EmployeesModule = (() => {
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">💼</div>
-                  <span class="ficha-card-label">Denominación del Cargo Actual</span>
+                  <span class="ficha-card-label">Denominación del Cargo Titular</span>
                 </div>
                 <div class="ficha-card-val ficha-val-cargo-denominacion">
                   ${escHtml(cleanCargo)}
                 </div>
-                ${emp.cargoBase && emp.cargoBase !== emp.cargoActual ? `
-                  <div class="ficha-card-sub">Cargo Base / Titular: <strong>${escHtml(emp.cargoBase)}</strong></div>
+                ${emp.encargoDenominacion ? `
+                  <div class="ficha-card-sub">🔄 En encargo como: <strong>${escHtml(emp.encargoDenominacion)}</strong></div>
                 ` : ''}
               </div>
 
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">🏷️</div>
-                  <span class="ficha-card-label">Código y Grado</span>
+                  <span class="ficha-card-label">Código y Grado Titular</span>
                 </div>
                 <div class="ficha-card-val font-mono">
-                  Cód. <strong>${escHtml(emp.codigoActual || 'N/A')}</strong> • Grado <strong>${escHtml(emp.gradoActual || 'N/A')}</strong>
+                  Cód. <strong>${escHtml(cleanCod)}</strong> • Grado <strong>${escHtml(cleanGra)}</strong>
                 </div>
-                ${(emp.codigoBase && (emp.codigoBase !== emp.codigoActual || emp.gradoBase !== emp.gradoActual)) ? `
-                  <div class="ficha-card-sub">Base: Cód. ${escHtml(emp.codigoBase)} • Grado ${escHtml(emp.gradoBase)}</div>
-                ` : ''}
               </div>
 
               <div class="ficha-card">
@@ -1185,6 +1205,49 @@ const EmployeesModule = (() => {
                   ${emp.funciones ? `<span class="badge badge--primary" style="font-size:0.95rem; font-weight:700; padding:4px 10px;">${/^\d+$/.test(String(emp.funciones).trim()) ? `Pág. ${escHtml(emp.funciones)}` : escHtml(emp.funciones)}</span>` : '<span style="color:var(--text-muted);">No registra funciones</span>'}
                 </div>
                 <div class="ficha-card-sub">Manual Específico de Funciones</div>
+              </div>
+
+              <!-- Situación de Encargo Administrativo -->
+              <div class="ficha-card ficha-grid--full ${emp.encargoDenominacion ? 'ficha-card--encargo' : ''}" style="${emp.encargoDenominacion ? 'border-left: 4px solid var(--color-gold, #f59e0b); background: rgba(245, 158, 11, 0.05);' : ''}">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon" style="background: rgba(245, 158, 11, 0.18); color: #d97706; font-size: 16px;">🔄</div>
+                  <span class="ficha-card-label" style="font-weight: 700; color: #b45309;">Situación de Encargo Administrativo</span>
+                </div>
+                ${emp.encargoDenominacion ? `
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 10px;">
+                    <div>
+                      <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Cargo en Encargo</div>
+                      <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-top: 2px;">${escHtml(emp.encargoDenominacion)}</div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Código y Grado</div>
+                      <div class="font-mono" style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">
+                        Cód. <strong>${escHtml(emp.encargoCodigo || 'N/A')}</strong> • Grado <strong>${escHtml(emp.encargoGrado || 'N/A')}</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Asignación Salarial Encargo</div>
+                      <div class="font-mono" style="font-size: 1.05rem; font-weight: 800; color: var(--color-success, #16a34a); margin-top: 2px;">
+                        ${emp.encargoAsignacion ? (String(emp.encargoAsignacion).startsWith('$') ? escHtml(emp.encargoAsignacion) : ('$' + escHtml(emp.encargoAsignacion))) : 'No registrada'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Fecha Inicio Encargo</div>
+                      <div class="font-mono" style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">
+                        ${escHtml(emp.fechaEncargo || 'No registrada')}
+                      </div>
+                    </div>
+                  </div>
+                ` : `
+                  <div class="ficha-card-val" style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500; margin-top: 4px;">
+                    El servidor público ejerce sus funciones en su cargo titular de planta (sin encargo temporal vigente).
+                  </div>
+                `}
+                ${emp.novedades ? `
+                  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed rgba(245, 158, 11, 0.35); font-size: 12.5px; color: var(--text-secondary);">
+                    <strong>Novedades y Observaciones de Personal:</strong> ${escHtml(emp.novedades)}
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -1230,15 +1293,7 @@ const EmployeesModule = (() => {
                 <div class="ficha-card-sub">Cálculo dinámico a partir de la fecha de ingreso</div>
               </div>
 
-              <div class="ficha-card ficha-grid--full">
-                <div class="ficha-card-top">
-                  <div class="ficha-card-icon">🔄</div>
-                  <span class="ficha-card-label">Fecha de Encargo</span>
-                </div>
-                <div class="ficha-card-val font-mono">
-                  ${emp.fechaEncargo ? escHtml(emp.fechaEncargo) : '<span style="color:var(--text-muted); font-size:0.9rem;">No registra encargo activo</span>'}
-                </div>
-              </div>
+
 
               <!-- Experiencia Múltiple / Otro Tiempo -->
               <div class="ficha-card ficha-grid--full">
@@ -1387,15 +1442,7 @@ const EmployeesModule = (() => {
                 </div>
               </div>
 
-              <div class="ficha-card ficha-grid--full">
-                <div class="ficha-card-top">
-                  <div class="ficha-card-icon">📝</div>
-                  <span class="ficha-card-label">Novedades y Observaciones de Personal</span>
-                </div>
-                <div class="ficha-card-val" style="font-weight:500; font-size:0.92rem; color:var(--text-secondary);">
-                  ${escHtml(sanitizeText(emp.novedades || 'Sin novedades registradas a la fecha'))}
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -1699,6 +1746,22 @@ const EmployeesModule = (() => {
 
     const isEdit = Boolean(emp.cedula || emp.id);
 
+    const defaultSituacion = (() => {
+      if (emp.situacion) {
+        const s = emp.situacion.trim().toUpperCase();
+        if (s.includes('DISCAPACIDAD') || s.includes('DISCPACIDAD')) return 'DISCAPACIDAD';
+        if (s === 'ENCARGO') return 'ENCARGO';
+        if (['ACTIVO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'RETIRADO'].includes(s)) {
+          if (emp.encargoDenominacion && s === 'ACTIVO') return 'ENCARGO';
+          return s;
+        }
+        return s;
+      }
+      if (emp.encargoDenominacion) return 'ENCARGO';
+      if (emp.tipoDiscapacidad && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase())) return 'DISCAPACIDAD';
+      return 'ACTIVO';
+    })();
+
     return `
       <div class="emp-form-wrapper">
         <!-- BARRA ÚNICA DE NAVEGACIÓN HORIZONTAL PEGADA AL TOPE (SIN FUGAS AL SCROLLEAR) -->
@@ -1780,48 +1843,6 @@ const EmployeesModule = (() => {
               </div>
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label" for="ef-tipo-discapacidad" style="font-weight:700;">
-                Condición Especial / Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span>
-              </label>
-              <select id="ef-tipo-discapacidad" class="filter-select" style="text-transform: uppercase;">
-                <option value="">NINGUNA / NO REGISTRA CONDICIÓN DE DISCAPACIDAD</option>
-                ${(cats.discapacidades || []).map(d => {
-                  const optUpper = String(d || '').trim().toUpperCase();
-                  if (!optUpper) return '';
-                  const empDisc = (emp.tipoDiscapacidad || '').trim().toUpperCase();
-                  const isSelected = empDisc && (
-                    empDisc === optUpper ||
-                    (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
-                    (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
-                    (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
-                    (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
-                    (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
-                    (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
-                    (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
-                    (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')))
-                  );
-                  return `<option value="${escHtml(optUpper)}" ${isSelected ? 'selected' : ''}>${escHtml(optUpper)}</option>`;
-                }).join('')}
-                ${(emp.tipoDiscapacidad && !(cats.discapacidades || []).some(d => {
-                  const empDisc = emp.tipoDiscapacidad.trim().toUpperCase();
-                  const optUpper = String(d || '').trim().toUpperCase();
-                  return empDisc === optUpper ||
-                    (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
-                    (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
-                    (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
-                    (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
-                    (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
-                    (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
-                    (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
-                    (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')));
-                }) && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(emp.tipoDiscapacidad.trim().toUpperCase()))
-                  ? `<option value="${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}" selected>${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}</option>`
-                  : ''}
-                <option value="__OTRO__">+ OTRA CONDICIÓN (ESPECIFICAR)...</option>
-              </select>
-              <input id="ef-tipo-discapacidad-custom" class="form-input" style="display:none; margin-top:8px; text-transform:uppercase;" placeholder="Especifique la condición de discapacidad..." />
-            </div>
           </div>
         </div>
 
@@ -1839,7 +1860,7 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label" for="ef-cargo">Denominación del Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
+              <label class="form-label" for="ef-cargo">Denominación del Cargo Titular <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
               <select id="ef-cargo" class="filter-select">
                 <option value="${escHtml(emp.cargoActual || '')}">${escHtml(emp.cargoActual || '(Sin seleccionar / Vacío)')}</option>
                 <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
@@ -1886,14 +1907,106 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-situacion">Situación Administrativa</label>
               <select id="ef-situacion" class="filter-select">
-                <option value="ACTIVO" ${emp.situacion === 'ACTIVO' ? 'selected' : ''}>ACTIVO</option>
-                <option value="ENCARGO" ${emp.situacion === 'ENCARGO' ? 'selected' : ''}>ENCARGO</option>
-                <option value="COMISIÓN" ${emp.situacion === 'COMISIÓN' ? 'selected' : ''}>COMISIÓN</option>
-                <option value="LICENCIA" ${emp.situacion === 'LICENCIA' ? 'selected' : ''}>LICENCIA</option>
-                <option value="VACACIONES" ${emp.situacion === 'VACACIONES' ? 'selected' : ''}>VACACIONES</option>
-                <option value="DISCAPACIDAD" ${emp.situacion === 'DISCAPACIDAD' ? 'selected' : ''}>DISCAPACIDAD</option>
-                <option value="RETIRADO" ${emp.situacion === 'RETIRADO' ? 'selected' : ''}>RETIRADO</option>
+                <option value="ACTIVO" ${defaultSituacion === 'ACTIVO' ? 'selected' : ''}>ACTIVO</option>
+                <option value="ENCARGO" ${defaultSituacion === 'ENCARGO' ? 'selected' : ''}>ENCARGO</option>
+                <option value="COMISIÓN" ${defaultSituacion === 'COMISIÓN' ? 'selected' : ''}>COMISIÓN</option>
+                <option value="LICENCIA" ${defaultSituacion === 'LICENCIA' ? 'selected' : ''}>LICENCIA</option>
+                <option value="VACACIONES" ${defaultSituacion === 'VACACIONES' ? 'selected' : ''}>VACACIONES</option>
+                <option value="DISCAPACIDAD" ${defaultSituacion === 'DISCAPACIDAD' ? 'selected' : ''}>DISCAPACIDAD</option>
+                <option value="RETIRADO" ${defaultSituacion === 'RETIRADO' ? 'selected' : ''}>RETIRADO</option>
+                ${(defaultSituacion && !['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'DISCAPACIDAD', 'RETIRADO'].includes(defaultSituacion)) ? `<option value="${escHtml(defaultSituacion)}" selected>${escHtml(defaultSituacion)}</option>` : ''}
               </select>
+            </div>
+
+            <!-- ─── SUBSECCIÓN: CONDICIÓN DE DISCAPACIDAD (Condicional cuando Situación = DISCAPACIDAD) ─── -->
+            <div id="wrap-seccion-discapacidad" class="form-group span-2" style="${defaultSituacion === 'DISCAPACIDAD' ? 'display:block;' : 'display:none;'} margin-top: 10px; padding: 14px; background: rgba(14, 165, 233, 0.05); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px;">
+              <div style="font-size: 13px; font-weight: 700; color: #0284c7; display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                <span>♿ Condición Especial / Discapacidad</span>
+              </div>
+              <div class="form-group span-2" style="margin-bottom: 0;">
+                <label class="form-label" for="ef-tipo-discapacidad" style="font-weight:700;">
+                  Tipo o Condición Especial de Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Seleccione la condición acreditada)</span>
+                </label>
+                <select id="ef-tipo-discapacidad" class="filter-select" style="text-transform: uppercase;">
+                  <option value="">NINGUNA / NO REGISTRA CONDICIÓN DE DISCAPACIDAD</option>
+                  ${(cats.discapacidades || []).map(d => {
+                    const optUpper = String(d || '').trim().toUpperCase();
+                    if (!optUpper) return '';
+                    const empDisc = (emp.tipoDiscapacidad || '').trim().toUpperCase();
+                    const isSelected = empDisc && (
+                      empDisc === optUpper ||
+                      (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+                      (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+                      (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+                      (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+                      (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+                      (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+                      (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+                      (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')))
+                    );
+                    return `<option value="${escHtml(optUpper)}" ${isSelected ? 'selected' : ''}>${escHtml(optUpper)}</option>`;
+                  }).join('')}
+                  ${(emp.tipoDiscapacidad && !(cats.discapacidades || []).some(d => {
+                    const empDisc = emp.tipoDiscapacidad.trim().toUpperCase();
+                    const optUpper = String(d || '').trim().toUpperCase();
+                    return empDisc === optUpper ||
+                      (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+                      (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+                      (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+                      (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+                      (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+                      (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+                      (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+                      (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')));
+                  }) && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(emp.tipoDiscapacidad.trim().toUpperCase()))
+                    ? `<option value="${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}" selected>${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}</option>`
+                    : ''}
+                  <option value="__OTRO__">+ OTRA CONDICIÓN (ESPECIFICAR)...</option>
+                </select>
+                <input id="ef-tipo-discapacidad-custom" class="form-input" style="display:none; margin-top:8px; text-transform:uppercase;" placeholder="Especifique la condición de discapacidad..." />
+              </div>
+            </div>
+
+            <!-- ─── SUBSECCIÓN: INFORMACIÓN DE ENCARGO (Condicional cuando Situación = ENCARGO) ─── -->
+            <div id="wrap-seccion-encargo" class="form-group span-2" style="${defaultSituacion === 'ENCARGO' ? 'display:block;' : 'display:none;'} margin-top: 10px; padding: 14px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px;">
+              <div style="font-size: 13px; font-weight: 700; color: #b45309; display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                <span>🔄 Situación de Encargo Administrativo</span>
+              </div>
+              <div class="form-grid" style="margin-bottom: 0;">
+                <div class="form-group span-2">
+                  <label class="form-label" for="ef-encargo-denominacion">Denominación del Cargo en Encargo <span style="font-size:11px; color:var(--text-muted);">(Carga dinámica según dependencia o personalizada)</span></label>
+                  <select id="ef-encargo-denominacion" class="filter-select">
+                    <option value="${escHtml(emp.encargoDenominacion || '')}">${escHtml(emp.encargoDenominacion || '(Sin seleccionar / Vacío)')}</option>
+                    <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
+                  </select>
+                  <input id="ef-encargo-denominacion-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la denominación del cargo en encargo..." />
+                  <small style="font-size:11px; color:var(--text-muted);">Cargo temporal en el cual se encuentra encargado el servidor.</small>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ef-encargo-codigo">Código del Encargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, letras o números)</span></label>
+                  <input id="ef-encargo-codigo" class="form-input font-mono" placeholder="Ej: 407, 219" value="${escHtml(emp.encargoCodigo || '')}" enterkeyhint="next" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ef-encargo-grado">Grado del Encargo <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
+                  <select id="ef-encargo-grado" class="filter-select">
+                    <option value="">(Sin Grado / Vacío)</option>
+                    ${cats.grados.map(g => `<option value="${escHtml(g)}" ${String(emp.encargoGrado || '').toLowerCase() === String(g).toLowerCase() ? 'selected' : ''}>${escHtml(g)}</option>`).join('')}
+                    ${emp.encargoGrado && !cats.grados.some(g => String(g).toLowerCase() === String(emp.encargoGrado).toLowerCase()) ? `<option value="${escHtml(emp.encargoGrado)}" selected>${escHtml(emp.encargoGrado)}</option>` : ''}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ef-encargo-asignacion">Asignación Salarial del Encargo</label>
+                  <input id="ef-encargo-asignacion" class="form-input font-mono" placeholder="$ 0" value="${escHtml(formatAsignacionSalarial(emp.encargoAsignacion))}" enterkeyhint="next" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ef-fecha-encargo">Fecha de Encargo</label>
+                  <input id="ef-fecha-encargo" type="date" class="form-input" value="${escHtml(emp.fechaEncargo || '')}" />
+                </div>
+                <div class="form-group span-2">
+                  <label class="form-label" for="ef-novedades">Novedades y Observaciones del Personal</label>
+                  <input id="ef-novedades" class="form-input" placeholder="Ej: VACANTE TEMPORAL DE..." value="${escHtml(emp.novedades || '')}" enterkeyhint="next" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1901,17 +2014,12 @@ const EmployeesModule = (() => {
         <!-- ─── PESTAÑA: TIEMPOS DE SERVICIO ─── -->
         <div id="tab-form-tiempos" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
-            <div class="form-group">
+            <div class="form-group span-2">
               <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso</label>
               <input id="ef-fecha-ingreso" type="date" class="form-input" value="${escHtml(emp.fechaIngreso || '')}" />
               <div id="ef-tiempo-calc-display" class="ef-calc-display-val">
                 ${emp.tiempoServicioCalculado ? `Tiempo: ${escHtml(emp.tiempoServicioCalculado)}` : ''}
               </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="ef-fecha-encargo">Fecha de Encargo</label>
-              <input id="ef-fecha-encargo" type="date" class="form-input" value="${escHtml(emp.fechaEncargo || '')}" />
             </div>
 
             <div class="form-group span-2">
@@ -1958,11 +2066,6 @@ const EmployeesModule = (() => {
             <div class="form-group span-2">
               <label class="form-label" for="ef-funciones">Funciones <span style="font-size:11px; color:var(--text-muted);">(00 a 999 o texto explicativo / decreto)</span></label>
               <input id="ef-funciones" class="form-input" placeholder="Ej: 01 o DECRETO 145 DE 2024" value="${escHtml(emp.funciones || '')}" enterkeyhint="next" />
-            </div>
-
-            <div class="form-group span-2">
-              <label class="form-label" for="ef-novedades">Novedades <span style="font-size:11px; color:var(--text-muted);">(Texto libre)</span></label>
-              <input id="ef-novedades" class="form-input" placeholder="Ej: POSESIÓN RECIENTE" value="${escHtml(emp.novedades || '')}" enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -2074,7 +2177,7 @@ const EmployeesModule = (() => {
       });
     }
 
-    // 3. Regla 1: Dependencia y Cargo (Carga dinámica y deduplicada según dependencia)
+    // 3. Regla 1: Dependencia y Cargo (Carga dinámica y deduplicada según dependencia para Titular y Encargo)
     const depSelect = document.getElementById('ef-dep');
     const depCustom = document.getElementById('ef-dep-custom');
     const cargoSelect = document.getElementById('ef-cargo');
@@ -2082,8 +2185,13 @@ const EmployeesModule = (() => {
     const codigoInput = document.getElementById('ef-codigo-cargo');
     const gradoSelect = document.getElementById('ef-grado');
 
-    const updateCargosForDep = (selectedDep, currentCargo = '') => {
-      if (!cargoSelect) return;
+    const encargoCargoSelect = document.getElementById('ef-encargo-denominacion');
+    const encargoCargoCustom = document.getElementById('ef-encargo-denominacion-custom');
+    const encargoCodigoInput = document.getElementById('ef-encargo-codigo');
+    const encargoGradoSelect = document.getElementById('ef-encargo-grado');
+    const asignacionInput = document.getElementById('ef-encargo-asignacion');
+
+    const updateCargosForDep = (selectedDep, currentCargo = '', currentEncargoCargo = '') => {
       const cleanDep = (selectedDep || '').trim().toUpperCase();
       let rawList = (cleanDep && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
 
@@ -2098,32 +2206,55 @@ const EmployeesModule = (() => {
         }
       }
 
-      cargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
-        availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo.toUpperCase() === (currentCargo || '').toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
-        '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
+      // 3.1 Cargo Titular
+      if (cargoSelect) {
+        cargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
+          availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo.toUpperCase() === (currentCargo || '').toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
+          '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
 
-      if (currentCargo && !seenCargos.has(currentCargo.toUpperCase())) {
-        cargoSelect.value = '__OTRO__';
-        if (cargoCustom) {
-          cargoCustom.value = currentCargo;
-          cargoCustom.style.display = 'block';
+        if (currentCargo && !seenCargos.has(currentCargo.toUpperCase())) {
+          cargoSelect.value = '__OTRO__';
+          if (cargoCustom) {
+            cargoCustom.value = currentCargo;
+            cargoCustom.style.display = 'block';
+          }
+        } else if (cargoCustom) {
+          cargoCustom.style.display = cargoSelect.value === '__OTRO__' ? 'block' : 'none';
         }
-      } else if (cargoCustom) {
-        cargoCustom.style.display = cargoSelect.value === '__OTRO__' ? 'block' : 'none';
+      }
+
+      // 3.2 Cargo en Encargo (Desplegable dinámico con los cargos de la dependencia)
+      if (encargoCargoSelect) {
+        const targetEncargo = currentEncargoCargo || encargoCargoSelect.value || '';
+        encargoCargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
+          availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" data-asignacion="${escHtml(c.asignacion || '')}" ${c.cargo.toUpperCase() === targetEncargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
+          '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
+
+        if (targetEncargo && !seenCargos.has(targetEncargo.toUpperCase()) && targetEncargo !== '__OTRO__') {
+          encargoCargoSelect.value = '__OTRO__';
+          if (encargoCargoCustom) {
+            encargoCargoCustom.value = targetEncargo;
+            encargoCargoCustom.style.display = 'block';
+          }
+        } else if (encargoCargoCustom) {
+          encargoCargoCustom.style.display = encargoCargoSelect.value === '__OTRO__' ? 'block' : 'none';
+        }
       }
     };
 
     if (depSelect) {
       depSelect.addEventListener('change', (e) => {
+        const currentSelectedTitular = cargoSelect?.value === '__OTRO__' ? (cargoCustom?.value || '') : (cargoSelect?.value || '');
+        const currentSelectedEncargo = encargoCargoSelect?.value === '__OTRO__' ? (encargoCargoCustom?.value || '') : (encargoCargoSelect?.value || '');
         if (e.target.value === '__OTRA__') {
           if (depCustom) {
             depCustom.style.display = 'block';
             depCustom.focus();
           }
-          updateCargosForDep('');
+          updateCargosForDep('', currentSelectedTitular, currentSelectedEncargo);
         } else {
           if (depCustom) depCustom.style.display = 'none';
-          updateCargosForDep(e.target.value);
+          updateCargosForDep(e.target.value, currentSelectedTitular, currentSelectedEncargo);
         }
       });
 
@@ -2131,17 +2262,17 @@ const EmployeesModule = (() => {
         const matchDep = Array.from(depSelect.options).find(o => o.value.toUpperCase() === emp.dependencia.toUpperCase());
         if (matchDep) {
           depSelect.value = matchDep.value;
-          updateCargosForDep(matchDep.value, emp.cargoActual || '');
+          updateCargosForDep(matchDep.value, emp.cargoActual || '', emp.encargoDenominacion || '');
         } else {
           depSelect.value = '__OTRA__';
           if (depCustom) {
             depCustom.value = emp.dependencia;
             depCustom.style.display = 'block';
           }
-          updateCargosForDep('', emp.cargoActual || '');
+          updateCargosForDep('', emp.cargoActual || '', emp.encargoDenominacion || '');
         }
       } else {
-        updateCargosForDep('');
+        updateCargosForDep('', emp.cargoActual || '', emp.encargoDenominacion || '');
       }
     }
 
@@ -2164,6 +2295,75 @@ const EmployeesModule = (() => {
           if (defaultGrado && gradoSelect) {
             const match = cats.grados.find(g => g.toLowerCase() === defaultGrado.toLowerCase());
             if (match) gradoSelect.value = match;
+          }
+        }
+      });
+    }
+
+    // Interacción y autocompletado en Denominación del Cargo en Encargo
+    if (encargoCargoSelect) {
+      encargoCargoSelect.addEventListener('change', () => {
+        if (encargoCargoSelect.value === '__OTRO__') {
+          if (encargoCargoCustom) {
+            encargoCargoCustom.style.display = 'block';
+            encargoCargoCustom.focus();
+          }
+          return;
+        }
+        if (encargoCargoCustom) encargoCargoCustom.style.display = 'none';
+
+        const selOpt = encargoCargoSelect.selectedOptions[0];
+        if (selOpt) {
+          const defaultCode = selOpt.getAttribute('data-codigo');
+          if (defaultCode && encargoCodigoInput) encargoCodigoInput.value = defaultCode;
+
+          const defaultGrado = selOpt.getAttribute('data-grado');
+          if (defaultGrado && encargoGradoSelect) {
+            const match = cats.grados.find(g => g.toLowerCase() === defaultGrado.toLowerCase());
+            if (match) encargoGradoSelect.value = match;
+            else encargoGradoSelect.value = defaultGrado;
+          }
+
+          const defaultAsignacion = selOpt.getAttribute('data-asignacion');
+          if (defaultAsignacion && asignacionInput && (!asignacionInput.value || asignacionInput.value.trim() === '' || asignacionInput.value === '$ ')) {
+            const digits = defaultAsignacion.replace(/[^\d]/g, '');
+            if (digits && parseInt(digits, 10) > 0) {
+              asignacionInput.value = '$ ' + parseInt(digits, 10).toLocaleString('es-CO');
+            }
+          }
+          if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+            const wrapEnc = document.getElementById('wrap-seccion-encargo');
+            if (wrapEnc) App.refreshFloatingLabels(wrapEnc);
+          }
+        }
+      });
+    }
+
+    // Formateo interactivo de Asignación Salarial del Encargo con prefijo '$ ' persistente
+    if (asignacionInput) {
+      asignacionInput.addEventListener('focus', () => {
+        if (!asignacionInput.value || !asignacionInput.value.trim()) {
+          asignacionInput.value = '$ ';
+        }
+      });
+
+      asignacionInput.addEventListener('input', (e) => {
+        const raw = e.target.value;
+        const digits = raw.replace(/[^\d]/g, '');
+        if (!digits) {
+          e.target.value = '$ ';
+        } else {
+          const num = parseInt(digits, 10);
+          e.target.value = '$ ' + num.toLocaleString('es-CO');
+        }
+      });
+
+      asignacionInput.addEventListener('blur', () => {
+        const digits = asignacionInput.value.replace(/[^\d]/g, '');
+        if (!digits) {
+          asignacionInput.value = '';
+          if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+            App.refreshFloatingLabels(asignacionInput.closest('.form-group') || document);
           }
         }
       });
@@ -2223,10 +2423,32 @@ const EmployeesModule = (() => {
       }
     }
 
-    // 6. Regla 12: Situación y Discapacidad (gestión independiente de condición especial y situación)
+    // 6. Regla 12: Situación Administrativa y Secciones Condicionales (Encargo y Discapacidad)
     const situacionSelect = document.getElementById('ef-situacion');
+    const wrapEncargo = document.getElementById('wrap-seccion-encargo');
+    const wrapDiscapacidad = document.getElementById('wrap-seccion-discapacidad');
     const discSelect = document.getElementById('ef-tipo-discapacidad');
     const discCustom = document.getElementById('ef-tipo-discapacidad-custom');
+
+    const updateSituacionSections = () => {
+      const sit = (situacionSelect?.value || 'ACTIVO').trim().toUpperCase();
+      const isEncargo = sit === 'ENCARGO';
+      const isDisc = sit.includes('DISCAPACIDAD') || sit.includes('DISCPACIDAD');
+
+      if (wrapEncargo) wrapEncargo.style.display = isEncargo ? 'block' : 'none';
+      if (wrapDiscapacidad) wrapDiscapacidad.style.display = isDisc ? 'block' : 'none';
+
+      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+        if (isEncargo && wrapEncargo) App.refreshFloatingLabels(wrapEncargo);
+        if (isDisc && wrapDiscapacidad) App.refreshFloatingLabels(wrapDiscapacidad);
+      }
+    };
+
+    if (situacionSelect) {
+      situacionSelect.addEventListener('change', updateSituacionSections);
+      updateSituacionSections();
+    }
+
     if (discSelect && discCustom) {
       discSelect.addEventListener('change', () => {
         if (discSelect.value === '__OTRO__') {
@@ -2648,25 +2870,30 @@ const EmployeesModule = (() => {
       finalClasif = normalizarClasificacion(clasifRaw);
     }
 
-    // 10. Situación y Discapacidad (Opcionales)
-    const situacion = document.getElementById('ef-situacion')?.value || 'ACTIVO';
-    const tipoDiscapacidadSelect = document.getElementById('ef-tipo-discapacidad');
-    const tipoDiscapacidadCustom = document.getElementById('ef-tipo-discapacidad-custom');
-    const tipoDiscapacidadRaw = tipoDiscapacidadSelect?.value?.trim() || '';
+    // 10. Situación Administrativa y Condicionales (Discapacidad y Encargo)
+    const situacion = (document.getElementById('ef-situacion')?.value || 'ACTIVO').trim().toUpperCase();
+    const isSituacionDiscapacidad = situacion.includes('DISCAPACIDAD') || situacion.includes('DISCPACIDAD');
+    const isSituacionEncargo = situacion === 'ENCARGO';
+
     let tipoDiscapacidad = null;
-    if (tipoDiscapacidadRaw === '__OTRO__') {
-      const customVal = tipoDiscapacidadCustom?.value?.trim().toUpperCase();
-      if (!customVal) {
-        markInvalidField('ef-tipo-discapacidad-custom', 'Por favor especifique la condición especial o de discapacidad.');
-        return null;
+    if (isSituacionDiscapacidad) {
+      const tipoDiscapacidadSelect = document.getElementById('ef-tipo-discapacidad');
+      const tipoDiscapacidadCustom = document.getElementById('ef-tipo-discapacidad-custom');
+      const tipoDiscapacidadRaw = tipoDiscapacidadSelect?.value?.trim() || '';
+      if (tipoDiscapacidadRaw === '__OTRO__') {
+        const customVal = tipoDiscapacidadCustom?.value?.trim().toUpperCase();
+        if (!customVal) {
+          markInvalidField('ef-tipo-discapacidad-custom', 'Por favor especifique la condición especial o de discapacidad.');
+          return null;
+        }
+        tipoDiscapacidad = customVal;
+        if (state.catalogs.discapacidades && !state.catalogs.discapacidades.includes(customVal)) {
+          state.catalogs.discapacidades.push(customVal);
+          state.catalogs.discapacidades.sort((a, b) => a.localeCompare(b, 'es'));
+        }
+      } else if (tipoDiscapacidadRaw && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(tipoDiscapacidadRaw.toLowerCase())) {
+        tipoDiscapacidad = tipoDiscapacidadRaw.toUpperCase();
       }
-      tipoDiscapacidad = customVal;
-      if (state.catalogs.discapacidades && !state.catalogs.discapacidades.includes(customVal)) {
-        state.catalogs.discapacidades.push(customVal);
-        state.catalogs.discapacidades.sort((a, b) => a.localeCompare(b, 'es'));
-      }
-    } else if (tipoDiscapacidadRaw && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(tipoDiscapacidadRaw.toLowerCase())) {
-      tipoDiscapacidad = tipoDiscapacidadRaw.toUpperCase();
     }
 
     // 11. Periodos de Otro Tiempo con la Gobernación (Experiencia Múltiple, Opcional)
@@ -2773,10 +3000,46 @@ const EmployeesModule = (() => {
     const matriculaVal = document.getElementById('ef-matricula')?.value.trim() || null;
 
     const funcionesVal = document.getElementById('ef-funciones')?.value.trim() || null;
-    const novedadesVal = document.getElementById('ef-novedades')?.value.trim() || null;
     const direccionVal = document.getElementById('ef-direccion')?.value.trim() || null;
 
+    // Datos del Encargo Administrativo (solo aplican si la situación es ENCARGO)
+    let encargoDenominacion = null;
+    let encargoCodigo = null;
+    let encargoGrado = null;
+    let encargoAsignacion = null;
+    let fechaEncargo = null;
+    let novedades = null;
+
+    if (isSituacionEncargo) {
+      const encargoRaw = document.getElementById('ef-encargo-denominacion')?.value;
+      const encargoCustomVal = document.getElementById('ef-encargo-denominacion-custom')?.value?.trim();
+      if (encargoRaw === '__OTRO__') {
+        if (!encargoCustomVal) {
+          markInvalidField('ef-encargo-denominacion-custom', 'Por favor especifique la denominación del cargo en encargo.');
+          return null;
+        }
+        encargoDenominacion = encargoCustomVal.toUpperCase();
+      } else if (encargoRaw) {
+        encargoDenominacion = encargoRaw.trim().toUpperCase();
+      }
+
+      encargoCodigo = document.getElementById('ef-encargo-codigo')?.value?.trim().toUpperCase() || null;
+      encargoGrado = document.getElementById('ef-encargo-grado')?.value?.trim().toUpperCase() || null;
+
+      const asignacionRaw = document.getElementById('ef-encargo-asignacion')?.value?.trim();
+      const asignacionDigits = asignacionRaw ? asignacionRaw.replace(/[^\d]/g, '') : '';
+      encargoAsignacion = asignacionDigits ? ('$ ' + parseInt(asignacionDigits, 10).toLocaleString('es-CO')) : null;
+
+      fechaEncargo = document.getElementById('ef-fecha-encargo')?.value || null;
+      const novedadesVal = document.getElementById('ef-novedades')?.value?.trim();
+      novedades = novedadesVal ? novedadesVal.toUpperCase() : null;
+    }
+
     return {
+      encargoDenominacion,
+      encargoCodigo,
+      encargoGrado,
+      encargoAsignacion,
       nombreCompleto: nombreCompletoFinal,
       nombres: nombresVal ? nombresVal.toUpperCase() : null,
       apellidos: apellidosVal ? apellidosVal.toUpperCase() : null,
@@ -2800,11 +3063,11 @@ const EmployeesModule = (() => {
       situacion,
       tipoDiscapacidad,
       fechaIngreso: document.getElementById('ef-fecha-ingreso')?.value || null,
-      fechaEncargo: document.getElementById('ef-fecha-encargo')?.value || null,
+      fechaEncargo,
       otroTiempoPeriodos,
       otroTiempoGobernacion: document.getElementById('ef-periodos-total-display')?.textContent.replace('Otro Tiempo acumulado: ', '') || null,
       funciones: funcionesVal ? funcionesVal.toUpperCase() : null,
-      novedades: novedadesVal ? novedadesVal.toUpperCase() : null,
+      novedades,
       estudios: finalEst,
       institucionEstudios: finalInst,
       matriculaProfesional: matriculaVal ? matriculaVal.toUpperCase() : null,
@@ -2973,40 +3236,45 @@ const EmployeesModule = (() => {
    * 29. DIRECCION, 30. CIUDAD, 31. TELEFONO FIJO, 32. CELULAR, 33. CORREO PERSONAL, 34. CORREO INSTITUCIONAL
    */
   const EXCEL_COLUMNS = [
+    { header: 'DENOMINACIÓN ENCARGO', key: 'encargoDenominacion', width: 32 },
+    { header: 'COD.', key: 'encargoCodigo', width: 10 },
+    { header: 'GRA.', key: 'encargoGrado', width: 10 },
+    { header: 'ASIGNACION', key: 'encargoAsignacion', width: 16 },
     { header: 'DEPENDENCIA', key: 'dependencia', width: 32 },
-    { header: 'DENOMINACION CARGO', key: 'cargoActual', width: 32 },
-    { header: 'COD', key: 'codigoActual', width: 12 },
-    { header: 'GRA', key: 'gradoActual', width: 12 },
+    { header: 'DENOMINACIÓN CARGO', key: 'cargoActual', width: 32 },
+    { header: 'COD.', key: 'codigoActual', width: 10 },
+    { header: 'GRA.', key: 'gradoActual', width: 10 },
     { header: 'PRIMER APELLIDO', key: 'primerApellido', width: 20 },
     { header: 'SEGUNDO APELLIDO', key: 'segundoApellido', width: 20 },
     { header: 'NOMBRES', key: 'nombres', width: 24 },
-    { header: 'NUMERO DE CEDULA', key: 'cedula', width: 20 },
+    { header: 'CEDULA', key: 'cedula', width: 18 },
     { header: 'EXPEDIDA', key: 'expedida', width: 18 },
     { header: 'TIPO DE SANGRE', key: 'tipoSangre', width: 16 },
-    { header: 'FECHA DE NACIMIENTO', key: 'fechaNacimiento', width: 22 },
-    { header: 'EDAD', key: 'edad', width: 14 },
-    { header: 'SEXO', key: 'sexo', width: 14 },
-    { header: 'OTRO TIEMPO DE LA GOBERNACION', key: 'otroTiempoGobernacion', width: 28 },
-    { header: 'INGRESO', key: 'fechaIngreso', width: 18 },
-    { header: 'TIEMPO DE SERVICIO', key: 'tiempoServicioCalculado', width: 24 },
-    { header: 'FECHA DE ENCARGO', key: 'fechaEncargo', width: 18 },
-    { header: 'CLASIFICACION DE EMPLEO', key: 'clasificacionEmpleo', width: 26 },
-    { header: 'SITUACION', key: 'situacion', width: 20 },
-    { header: 'FUNCIONES PAD.', key: 'funciones', width: 18 },
+    { header: 'NACIMIENTO', key: 'fechaNacimiento', width: 16 },
+    { header: 'EDAD', key: 'edad', width: 12 },
+    { header: 'SEXO', key: 'sexo', width: 12 },
+    { header: 'OTRO TIEMPO CON LA GOBER', key: 'otroTiempoGobernacion', width: 26 },
+    { header: 'INGRESO', key: 'fechaIngreso', width: 16 },
+    { header: 'TIEMPO DE SERVICIO', key: 'tiempoServicioCalculado', width: 22 },
+    { header: 'FECHA ENCARGO', key: 'fechaEncargo', width: 16 },
+    { header: 'CLASIFICACION EMPLEO', key: 'clasificacionEmpleo', width: 26 },
+    { header: 'SITUACION', key: 'situacion', width: 18 },
+    { header: 'FUNCIONES PAG.', key: 'funciones', width: 16 },
     { header: 'OPEC', key: 'opec', width: 14 },
     { header: 'NOVEDADES', key: 'novedades', width: 28 },
     { header: 'ESTUDIOS', key: 'estudios', width: 28 },
-    { header: 'MATRICULA PROFECIONAL', key: 'matriculaProfesional', width: 24 },
+    { header: 'MATRICULA PROF.', key: 'matriculaProfesional', width: 20 },
     { header: 'INSTITUCION', key: 'institucionEstudios', width: 26 },
     { header: 'POSTGRADO', key: 'postgrado', width: 26 },
-    { header: 'INSTITUCION POST', key: 'institucionPostgrado', width: 26 },
+    { header: 'INSTITUCIÓN', key: 'institucionPostgrado', width: 26 },
     { header: 'DIPLOMADO O CAP SENA', key: 'diplomadoCapSena', width: 26 },
     { header: 'DIRECCION', key: 'direccion', width: 28 },
     { header: 'CIUDAD', key: 'ciudad', width: 18 },
     { header: 'TELEFONO FIJO', key: 'telefonoFijo', width: 18 },
     { header: 'CELULAR', key: 'celular', width: 20 },
     { header: 'CORREO PERSONAL', key: 'correoPersonal', width: 28 },
-    { header: 'CORREO INSTITUCIONAL', key: 'correo', width: 28 }
+    { header: 'CORREO INSTITUCIONAL', key: 'correo', width: 28 },
+    { header: 'TIEMPO TOTAL (AL 31/10/2026)', key: 'tiempoTotalGobernacion', width: 26 }
   ];
 
   async function exportExcel() {
@@ -3031,40 +3299,45 @@ const EmployeesModule = (() => {
           : (e.celular || '—');
 
         return {
-          dependencia: e.dependencia || '—',
-          cargoActual: e.cargoActual || e.cargo || '—',
-          codigoActual: e.codigoActual || e.codigo || '—',
-          gradoActual: e.gradoActual || e.grado || '—',
-          primerApellido: primerApellido || (e.es_vacante ? 'VACANTE' : '—'),
+          encargoDenominacion: e.encargoDenominacion || '',
+          encargoCodigo: e.encargoCodigo || '',
+          encargoGrado: e.encargoGrado || '',
+          encargoAsignacion: e.encargoAsignacion || '',
+          dependencia: e.dependencia || '',
+          cargoActual: e.cargoTitular || e.cargoActual || e.cargo || '',
+          codigoActual: e.codigoTitular || e.codigoActual || e.codigo || '',
+          gradoActual: e.gradoTitular || e.gradoActual || e.grado || '',
+          primerApellido: primerApellido || (e.es_vacante ? 'VACANTE' : ''),
           segundoApellido: segundoApellido || '',
-          nombres: nombres || (e.es_vacante ? 'PLAZA VACANTE' : '—'),
-          cedula: e.cedula || (e.es_vacante ? 'PLAZA VACANTE' : 'SIN CÉDULA'),
-          expedida: e.ciudadExpedicion || e.municipioExpedicion || e.departamentoExpedicion || '—',
-          tipoSangre: e.tipoSangre || '—',
-          fechaNacimiento: e.fechaNacimiento || '—',
-          edad: e.edad || e.edadCalculada || '—',
-          sexo: e.sexo || '—',
-          otroTiempoGobernacion: e.otroTiempoGobernacion || '—',
-          fechaIngreso: e.fechaIngreso || '—',
-          tiempoServicioCalculado: e.tiempoServicioCalculado || 'No disponible',
-          fechaEncargo: e.fechaEncargo || '—',
-          clasificacionEmpleo: e.clasificacionEmpleo || '—',
+          nombres: nombres || (e.es_vacante ? 'PLAZA VACANTE' : ''),
+          cedula: e.cedula || (e.es_vacante ? 'PLAZA VACANTE' : ''),
+          expedida: e.ciudadExpedicion || e.municipioExpedicion || e.departamentoExpedicion || '',
+          tipoSangre: e.tipoSangre || '',
+          fechaNacimiento: e.fechaNacimiento || '',
+          edad: e.edad || e.edadCalculada || '',
+          sexo: e.sexo || '',
+          otroTiempoGobernacion: e.otroTiempoGobernacion || '',
+          fechaIngreso: e.fechaIngreso || '',
+          tiempoServicioCalculado: e.tiempoServicioCalculado || '',
+          fechaEncargo: e.fechaEncargo || '',
+          clasificacionEmpleo: e.clasificacionEmpleo || '',
           situacion: e.situacion || 'ACTIVO',
-          funciones: e.funciones || e.funcionesPag || '—',
-          opec: e.opec || '—',
-          novedades: e.novedades || '—',
-          estudios: e.estudios || '—',
-          matriculaProfesional: e.matriculaProfesional || '—',
-          institucionEstudios: e.institucionEstudios || '—',
-          postgrado: e.postgrado || '—',
-          institucionPostgrado: e.institucionPostgrado || '—',
-          diplomadoCapSena: e.diplomadoCapSena || '—',
-          direccion: e.direccion || '—',
-          ciudad: e.ciudad || '—',
-          telefonoFijo: e.telefonoFijo || '—',
+          funciones: e.funciones || e.funcionesPag || '',
+          opec: e.opec || '',
+          novedades: e.novedades || '',
+          estudios: e.estudios || '',
+          matriculaProfesional: e.matriculaProfesional || '',
+          institucionEstudios: e.institucionEstudios || '',
+          postgrado: e.postgrado || '',
+          institucionPostgrado: e.institucionPostgrado || '',
+          diplomadoCapSena: e.diplomadoCapSena || '',
+          direccion: e.direccion || '',
+          ciudad: e.ciudad || '',
+          telefonoFijo: e.telefonoFijo || '',
           celular: celularesStr,
-          correoPersonal: e.correoPersonal || '—',
-          correo: e.correo || e.correoInstitucional || '—'
+          correoPersonal: e.correoPersonal || '',
+          correo: e.correo || e.correoInstitucional || '',
+          tiempoTotalGobernacion: e.tiempoTotalGobernacion || e.tiempoServicioCalculado || ''
         };
       });
 
@@ -3678,9 +3951,12 @@ const EmployeesModule = (() => {
 
   return {
     render,
+    load,
     openCreate,
     openView,
     openEdit,
+    saveCreate,
+    saveEdit,
     confirmDelete,
     goPage,
     search,

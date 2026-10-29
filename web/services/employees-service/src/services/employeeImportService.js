@@ -131,7 +131,7 @@ class EmployeeImportService {
 
       // 2. Procesar cada fila de forma aislada
       for (const item of dtos) {
-        const { rowNumber, funcionario, cargoNominal, cargoActual, dependencia, vinculacion, academico, contacto } = item;
+        const { rowNumber, funcionario, cargoTitular, encargo, cargoNominal, cargoActual, dependencia, vinculacion, academico, contacto } = item;
         const savepointName = `sp_row_${rowNumber}`;
 
         try {
@@ -139,13 +139,18 @@ class EmployeeImportService {
 
           // Resolver dependencias y cargos
           const depId = await this.findOrCreateDependencia(client, depCache, idGenerators, dependencia);
-          const cargoNominalDef = (cargoNominal?.denominacion && cargoNominal.denominacion !== 'CARGO POR DEFINIR')
-            ? cargoNominal
-            : (cargoActual?.denominacion ? cargoActual : cargoNominal);
-          const cargoBaseId = await this.findOrCreateCargo(client, cargoCache, idGenerators, cargoNominalDef, 'PROFESIONAL UNIVERSITARIO');
-          const cargoActualId = cargoActual?.denominacion
-            ? await this.findOrCreateCargo(client, cargoCache, idGenerators, cargoActual, cargoNominalDef?.denominacion || 'PROFESIONAL UNIVERSITARIO')
-            : cargoBaseId;
+          const cargoTitularDef = cargoTitular || cargoNominal || { denominacion: 'CARGO POR DEFINIR', codigo: 'N/A', grado: 'N/A' };
+          const cargoBaseId = await this.findOrCreateCargo(client, cargoCache, idGenerators, cargoTitularDef, 'PROFESIONAL UNIVERSITARIO');
+
+          let cargoActualId = cargoBaseId;
+          if (encargo && encargo.denominacion) {
+            cargoActualId = await this.findOrCreateCargo(client, cargoCache, idGenerators, {
+              denominacion: encargo.denominacion,
+              codigo: encargo.codigo || 'N/A',
+              grado: encargo.grado || 'N/A',
+              asignacion: encargo.asignacion || '$0'
+            }, cargoTitularDef.denominacion || 'PROFESIONAL UNIVERSITARIO');
+          }
 
           // Regla 10: Auto-asignar Departamento usando tabla DIVIPOLA
           let ciudadExp = (funcionario.expedida || 'TUNJA').trim().toUpperCase();
@@ -404,7 +409,11 @@ class EmployeeImportService {
                        fecha_ingreso = NULL,
                        tiempo_servicio = NULL,
                        fecha_encargo = NULL,
-                       tiempo_total_gobernacion = NULL
+                       tiempo_total_gobernacion = NULL,
+                       encargo_denominacion = NULL,
+                       encargo_codigo = NULL,
+                       encargo_grado = NULL,
+                       encargo_asignacion = NULL
                    WHERE id_registro = $4`,
                   [
                     cargoBaseId,
@@ -423,8 +432,12 @@ class EmployeeImportService {
                        fecha_ingreso = $5,
                        tiempo_servicio = $6,
                        fecha_encargo = $7,
-                       tiempo_total_gobernacion = $8
-                   WHERE id_registro = $9`,
+                       tiempo_total_gobernacion = $8,
+                       encargo_denominacion = $9,
+                       encargo_codigo = $10,
+                       encargo_grado = $11,
+                       encargo_asignacion = $12
+                   WHERE id_registro = $13`,
                   [
                     cargoBaseId,
                     cargoActualId,
@@ -432,8 +445,12 @@ class EmployeeImportService {
                     vinculacion.otroTiempoGober,
                     vinculacion.fechaIngresoStr,
                     vinculacion.tiempoServicioCalculado,
-                    vinculacion.fechaEncargoStr,
+                    encargo?.fechaEncargoStr || vinculacion.fechaEncargoStr,
                     vinculacion.tiempoTotalGobernacion,
+                    encargo?.denominacion || null,
+                    encargo?.codigo || null,
+                    encargo?.grado || null,
+                    encargo?.asignacion || null,
                     registroId
                   ]
                 );
@@ -547,8 +564,9 @@ class EmployeeImportService {
               `INSERT INTO rel_principal (
                  id_registro, id_persona, id_cargo_base, id_cargo_actual, id_dependencia,
                  id_educacion, id_contacto, id_estado, otro_tiempo_gobernacion,
-                 tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo
-               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                 tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo,
+                 encargo_denominacion, encargo_codigo, encargo_grado, encargo_asignacion
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
               [
                 newRecordId,
                 newPersonId,
@@ -562,7 +580,11 @@ class EmployeeImportService {
                 funcionario.es_vacante ? null : vinculacion.tiempoTotalGobernacion,
                 funcionario.es_vacante ? null : (vinculacion.fechaIngresoStr || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : (vinculacion.tiempoServicioCalculado || '0 AÑOS'),
-                funcionario.es_vacante ? null : (vinculacion.fechaEncargoStr || 'NO REGISTRADO')
+                funcionario.es_vacante ? null : (encargo?.fechaEncargoStr || vinculacion.fechaEncargoStr || null),
+                funcionario.es_vacante ? null : (encargo?.denominacion || null),
+                funcionario.es_vacante ? null : (encargo?.codigo || null),
+                funcionario.es_vacante ? null : (encargo?.grado || null),
+                funcionario.es_vacante ? null : (encargo?.asignacion || null)
               ]
             );
 

@@ -342,6 +342,10 @@ router.get('/', auth, async (req, res) => {
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
+             COALESCE(r.encargo_denominacion,'') AS encargo_denominacion,
+             COALESCE(r.encargo_codigo,'') AS encargo_codigo,
+             COALESCE(r.encargo_grado,'') AS encargo_grado,
+             COALESCE(r.encargo_asignacion,'') AS encargo_asignacion,
              r.otros_tiempos_periodos
       FROM rel_principal r
       LEFT JOIN vacantes_enum ve ON ve.id_registro = r.id_registro
@@ -500,6 +504,13 @@ router.get('/', auth, async (req, res) => {
           otroTiempoCalculado: esVacante ? null : (otroTiempoCalc && otroTiempoCalc.tieneValor ? otroTiempoCalc.texto : '0 años, 0 meses, 0 días'),
           otroTiempoPeriodos: esVacante ? [] : (Array.isArray(r.otros_tiempos_periodos) ? r.otros_tiempos_periodos : []),
           tiempoTotalGobernacion: esVacante ? null : (tiempoTotalCalc ? tiempoTotalCalc.texto : (tiempoCalc ? tiempoCalc.texto : 'No disponible')),
+          encargoDenominacion: clean(r.encargo_denominacion),
+          encargoCodigo: clean(r.encargo_codigo),
+          encargoGrado: clean(r.encargo_grado),
+          encargoAsignacion: clean(r.encargo_asignacion),
+          cargoTitular: clean(r.cargo_base || r.cargo_actual),
+          codigoTitular: clean(r.codigo_base || r.codigo_actual),
+          gradoTitular: clean(r.grado_base || r.grado_actual),
           sexo: esVacante ? null : r.sexo,
           documento_pendiente: esVacante ? false : Boolean(r.documento_pendiente),
           es_vacante: esVacante,
@@ -685,6 +696,10 @@ router.post('/', auth, async (req, res) => {
     opec,
     fechaIngreso,
     fechaEncargo,
+    encargoDenominacion,
+    encargoCodigo,
+    encargoGrado,
+    encargoAsignacion,
     otroTiempoGobernacion,
     otroTiempoPeriodos,
     funciones,
@@ -936,8 +951,9 @@ router.post('/', auth, async (req, res) => {
       `INSERT INTO rel_principal (
          id_registro, id_persona, id_cargo_base, id_cargo_actual, id_dependencia,
          id_educacion, id_contacto, id_estado, otro_tiempo_gobernacion, otros_tiempos_periodos,
-         tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+         tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo,
+         encargo_denominacion, encargo_codigo, encargo_grado, encargo_asignacion
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
       [
         recordId,
         personId,
@@ -952,7 +968,11 @@ router.post('/', auth, async (req, res) => {
         tiempoTotalGobernacionStr,
         fechaIngreso || null,
         tiempoCalcPost ? tiempoCalcPost.texto : null,
-        fechaEncargo || null
+        fechaEncargo || null,
+        clean(encargoDenominacion)?.toUpperCase() || null,
+        clean(encargoCodigo)?.toUpperCase() || null,
+        clean(encargoGrado)?.toUpperCase() || null,
+        clean(encargoAsignacion) || null
       ]
     );
 
@@ -1040,6 +1060,10 @@ router.get('/:cedula', auth, async (req, res) => {
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
+             COALESCE(r.encargo_denominacion,'') AS encargo_denominacion,
+             COALESCE(r.encargo_codigo,'') AS encargo_codigo,
+             COALESCE(r.encargo_grado,'') AS encargo_grado,
+             COALESCE(r.encargo_asignacion,'') AS encargo_asignacion,
              r.otros_tiempos_periodos
       FROM rel_principal r
       LEFT JOIN vacantes_enum ve ON ve.id_registro = r.id_registro
@@ -1163,6 +1187,13 @@ router.get('/:cedula', auth, async (req, res) => {
       otroTiempoCalculado: esVacante ? null : (otroTiempoCalc && otroTiempoCalc.tieneValor ? otroTiempoCalc.texto : '0 años, 0 meses, 0 días'),
       otroTiempoPeriodos: esVacante ? [] : (Array.isArray(r.otros_tiempos_periodos) ? r.otros_tiempos_periodos : []),
       tiempoTotalGobernacion: esVacante ? null : (tiempoTotalCalc ? tiempoTotalCalc.texto : (tiempoCalc ? tiempoCalc.texto : 'No disponible')),
+      encargoDenominacion: clean(r.encargo_denominacion),
+      encargoCodigo: clean(r.encargo_codigo),
+      encargoGrado: clean(r.encargo_grado),
+      encargoAsignacion: clean(r.encargo_asignacion),
+      cargoTitular: clean(r.cargo_base || r.cargo_actual),
+      codigoTitular: clean(r.codigo_base || r.codigo_actual),
+      gradoTitular: clean(r.grado_base || r.grado_actual),
       sexo: esVacante ? null : r.sexo,
       documento_pendiente: esVacante ? false : Boolean(r.documento_pendiente),
       es_vacante: esVacante,
@@ -1200,6 +1231,10 @@ router.put('/:cedula', auth, async (req, res) => {
     opec,
     fechaIngreso,
     fechaEncargo,
+    encargoDenominacion,
+    encargoCodigo,
+    encargoGrado,
+    encargoAsignacion,
     otroTiempoGobernacion,
     otroTiempoPeriodos,
     funciones,
@@ -1470,6 +1505,22 @@ router.put('/:cedula', auth, async (req, res) => {
     if (fechaEncargo !== undefined) {
       updateParts.push(`fecha_encargo=$${idx++}`);
       updateVals.push(fechaEncargo || null);
+    }
+    if (encargoDenominacion !== undefined) {
+      updateParts.push(`encargo_denominacion=$${idx++}`);
+      updateVals.push(clean(encargoDenominacion)?.toUpperCase() || null);
+    }
+    if (encargoCodigo !== undefined) {
+      updateParts.push(`encargo_codigo=$${idx++}`);
+      updateVals.push(clean(encargoCodigo)?.toUpperCase() || null);
+    }
+    if (encargoGrado !== undefined) {
+      updateParts.push(`encargo_grado=$${idx++}`);
+      updateVals.push(clean(encargoGrado)?.toUpperCase() || null);
+    }
+    if (encargoAsignacion !== undefined) {
+      updateParts.push(`encargo_asignacion=$${idx++}`);
+      updateVals.push(clean(encargoAsignacion) || null);
     }
     if (otroTiempoPeriodos !== undefined || otroTiempoGobernacion !== undefined) {
       updateParts.push(`otro_tiempo_gobernacion=$${idx++}`);

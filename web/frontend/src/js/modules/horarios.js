@@ -664,7 +664,7 @@ const HorariosModule = (() => {
           <td>
             <div class="user-table-cell">
               <span class="td-primary" title="${escHtml(item.apellidos_nombres)}">${escHtml(truncate(item.apellidos_nombres, 28))}</span>
-              <span class="user-table-cc font-mono">C.C. ${escHtml(item.documento)}</span>
+              <span class="user-table-cc font-mono">C.C. ${escHtml(item.documento)}</span>${item.telefono ? `<span class="user-table-sub font-mono" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">📞 ${escHtml(item.telefono)}</span>` : ''}
             </div>
           </td>
 
@@ -869,6 +869,14 @@ const HorariosModule = (() => {
           <input type="text" id="horario-secretaria" class="form-input" placeholder="Ej: SECRETARÍA GENERAL..." enterkeyhint="next" value="${escHtml(
             item?.secretaria || ''
           )}" />
+        </div>
+
+        <div class="form-group">
+          <label for="horario-telefono" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px;">TELÉFONO DE CONTACTO</label>
+          <input type="text" id="horario-telefono" class="form-input font-mono" placeholder="Ej: 3112256904" enterkeyhint="next" value="${escHtml(
+            item?.telefono || ''
+          )}" />
+          <small class="field-hint" style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Número telefónico o de celular del funcionario</small>
         </div>
 
         <div class="form-group span-2">
@@ -1365,7 +1373,8 @@ const HorariosModule = (() => {
       'horario-codigo',
       'horario-grado',
       'horario-dependencia',
-      'horario-secretaria'
+      'horario-secretaria',
+      'horario-telefono'
     ];
 
     const setServerFieldsLock = (locked) => {
@@ -1447,6 +1456,9 @@ const HorariosModule = (() => {
       if (cargoEl) cargoEl.value = cargo || '';
       if (deptEl) deptEl.value = dept || '';
       if (secEl) secEl.value = sec || '';
+      const tel = (emp.celular || emp.telefono_fijo || emp.telefono || '').toString().trim();
+      const telEl = document.getElementById('horario-telefono');
+      if (telEl) telEl.value = tel || '';
 
       if (empSearchInput && name && doc) {
         empSearchInput.value = `${name} (C.C. ${doc})`;
@@ -1456,7 +1468,7 @@ const HorariosModule = (() => {
       setServerFieldsLock(true);
 
       // Animación azul visible y estilizada en los campos autocompletados
-      [docEl, nameEl, codigoEl, gradoEl, cargoEl, deptEl, secEl].forEach((el) => {
+      [docEl, nameEl, codigoEl, gradoEl, cargoEl, deptEl, secEl, telEl].forEach((el) => {
         if (el) {
           el.classList.add('input-flash-blue');
           setTimeout(() => {
@@ -1710,6 +1722,7 @@ const HorariosModule = (() => {
     const codigo = document.getElementById('horario-codigo')?.value?.trim();
     const grado = document.getElementById('horario-grado')?.value?.trim();
     const secretaria = document.getElementById('horario-secretaria')?.value?.trim();
+    const telefono = document.getElementById('horario-telefono')?.value?.trim() || null;
 
     const documento = document.getElementById('horario-documento')?.value?.trim();
     const apellidos_nombres = document.getElementById('horario-nombre')?.value?.trim();
@@ -1757,6 +1770,7 @@ const HorariosModule = (() => {
       codigo: codigo || null,
       grado: grado || null,
       secretaria: secretaria || null,
+      telefono: telefono || null,
       documento,
       apellidos_nombres,
       dependencia: dependencia || 'SECRETARÍA GENERAL',
@@ -1979,6 +1993,11 @@ const HorariosModule = (() => {
                   <span class="ficha-hero-pill">
                     🏢 ${escHtml(h.dependencia || 'Gobernación de Boyacá')}
                   </span>
+                  ${h.telefono ? `
+                    <span class="ficha-hero-pill font-mono">
+                      📞 <strong>${escHtml(h.telefono)}</strong>
+                    </span>
+                  ` : ''}
                 </div>
               </div>
               <div class="ficha-hero-logo-wrap" title="Gobernación de Boyacá">
@@ -2345,6 +2364,17 @@ const HorariosModule = (() => {
                   ${escHtml(h.secretaria || h.dependencia || 'Gobernación de Boyacá')}
                 </div>
                 <div class="ficha-card-sub">Sector administrativo</div>
+              </div>
+
+              <div class="ficha-card">
+                <div class="ficha-card-top">
+                  <div class="ficha-card-icon">📞</div>
+                  <span class="ficha-card-label">Teléfono de Contacto</span>
+                </div>
+                <div class="ficha-card-val font-mono" style="font-size:1.1rem; font-weight:700;">
+                  ${escHtml(h.telefono || 'Sin teléfono registrado')}
+                </div>
+                <div class="ficha-card-sub">Línea directa o celular del servidor</div>
               </div>
 
               <div class="ficha-card">
@@ -3235,6 +3265,7 @@ const HorariosModule = (() => {
           duracion_texto: (modalidadNorm === 'Presencial' ? 'Permanente' : '1 año'),
           tipo_calculo: 'Hábiles',
           estado: 'Activa',
+          telefono: telefono || '',
         },
       };
     }
@@ -3436,20 +3467,19 @@ const HorariosModule = (() => {
    * 12. RESOLUCION, 13. FECHA, 14. TELEFONO
    */
   const HORARIOS_EXCEL_COLUMNS = [
-    { header: 'NO', key: 'numero_consecutivo', width: 8, sample: '1' },
-    { header: 'NOMBRES', key: 'nombres', width: 24, sample: 'KAREN MILENA' },
-    { header: 'APELLIDOS', key: 'apellidos', width: 24, sample: 'ABRIL LOPEZ' },
-    { header: 'NO DE CEDULA', key: 'documento', width: 20, sample: '1057577168' },
-    { header: 'CARGO', key: 'cargo', width: 28, sample: 'ASESOR' },
-    { header: 'COD', key: 'codigo', width: 10, sample: '105' },
-    { header: 'GRA', key: 'grado', width: 10, sample: '01' },
-    { header: 'DEPENDENCIA', key: 'dependencia', width: 32, sample: 'DESPACHO DEL GOBERNADOR' },
-    { header: 'SECRETARIA', key: 'secretaria', width: 28, sample: 'SECRETARÍA GENERAL' },
-    { header: 'SITUACION', key: 'modalidad', width: 20, sample: 'Teletrabajo' },
-    { header: 'DIAS DE TELETRABAJO', key: 'dias_teletrabajo', width: 28, sample: 'martes y jueves' },
-    { header: 'RESOLUCION', key: 'numero_resolucion', width: 20, sample: '0045 de 2026' },
-    { header: 'FECHA', key: 'fecha_inicio', width: 16, sample: '2026-02-01' },
-    { header: 'TELEFONO', key: 'telefono', width: 18, sample: '3101234567' }
+    { header: 'No.', key: 'numero_consecutivo', width: 8, sample: '1' },
+    { header: 'Nombres y Apellidos', key: 'apellidos_nombres', width: 34, sample: 'MARIA CAROLINA SUAREZ LEON' },
+    { header: 'Nro. De Identificación', key: 'documento', width: 22, sample: '46376159' },
+    { header: 'Cargo', key: 'cargo', width: 30, sample: 'PROFESIONAL UNIVERSITARIO' },
+    { header: 'Código ', key: 'codigo', width: 12, sample: '219' },
+    { header: 'Grado', key: 'grado', width: 10, sample: '05' },
+    { header: 'Dependencia', key: 'dependencia', width: 36, sample: 'UNIDAD ESPECIAL DE ASESORIA Y DEFENSA JURIDICA' },
+    { header: 'Secretaría', key: 'secretaria', width: 30, sample: 'DESPACHO DEL GOBERNADOR' },
+    { header: 'Situación', key: 'modalidad', width: 20, sample: 'Teletrabajo' },
+    { header: 'Resolución', key: 'numero_resolucion', width: 18, sample: '4364' },
+    { header: 'fecha ', key: 'fecha_inicio', width: 22, sample: '23 de diciembre 2025' },
+    { header: 'Dias Teletrabajo', key: 'dias_teletrabajo', width: 30, sample: 'Lunes, Martes y Jueves ' },
+    { header: 'tel.', key: 'telefono', width: 18, sample: '3112256904' }
   ];
 
   function downloadTemplate() {
@@ -3458,7 +3488,8 @@ const HorariosModule = (() => {
         filename: 'PLANTILLA_OFICIAL_HORARIOS_Y_MODALIDADES',
         sheetName: 'Situación Administrativa',
         columns: HORARIOS_EXCEL_COLUMNS,
-        sampleRows: []
+        sampleRows: [],
+        preserveCase: true
       });
       App.showToast('Descargando plantilla oficial de Horarios y Modalidades en blanco...', 'info');
     } else {
@@ -3605,8 +3636,9 @@ const HorariosModule = (() => {
         const resolStr = item.numero_resolucion || '';
 
         return {
-          // Llaves correspondientes a HORARIOS_EXCEL_COLUMNS.key
+          // Llaves estándar del objeto de datos
           numero_consecutivo: numConsec,
+          apellidos_nombres: item.apellidos_nombres || (nombres && apellidos ? `${apellidos} ${nombres}` : (nombres || apellidos || '')),
           nombres: nombres || item.apellidos_nombres || '',
           apellidos: apellidos || '',
           documento: item.documento || '',
@@ -3621,10 +3653,28 @@ const HorariosModule = (() => {
           fecha_inicio: fechaFormatted,
           telefono: tel,
 
-          // Llaves directas por encabezado oficial para compatibilidad total
+          // Encabezados exactos e idénticos a RELACION SITUACION ADMINISTRATIVA.xlsx
+          'No.': numConsec,
+          'Nombres y Apellidos': item.apellidos_nombres || (nombres && apellidos ? `${apellidos} ${nombres}` : (nombres || apellidos || '')),
+          'Nro. De Identificación': item.documento || '',
+          'Cargo': cargoStr,
+          'Código ': codigoStr,
+          'Código': codigoStr,
+          'Grado': gradoStr,
+          'Dependencia': depStr,
+          'Secretaría': secStr,
+          'Situación': modStr,
+          'Resolución': resolStr,
+          'fecha ': fechaFormatted,
+          'Fecha': fechaFormatted,
+          'Dias Teletrabajo': diasStr,
+          'tel.': tel,
+          'Teléfono': tel,
+
+          // Compatibilidad adicional con mayúsculas
           'NO': numConsec,
-          'NOMBRES': nombres || item.apellidos_nombres || '',
-          'APELLIDOS': apellidos || '',
+          'NO.': numConsec,
+          'NOMBRES Y APELLIDOS': item.apellidos_nombres || '',
           'NO DE CEDULA': item.documento || '',
           'CARGO': cargoStr,
           'COD': codigoStr,

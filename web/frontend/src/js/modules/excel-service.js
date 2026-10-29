@@ -42,12 +42,14 @@ const ExcelService = (() => {
     }
 
     // Transformar registros según las columnas o tomar directamente las llaves
-    let rows;
     let colWidths;
+    let ws;
     if (columns && columns.length > 0) {
-      rows = data.map((item, idx) => {
-        const row = {};
-        columns.forEach(col => {
+      // Uso de Array of Arrays (aoa) para soportar columnas con encabezados repetidos (ej: COD., GRA.)
+      const headers = columns.map(c => String(c.header || c.key || ''));
+      const aoa = [headers];
+      data.forEach((item, idx) => {
+        const rowVals = columns.map(col => {
           let val = item[col.key];
           if (val === undefined && item[col.header] !== undefined) {
             val = item[col.header];
@@ -57,21 +59,23 @@ const ExcelService = (() => {
           } else if (val == null) {
             val = '';
           }
-          row[col.header] = val;
+          return val;
         });
-        return row;
+        aoa.push(rowVals);
       });
 
-      colWidths = columns.map(col => {
+      colWidths = columns.map((col, colIdx) => {
         let maxLen = (col.header || '').length;
-        rows.forEach(r => {
-          const valStr = String(r[col.header] || '');
+        for (let r = 1; r < aoa.length; r++) {
+          const valStr = String(aoa[r][colIdx] || '');
           if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
-        });
+        }
         return { wch: Math.max(col.width || 12, maxLen + 3) };
       });
+
+      ws = XLSX.utils.aoa_to_sheet(aoa);
     } else {
-      rows = data;
+      const rows = data;
       const allKeys = Object.keys(rows[0] || {});
       colWidths = allKeys.map(k => {
         let maxLen = k.length;
@@ -81,10 +85,10 @@ const ExcelService = (() => {
         });
         return { wch: Math.max(12, maxLen + 3) };
       });
+      ws = XLSX.utils.json_to_sheet(rows);
     }
 
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = colWidths;
     ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
 
@@ -252,14 +256,14 @@ const ExcelService = (() => {
    * Aplica: fila 1 con altura de 41 píxeles (30.75 pt), texto en mayúscula sostenida,
    * negrita y centrado (horizontal y vertical), y autofiltro de tabla.
    */
-  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [] }) {
+  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [], preserveCase = false }) {
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel aún no está disponible.');
       return;
     }
 
-    // Cabeceras en mayúscula sostenida
-    const headers = columns.map(col => String(col.header || col.key || '').toUpperCase());
+    // Cabeceras en mayúscula sostenida o exactas según preserveCase
+    const headers = columns.map(col => preserveCase ? String(col.header || col.key || '') : String(col.header || col.key || '').toUpperCase());
 
     // Fila 1 de encabezados (una sola fila)
     const aoa = [headers];
