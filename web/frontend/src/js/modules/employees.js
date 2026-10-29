@@ -254,6 +254,9 @@ const EmployeesModule = (() => {
                 C.C. ${formatCedulaDots(emp.cedula)}
               </span>
               <span class="retire-chip">
+                <span class="badge badge--activo" style="font-size:11px; padding:2px 7px;">Activo</span>
+              </span>
+              <span class="retire-chip">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                 ${escHtml(emp.cargoActual || emp.cargo || emp.denominacion || 'Cargo no registrado')}
               </span>
@@ -266,7 +269,7 @@ const EmployeesModule = (() => {
             <div class="retire-tenure-row">
               <span>Vinculación actual desde: <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong></span>
               <span class="retire-tenure-divider">•</span>
-              <span>Tiempo acumulado: <strong style="color:#b91c1c;">${escHtml(emp.tiempoServicioCalculado || '—')}</strong></span>
+              <span>Tiempo actual a congelar: <strong style="color:#b91c1c;">${escHtml(emp.tiempoServicioCalculado || '—')}</strong></span>
             </div>
           </div>
         </div>
@@ -277,9 +280,15 @@ const EmployeesModule = (() => {
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </div>
           <div class="retire-alert-content" style="width:100%;">
-            <div class="retire-alert-header-row">
+            <div class="retire-alert-header-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
               <h4 class="retire-alert-title">Detención y Congelamiento del Tiempo de Servicio</h4>
-              <span class="retire-alert-timer-tag" id="retire-alert-timer-tag">Aviso visible por 7s</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="retire-alert-timer-tag" id="retire-alert-timer-tag">Aviso visible por 7s</span>
+                <button type="button" class="btn-close-notice" onclick="EmployeesModule.toggleRetireNotice('retire-main-alert-banner', 'retire-alert-collapsed-wrap')" title="Ocultar aviso" style="background:none; border:none; padding:2px 4px; cursor:pointer; color:#991b1b; opacity:0.75; font-size:11px; display:inline-flex; align-items:center; gap:3px;">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Ocultar</span>
+                </button>
+              </div>
             </div>
             <p class="retire-alert-text">
               Al confirmar el retiro, el cálculo dinámico de tiempo de servicio se detendrá exactamente en la fecha seleccionada. Su acumulado en la Gobernación de Boyacá quedará congelado hasta esa fecha y certificado en su historial laboral. Si el servidor es vinculado nuevamente en el futuro, este periodo pasará automáticamente a su experiencia histórica acreditada.
@@ -301,17 +310,18 @@ const EmployeesModule = (() => {
         <!-- Alerta Dinámica de Inconsistencia de Fechas -->
         <div id="retire-date-inconsistency-alert" class="retire-date-inconsistency-alert" style="display:none;"></div>
 
-        <!-- Formulario de Retiro con Campos de 56px de Alto -->
+        <!-- Formulario de Retiro con Campos Flotantes de 56px de Alto -->
         <div class="retire-form-grid">
-          <div class="form-group retire-field-56">
-            <label class="form-label required" for="retire-fecha">Fecha Efectiva de Retiro</label>
-            <input type="text" id="retire-fecha" class="form-input" data-datepicker="true" max="${today}" value="${today}" required />
+          <div>
+            <div class="form-group floating-group">
+              <input type="text" id="retire-fecha" class="form-input" data-datepicker="true" max="${today}" value="${today}" required />
+              <label class="form-label required" for="retire-fecha">Fecha Efectiva de Retiro</label>
+            </div>
+            <span class="form-hint">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
           </div>
-          <span class="form-hint" style="margin-top:-6px; margin-bottom:4px;">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
 
-          <div class="form-group retire-field-56">
-            <label class="form-label required" for="retire-causal">Causal Legal de Retiro</label>
-            <select id="retire-causal" class="form-select" required>
+          <div class="form-group floating-group is-select is-floated">
+            <select id="retire-causal" class="form-select filter-select" required>
               <option value="Renuncia voluntaria debidamente aceptada" selected>Renuncia voluntaria debidamente aceptada</option>
               <option value="Pensión de jubilación / vejez / invalidez">Pensión de jubilación / vejez / invalidez</option>
               <option value="Vencimiento del nombramiento provisional / periodo">Vencimiento del nombramiento provisional / periodo</option>
@@ -323,11 +333,12 @@ const EmployeesModule = (() => {
               <option value="Muerte del servidor público">Muerte del servidor público</option>
               <option value="Otro motivo legal">Otro motivo legal</option>
             </select>
+            <label class="form-label required" for="retire-causal">Causal Legal de Retiro</label>
           </div>
 
-          <div class="form-group retire-field-56">
-            <label class="form-label" for="retire-motivo">Acto Administrativo o Detalle (Opcional)</label>
+          <div class="form-group floating-group">
             <input type="text" id="retire-motivo" class="form-input" placeholder="Ej: Decreto / Resolución Nro. 0482 de 2026 - Aceptación de renuncia" autocomplete="off" />
+            <label class="form-label" for="retire-motivo">Acto Administrativo o Detalle (Opcional)</label>
           </div>
         </div>
       </div>
@@ -347,6 +358,16 @@ const EmployeesModule = (() => {
       ],
       'modal-retire-dialog'
     );
+
+    // Inicializar controles interactivos (Datepickers y Floating Labels)
+    setTimeout(() => {
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody && typeof App !== 'undefined') {
+        if (App.initDatePickers) App.initDatePickers(modalBody);
+        if (App.initFormUX) App.initFormUX(modalBody);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBody);
+      }
+    }, 40);
 
     // Iniciar temporizador de desvanecimiento del banner de advertencia (7s)
     setupNoticeAutoFade('retire-main-alert-banner', 'retire-alert-progress-bar', 'retire-alert-collapsed-wrap', 'retire-alert-timer-tag');
@@ -488,6 +509,10 @@ const EmployeesModule = (() => {
     if (el) el.remove();
   }
 
+  function closeReactivateModal() {
+    App.closeModal();
+  }
+
   function promptReactivateEmployee(itemKey) {
     if (!Auth.canEdit()) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
@@ -498,12 +523,17 @@ const EmployeesModule = (() => {
     const today = new Date().toISOString().split('T')[0];
     const initials = getInitials(emp.nombreCompleto);
 
+    const rawPeriodos = Array.isArray(emp.otroTiempoPeriodos) ? emp.otroTiempoPeriodos : [];
+    const ultimoPeriodoDesde = emp.fechaIngreso || '—';
+    const ultimoPeriodoHasta = emp.fechaRetiro || 'Fecha de retiro no registrada';
+
     const bodyHtml = `
       <div class="retire-modal-container">
         <!-- Tarjeta de Identificación Institucional -->
         <div class="retire-profile-card retire-profile-card--reactivate">
           <div class="retire-avatar-wrap">
             <div class="retire-avatar retire-avatar--reactivate" title="${escHtml(emp.nombreCompleto || 'Servidor')}">${escHtml(initials)}</div>
+            <span class="avatar-status-dot dot--retired" title="Servidor Retirado"></span>
           </div>
           <div class="retire-profile-info">
             <div class="retire-profile-name">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
@@ -522,11 +552,56 @@ const EmployeesModule = (() => {
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                 ${escHtml(emp.cargoActual || emp.cargo || 'Cargo no registrado')}
               </span>
+              ${emp.dependencia ? `
+              <span class="retire-chip">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
+                ${escHtml(emp.dependencia)}
+              </span>` : ''}
             </div>
-            <div class="retire-tenure-row">
-              <span>Periodo anterior: <strong>${escHtml(emp.fechaIngreso || '—')}</strong> al <strong>${escHtml(emp.fechaRetiro || '—')}</strong></span>
-              <span class="retire-tenure-divider">•</span>
-              <span>Acumulado: <strong style="color:#15803d;">${escHtml(emp.tiempoServicioCalculado || '—')}</strong></span>
+
+            <!-- Historial Completo de Periodos en Gobernación -->
+            <div class="retire-periods-container">
+              <div class="retire-periods-header">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Historial de Periodos en la Gobernación</span>
+              </div>
+              <div class="retire-periods-list">
+                <div class="retire-period-row period--latest">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span class="period-tag tag--recent">Último Periodo</span>
+                    <span><strong>${escHtml(ultimoPeriodoDesde)}</strong> al <strong>${escHtml(ultimoPeriodoHasta)}</strong></span>
+                  </div>
+                  <div>
+                    <span style="font-weight:700; color:#15803d;">${escHtml(emp.tiempoServicioCalculado || '—')}</span>
+                  </div>
+                </div>
+                ${rawPeriodos.map((p, idx) => `
+                  <div class="retire-period-row">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span class="period-tag tag--history">Histórico #${idx + 1}</span>
+                      <span><strong>${escHtml(p.desde || '—')}</strong> al <strong>${escHtml(p.hasta || '—')}</strong></span>
+                    </div>
+                    <div>
+                      <span style="color:var(--text-secondary);">${p.duracionTexto || p.tiempoTexto || (p.dias ? `${p.dias} días` : 'Acreditado')}</span>
+                    </div>
+                  </div>
+                `).join('')}
+                ${(!rawPeriodos.length && emp.otroTiempoCalculado && emp.otroTiempoCalculado !== '0 años, 0 meses, 0 días') ? `
+                  <div class="retire-period-row">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span class="period-tag tag--history">Otros Previos</span>
+                      <span>${escHtml(emp.otroTiempoGobernacion || emp.otroTiempoCalculado)}</span>
+                    </div>
+                    <div>
+                      <span style="color:var(--text-secondary);">${escHtml(emp.otroTiempoCalculado)}</span>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+              <div class="retire-periods-footer">
+                <span class="total-label">Tiempo Total Acumulado a Acreditar:</span>
+                <span class="total-val">${escHtml(emp.tiempoTotalGobernacion || emp.tiempoServicioCalculado || '—')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -537,9 +612,15 @@ const EmployeesModule = (() => {
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <div class="retire-alert-content" style="width:100%;">
-            <div class="retire-alert-header-row">
+            <div class="retire-alert-header-row" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
               <h4 class="retire-alert-title retire-alert-title--reactivate">Traslado Automático a Experiencia Histórica</h4>
-              <span class="retire-alert-timer-tag" id="reactivate-alert-timer-tag">Aviso visible por 7s</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="retire-alert-timer-tag" id="reactivate-alert-timer-tag">Aviso visible por 7s</span>
+                <button type="button" class="btn-close-notice" onclick="EmployeesModule.toggleRetireNotice('reactivate-main-alert-banner', 'reactivate-alert-collapsed-wrap')" title="Ocultar aviso" style="background:none; border:none; padding:2px 4px; cursor:pointer; color:#15803d; opacity:0.75; font-size:11px; display:inline-flex; align-items:center; gap:3px;">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span>Ocultar</span>
+                </button>
+              </div>
             </div>
             <p class="retire-alert-text">
               El tiempo previo laborado por este funcionario (<strong>${escHtml(emp.tiempoServicioCalculado || '—')}</strong>) se trasladará automáticamente a <strong>"Otro Tiempo con la Gobernación"</strong>. El contador de tiempo de servicio actual se reiniciará a partir de la nueva fecha de posesión.
@@ -561,40 +642,42 @@ const EmployeesModule = (() => {
         <!-- Alerta Dinámica de Inconsistencia de Fechas -->
         <div id="reactivate-date-inconsistency-alert" class="retire-date-inconsistency-alert" style="display:none;"></div>
 
-        <!-- Formulario de Reactivación con Campos de 56px de Alto -->
+        <!-- Formulario de Reactivación con Campos Flotantes de 56px de Alto -->
         <div class="retire-form-grid retire-form-grid--reactivate">
-          <div class="form-group retire-field-56">
-            <label class="form-label required" for="reactivate-nueva-fecha">Nueva Fecha de Ingreso / Posesión</label>
-            <input type="text" id="reactivate-nueva-fecha" class="form-input" data-datepicker="true" value="${today}" required />
+          <div>
+            <div class="form-group floating-group">
+              <input type="text" id="reactivate-nueva-fecha" class="form-input" data-datepicker="true" value="${today}" required />
+              <label class="form-label required" for="reactivate-nueva-fecha">Nueva Fecha de Ingreso / Posesión</label>
+            </div>
+            <span class="form-hint">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
           </div>
-          <span class="form-hint" style="margin-top:-6px; margin-bottom:4px;">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
 
-          <div class="form-group retire-field-56">
-            <label class="form-label" for="reactivate-tipo-vinculacion">Modalidad o Tipo de Nombramiento</label>
-            <select id="reactivate-tipo-vinculacion" class="form-select">
+          <div class="form-group floating-group is-select is-floated">
+            <select id="reactivate-tipo-vinculacion" class="form-select filter-select">
               <option value="Carrera Administrativa" selected>Carrera Administrativa</option>
               <option value="Provisionalidad">Provisionalidad</option>
               <option value="Libre Nombramiento y Remoción">Libre Nombramiento y Remoción</option>
               <option value="Periodo Fijo">Periodo Fijo</option>
               <option value="Temporal">Temporal</option>
             </select>
+            <label class="form-label" for="reactivate-tipo-vinculacion">Modalidad o Tipo de Nombramiento</label>
           </div>
 
-          <div class="form-group retire-field-56">
-            <label class="form-label" for="reactivate-acto">Acto Administrativo de Posesión (Opcional)</label>
+          <div class="form-group floating-group">
             <input type="text" id="reactivate-acto" class="form-input" placeholder="Ej: Decreto Nro. 0125 de 2026 - Posesión de cargo" autocomplete="off" />
+            <label class="form-label" for="reactivate-acto">Acto Administrativo de Posesión (Opcional)</label>
           </div>
         </div>
       </div>
     `;
 
     App.openModal(
-      'Reactivar Servidor (Nueva Vinculación)',
+      'Reactivar Servidor (Revinculación Laboral)',
       bodyHtml,
       [
         { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
         {
-          html: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Confirmar Reactivación</span>`,
+          html: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Confirmar Revinculación</span>`,
           cls: 'btn-success retire-modal-footer-btn-success',
           id: 'btn-confirm-reactivate-action',
           action: () => EmployeesModule.confirmReactivateEmployee(itemKey)
@@ -602,6 +685,16 @@ const EmployeesModule = (() => {
       ],
       'modal-retire-dialog'
     );
+
+    // Inicializar controles interactivos (Datepickers y Floating Labels)
+    setTimeout(() => {
+      const modalBody = document.getElementById('modal-body');
+      if (modalBody && typeof App !== 'undefined') {
+        if (App.initDatePickers) App.initDatePickers(modalBody);
+        if (App.initFormUX) App.initFormUX(modalBody);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBody);
+      }
+    }, 40);
 
     // Iniciar temporizador de desvanecimiento del banner de advertencia (7s)
     setupNoticeAutoFade('reactivate-main-alert-banner', 'reactivate-alert-progress-bar', 'reactivate-alert-collapsed-wrap', 'reactivate-alert-timer-tag');
@@ -647,12 +740,6 @@ const EmployeesModule = (() => {
         fechaInput.addEventListener('input', validateDate);
       }
     }, 150);
-  }
-
-  function closeReactivateModal() {
-    App.closeModal();
-    const el = document.getElementById('modal-reactivate-employee');
-    if (el) el.remove();
   }
 
   async function confirmReactivateEmployee(itemKey) {
@@ -1347,6 +1434,7 @@ const EmployeesModule = (() => {
       const itemKey = e.cedula || e.id;
       const formattedCc = formatCedulaDots(e.cedula);
       const isVac = Boolean(e.es_vacante || e.situacion === 'VACANTE' || (e.nombreCompleto && e.nombreCompleto.startsWith('PLAZA VACANTE')));
+      const isRetirado = !isVac && Boolean(e.esRetirado || (e.estadoServidor || '').toLowerCase() === 'retirado' || (e.situacion || '').toLowerCase() === 'retirado');
       const initials = getInitials(e.nombreCompleto);
       const cargoTitularDisplay = e.cargoTitular || e.cargoBase || e.cargoActual;
       const codTitularDisplay = e.codigoTitular || e.codigoBase || e.codigoActual;
@@ -1356,8 +1444,9 @@ const EmployeesModule = (() => {
       <tr>
         <td class="td-servidor">
           <div class="user-table-cell user-table-cell--avatar" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
-            <div class="user-row-avatar ${isVac ? 'user-row-avatar--vacante' : ''}" aria-hidden="true" title="${escHtml(e.nombreCompleto || 'Servidor')}">
-              ${isVac ? '??' : escHtml(initials)}
+            <div class="user-row-avatar ${isVac ? 'user-row-avatar--vacante' : ''}" style="position:relative;" aria-hidden="true" title="${escHtml(e.nombreCompleto || 'Servidor')}">
+              ${isVac ? '🏛' : escHtml(initials)}
+              ${isRetirado ? '<span class="avatar-status-dot dot--retired" title="Servidor Retirado"></span>' : ''}
             </div>
             <div class="user-table-info" style="display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; text-align:left;">
               <span class="td-primary" title="${escHtml(e.nombreCompleto)}">${escHtml(e.nombreCompleto) || '—'}</span>
@@ -4727,6 +4816,7 @@ const EmployeesModule = (() => {
     promptReactivateEmployee,
     confirmReactivateEmployee,
     closeReactivateModal,
+    toggleRetireNotice,
     startInactivation,
     cancelInactivation,
     reactivateEmployee

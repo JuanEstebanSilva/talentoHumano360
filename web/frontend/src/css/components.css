@@ -10552,8 +10552,11 @@ input.flatpickr-input:hover {
    MODAL DE RETIRO Y REACTIVACIÓN INSTITUCIONAL DE SERVIDORES PÚBLICOS
    ═══════════════════════════════════════════════════════════════════════════ */
 .modal-box.modal-retire-dialog {
-  max-width: 580px !important;
+  max-width: 600px !important;
   width: 95vw !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
   border-radius: 18px !important;
   overflow: hidden !important;
   box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
@@ -10564,8 +10567,9 @@ input.flatpickr-input:hover {
 }
 
 .modal-box.modal-retire-dialog .modal-header {
-  padding: 18px 24px 16px !important;
+  padding: 16px 22px 14px !important;
   border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08)) !important;
+  flex-shrink: 0 !important;
 }
 
 .modal-box.modal-retire-dialog .modal-title {
@@ -10578,10 +10582,16 @@ input.flatpickr-input:hover {
 }
 
 .modal-box.modal-retire-dialog .modal-body {
-  padding: 20px 24px 24px !important;
+  padding: 16px 22px 18px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 18px !important;
+  gap: 12px !important;
+  overflow-y: auto !important;
+  max-height: calc(90vh - 130px) !important;
+}
+
+.modal-box.modal-retire-dialog .modal-footer {
+  flex-shrink: 0 !important;
 }
 
 /* Tarjeta del Perfil del Servidor */
@@ -10613,20 +10623,22 @@ input.flatpickr-input:hover {
 
 .retire-avatar-wrap {
   flex-shrink: 0;
+  position: relative;
 }
 
 .retire-avatar {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50% !important;
   background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   box-shadow: 0 4px 10px rgba(185, 28, 28, 0.3);
+  position: relative;
 }
 
 .retire-avatar--reactivate {
@@ -10886,18 +10898,7 @@ input.flatpickr-input:hover {
   stroke: currentColor !important;
 }
 
-.modal-box.modal-retire-dialog {
-  max-width: 580px !important;
-  width: 95vw !important;
-  border-radius: 20px !important;
-  overflow: hidden !important;
-  box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
-  border: none !important;
-}
-
-[data-theme="dark"] .modal-box.modal-retire-dialog {
-  box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
-}
+/* modal-box.modal-retire-dialog consolidated above */
 
 .retire-alert-banner {
   display: flex;
@@ -11007,8 +11008,8 @@ input.flatpickr-input:hover {
 .retire-alert-collapsed-wrap {
   display: flex;
   justify-content: flex-start;
-  margin-top: -6px;
-  margin-bottom: 4px;
+  margin-top: 6px;
+  margin-bottom: 14px;
 }
 
 .btn-toggle-retire-notice {
@@ -11080,62 +11081,207 @@ input.flatpickr-input:hover {
   border-radius: 4px;
 }
 
-.retire-field-56 {
-  position: relative !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-  min-height: 56px !important;
-  height: 56px !important;
-  border-radius: 14px !important;
-  border: 1.5px solid var(--color-border, #cbd5e1) !important;
-  background: var(--color-bg-input, #ffffff) !important;
-  padding: 0 14px !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* ─── Modal de Retiro y Reactivación / Revinculación: Form UX ─── */
+.retire-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-[data-theme="dark"] .retire-field-56 {
-  background: rgba(15, 23, 42, 0.75) !important;
-  border-color: rgba(71, 85, 105, 0.8) !important;
+.retire-form-grid .form-group.floating-group {
+  margin-bottom: 0;
 }
 
-.retire-field-56:focus-within {
+.retire-form-grid .form-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 3px;
+  margin-bottom: 4px;
+  line-height: 1.35;
+  font-style: italic !important;
+}
+
+/* Select con chevron claro y área de 56px */
+.retire-form-grid select.form-select,
+.retire-form-grid select.filter-select {
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23007bc7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+}
+
+[data-theme="dark"] .retire-form-grid select.form-select,
+[data-theme="dark"] .retire-form-grid select.filter-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}
+
+/* Foco institucional en retiro (rojo) y reactivación (verde) */
+.retire-form-grid:not(.retire-form-grid--reactivate) .form-group.floating-group:focus-within .form-input,
+.retire-form-grid:not(.retire-form-grid--reactivate) .form-group.floating-group:focus-within .filter-select,
+.retire-form-grid:not(.retire-form-grid--reactivate) .form-group.floating-group:focus-within .flatpickr-input-custom {
   border-color: #dc2626 !important;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16) !important;
 }
 
-.retire-profile-card--reactivate ~ .retire-form-grid .retire-field-56:focus-within {
+.retire-form-grid:not(.retire-form-grid--reactivate) .form-group.floating-group:focus-within > .form-label {
+  color: #dc2626 !important;
+}
+
+.retire-form-grid--reactivate .form-group.floating-group:focus-within .form-input,
+.retire-form-grid--reactivate .form-group.floating-group:focus-within .filter-select,
+.retire-form-grid--reactivate .form-group.floating-group:focus-within .flatpickr-input-custom {
   border-color: #16a34a !important;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16) !important;
 }
 
-.retire-field-56 .form-label {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  color: var(--text-secondary, #64748b) !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.5px !important;
-  margin-bottom: 2px !important;
-  pointer-events: none !important;
+.retire-form-grid--reactivate .form-group.floating-group:focus-within > .form-label {
+  color: #16a34a !important;
 }
 
-.retire-field-56 .form-input,
-.retire-field-56 .form-select,
-.retire-field-56 input.flatpickr-input-custom {
-  height: 24px !important;
-  border: none !important;
-  background: transparent !important;
-  padding: 0 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--text-primary, #0f172a) !important;
-  outline: none !important;
-  box-shadow: none !important;
-  width: 100% !important;
+/* Indicador de estado Retirado (punto rojo) en el avatar */
+.user-row-avatar {
+  position: relative !important;
 }
 
-[data-theme="dark"] .retire-field-56 .form-input,
-[data-theme="dark"] .retire-field-56 .form-select,
-[data-theme="dark"] .retire-field-56 input.flatpickr-input-custom {
-  color: #f8fafc !important;
+.user-row-avatar .avatar-status-dot.dot--retired,
+.retire-avatar-wrap .avatar-status-dot.dot--retired,
+.ficha-avatar-box .avatar-status-dot.dot--retired {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background-color: #dc2626;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.retire-avatar-wrap .avatar-status-dot.dot--retired {
+  width: 13px;
+  height: 13px;
+  border-width: 2.5px;
+  bottom: 1px;
+  right: 1px;
+}
+
+[data-theme="dark"] .user-row-avatar .avatar-status-dot.dot--retired,
+[data-theme="dark"] .retire-avatar-wrap .avatar-status-dot.dot--retired,
+[data-theme="dark"] .ficha-avatar-box .avatar-status-dot.dot--retired {
+  border-color: #1e293b;
+}
+
+/* Historial de periodos en el modal de revinculación */
+.retire-periods-container {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+[data-theme="dark"] .retire-periods-container {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.retire-periods-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #15803d;
+  margin-bottom: 6px;
+}
+
+[data-theme="dark"] .retire-periods-header {
+  color: #4ade80;
+}
+
+.retire-periods-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.retire-period-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.retire-period-row.period--latest {
+  background: rgba(22, 163, 74, 0.08);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .retire-period-row {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .retire-period-row.period--latest {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.period-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.period-tag.tag--recent {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.period-tag.tag--history {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .period-tag.tag--history {
+  background: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+.retire-periods-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(22, 163, 74, 0.25);
+  font-size: 12px;
+}
+
+.retire-periods-footer .total-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.retire-periods-footer .total-val {
+  font-weight: 800;
+  color: #15803d;
+  font-size: 12.5px;
+}
+
+[data-theme="dark"] .retire-periods-footer .total-val {
+  color: #4ade80;
 }
