@@ -2657,12 +2657,22 @@ const ViaticosModule = (() => {
                   ${ESTADOS.map(s => `<option value="${s === 'Todos' ? '' : s}">${s === 'Todos' ? 'TODOS' : s}</option>`).join('')}
                 </select>
               </div>
-              <button class="btn btn-secondary" onclick="ViaticosModule.clearFilters()" title="Restablecer todos los filtros" aria-label="Limpiar filtros">Limpiar</button>
-              <button id="vit-btn-adv-filter" class="btn-filter-adv" onclick="ViaticosModule.openAdvancedFiltersModal()" title="Abrir panel de filtros avanzados">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                <span>Filtros</span>
-                <span class="filter-count-badge" id="vit-adv-filter-count" style="display:none;">0</span>
-              </button>
+              <div class="filters-actions-wrap" style="display:flex; gap:8px; align-items:flex-end;">
+                <button type="button" id="vit-btn-adv-filter" class="btn-filter-adv ${getActiveFiltersCount() > 0 ? 'btn-filter-active' : ''}" onclick="ViaticosModule.openAdvancedFiltersModal()" title="Abrir panel de filtros avanzados" aria-label="Filtros avanzados">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px;flex-shrink:0;">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  </svg>
+                  <span>Filtros</span>
+                  <span class="filter-count-badge" id="vit-adv-filter-count" style="${getActiveFiltersCount() > 0 ? '' : 'display:none;'}">${getActiveFiltersCount()}</span>
+                </button>
+                <button type="button" class="btn-filter-clear" onclick="ViaticosModule.clearFilters()" title="Restablecer todos los filtros" aria-label="Limpiar filtros">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                  </svg>
+                  <span>Limpiar</span>
+                </button>
+              </div>
             </div>
           </div>
 

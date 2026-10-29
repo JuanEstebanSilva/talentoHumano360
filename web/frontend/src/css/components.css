@@ -10119,61 +10119,206 @@ input.flatpickr-input:hover {
 }
 
 
-/* ─── Botón y Componentes de Filtros Avanzados (REQ-FILTROS) ─────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOTONES UNIFICADOS Y REFINADOS DE FILTROS Y LIMPIEZA (MISMA GEOMETRÍA Y ALTURA)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.filters-actions-wrap {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+.btn-filter-adv,
+.btn-filter-clear {
+  height: 38px !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 0 16px !important;
+  border-radius: 9999px !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  text-decoration: none !important;
+}
+
+/* Iconos de exactamente el mismo tamaño (15x15px) y grosor */
+.btn-filter-adv svg,
+.btn-filter-clear svg {
+  width: 15px !important;
+  height: 15px !important;
+  stroke-width: 2.2 !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.2s ease !important;
+}
+
+/* 1. Botón de Filtros — Estado Normal (Sin filtros activos) */
 .btn-filter-adv {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  position: relative;
-  border: 1px solid var(--border-color, rgba(0,0,0,0.15));
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #1e293b);
-  cursor: pointer;
-  height: 38px;
-  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: var(--text-primary, #1e293b) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
+
+.btn-filter-adv svg {
+  stroke: #1D8096 !important;
+  color: #1D8096 !important;
+}
+
 .btn-filter-adv:hover {
-  background: rgba(29, 128, 150, 0.08);
-  border-color: #1D8096;
-  color: #1D8096;
+  background: rgba(29, 128, 150, 0.08) !important;
+  border-color: #1D8096 !important;
+  color: #166475 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(29, 128, 150, 0.16) !important;
 }
+
+.btn-filter-adv:hover svg {
+  stroke: #166475 !important;
+  transform: scale(1.08) !important;
+}
+
+/* 2. Botón de Filtros — Estado Activo (Filtros > 0) */
 .btn-filter-adv.btn-filter-active {
-  background: rgba(217, 119, 6, 0.12);
-  border-color: #d97706;
-  color: #b45309;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, rgba(217, 119, 6, 0.16) 100%) !important;
+  border-color: #d97706 !important;
+  color: #9a3412 !important;
+  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.22) !important;
+  padding: 0 12px 0 14px !important;
 }
-[data-theme="dark"] .btn-filter-adv {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(71, 85, 105, 0.8);
-  color: #f1f5f9;
+
+.btn-filter-adv.btn-filter-active svg {
+  stroke: #d97706 !important;
+  color: #d97706 !important;
 }
-[data-theme="dark"] .btn-filter-adv:hover {
-  background: rgba(43, 178, 208, 0.15);
-  border-color: #2bb2d0;
-  color: #2bb2d0;
+
+.btn-filter-adv.btn-filter-active:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.24) 100%) !important;
+  border-color: #b45309 !important;
+  color: #7c2d12 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 5px 14px rgba(217, 119, 6, 0.3) !important;
 }
-[data-theme="dark"] .btn-filter-adv.btn-filter-active {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: #f59e0b;
-  color: #fbbf24;
-}
+
+/* Badge con el Conteo de Filtros Activos (Pill / Círculo Naranja) */
 .filter-count-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #d97706;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #ffffff;
   font-size: 11px;
   font-weight: 800;
-  min-width: 18px;
-  height: 18px;
+  min-width: 19px;
+  height: 19px;
   padding: 0 5px;
   border-radius: 999px;
   line-height: 1;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.45);
+  margin-left: 2px;
+  animation: filter-badge-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.filter-count-badge[style*="display: none"],
+.filter-count-badge[style*="display:none"],
+.filter-count-badge.hidden {
+  display: none !important;
+}
+
+@keyframes filter-badge-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 3. Botón de Limpiar — Mismo Tamaño, Geometría y Armonía */
+.btn-filter-clear {
+  background: rgba(248, 250, 252, 0.95) !important;
+  color: #475569 !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.btn-filter-clear svg {
+  stroke: #64748b !important;
+  color: #64748b !important;
+}
+
+.btn-filter-clear:hover {
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+.btn-filter-clear:hover svg {
+  stroke: #0f172a !important;
+  transform: rotate(-45deg) !important;
+}
+
+.btn-filter-adv:active,
+.btn-filter-clear:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+/* ─── Modo Oscuro ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .btn-filter-adv {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+  color: #f1f5f9 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .btn-filter-adv svg {
+  stroke: #38bdf8 !important;
+}
+
+[data-theme="dark"] .btn-filter-adv:hover {
+  background: rgba(43, 178, 208, 0.18) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25) !important;
+}
+
+[data-theme="dark"] .btn-filter-adv.btn-filter-active {
+  background: rgba(245, 158, 11, 0.2) !important;
+  border-color: #f59e0b !important;
+  color: #fef08a !important;
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .btn-filter-adv.btn-filter-active svg {
+  stroke: #fbbf24 !important;
+}
+
+[data-theme="dark"] .btn-filter-clear {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+[data-theme="dark"] .btn-filter-clear svg {
+  stroke: #94a3b8 !important;
+}
+
+[data-theme="dark"] .btn-filter-clear:hover {
+  background: rgba(51, 65, 85, 0.9) !important;
+  border-color: rgba(203, 213, 225, 0.4) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-theme="dark"] .btn-filter-clear:hover svg {
+  stroke: #f8fafc !important;
 }
 .adv-filter-modal-body {
   max-height: 72vh;

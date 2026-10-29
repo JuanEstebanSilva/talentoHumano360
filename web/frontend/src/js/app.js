@@ -68,14 +68,15 @@ const App = (() => {
     footerEl.innerHTML = '';
     footerButtons.forEach(btn => {
       const el = document.createElement('button');
-      el.className = `btn ${btn.cls || 'btn-secondary'}`;
+      const cls = btn.cls || btn.type || 'btn-secondary';
+      el.className = `btn ${cls}`;
       if (btn.id) el.id = btn.id;
       if (btn.html) {
         el.innerHTML = btn.html;
       } else {
-        el.textContent = btn.text || '';
+        el.textContent = btn.text || btn.label || '';
       }
-      el.onclick = btn.action;
+      el.onclick = btn.action || btn.onClick;
       footerEl.appendChild(el);
     });
 
