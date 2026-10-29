@@ -234,58 +234,106 @@ const EmployeesModule = (() => {
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
-    closeRetireModal();
-    closeReactivateModal();
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
 
     const today = new Date().toISOString().split('T')[0];
-    const modalHtml = `
-      <div id="modal-retire-employee" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="retire-modal-title" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; padding:16px;">
-        <div class="modal-content" style="max-width:520px; width:100%; background:var(--color-bg-primary, #ffffff); border-radius:14px; border:1px solid var(--color-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); overflow:hidden;">
-          <div style="background:linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color:#ffffff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:22px;">⏹️</span>
-              <h3 id="retire-modal-title" style="margin:0; font-size:1.15rem; font-weight:700; color:#ffffff;">Registrar Retiro del Servidor</h3>
-            </div>
-            <button type="button" onclick="EmployeesModule.closeRetireModal()" style="background:none; border:none; color:#ffffff; opacity:0.85; font-size:22px; cursor:pointer;" aria-label="Cerrar modal">&times;</button>
+    const initials = getInitials(emp.nombreCompleto);
+
+    const bodyHtml = `
+      <div class="retire-modal-container">
+        <!-- Tarjeta de Identificación Institucional del Servidor -->
+        <div class="retire-profile-card">
+          <div class="retire-avatar-wrap">
+            <div class="retire-avatar" title="${escHtml(emp.nombreCompleto || 'Servidor')}">${escHtml(initials)}</div>
           </div>
-          <div style="padding:22px 24px;">
-            <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:10px; padding:12px 16px; margin-bottom:18px;">
-              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
-              <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:3px; display:flex; flex-wrap:wrap; gap:12px;">
-                <span>Cédula: <strong>${formatCedulaDots(emp.cedula)}</strong></span>
-                <span>Cargo: <strong>${escHtml(emp.cargoActual || emp.cargo || 'No registrado')}</strong></span>
-              </div>
-              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
-                Vinculación actual desde: <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong>
-              </div>
+          <div class="retire-profile-info">
+            <div class="retire-profile-name">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
+            <div class="retire-chips-row">
+              <span class="retire-chip font-mono">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><line x1="15" y1="8" x2="17" y2="8"/><line x1="15" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+                C.C. ${formatCedulaDots(emp.cedula)}
+              </span>
+              <span class="retire-chip">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                ${escHtml(emp.cargoActual || emp.cargo || emp.denominacion || 'Cargo no registrado')}
+              </span>
+              ${emp.dependencia ? `
+              <span class="retire-chip">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
+                ${escHtml(emp.dependencia)}
+              </span>` : ''}
             </div>
-            <div style="background:rgba(239,68,68,0.08); border-left:4px solid #dc2626; border-radius:6px; padding:10px 14px; margin-bottom:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.4;">
-              ⚠️ <strong>Detención del Tiempo de Servicio:</strong> Al marcar como Retirado, el cálculo dinámico de tiempo de servicio se detendrá exactamente en la fecha de retiro seleccionada. Su acumulado en la Gobernación quedará congelado hasta esa fecha.
-            </div>
-            <div class="form-group" style="margin-bottom:14px;">
-              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="retire-fecha">
-                Fecha de Retiro <span style="color:#dc2626;">*</span>
-              </label>
-              <input type="date" id="retire-fecha" class="form-control" value="${today}" max="${today}" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);" required>
-              <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:4px;">Fecha efectiva en la que culminó sus funciones.</span>
-            </div>
-            <div class="form-group" style="margin-bottom:8px;">
-              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="retire-motivo">
-                Motivo o Justificación del Retiro (Opcional)
-              </label>
-              <input type="text" id="retire-motivo" class="form-control" placeholder="Ej. Renuncia voluntaria, Pensión, Vencimiento, etc." style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);">
+            <div class="retire-tenure-row">
+              <span>Vinculación actual desde: <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong></span>
+              <span class="retire-tenure-divider">•</span>
+              <span>Tiempo acumulado: <strong style="color:#b91c1c;">${escHtml(emp.tiempoServicioCalculado || '—')}</strong></span>
             </div>
           </div>
-          <div style="padding:14px 24px; background:var(--color-bg-secondary, #f8fafc); border-top:1px solid var(--color-border); display:flex; justify-content:flex-end; gap:10px;">
-            <button type="button" class="btn btn-secondary" onclick="EmployeesModule.closeRetireModal()" style="padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
-            <button type="button" class="btn" onclick="EmployeesModule.confirmRetireEmployee('${itemKey}')" style="background:#dc2626; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-              <span>⏹️</span> Confirmar Retiro
-            </button>
+        </div>
+
+        <!-- Alerta Institucional de Congelamiento de Tiempo de Servicio -->
+        <div class="retire-alert-banner">
+          <div class="retire-alert-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="retire-alert-content">
+            <h4 class="retire-alert-title">Detención y Congelamiento del Tiempo de Servicio</h4>
+            <p class="retire-alert-text">
+              Al confirmar el retiro, el cálculo dinámico de tiempo de servicio se detendrá exactamente en la fecha seleccionada. Su acumulado en la Gobernación de Boyacá quedará congelado hasta esa fecha y certificado en su historial laboral. Si el servidor es vinculado nuevamente en el futuro, este periodo pasará automáticamente a su experiencia histórica acreditada.
+            </p>
+          </div>
+        </div>
+
+        <!-- Formulario de Retiro -->
+        <div class="retire-form-grid">
+          <div class="form-group">
+            <label class="form-label required" for="retire-fecha">Fecha Efectiva de Retiro</label>
+            <div style="position:relative;">
+              <input type="date" id="retire-fecha" class="form-input" data-datepicker="true" value="${today}" max="${today}" required />
+            </div>
+            <span class="form-hint">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required" for="retire-causal">Causal Legal de Retiro</label>
+            <select id="retire-causal" class="form-select" required>
+              <option value="Renuncia voluntaria debidamente aceptada" selected>Renuncia voluntaria debidamente aceptada</option>
+              <option value="Pensión de jubilación / vejez / invalidez">Pensión de jubilación / vejez / invalidez</option>
+              <option value="Vencimiento del nombramiento provisional / periodo">Vencimiento del nombramiento provisional / periodo</option>
+              <option value="Supresión del cargo / reestructuración de planta">Supresión del cargo / reestructuración de planta</option>
+              <option value="Destitución o sanción disciplinaria">Destitución o sanción disciplinaria</option>
+              <option value="Invalidez absoluta o permanente debidamente dictaminada">Invalidez absoluta o permanente debidamente dictaminada</option>
+              <option value="Declaratoria de insubsistencia">Declaratoria de insubsistencia</option>
+              <option value="Revocatoria del nombramiento">Revocatoria del nombramiento</option>
+              <option value="Muerte del servidor público">Muerte del servidor público</option>
+              <option value="Otro motivo legal">Otro motivo legal</option>
+            </select>
+            <span class="form-hint">Causal legal según el régimen de la Ley 909 de 2004 y Decreto 1083 de 2015.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="retire-motivo">Acto Administrativo o Detalle (Opcional)</label>
+            <input type="text" id="retire-motivo" class="form-input" placeholder="Ej: Decreto / Resolución Nro. 0482 de 2026 - Aceptación de renuncia" autocomplete="off" />
+            <span class="form-hint">Número de resolución o soporte documental que oficializa la desvinculación.</span>
           </div>
         </div>
       </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    App.openModal(
+      'Registrar Retiro del Servidor',
+      bodyHtml,
+      [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          html: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg><span>Confirmar Retiro</span>`,
+          cls: 'btn-danger retire-modal-footer-btn-danger',
+          id: 'btn-confirm-retire-action',
+          action: () => EmployeesModule.confirmRetireEmployee(itemKey)
+        }
+      ],
+      'modal-retire-dialog'
+    );
   }
 
   async function confirmRetireEmployee(itemKey) {
@@ -294,9 +342,12 @@ const EmployeesModule = (() => {
     if (!emp) return;
 
     const fechaRetiroInput = document.getElementById('retire-fecha');
+    const causalSelect = document.getElementById('retire-causal');
     const motivoRetiroInput = document.getElementById('retire-motivo');
     const fechaRetiro = fechaRetiroInput ? fechaRetiroInput.value : '';
-    const motivoRetiro = motivoRetiroInput ? motivoRetiroInput.value : '';
+    const causal = causalSelect ? causalSelect.value : '';
+    const detalle = motivoRetiroInput ? motivoRetiroInput.value.trim() : '';
+    const motivoRetiro = detalle ? `${causal}: ${detalle}` : causal;
 
     if (!fechaRetiro) {
       App.showToast('Por favor ingrese la fecha de retiro.', 'warning');
@@ -306,8 +357,10 @@ const EmployeesModule = (() => {
     const targetCedula = emp.cedula || emp.id;
     try {
       App.showToast('Registrando retiro del servidor...', 'info');
-      await API.updateEmployeeStatus(targetCedula, 'Retirado', { fechaRetiro, motivoRetiro });
+      await API.updateEmployeeStatus(targetCedula, 'Retirado', { fechaRetiro, motivoRetiro, causalRetiro: causal });
+      App.closeModal();
       closeRetireModal();
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} registrado como Retirado. Contador de tiempo detenido.`, 'success');
       await load();
     } catch (err) {
@@ -317,6 +370,7 @@ const EmployeesModule = (() => {
   }
 
   function closeRetireModal() {
+    App.closeModal();
     const el = document.getElementById('modal-retire-employee');
     if (el) el.remove();
   }
@@ -326,51 +380,101 @@ const EmployeesModule = (() => {
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
-    closeRetireModal();
-    closeReactivateModal();
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.navClick();
 
     const today = new Date().toISOString().split('T')[0];
-    const modalHtml = `
-      <div id="modal-reactivate-employee" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reactivate-modal-title" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:9999; padding:16px;">
-        <div class="modal-content" style="max-width:540px; width:100%; background:var(--color-bg-primary, #ffffff); border-radius:14px; border:1px solid var(--color-border); box-shadow:0 20px 40px rgba(0,0,0,0.2); overflow:hidden;">
-          <div style="background:linear-gradient(135deg, #16a34a 0%, #15803d 100%); color:#ffffff; padding:18px 24px; display:flex; align-items:center; justify-content:space-between;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:22px;">🔄</span>
-              <h3 id="reactivate-modal-title" style="margin:0; font-size:1.15rem; font-weight:700; color:#ffffff;">Reactivar Servidor (Nueva Vinculación)</h3>
-            </div>
-            <button type="button" onclick="EmployeesModule.closeReactivateModal()" style="background:none; border:none; color:#ffffff; opacity:0.85; font-size:22px; cursor:pointer;" aria-label="Cerrar modal">&times;</button>
+    const initials = getInitials(emp.nombreCompleto);
+
+    const bodyHtml = `
+      <div class="retire-modal-container">
+        <!-- Tarjeta de Identificación Institucional -->
+        <div class="retire-profile-card retire-profile-card--reactivate">
+          <div class="retire-avatar-wrap">
+            <div class="retire-avatar retire-avatar--reactivate" title="${escHtml(emp.nombreCompleto || 'Servidor')}">${escHtml(initials)}</div>
           </div>
-          <div style="padding:22px 24px;">
-            <div style="background:var(--color-bg-secondary, #f8fafc); border:1px solid var(--color-border); border-radius:10px; padding:12px 16px; margin-bottom:18px;">
-              <div style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
-              <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:3px; display:flex; flex-wrap:wrap; gap:12px;">
-                <span>Cédula: <strong>${formatCedulaDots(emp.cedula)}</strong></span>
-                <span>Estado actual: <span class="badge badge--retirado" style="font-size:11px;">Retirado</span></span>
-              </div>
-            </div>
-            <div style="background:rgba(22,163,74,0.08); border-left:4px solid #16a34a; border-radius:6px; padding:12px 14px; margin-bottom:18px; font-size:0.85rem; color:var(--text-primary); line-height:1.45;">
-              📋 <strong>Traslado Automático de Periodo:</strong> El tiempo de servicio previo de este funcionario (desde <strong>${escHtml(emp.fechaIngreso || 'No registrada')}</strong> hasta su retiro el <strong>${escHtml(emp.fechaRetiro || 'No registrada')}</strong>) se trasladará automáticamente a <strong>Otro Tiempo con la Gobernación (Experiencia Histórica / Múltiple)</strong>, acreditando dicho periodo acumulado de <strong>${escHtml(emp.tiempoServicioCalculado || '—')}</strong>.
-            </div>
-            <div class="form-group" style="margin-bottom:8px;">
-              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--text-primary);" for="reactivate-nueva-fecha">
-                Nueva Fecha de Ingreso a la Gobernación <span style="color:#16a34a;">*</span>
-              </label>
-              <input type="date" id="reactivate-nueva-fecha" class="form-control" value="${today}" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); font-size:0.95rem; background:var(--color-bg-input, #ffffff); color:var(--text-primary);" required>
-              <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:4px;">
-                A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio actual, sumándose al tiempo histórico acreditado.
+          <div class="retire-profile-info">
+            <div class="retire-profile-name">${escHtml(emp.nombreCompleto || 'Servidor Público')}</div>
+            <div class="retire-chips-row">
+              <span class="retire-chip font-mono">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><line x1="15" y1="8" x2="17" y2="8"/><line x1="15" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+                C.C. ${formatCedulaDots(emp.cedula)}
+              </span>
+              <span class="retire-chip">
+                <span class="badge badge--retirado" style="font-size:10.5px; padding:2px 6px;">Retirado</span>
+              </span>
+              <span class="retire-chip">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                ${escHtml(emp.cargoActual || emp.cargo || 'Cargo no registrado')}
               </span>
             </div>
+            <div class="retire-tenure-row">
+              <span>Periodo anterior: <strong>${escHtml(emp.fechaIngreso || '—')}</strong> al <strong>${escHtml(emp.fechaRetiro || '—')}</strong></span>
+              <span class="retire-tenure-divider">•</span>
+              <span>Acumulado: <strong style="color:#15803d;">${escHtml(emp.tiempoServicioCalculado || '—')}</strong></span>
+            </div>
           </div>
-          <div style="padding:14px 24px; background:var(--color-bg-secondary, #f8fafc); border-top:1px solid var(--color-border); display:flex; justify-content:flex-end; gap:10px;">
-            <button type="button" class="btn btn-secondary" onclick="EmployeesModule.closeReactivateModal()" style="padding:8px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancelar</button>
-            <button type="button" class="btn" onclick="EmployeesModule.confirmReactivateEmployee('${itemKey}')" style="background:#16a34a; color:#ffffff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-              <span>🔄</span> Confirmar Reactivación
-            </button>
+        </div>
+
+        <!-- Banner de Traslado Automático a Experiencia Histórica -->
+        <div class="retire-alert-banner retire-alert-banner--reactivate">
+          <div class="retire-alert-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="retire-alert-content">
+            <h4 class="retire-alert-title retire-alert-title--reactivate">Traslado Automático a Experiencia Histórica</h4>
+            <p class="retire-alert-text">
+              El tiempo previo laborado por este funcionario (<strong>${escHtml(emp.tiempoServicioCalculado || '—')}</strong>) se trasladará automáticamente a <strong>"Otro Tiempo con la Gobernación"</strong>. El contador de tiempo de servicio actual se reiniciará a partir de la nueva fecha de posesión.
+            </p>
+          </div>
+        </div>
+
+        <!-- Formulario de Reactivación -->
+        <div class="retire-form-grid retire-form-grid--reactivate">
+          <div class="form-group">
+            <label class="form-label required" for="reactivate-nueva-fecha">Nueva Fecha de Ingreso / Posesión</label>
+            <input type="date" id="reactivate-nueva-fecha" class="form-input" data-datepicker="true" value="${today}" required />
+            <span class="form-hint">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reactivate-tipo-vinculacion">Modalidad o Tipo de Nombramiento</label>
+            <select id="reactivate-tipo-vinculacion" class="form-select">
+              <option value="Carrera Administrativa" selected>Carrera Administrativa</option>
+              <option value="Provisionalidad">Provisionalidad</option>
+              <option value="Libre Nombramiento y Remoción">Libre Nombramiento y Remoción</option>
+              <option value="Periodo Fijo">Periodo Fijo</option>
+              <option value="Temporal">Temporal</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="reactivate-acto">Acto Administrativo de Posesión (Opcional)</label>
+            <input type="text" id="reactivate-acto" class="form-input" placeholder="Ej: Decreto Nro. 0125 de 2026 - Posesión de cargo" autocomplete="off" />
           </div>
         </div>
       </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    App.openModal(
+      'Reactivar Servidor (Nueva Vinculación)',
+      bodyHtml,
+      [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          html: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Confirmar Reactivación</span>`,
+          cls: 'btn-success retire-modal-footer-btn-success',
+          id: 'btn-confirm-reactivate-action',
+          action: () => EmployeesModule.confirmReactivateEmployee(itemKey)
+        }
+      ],
+      'modal-retire-dialog'
+    );
+  }
+
+  function closeReactivateModal() {
+    App.closeModal();
+    const el = document.getElementById('modal-reactivate-employee');
+    if (el) el.remove();
   }
 
   async function confirmReactivateEmployee(itemKey) {
@@ -390,7 +494,9 @@ const EmployeesModule = (() => {
     try {
       App.showToast('Reactivando servidor y archivando periodo anterior...', 'info');
       await API.updateEmployeeStatus(targetCedula, 'Activo', { action: 'reactivate', nuevaFechaIngreso });
+      App.closeModal();
       closeReactivateModal();
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} reactivado exitosamente con nueva vinculación.`, 'success');
       await load();
     } catch (err) {
