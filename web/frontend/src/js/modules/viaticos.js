@@ -404,11 +404,11 @@ const ViaticosModule = (() => {
       </div>
     `;
 
-    App.openModal('Filtros Avanzados de Viáticos', html, [
+    App.openModal('Filtros Avanzados para Viáticos', html, [
       {
-        label: 'Limpiar Filtros',
-        type: 'btn-secondary',
-        onClick: () => {
+        text: 'Limpiar Filtros',
+        cls: 'btn-secondary',
+        action: () => {
           state.advancedFilters = {};
           updateAdvFilterBadge();
           App.closeModal();
@@ -418,9 +418,10 @@ const ViaticosModule = (() => {
         }
       },
       {
-        label: 'Aplicar Filtros',
-        type: 'btn-primary',
-        onClick: () => {
+        text: 'Aplicar Filtros',
+        cls: 'btn-purple',
+        id: 'btn-apply-adv-filters',
+        action: () => {
           const newFilters = {};
           const fSalidaDesde = document.getElementById('vit-filter-salida-desde')?.value.trim();
           const fSalidaHasta = document.getElementById('vit-filter-salida-hasta')?.value.trim();

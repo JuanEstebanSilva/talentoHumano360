@@ -973,7 +973,7 @@ const EmployeesModule = (() => {
       </div>
     `;
 
-    App.openModal('Filtros Avanzados — Servidores Públicos', modalBodyHtml, [
+    App.openModal('Filtros Avanzados para Servidores Públicos', modalBodyHtml, [
       {
         text: 'Restablecer Filtros',
         cls: 'btn-secondary',
@@ -993,7 +993,7 @@ const EmployeesModule = (() => {
       },
       {
         text: 'Aplicar Filtros',
-        cls: 'btn-primary',
+        cls: 'btn-purple',
         id: 'btn-apply-adv-filters',
         action: () => {
           const newFilters = {};

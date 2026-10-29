@@ -308,7 +308,7 @@ const App = (() => {
   function initFormUX(container = document) {
     if (!container) return;
     try {
-      const groups = container.querySelectorAll('.form-group');
+      const groups = container.querySelectorAll('.form-group, .adv-filter-field');
       groups.forEach(group => {
         // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, excel dropzones, headers
         if (
@@ -325,17 +325,20 @@ const App = (() => {
           return;
         }
 
-        const label = group.querySelector('.form-label');
-        const control = group.querySelector('.form-input, .filter-select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const label = group.querySelector('.form-label, label');
+        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
         group.classList.add('floating-group');
+        if (control.matches('select')) {
+          group.classList.add('is-select', 'is-floated');
+        }
 
         const updateState = () => {
           let hasVal = false;
           if (control.matches('select')) {
-            hasVal = control.value !== '' && control.value !== null;
+            hasVal = true; // Selects siempre flotan el label al tope
           } else if (control.type === 'date' || control._flatpickr) {
             hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
           } else {
@@ -424,13 +427,13 @@ const App = (() => {
   function refreshFloatingLabels(container = document) {
     if (!container) return;
     try {
-      const groups = container.querySelectorAll('.form-group.floating-group');
+      const groups = container.querySelectorAll('.form-group.floating-group, .adv-filter-field.floating-group, .adv-filter-field');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-select, textarea, input:not([type="hidden"])');
+        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"])');
         if (!control) return;
         let hasVal = false;
         if (control.matches('select')) {
-          hasVal = control.value !== '' && control.value !== null;
+          hasVal = true;
         } else if (control.type === 'date' || control._flatpickr) {
           hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
         } else {

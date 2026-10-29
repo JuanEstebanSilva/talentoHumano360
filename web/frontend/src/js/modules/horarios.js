@@ -742,11 +742,11 @@ const HorariosModule = (() => {
       </div>
     `;
 
-    App.openModal('Filtros Avanzados de Horarios', html, [
+    App.openModal('Filtros Avanzados para Horarios y Modalidades', html, [
       {
-        label: 'Limpiar Filtros',
-        type: 'btn-secondary',
-        onClick: () => {
+        text: 'Limpiar Filtros',
+        cls: 'btn-secondary',
+        action: () => {
           state.advancedFilters = {};
           updateAdvFilterBadge();
           App.closeModal();
@@ -756,9 +756,10 @@ const HorariosModule = (() => {
         }
       },
       {
-        label: 'Aplicar Filtros',
-        type: 'btn-primary',
-        onClick: () => {
+        text: 'Aplicar Filtros',
+        cls: 'btn-purple',
+        id: 'btn-apply-adv-filters',
+        action: () => {
           const newFilters = {};
           const fInicioDesde = document.getElementById('hor-filter-inicio-desde')?.value.trim();
           const fInicioHasta = document.getElementById('hor-filter-inicio-hasta')?.value.trim();

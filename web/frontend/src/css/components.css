@@ -10320,77 +10320,215 @@ input.flatpickr-input:hover {
 [data-theme="dark"] .btn-filter-clear:hover svg {
   stroke: #f8fafc !important;
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL DE FILTROS AVANZADOS (CAMPOS FLOTANTES DE 56PX, SIN DOBLE SCROLLBAR)
+   ═══════════════════════════════════════════════════════════════════════════ */
 .adv-filter-modal-body {
-  max-height: 72vh;
-  overflow-y: auto;
-  padding: 10px 4px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 4px 2px 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
+
 .adv-filter-card {
-  background: rgba(248, 250, 252, 0.85);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 12px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  background: rgba(248, 250, 252, 0.90) !important;
+  border: 1.5px solid rgba(226, 232, 240, 0.95) !important;
+  border-radius: 14px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
 }
+
 [data-theme="dark"] .adv-filter-card {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(51, 65, 85, 0.8);
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(51, 65, 85, 0.8) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
+
 .adv-filter-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  padding-bottom: 6px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 14px !important;
+  font-size: 0.92rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary, #0f172a) !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  padding-bottom: 10px !important;
 }
+
 [data-theme="dark"] .adv-filter-card-header {
-  border-bottom-color: rgba(255,255,255,0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
 }
+
 .adv-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+  gap: 14px 16px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
+
+/* ─── Campos Flotantes (56px de alto, esquinas suaves y label animado) ──────── */
 .adv-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 56px !important;
+  box-sizing: border-box !important;
 }
+
 .adv-filter-field label {
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-secondary, #64748b);
+  position: absolute !important;
+  top: 18px !important;
+  left: 14px !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  pointer-events: none !important;
+  transform-origin: left top !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  z-index: 5 !important;
+  margin: 0 !important;
+  max-width: calc(100% - 28px) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-transform: none !important;
 }
+
+[data-theme="dark"] .adv-filter-field label {
+  color: #94a3b8 !important;
+}
+
 .adv-filter-field select,
 .adv-filter-field input {
-  height: 38px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, rgba(0,0,0,0.15));
-  padding: 0 10px;
-  font-size: 0.88rem;
-  background: var(--bg-input, #fff);
-  color: var(--text-primary, #1e293b);
-  outline: none;
-  transition: border-color 0.2s ease;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 22px 14px 6px 14px !important;
+  background: #ffffff !important;
+  border: 1.5px solid var(--color-border, #e2e8f0) !important;
+  border-radius: 12px !important;
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-.adv-filter-field select:focus,
-.adv-filter-field input:focus {
-  border-color: #1D8096;
-}
+
 [data-theme="dark"] .adv-filter-field select,
 [data-theme="dark"] .adv-filter-field input {
-  background: rgba(15, 23, 42, 0.7);
-  border-color: rgba(51, 65, 85, 0.9);
-  color: #f8fafc;
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+
+/* Foco con acento violeta/morado oficial institucional #B84BA7 */
+.adv-filter-field select:focus,
+.adv-filter-field input:focus {
+  border-color: #B84BA7 !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(184, 75, 167, 0.18) !important;
+}
+
+[data-theme="dark"] .adv-filter-field select:focus,
+[data-theme="dark"] .adv-filter-field input:focus {
+  border-color: #d946ef !important;
+  background: #1e293b !important;
+  box-shadow: 0 0 0 3.5px rgba(217, 70, 239, 0.22) !important;
+}
+
+/* Estado flotante: la etiqueta vive adentro y sube al escribir o al tener valor */
+.adv-filter-field.is-floated label,
+.adv-filter-field:focus-within label,
+.adv-filter-field:has(select) label,
+.adv-filter-field.is-select label {
+  top: 7px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+}
+
+.adv-filter-field:focus-within label {
+  color: #B84BA7 !important;
+}
+
+[data-theme="dark"] .adv-filter-field:focus-within label {
+  color: #e879f9 !important;
+}
+
+/* El placeholder se oculta en reposo para que no choque con la etiqueta flotante */
+.adv-filter-field input:not(:focus):not(.is-floated)::placeholder {
+  color: transparent !important;
+}
+
+.adv-filter-field input:focus::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* ─── Botón Aplicar Filtros (Violeta/Morado Institucional Oficial #B84BA7) ─── */
+.btn-purple,
+.btn-apply-filters-purple,
+#btn-apply-adv-filters {
+  background: linear-gradient(135deg, #9b358b 0%, #B84BA7 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  font-size: 0.92rem !important;
+  padding: 0 24px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  box-shadow: 0 3px 12px rgba(184, 75, 167, 0.35) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  text-decoration: none !important;
+}
+
+.btn-purple:hover,
+.btn-apply-filters-purple:hover,
+#btn-apply-adv-filters:hover {
+  background: linear-gradient(135deg, #832774 0%, #a43a94 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(184, 75, 167, 0.45) !important;
+}
+
+.btn-purple:active,
+.btn-apply-filters-purple:active,
+#btn-apply-adv-filters:active {
+  transform: translateY(0) scale(0.98) !important;
+  box-shadow: 0 2px 6px rgba(184, 75, 167, 0.3) !important;
+}
+
+[data-theme="dark"] .btn-purple,
+[data-theme="dark"] .btn-apply-filters-purple,
+[data-theme="dark"] #btn-apply-adv-filters {
+  background: linear-gradient(135deg, #a43a94 0%, #c85bb8 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(184, 75, 167, 0.4) !important;
+}
+
+[data-theme="dark"] .btn-purple:hover,
+[data-theme="dark"] .btn-apply-filters-purple:hover,
+[data-theme="dark"] #btn-apply-adv-filters:hover {
+  background: linear-gradient(135deg, #b84ba7 0%, #da6bc9 100%) !important;
+  box-shadow: 0 6px 20px rgba(184, 75, 167, 0.55) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
