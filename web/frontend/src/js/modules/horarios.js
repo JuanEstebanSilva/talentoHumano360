@@ -830,6 +830,7 @@ const HorariosModule = (() => {
         dependencia: state.filters.dependencia,
         sort: state.sort || 'consecutivo',
         order: state.order || 'asc',
+        ...(state.advancedFilters || {}),
       };
 
       const res = await API.getHorarios(params);
@@ -3811,6 +3812,7 @@ const HorariosModule = (() => {
         dependencia: filterDep,
         sort: state.sort || 'consecutivo',
         order: state.order || 'asc',
+        ...(state.advancedFilters || {}),
       });
 
       const records = (res && res.data && Array.isArray(res.data) && res.data.length)
@@ -3944,7 +3946,7 @@ const HorariosModule = (() => {
           'SITUACION': modStr,
           'DIAS DE TELETRABAJO': diasStr,
           'RESOLUCION': resolStr,
-          'FECHA': fechaFormatted,
+          'FECHA': fechaInicioFormatted,
           'TELEFONO': tel
         };
       });
