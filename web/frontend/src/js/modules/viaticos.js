@@ -2195,10 +2195,25 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
-            <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#1D8096; font-weight:700; font-size:12.5px; white-space:nowrap; flex-shrink:0;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span style="white-space:nowrap;">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
-            </div>
+            ${yearPkgs.length === 0 && Auth.canEdit() ? `
+              <button
+                type="button"
+                class="btn-action-icon-delete"
+                onclick="event.stopPropagation(); ViaticosModule.confirmDeleteYear(${year});"
+                title="Eliminar Histórico Anual ${year} (Sin ejecuciones)"
+                aria-label="Eliminar Histórico Anual ${year}"
+                style="width:36px; height:36px; border-radius:10px; border:1px solid rgba(239,68,68,0.28); background:rgba(239,68,68,0.06); color:#dc2626; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease; flex-shrink:0;"
+                onmouseover="this.style.background='rgba(239,68,68,0.16)'; this.style.borderColor='#dc2626'; this.style.transform='scale(1.06)';"
+                onmouseout="this.style.background='rgba(239,68,68,0.06)'; this.style.borderColor='rgba(239,68,68,0.28)'; this.style.transform='scale(1)';"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:17px;height:17px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+              </button>
+            ` : `
+              <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#1D8096; font-weight:700; font-size:12.5px; white-space:nowrap; flex-shrink:0;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span style="white-space:nowrap;">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
+              </div>
+            `}
             <button
               type="button"
               class="viaticos-pkg-btn-enter viaticos-btn-olive"
@@ -2394,9 +2409,19 @@ const ViaticosModule = (() => {
             </div>
             ${Auth.canEdit() ? `
             <div class="module-header-actions">
-              <button type="button" class="btn btn-primary" onclick="ViaticosModule.openCreateYearModal()" title="Crear nueva vigencia fiscal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                <span>Nuevo Histórico</span>
+              <button
+                type="button"
+                class="btn-action-icon-add"
+                onclick="ViaticosModule.openCreateYearModal()"
+                id="btn-nuevo-historico-anio"
+                title="Nuevo Histórico"
+                aria-label="Crear nuevo histórico anual de viáticos"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span class="btn-action-add-label">Nuevo Histórico</span>
               </button>
             </div>` : ''}
           </div>
@@ -2750,35 +2775,123 @@ const ViaticosModule = (() => {
       App.showToast('No tienes permisos para eliminar vigencias fiscales.', 'warning');
       return;
     }
+    const packages = state.packages || [];
+    const yearPkgs = packages.filter(p => p.anio === year);
+    const hasPackages = yearPkgs.length > 0;
+    const requiredConfirmation = `ELIMINAR ${year}`;
+
     const html = `
-      <div style="padding:10px 0; text-align:center;">
-        <div style="width:52px;height:52px;margin:0 auto 14px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;color:#ef4444;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:28px;height:28px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div style="padding:10px 4px 6px; text-align:center;">
+        <div style="width:58px;height:58px;margin:0 auto 16px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:28px;height:28px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
         </div>
-        <h3 style="font-size:16.5px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Histórico Anual ${year}?</h3>
-        <p style="font-size:13.5px;color:var(--text-muted);line-height:1.5;max-width:380px;margin:0 auto;">
-          Esta acción eliminará permanentemente la <strong>Vigencia Fiscal ${year}</strong> y todas las ejecuciones presupuestales y registros de viáticos que pertenezcan a este año.
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Vigencia Fiscal ${year}?</h3>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;max-width:440px;margin:0 auto 16px;">
+          ${hasPackages 
+            ? `Esta vigencia fiscal contiene <strong>${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}</strong>. Al confirmar, se eliminarán permanentemente el año fiscal y todos sus registros.`
+            : `Esta vigencia fiscal no registra ejecuciones presupuestales activas. Al confirmar, se removerá el año del catálogo de históricos.`
+          }
         </p>
+
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Acción Delicada e Irreversible
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin:0;line-height:1.45;">
+            Para proceder de forma segura, por favor escribe exactamente <strong style="color:#dc2626;user-select:all;">${requiredConfirmation}</strong> a continuación:
+          </p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="vit-confirm-delete-year-input"
+            class="form-input"
+            placeholder="Escribe ${requiredConfirmation}"
+            autocomplete="off"
+            style="text-align:center; font-weight:800; font-size:14.5px; letter-spacing:0.8px; text-transform:uppercase; border:1.5px solid var(--color-border); padding:10px 14px;"
+            oninput="
+              const val = this.value.trim().toUpperCase();
+              const btn = document.getElementById('btn-confirm-delete-year-action');
+              if (btn) {
+                if (val === '${requiredConfirmation}') {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  btn.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
+                } else {
+                  btn.disabled = true;
+                  btn.style.opacity = '0.45';
+                  btn.style.cursor = 'not-allowed';
+                  btn.style.boxShadow = 'none';
+                }
+              }
+            "
+          />
+        </div>
       </div>
     `;
 
     App.openModal('Confirmar Eliminación de Vigencia Fiscal', html, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Sí, Eliminar Vigencia', cls: 'btn-danger', action: async () => {
-        try {
-          await API.deleteViaticosAnio(year);
-          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.deleted();
-          App.closeModal();
-          App.showToast(`Histórico anual ${year} eliminado correctamente.`, 'success');
-          await loadYears();
-          await loadPackages();
-          await renderCurrentView();
-          loadStats();
-        } catch (err) {
-          App.showToast(err.message || 'Error al eliminar la vigencia.', 'error');
+      {
+        text: 'Sí, Eliminar Vigencia',
+        cls: 'btn-danger',
+        id: 'btn-confirm-delete-year-action',
+        action: async () => {
+          const inputEl = document.getElementById('vit-confirm-delete-year-input');
+          const typedVal = inputEl ? inputEl.value.trim().toUpperCase() : '';
+          if (typedVal !== requiredConfirmation) {
+            App.showToast(`Debes escribir "${requiredConfirmation}" para confirmar la eliminación.`, 'warning');
+            if (inputEl) inputEl.focus();
+            return;
+          }
+          const btn = document.getElementById('btn-confirm-delete-year-action');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+          }
+          try {
+            await API.deleteViaticosAnio(year);
+            if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.danger) {
+              FX.Sound.danger();
+            } else if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.confirm) {
+              FX.Sound.confirm();
+            }
+            App.closeModal();
+            App.showToast(`Histórico anual ${year} eliminado correctamente.`, 'success');
+            if (state.selectedYear === year) {
+              state.selectedYear = null;
+              state.activeView = 'years';
+            }
+            await loadYears();
+            await loadPackages();
+            await renderCurrentView();
+            loadStats();
+          } catch (err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = 'Sí, Eliminar Vigencia';
+            }
+            App.showToast(err.message || 'Error al eliminar la vigencia.', 'error');
+          }
         }
-      }}
+      }
     ]);
+
+    // Inicializar el botón de confirmación deshabilitado
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirm-delete-year-action');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+        btn.style.transition = 'all 0.2s ease';
+      }
+      const inp = document.getElementById('vit-confirm-delete-year-input');
+      if (inp) inp.focus();
+    }, 60);
   }
 
   // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────

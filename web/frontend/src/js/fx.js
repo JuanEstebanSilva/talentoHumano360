@@ -107,6 +107,9 @@ const FX = (() => {
       _tone({ freq: 700, type: 'sine', volume: 0.02, duration: 0.05, attack: 0.002 });
     },
     // Delete / danger action
+    deleted() {
+      this.danger();
+    },
     danger() {
       _tone({ freq: 220, freq2: 160, type: 'sawtooth', volume: 0.08, duration: 0.20 });
     },
