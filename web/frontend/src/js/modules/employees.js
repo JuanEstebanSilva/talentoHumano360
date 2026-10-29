@@ -1181,15 +1181,15 @@ const EmployeesModule = (() => {
             <div class="user-row-avatar ${isVac ? 'user-row-avatar--vacante' : ''}" aria-hidden="true" title="${escHtml(e.nombreCompleto || 'Servidor')}">
               ${isVac ? '??' : escHtml(initials)}
             </div>
-            <div class="user-table-info" style="display:flex; flex-direction:column; gap:2px; min-width:0; text-align:left;">
+            <div class="user-table-info" style="display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; text-align:left;">
               <span class="td-primary" title="${escHtml(e.nombreCompleto)}">${escHtml(e.nombreCompleto) || '—'}</span>
               ${isVac
-                ? `<span class="badge badge--vacante" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
+                ? `<span class="badge badge--vacante" style="width:fit-content; align-self:flex-start; max-width:fit-content;" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
                 : ((e.documento_pendiente || (e.cedula && e.cedula.startsWith('PROV-')))
-                  ? `<span class="badge badge--provisional font-mono" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
+                  ? `<span class="badge badge--provisional font-mono" style="width:fit-content; align-self:flex-start;" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
                   : (e.cedula
-                    ? `<span class="user-table-cc font-mono" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
-                    : `<span class="badge badge--pendiente">Sin Cédula</span>`
+                    ? `<span class="user-table-cc font-mono" style="width:fit-content; align-self:flex-start;" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
+                    : `<span class="badge badge--pendiente" style="width:fit-content; align-self:flex-start;">Sin Cédula</span>`
                   )
                 )
               }

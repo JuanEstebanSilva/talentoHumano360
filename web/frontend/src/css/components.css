@@ -1774,6 +1774,13 @@ tbody tr:last-child td {
   font-weight: 700;
   letter-spacing: 0.3px;
   box-shadow: 0 2px 5px rgba(245, 158, 11, 0.12);
+  display: inline-flex !important;
+  align-items: center !important;
+  align-self: flex-start !important;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
 }
 
 .badge--vacante::before {
@@ -5147,11 +5154,21 @@ tbody tr:last-child td {
 }
 
 .user-table-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  text-align: left;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+.user-table-info .badge,
+.user-table-info .badge--vacante,
+.user-table-info .user-table-cc {
+  align-self: flex-start !important;
+  width: fit-content !important;
+  max-width: fit-content !important;
+  display: inline-flex !important;
 }
 
 .user-table-info .td-primary {
