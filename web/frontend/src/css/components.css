@@ -2259,12 +2259,17 @@ tbody tr:last-child td {
 
 /* Estado flotante (Elevada al tope del campo) */
 .form-group.floating-group.is-floated > .form-label,
-.form-group.floating-group:focus-within > .form-label {
-  top: 7px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+.form-group.floating-group:focus-within > .form-label,
+.form-group.floating-group:has(.form-input:not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(input:not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(textarea:not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(select) > .form-label,
+.form-group.floating-group.is-select > .form-label {
+  top: 7px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase !important;
   color: #64748b;
 }
 
@@ -2290,20 +2295,24 @@ tbody tr:last-child td {
 }
 
 /* Ocultar placeholder mientras la etiqueta está en reposo para evitar colisión visual */
-.form-group.floating-group:not(.is-floated):not(:focus-within) .form-input::placeholder {
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder {
   color: transparent !important;
   opacity: 0 !important;
 }
 
 .form-group.floating-group:focus-within .form-input::placeholder,
-.form-group.floating-group.is-floated .form-input::placeholder {
+.form-group.floating-group.is-floated .form-input::placeholder,
+.form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+.form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder {
   color: #94a3b8 !important;
   opacity: 0.8 !important;
   transition: opacity 0.2s ease;
 }
 
 [data-theme="dark"] .form-group.floating-group:focus-within .form-input::placeholder,
-[data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder {
+[data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder {
   color: #64748b !important;
 }
 
@@ -10469,7 +10478,8 @@ input.flatpickr-input:hover {
 .adv-filter-field.is-floated label,
 .adv-filter-field:focus-within label,
 .adv-filter-field:has(select) label,
-.adv-filter-field.is-select label {
+.adv-filter-field.is-select label,
+.adv-filter-field:has(input:not(:placeholder-shown)) label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;

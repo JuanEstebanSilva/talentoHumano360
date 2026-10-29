@@ -945,8 +945,17 @@ router.post('/', auth, async (req, res) => {
   const gradoValidado = validateGrado(grado);
   if (!gradoValidado.valido) return res.status(400).json({ error: gradoValidado.error });
 
-  // 5. Validar Estado del Servidor (Regla 6: Activo, Inactivo, Pensionado)
-  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  // 5. Validar Estado del Servidor (Deducido de Situación Administrativa si aplica)
+  let estadoParaValidar = estadoServidor;
+  const sitUpperPost = String(situacion || '').toUpperCase().trim();
+  if (sitUpperPost === 'RETIRADO' || sitUpperPost === 'INACTIVO') {
+    estadoParaValidar = 'Retirado';
+  } else if (sitUpperPost.includes('PENSION') && !sitUpperPost.includes('PREPENSION')) {
+    estadoParaValidar = 'Pensionado';
+  } else if (!estadoParaValidar) {
+    estadoParaValidar = 'Activo';
+  }
+  const estadoServidorValidado = validateEstadoServidor(estadoParaValidar);
   if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
 
   // 6. Validar Sexo (Opcional: si se ingresa valida Femenino, Masculino, Prefiero no decirlo)
@@ -1479,7 +1488,16 @@ router.put('/:cedula', auth, async (req, res) => {
   const gradoValidado = validateGrado(grado);
   if (!gradoValidado.valido) return res.status(400).json({ error: gradoValidado.error });
 
-  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  let estadoParaValidarPut = estadoServidor;
+  const sitUpperPut = String(situacion || '').toUpperCase().trim();
+  if (sitUpperPut === 'RETIRADO' || sitUpperPut === 'INACTIVO') {
+    estadoParaValidarPut = 'Retirado';
+  } else if (sitUpperPut.includes('PENSION') && !sitUpperPut.includes('PREPENSION')) {
+    estadoParaValidarPut = 'Pensionado';
+  } else if (!estadoParaValidarPut) {
+    estadoParaValidarPut = 'Activo';
+  }
+  const estadoServidorValidado = validateEstadoServidor(estadoParaValidarPut);
   if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
 
   const sexoValidado = validateSexo(sexo);

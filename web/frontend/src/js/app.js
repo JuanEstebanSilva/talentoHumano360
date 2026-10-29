@@ -313,6 +313,41 @@ const App = (() => {
     });
   }
 
+  // ─── Interceptor Global de Asignaciones Programáticas a .value ──────────────────
+  // Garantiza que cuando un script asigna input.value = '...' en CUALQUIER formulario,
+  // la etiqueta flotante (.is-floated) se active instantáneamente sin pisar el texto.
+  (function installGlobalFloatingLabelInterceptor() {
+    function patchSetter(proto) {
+      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (!desc || !desc.set || desc.set._isPatched) return;
+      const originalSet = desc.set;
+      const patchedSet = function(val) {
+        originalSet.call(this, val);
+        try {
+          const group = this.closest ? this.closest('.floating-group, .form-group, .adv-filter-field') : null;
+          if (group) {
+            const hasVal = (val !== undefined && val !== null && String(val).trim() !== '') || (this.matches && this.matches('select'));
+            if (hasVal) {
+              group.classList.add('is-floated');
+            } else if (typeof document !== 'undefined' && document.activeElement !== this && !this._flatpickr) {
+              group.classList.remove('is-floated');
+            }
+          }
+        } catch (_) {}
+      };
+      patchedSet._isPatched = true;
+      Object.defineProperty(proto, 'value', {
+        ...desc,
+        set: patchedSet
+      });
+    }
+    try {
+      if (typeof HTMLInputElement !== 'undefined') patchSetter(HTMLInputElement.prototype);
+      if (typeof HTMLTextAreaElement !== 'undefined') patchSetter(HTMLTextAreaElement.prototype);
+      if (typeof HTMLSelectElement !== 'undefined') patchSetter(HTMLSelectElement.prototype);
+    } catch (_) {}
+  })();
+
   function initFormUX(container = document) {
     if (!container) return;
     try {
@@ -341,6 +376,8 @@ const App = (() => {
         group.classList.add('floating-group');
         if (control.matches('select')) {
           group.classList.add('is-select', 'is-floated');
+        } else if (!control.getAttribute('placeholder')) {
+          control.setAttribute('placeholder', ' ');
         }
 
         const updateState = () => {
@@ -435,21 +472,23 @@ const App = (() => {
   function refreshFloatingLabels(container = document) {
     if (!container) return;
     try {
-      const groups = container.querySelectorAll('.form-group.floating-group, .adv-filter-field.floating-group, .adv-filter-field');
+      const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"])');
+        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
+        group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
           hasVal = true;
+          group.classList.add('is-select');
         } else if (control.type === 'date' || control._flatpickr) {
-          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
+          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
         } else {
           hasVal = Boolean(control.value && String(control.value).trim() !== '');
         }
         if (hasVal) {
           group.classList.add('is-floated');
-        } else if (document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
+        } else if (typeof document !== 'undefined' && document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
           group.classList.remove('is-floated');
         }
       });

@@ -1036,7 +1036,7 @@ const EmployeesModule = (() => {
   function openAdvancedFiltersModal() {
     const af = state.advancedFilters || {};
     const gruposSanguineos = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-    const situaciones = ['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'DISCAPACIDAD', 'RETIRADO'];
+    const situaciones = ['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'PREPENSIONABLE', 'PENSIONABLE', 'DISCAPACIDAD', 'RETIRADO'];
     const vinculaciones = state.catalogs.clasificaciones || [
       'Carrera Administrativa',
       'Libre Nombramiento y Remoción',
@@ -2567,13 +2567,17 @@ const EmployeesModule = (() => {
       if (emp.situacion) {
         const s = emp.situacion.trim().toUpperCase();
         if (s.includes('DISCAPACIDAD') || s.includes('DISCPACIDAD')) return 'DISCAPACIDAD';
+        if (s.includes('PREPENSION')) return 'PREPENSIONABLE';
+        if (s.includes('PENSION') && !s.includes('PREPENSION')) return 'PENSIONABLE';
         if (s === 'ENCARGO') return 'ENCARGO';
-        if (['ACTIVO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'RETIRADO'].includes(s)) {
+        if (['ACTIVO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'PREPENSIONABLE', 'PENSIONABLE', 'RETIRADO'].includes(s)) {
           if (emp.encargoDenominacion && s === 'ACTIVO') return 'ENCARGO';
           return s;
         }
         return s;
       }
+      if ((emp.estadoServidor || '').toLowerCase() === 'retirado' || emp.esRetirado) return 'RETIRADO';
+      if ((emp.estadoServidor || '').toLowerCase() === 'pensionado') return 'PENSIONABLE';
       if (emp.encargoDenominacion) return 'ENCARGO';
       if (emp.tipoDiscapacidad && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase())) return 'DISCAPACIDAD';
       return 'ACTIVO';
@@ -2710,28 +2714,23 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="ef-estado-servidor">Estado del Servidor</label>
-              <select id="ef-estado-servidor" class="filter-select">
-                ${cats.estadosServidor.map(es => `<option value="${escHtml(es)}" ${es.toLowerCase() === (emp.estadoServidor || 'Activo').toLowerCase() ? 'selected' : ''}>${escHtml(es)}</option>`).join('')}
-              </select>
-            </div>
-
-            <div class="form-group">
               <label class="form-label" for="ef-opec">OPEC <span style="font-size:11px; color:var(--text-muted);">(Texto o número)</span></label>
               <input id="ef-opec" class="form-input font-mono" placeholder="Ej: 184592" value="${escHtml(emp.opec || '')}" enterkeyhint="next" />
             </div>
 
-            <div class="form-group">
+            <div class="form-group span-2">
               <label class="form-label" for="ef-situacion">Situación Administrativa</label>
               <select id="ef-situacion" class="filter-select">
-                <option value="ACTIVO" ${defaultSituacion === 'ACTIVO' ? 'selected' : ''}>ACTIVO</option>
+                <option value="ACTIVO" ${defaultSituacion === 'ACTIVO' ? 'selected' : ''}>ACTIVO (En servicio activo)</option>
                 <option value="ENCARGO" ${defaultSituacion === 'ENCARGO' ? 'selected' : ''}>ENCARGO</option>
                 <option value="COMISIÓN" ${defaultSituacion === 'COMISIÓN' ? 'selected' : ''}>COMISIÓN</option>
                 <option value="LICENCIA" ${defaultSituacion === 'LICENCIA' ? 'selected' : ''}>LICENCIA</option>
                 <option value="VACACIONES" ${defaultSituacion === 'VACACIONES' ? 'selected' : ''}>VACACIONES</option>
+                <option value="PREPENSIONABLE" ${defaultSituacion === 'PREPENSIONABLE' ? 'selected' : ''}>PREPENSIONABLE</option>
+                <option value="PENSIONABLE" ${defaultSituacion === 'PENSIONABLE' ? 'selected' : ''}>PENSIONABLE / PENSIONADO</option>
                 <option value="DISCAPACIDAD" ${defaultSituacion === 'DISCAPACIDAD' ? 'selected' : ''}>DISCAPACIDAD</option>
                 <option value="RETIRADO" ${defaultSituacion === 'RETIRADO' ? 'selected' : ''}>RETIRADO</option>
-                ${(defaultSituacion && !['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'DISCAPACIDAD', 'RETIRADO'].includes(defaultSituacion)) ? `<option value="${escHtml(defaultSituacion)}" selected>${escHtml(defaultSituacion)}</option>` : ''}
+                ${(defaultSituacion && !['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'PREPENSIONABLE', 'PENSIONABLE', 'DISCAPACIDAD', 'RETIRADO'].includes(defaultSituacion)) ? `<option value="${escHtml(defaultSituacion)}" selected>${escHtml(defaultSituacion)}</option>` : ''}
               </select>
             </div>
 
@@ -3107,11 +3106,20 @@ const EmployeesModule = (() => {
         const selOpt = cargoSelect.selectedOptions[0];
         if (selOpt && codigoInput) {
           const defaultCode = selOpt.getAttribute('data-codigo');
-          if (defaultCode) codigoInput.value = defaultCode;
+          if (defaultCode) {
+            codigoInput.value = defaultCode;
+            codigoInput.dispatchEvent(new Event('input', { bubbles: true }));
+            codigoInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
           const defaultGrado = selOpt.getAttribute('data-grado');
           if (defaultGrado && gradoSelect) {
             const match = cats.grados.find(g => g.toLowerCase() === defaultGrado.toLowerCase());
             if (match) gradoSelect.value = match;
+            else gradoSelect.value = defaultGrado;
+            gradoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+            App.refreshFloatingLabels(document.getElementById('modal-body') || document);
           }
         }
       });
@@ -3132,13 +3140,18 @@ const EmployeesModule = (() => {
         const selOpt = encargoCargoSelect.selectedOptions[0];
         if (selOpt) {
           const defaultCode = selOpt.getAttribute('data-codigo');
-          if (defaultCode && encargoCodigoInput) encargoCodigoInput.value = defaultCode;
+          if (defaultCode && encargoCodigoInput) {
+            encargoCodigoInput.value = defaultCode;
+            encargoCodigoInput.dispatchEvent(new Event('input', { bubbles: true }));
+            encargoCodigoInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
 
           const defaultGrado = selOpt.getAttribute('data-grado');
           if (defaultGrado && encargoGradoSelect) {
             const match = cats.grados.find(g => g.toLowerCase() === defaultGrado.toLowerCase());
             if (match) encargoGradoSelect.value = match;
             else encargoGradoSelect.value = defaultGrado;
+            encargoGradoSelect.dispatchEvent(new Event('change', { bubbles: true }));
           }
 
           const defaultAsignacion = selOpt.getAttribute('data-asignacion');
@@ -3875,7 +3888,12 @@ const EmployeesModule = (() => {
       codigoCargo: codigoCargo ? codigoCargo.toUpperCase() : null,
       grado: grado || null,
       clasificacionEmpleo: finalClasif,
-      estadoServidor: document.getElementById('ef-estado-servidor')?.value || 'Activo',
+      estadoServidor: (() => {
+        const s = (document.getElementById('ef-situacion')?.value || 'ACTIVO').trim().toUpperCase();
+        if (s === 'RETIRADO' || s === 'INACTIVO') return 'Retirado';
+        if (s.includes('PENSION') && !s.includes('PREPENSION')) return 'Pensionado';
+        return 'Activo';
+      })(),
       opec: document.getElementById('ef-opec')?.value.trim() || null,
       situacion,
       tipoDiscapacidad,
