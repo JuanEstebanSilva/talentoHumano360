@@ -38,6 +38,15 @@
         if (s.density) document.documentElement.setAttribute('data-density', s.density);
       } catch (e) { }
     })();
+    window.escHtml = function (s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
   </script>
 
   <!-- Preload fonts (Nunito Sans) -->
@@ -572,22 +581,22 @@
   <div id="error-screen-404" class="error-404-overlay" style="display:none" role="alert" aria-live="assertive"></div>
 
   <!-- ─── Scripts ──────────────────────────────────────────────────────── -->
-  <script src="js/config.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/settings.js?v=20261026_roles_v5"></script>
-  <script src="js/fx.js?v=20261026_roles_v5"></script>
-  <script src="js/auth.js?v=20261026_roles_v5"></script>
-  <script src="js/api.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/excel-service.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/dashboard.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/employees.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/requests.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/admin-requests.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/viaticos.js?v=20261028_viaticos_v2"></script>
-  <script src="js/modules/horarios.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/sst.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/error404.js?v=20261026_roles_v5"></script>
-  <script src="js/modules/legal.js?v=20261026_roles_v5"></script>
-  <script src="js/app.js?v=20261026_roles_v5"></script>
+  <script src="js/config.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/settings.js?v=20261028_auditoria_v6"></script>
+  <script src="js/fx.js?v=20261028_auditoria_v6"></script>
+  <script src="js/auth.js?v=20261028_auditoria_v6"></script>
+  <script src="js/api.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/excel-service.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/dashboard.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/employees.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/requests.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/admin-requests.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/viaticos.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/horarios.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/sst.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/error404.js?v=20261028_auditoria_v6"></script>
+  <script src="js/modules/legal.js?v=20261028_auditoria_v6"></script>
+  <script src="js/app.js?v=20261028_auditoria_v6"></script>
 </body>
 
 </html>
