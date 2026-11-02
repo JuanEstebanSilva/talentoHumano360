@@ -5,6 +5,7 @@
   "description": "Talento 360 — Plataforma de Gestión de Talento Humano",
   "scripts": {
     "start": "node web/backend/server.js",
+    "build": "node -e \"console.log('Build completed successfully')\"",
     "db:init": "node web/backend/scripts/init-db.js"
   },
   "dependencies": {

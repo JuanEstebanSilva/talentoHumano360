@@ -1389,24 +1389,38 @@ const EmployeesModule = (() => {
       state.data = records;
       state.total = res.total || 0;
       state.totalPages = res.totalPages || 1;
+      state.retryCount = 0;
       renderTable();
       renderPagination();
       const countEl = document.getElementById('emp-count');
       if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
     } catch (err) {
+      state.retryCount = (state.retryCount || 0) + 1;
       const countEl = document.getElementById('emp-count');
       if (countEl) countEl.textContent = '—';
+
+      const errorMsg = (err && err.message) ? err.message : 'Error al listar servidores públicos.';
+
+      // Si al reintentar sigue con error (2 o más intentos consecutivos), enviar a pantalla Error 404 / Servicio no disponible
+      if (state.retryCount >= 2 && typeof Error404Module !== 'undefined' && Error404Module.show) {
+        Error404Module.show('employees', 'Error al listar servidores públicos: ' + errorMsg);
+        return;
+      }
+
       const tbody = document.getElementById('emp-tbody');
       if (tbody) {
         tbody.setAttribute('aria-busy', 'false');
         tbody.removeAttribute('role');
         tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="color:var(--color-danger); border-color:var(--color-danger);">
-          <span class="empty-state-title" style="color:var(--color-danger);">Error al cargar servidores</span>
-          <span class="empty-state-desc">${escHtml(err.message)}</span>
-          <button class="btn btn-secondary btn-sm" onclick="EmployeesModule.load()" style="margin-top:12px;">Reintentar</button>
+          <span class="empty-state-title" style="color:var(--color-danger);">Error al cargar servidores públicos</span>
+          <span class="empty-state-desc">${escHtml(errorMsg)}</span>
+          <div style="display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="EmployeesModule.load()" style="font-weight:600;">Reintentar</button>
+            <button class="btn btn-outline-danger btn-sm" onclick="if(window.Error404Module) window.Error404Module.show('employees', 'Error al listar servidores públicos.')" style="font-weight:600;">Página de Error</button>
+          </div>
         </div></td></tr>`;
       }
-      App.showToast('Error al cargar servidores: ' + err.message, 'error');
+      App.showToast('Error al cargar servidores públicos: ' + errorMsg, 'error');
     }
   }
 

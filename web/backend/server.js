@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // server.js — Servidor Backend Unificado / API Gateway para Talento 360
+// Gobernación de Boyacá · Despliegue en Render y Soporte Integral Multiplataforma
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { pool, initDatabase } = require('./scripts/init-db');
+const jwt = require('jsonwebtoken');
+const { pool, initDatabase, runMigrations } = require('./scripts/init-db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,7 +34,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret']
 }));
 
 // Límite amplio para permitir importaciones masivas de Excel y adjuntos
@@ -91,12 +93,30 @@ app.get('/api/db-status', async (_, res) => {
         FROM usuarios LIMIT 10
       `).catch(e => ({ error: e.message }));
 
+      const colCheck = await client.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'rel_principal' AND column_name IN ('encargo_denominacion', 'fecha_retiro')
+      `).catch(() => ({ rows: [] }));
+
+      const countPersonas = await client.query('SELECT count(*) FROM personas').catch(() => ({ rows: [{ count: -1 }] }));
+      const countViaticos = await client.query('SELECT count(*) FROM viaticos').catch(() => ({ rows: [{ count: -1 }] }));
+      const countHorarios = await client.query('SELECT count(*) FROM horarios').catch(() => ({ rows: [{ count: -1 }] }));
+      const countRel = await client.query('SELECT count(*) FROM rel_principal').catch(() => ({ rows: [{ count: -1 }] }));
+
       return res.json({
         status: 'connected',
         database: dbInfo.rows[0].db,
         serverTime: dbInfo.rows[0].server_time,
         totalTables: tableCheck.rows.length,
         hasUsuariosTable: tableCheck.rows.some(t => t.table_name === 'usuarios'),
+        hasEncargoColumns: colCheck.rows.some(c => c.column_name === 'encargo_denominacion'),
+        hasFechaRetiro: colCheck.rows.some(c => c.column_name === 'fecha_retiro'),
+        counts: {
+          personas: parseInt(countPersonas.rows[0].count),
+          rel_principal: parseInt(countRel.rows[0].count),
+          viaticos: parseInt(countViaticos.rows[0].count),
+          horarios: parseInt(countHorarios.rows[0].count),
+        },
         users: Array.isArray(usersCheck.rows) ? usersCheck.rows.map(u => ({ username: u.username, rol: u.rol, hasModulos: u.has_modulos })) : usersCheck,
         databaseUrlConfigured: dbConfigured
       });
@@ -111,6 +131,41 @@ app.get('/api/db-status', async (_, res) => {
       code: err.code,
       hint: !dbConfigured ? 'DATABASE_URL no está definida en las variables de entorno de Render.' : undefined
     });
+  }
+});
+
+// ─── Endpoint Administrativo para forzar migraciones y sincronización ────────
+app.all('/api/admin/run-migrations', async (req, res) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  const adminSecret = req.headers['x-admin-secret'];
+  const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+  
+  let authorized = false;
+  if (adminSecret && adminSecret === (process.env.ADMIN_SECRET || 'talento360_secret_2026')) {
+    authorized = true;
+  } else if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const role = String(decoded.role || decoded.rol || '').toLowerCase();
+      const username = String(decoded.username || '').toLowerCase();
+      if (role.includes('admin') || username === 'admin') authorized = true;
+    } catch (_) {}
+  }
+
+  if (!authorized) {
+    return res.status(403).json({ error: 'No autorizado. Se requiere token de Administrador o clave maestra institucional.' });
+  }
+
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await runMigrations(client);
+      return res.json({ success: true, message: 'Migraciones y saneamiento de datos ejecutados correctamente.', result });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -134,7 +189,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/sst', sstRoutes);
 
-
 // Manejador 404 para rutas API no encontradas
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
@@ -155,7 +209,7 @@ app.listen(PORT, async () => {
   console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
   console.log(`=============================================================\n`);
 
-  // Auto-inicializar base de datos si está vacía o si FORCE_DB_INIT=true
+  // Auto-inicializar base de datos y correr migraciones en cada arranque
   if (process.env.AUTO_INIT_DB !== 'false') {
     try {
       const forceInit = process.env.FORCE_DB_INIT === 'true';

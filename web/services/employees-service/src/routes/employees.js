@@ -732,7 +732,7 @@ router.get('/', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('[employees] list error:', err.message);
-    res.status(500).json({ error: 'Error al listar servidores.' });
+    res.status(500).json({ error: 'Error al listar servidores públicos.', details: err.message });
   }
 });
 
