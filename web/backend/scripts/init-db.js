@@ -223,6 +223,12 @@ async function runMigrations(client, dbDir = null) {
           AND r.tiempo_servicio LIKE '%anos, %meses'
       )
       DELETE FROM rel_principal WHERE id_registro IN (SELECT id_registro FROM stress_regs);
+
+      -- 8.4. Limpiar entidades huérfanas creadas durante pruebas de carga
+      DELETE FROM personas WHERE id_persona NOT IN (SELECT id_persona FROM rel_principal);
+      DELETE FROM educacion WHERE id_educacion NOT IN (SELECT id_educacion FROM rel_principal);
+      DELETE FROM contactos WHERE id_contacto NOT IN (SELECT id_contacto FROM rel_principal);
+      DELETE FROM estados WHERE id_estado NOT IN (SELECT id_estado FROM rel_principal);
     `);
 
     console.log('✅ Migraciones e integridad de esquema completadas con éxito.');
