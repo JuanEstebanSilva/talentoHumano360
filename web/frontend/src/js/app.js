@@ -196,10 +196,10 @@ const App = (() => {
             ensureCalendarCustomUI._canvas = document.createElement('canvas');
           }
           const ctx = ensureCalendarCustomUI._canvas.getContext('2d');
-          ctx.font = '800 1.25rem Merriweather, Georgia, serif';
+          ctx.font = '800 1.3rem Merriweather, Georgia, serif';
           const measured = Math.ceil(ctx.measureText(monthText).width);
-          // Ancho cómodo con padding suficiente para que ningún mes se recorte
-          monthSelect.style.width = Math.max(measured + 8, 56) + 'px';
+          // Ancho cómodo y espacioso para que ningún mes quede apretado
+          monthSelect.style.width = Math.max(measured + 12, 64) + 'px';
         }
       };
 

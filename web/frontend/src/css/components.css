@@ -8070,10 +8070,10 @@ body.error-404-active #login-screen {
    - Soporte total para temas Claro y Oscuro con identidad corporativa
    ═══════════════════════════════════════════════════════════════════════════ */
 .flatpickr-calendar {
-  width: 340px !important;
+  width: 364px !important;
   font-family: 'Nunito Sans', var(--font-base), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-  border-radius: 18px !important;
-  box-shadow: 0 16px 42px -6px rgba(15, 81, 50, 0.22), 0 28px 56px -10px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(15, 81, 50, 0.16) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 18px 48px -6px rgba(15, 81, 50, 0.22), 0 30px 60px -10px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(15, 81, 50, 0.16) !important;
   border: 1px solid rgba(22, 163, 74, 0.25) !important;
   background: #ffffff !important;
   padding: 0 !important;
@@ -8095,12 +8095,12 @@ body.error-404-active #login-screen {
   background: linear-gradient(135deg, #13753a 0%, #0d5e2d 100%) !important;
   border-radius: 0 !important;
   margin: 0 !important;
-  padding: 12px 16px !important;
+  padding: 12px 18px !important;
   color: #ffffff !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  height: 56px !important;
+  height: 60px !important;
   box-sizing: border-box !important;
   border-bottom: 2.5px solid rgba(255, 242, 0, 0.45) !important;
   box-shadow: 0 4px 12px rgba(13, 94, 45, 0.25) !important;
@@ -8129,7 +8129,7 @@ body.error-404-active #login-screen {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 10px !important;
+  gap: 12px !important;
   transform: none !important;
   overflow: visible !important;
 }
@@ -8147,7 +8147,7 @@ body.error-404-active #login-screen {
   -moz-appearance: none !important;
   appearance: none !important;
   font-family: 'Merriweather', Georgia, 'Times New Roman', serif !important;
-  font-size: 1.25rem !important;
+  font-size: 1.3rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.3px !important;
   color: #ffffff !important;
@@ -8156,7 +8156,7 @@ body.error-404-active #login-screen {
   border-radius: 6px !important;
   box-shadow: none !important;
   outline: none !important;
-  padding: 2px 4px !important;
+  padding: 2px 6px !important;
   margin: 0 !important;
   cursor: pointer !important;
   height: auto !important;
@@ -8192,7 +8192,7 @@ body.error-404-active #login-screen {
   -moz-appearance: none !important;
   appearance: none !important;
   font-family: 'Merriweather', Georgia, 'Times New Roman', serif !important;
-  font-size: 1.25rem !important;
+  font-size: 1.3rem !important;
   font-weight: 900 !important;
   letter-spacing: -0.3px !important;
   color: #FFF200 !important;
@@ -8201,12 +8201,12 @@ body.error-404-active #login-screen {
   border-radius: 6px !important;
   box-shadow: none !important;
   outline: none !important;
-  padding: 2px 4px !important;
+  padding: 2px 6px !important;
   margin: 0 !important;
   height: auto !important;
-  width: 58px !important;
-  min-width: 58px !important;
-  max-width: 62px !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 68px !important;
   cursor: pointer !important;
   line-height: 1.2 !important;
   box-sizing: border-box !important;
@@ -8241,10 +8241,10 @@ body.error-404-active #login-screen {
   cursor: pointer !important;
   padding: 0 !important;
   margin: 0 !important;
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  max-width: 30px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
   border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
@@ -8266,8 +8266,8 @@ body.error-404-active #login-screen {
 }
 
 .flatpickr-custom-close svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: 17px !important;
+  height: 17px !important;
   stroke: currentColor !important;
   stroke-width: 2.6px !important;
   display: block !important;
@@ -8275,8 +8275,17 @@ body.error-404-active #login-screen {
 
 /* ─── Contenedor Interior y Días de la Semana Integrados ─── */
 .flatpickr-innerContainer {
-  padding: 8px 12px 6px 12px !important;
+  padding: 12px 16px 10px 16px !important;
   background: #ffffff !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+.flatpickr-rContainer {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
 }
 
@@ -8284,46 +8293,56 @@ body.error-404-active #login-screen {
   display: none !important;
 }
 
+/* Cabecera de Días de la Semana: Limpia, Espaciosa y Perfectamente Alineada */
 .flatpickr-weekdays {
   width: 100% !important;
-  margin: 4px 0 8px 0 !important;
-  height: 32px !important;
-  background: linear-gradient(180deg, rgba(19, 117, 58, 0.08) 0%, rgba(19, 117, 58, 0.02) 100%) !important;
-  border: 1px solid rgba(19, 117, 58, 0.12) !important;
-  border-radius: 8px !important;
+  margin: 2px 0 10px 0 !important;
+  height: 34px !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1.5px solid rgba(19, 117, 58, 0.12) !important;
+  border-radius: 0 !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: space-between !important;
   box-sizing: border-box !important;
+  padding: 0 !important;
 }
 
 .flatpickr-weekdaycontainer {
   width: 100% !important;
   display: grid !important;
   grid-template-columns: repeat(7, 1fr) !important;
+  gap: 5px !important;
   text-align: center !important;
+  box-sizing: border-box !important;
 }
 
 span.flatpickr-weekday {
-  color: #14532d !important;
+  color: #15803d !important;
   font-weight: 800 !important;
-  font-size: 0.74rem !important;
+  font-size: 0.8rem !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.8px !important;
-  line-height: 30px !important;
+  letter-spacing: 0.5px !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 30px !important;
 }
 
 /* Fines de semana en barra de días (Sábado y Domingo destacados con tono ámbar) */
 span.flatpickr-weekday:nth-child(6),
 span.flatpickr-weekday:nth-child(7) {
-  color: #b45309 !important;
+  color: #c2410c !important;
   font-weight: 900 !important;
 }
 
-/* ─── Grilla de Días con Columnas Estructuradas ─── */
+/* ─── Grilla de Días con Columnas Estructuradas al 100% Sin Espacios Muertos ─── */
 .flatpickr-days {
   width: 100% !important;
+  max-width: 100% !important;
   box-sizing: border-box !important;
+  display: block !important;
 }
 
 .dayContainer {
@@ -8332,18 +8351,19 @@ span.flatpickr-weekday:nth-child(7) {
   max-width: 100% !important;
   display: grid !important;
   grid-template-columns: repeat(7, 1fr) !important;
-  gap: 3px !important;
+  gap: 5px !important;
   box-sizing: border-box !important;
+  padding: 0 !important;
 }
 
 .flatpickr-day {
   width: 100% !important;
-  max-width: 42px !important;
-  height: 38px !important;
-  line-height: 38px !important;
-  font-size: 0.92rem !important;
+  max-width: 44px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  font-size: 0.95rem !important;
   font-weight: 600 !important;
-  border-radius: 8px !important;
+  border-radius: 9px !important;
   display: inline-flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -8351,7 +8371,7 @@ span.flatpickr-weekday:nth-child(7) {
   color: #1e293b !important;
   margin: 0 auto !important;
   position: relative !important;
-  border: 1px solid transparent !important;
+  border: 1.5px solid transparent !important;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
@@ -8361,6 +8381,7 @@ span.flatpickr-weekday:nth-child(7) {
   background: rgba(245, 158, 11, 0.05) !important;
   color: #9a3412 !important;
   font-weight: 700 !important;
+  border-radius: 9px !important;
 }
 
 /* Tono sutil alterno de columna en días de semana (Lunes, Miércoles, Viernes) */
@@ -8368,6 +8389,7 @@ span.flatpickr-weekday:nth-child(7) {
 .flatpickr-day:nth-child(7n-4):not(.selected):not(.startRange):not(.endRange):not(.today),
 .flatpickr-day:nth-child(7n-2):not(.selected):not(.startRange):not(.endRange):not(.today) {
   background: rgba(248, 250, 252, 0.65) !important;
+  border-radius: 9px !important;
 }
 
 .flatpickr-day:hover {
@@ -8385,7 +8407,7 @@ span.flatpickr-weekday:nth-child(7) {
   background: linear-gradient(135deg, #13753a 0%, #0d5e2d 100%) !important;
   color: #ffffff !important;
   font-weight: 800 !important;
-  border-radius: 8px !important;
+  border-radius: 9px !important;
   border-color: transparent !important;
   box-shadow: 0 4px 14px rgba(13, 94, 45, 0.42) !important;
   transform: scale(1.04) !important;
@@ -8410,7 +8432,7 @@ span.flatpickr-weekday:nth-child(7) {
   color: #b45309 !important;
   background: rgba(234, 179, 8, 0.12) !important;
   font-weight: 800 !important;
-  border-radius: 8px !important;
+  border-radius: 9px !important;
 }
 
 .flatpickr-day.today:not(.selected)::after {
@@ -8444,18 +8466,18 @@ span.flatpickr-weekday:nth-child(7) {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 8px 14px 10px 14px !important;
-  margin-top: 4px !important;
+  padding: 10px 18px 12px 18px !important;
+  margin-top: 6px !important;
   background: #f8fafc !important;
   border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
 
 .flatpickr-custom-footer button {
   font-family: inherit !important;
-  font-size: 0.8rem !important;
+  font-size: 0.85rem !important;
   font-weight: 700 !important;
   border-radius: 8px !important;
-  padding: 5px 14px !important;
+  padding: 6px 16px !important;
   cursor: pointer !important;
   transition: all 0.18s ease !important;
   border: none !important;
@@ -8510,8 +8532,8 @@ span.flatpickr-weekday:nth-child(7) {
 }
 
 [data-theme="dark"] .flatpickr-weekdays {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.10) !important;
 }
 
 [data-theme="dark"] span.flatpickr-weekday {
