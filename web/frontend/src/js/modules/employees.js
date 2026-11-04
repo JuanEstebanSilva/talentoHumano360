@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const EmployeesModule = (() => {
+  let mainContainer = null;
   let state = {
     data: [],
     total: 0,
@@ -198,7 +199,7 @@ const EmployeesModule = (() => {
 
   function renderEstadoBadge(emp, itemKey) {
     const est = (emp.estadoServidor || emp.situacion || 'Activo').toLowerCase();
-    const canEdit = Auth.canEdit();
+    const canEdit = Auth.canEdit('employees');
 
     if (est === 'activo') {
       return `
@@ -230,7 +231,7 @@ const EmployeesModule = (() => {
   }
 
   function promptRetireEmployee(itemKey) {
-    if (!Auth.canEdit()) return;
+    if (!Auth.canEdit('employees')) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
@@ -320,9 +321,10 @@ const EmployeesModule = (() => {
             <span class="form-hint">Fecha oficial de culminación de funciones según acto administrativo o resolución.</span>
           </div>
 
-          <div class="form-group floating-group is-select is-floated">
+          <div class="form-group floating-group">
             <select id="retire-causal" class="form-select filter-select" required>
-              <option value="Renuncia voluntaria debidamente aceptada" selected>Renuncia voluntaria debidamente aceptada</option>
+              <option value="" disabled selected>Seleccione causal legal...</option>
+              <option value="Renuncia voluntaria debidamente aceptada">Renuncia voluntaria debidamente aceptada</option>
               <option value="Pensión de jubilación / vejez / invalidez">Pensión de jubilación / vejez / invalidez</option>
               <option value="Vencimiento del nombramiento provisional / periodo">Vencimiento del nombramiento provisional / periodo</option>
               <option value="Supresión del cargo / reestructuración de planta">Supresión del cargo / reestructuración de planta</option>
@@ -466,7 +468,7 @@ const EmployeesModule = (() => {
   }
 
   async function confirmRetireEmployee(itemKey) {
-    if (!Auth.canEdit()) return;
+    if (!Auth.canEdit('employees')) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
@@ -514,7 +516,7 @@ const EmployeesModule = (() => {
   }
 
   function promptReactivateEmployee(itemKey) {
-    if (!Auth.canEdit()) return;
+    if (!Auth.canEdit('employees')) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
@@ -652,9 +654,10 @@ const EmployeesModule = (() => {
             <span class="form-hint">A partir de esta fecha iniciará el nuevo cómputo de tiempo de servicio activo.</span>
           </div>
 
-          <div class="form-group floating-group is-select is-floated">
+          <div class="form-group floating-group">
             <select id="reactivate-tipo-vinculacion" class="form-select filter-select">
-              <option value="Carrera Administrativa" selected>Carrera Administrativa</option>
+              <option value="" disabled selected>Seleccione modalidad o tipo...</option>
+              <option value="Carrera Administrativa">Carrera Administrativa</option>
               <option value="Provisionalidad">Provisionalidad</option>
               <option value="Libre Nombramiento y Remoción">Libre Nombramiento y Remoción</option>
               <option value="Periodo Fijo">Periodo Fijo</option>
@@ -743,7 +746,7 @@ const EmployeesModule = (() => {
   }
 
   async function confirmReactivateEmployee(itemKey) {
-    if (!Auth.canEdit()) return;
+    if (!Auth.canEdit('employees')) return;
     const emp = state.data.find(x => String(x.cedula || x.id) === String(itemKey));
     if (!emp) return;
 
@@ -1341,13 +1344,15 @@ const EmployeesModule = (() => {
       }
     ], 'modal-lg');
 
-    // Inicializar calendarios en el modal
+    // Inicializar calendarios y floating labels en el modal
     setTimeout(() => {
-      if (typeof flatpickr !== 'undefined') {
-        flatpickr('#adv-fecha-ingreso-desde', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true });
-        flatpickr('#adv-fecha-ingreso-hasta', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', allowInput: true });
+      const modalEl = document.getElementById('modal-body') || document;
+      if (typeof App !== 'undefined') {
+        if (App.initDatePickers) App.initDatePickers(modalEl);
+        if (App.initFormUX) App.initFormUX(modalEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
       }
-    }, 150);
+    }, 50);
   }
 
   async function load() {
@@ -1520,10 +1525,11 @@ const EmployeesModule = (() => {
             <button class="btn-action-view" onclick="EmployeesModule.openView('${itemKey}')" title="Ver Detalles" aria-label="Ver detalles de ${escHtml(e.nombreCompleto)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+            ${Auth.canEdit('employees') ? `
             <button class="btn-action-edit" onclick="EmployeesModule.openEdit('${itemKey}')" title="Editar" aria-label="Editar información de ${escHtml(e.nombreCompleto)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            ${Auth.canEdit() ? `<button class="btn-action-delete" onclick="EmployeesModule.confirmDelete('${itemKey}','${escHtml(e.nombreCompleto)}')" title="Eliminar" aria-label="Eliminar servidor ${escHtml(e.nombreCompleto)}">
+            </button>` : ''}
+            ${Auth.canEdit('employees') ? `<button class="btn-action-delete" onclick="EmployeesModule.confirmDelete('${itemKey}','${escHtml(e.nombreCompleto)}')" title="Eliminar" aria-label="Eliminar servidor ${escHtml(e.nombreCompleto)}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
           </div>
@@ -2283,7 +2289,7 @@ const EmployeesModule = (() => {
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
-    if (Auth.canEdit()) {
+    if (Auth.canEdit('employees')) {
       actions.push({
         text: isVacante ? 'Editar Plaza' : 'Editar Servidor',
         cls: 'btn-gold',
@@ -2451,6 +2457,10 @@ const EmployeesModule = (() => {
   }
 
   async function openCreate() {
+    if (!Auth.canEdit('employees')) {
+      App.showToast('No tienes permisos para registrar servidores públicos.', 'warning');
+      return;
+    }
     currentFormIsEdit = false;
     currentFormEmpId = null;
     currentFormIsVacante = false;
@@ -2477,6 +2487,10 @@ const EmployeesModule = (() => {
   }
 
   async function openEdit(idOrCedula) {
+    if (!Auth.canEdit('employees')) {
+      App.showToast('No tienes permisos para editar servidores públicos.', 'warning');
+      return;
+    }
     const norm = val => String(val || '').trim().replace(/[.,\s]/g, '');
     let emp = state.data.find(e => e.cedula === idOrCedula || e.id === idOrCedula || (e.cedula && idOrCedula && norm(e.cedula) === norm(idOrCedula)));
     try {
@@ -2578,6 +2592,7 @@ const EmployeesModule = (() => {
     const isEdit = Boolean(emp.cedula || emp.id);
 
     const defaultSituacion = (() => {
+      if (!isEdit) return '';
       if (emp.situacion) {
         const s = emp.situacion.trim().toUpperCase();
         if (s.includes('DISCAPACIDAD') || s.includes('DISCPACIDAD')) return 'DISCAPACIDAD';
@@ -2594,7 +2609,7 @@ const EmployeesModule = (() => {
       if ((emp.estadoServidor || '').toLowerCase() === 'pensionado') return 'PENSIONABLE';
       if (emp.encargoDenominacion) return 'ENCARGO';
       if (emp.tipoDiscapacidad && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase())) return 'DISCAPACIDAD';
-      return 'ACTIVO';
+      return '';
     })();
 
     return `
@@ -2720,7 +2735,7 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-clasificacion">Tipo de Vinculación</label>
               <select id="ef-clasificacion" class="filter-select">
-                <option value="Sin clasificar" ${!emp.clasificacionEmpleo || emp.clasificacionEmpleo === 'Sin clasificar' ? 'selected' : ''}>Sin clasificar</option>
+                <option value="" ${!emp.clasificacionEmpleo || emp.clasificacionEmpleo === 'Sin clasificar' ? 'selected' : ''}>(Sin clasificar / Vacío)</option>
                 ${cats.clasificaciones.filter(c => c !== 'Sin clasificar').map(c => `<option value="${escHtml(c)}" ${normalizarClasificacion(c) === normalizarClasificacion(emp.clasificacionEmpleo) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
                 <option value="__OTRA__">+ Otra Vinculación (Especificar)...</option>
               </select>
@@ -2735,6 +2750,7 @@ const EmployeesModule = (() => {
             <div class="form-group span-2">
               <label class="form-label" for="ef-situacion">Situación Administrativa</label>
               <select id="ef-situacion" class="filter-select">
+                <option value="" ${!defaultSituacion ? 'selected' : ''}>(Seleccionar Situación)</option>
                 <option value="ACTIVO" ${defaultSituacion === 'ACTIVO' ? 'selected' : ''}>ACTIVO (En servicio activo)</option>
                 <option value="ENCARGO" ${defaultSituacion === 'ENCARGO' ? 'selected' : ''}>ENCARGO</option>
                 <option value="COMISIÓN" ${defaultSituacion === 'COMISIÓN' ? 'selected' : ''}>COMISIÓN</option>
@@ -2926,8 +2942,9 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-diplomado-toggle">Diplomado / Cap. SENA</label>
               <select id="ef-diplomado-toggle" class="filter-select">
-                <option value="NO" ${emp.tieneDiplomado ? '' : 'selected'}>No tiene</option>
-                <option value="SI" ${emp.tieneDiplomado ? 'selected' : ''}>Sí tiene</option>
+                <option value="" ${!isEdit ? 'selected' : ''}>(Seleccionar)</option>
+                <option value="NO" ${isEdit && !emp.tieneDiplomado ? 'selected' : ''}>No tiene</option>
+                <option value="SI" ${isEdit && emp.tieneDiplomado ? 'selected' : ''}>Sí tiene</option>
               </select>
             </div>
 
@@ -3275,7 +3292,7 @@ const EmployeesModule = (() => {
     const discCustom = document.getElementById('ef-tipo-discapacidad-custom');
 
     const updateSituacionSections = () => {
-      const sit = (situacionSelect?.value || 'ACTIVO').trim().toUpperCase();
+      const sit = (situacionSelect?.value || '').trim().toUpperCase();
       const isEncargo = sit === 'ENCARGO';
       const isDisc = sit.includes('DISCAPACIDAD') || sit.includes('DISCPACIDAD');
 
@@ -3321,6 +3338,9 @@ const EmployeesModule = (() => {
     if (diplomadoToggle && diplomadoGroup) {
       diplomadoToggle.addEventListener('change', (e) => {
         diplomadoGroup.style.display = e.target.value === 'SI' ? 'block' : 'none';
+        if (e.target.value === 'SI' && typeof App !== 'undefined' && App.refreshFloatingLabels) {
+          App.refreshFloatingLabels(diplomadoGroup);
+        }
       });
     }
 
@@ -3932,6 +3952,10 @@ const EmployeesModule = (() => {
   }
 
   async function saveCreate() {
+    if (!Auth.canEdit('employees')) {
+      App.showToast('No tienes permisos para registrar servidores públicos.', 'warning');
+      return;
+    }
     const body = readForm(false);
     if (!body) return;
     const btn = document.getElementById('emp-save-btn');
@@ -3955,6 +3979,10 @@ const EmployeesModule = (() => {
   }
 
   async function saveEdit(idOrCedula) {
+    if (!Auth.canEdit('employees')) {
+      App.showToast('No tienes permisos para editar servidores públicos.', 'warning');
+      return;
+    }
     const body = readForm(true);
     if (!body) return;
     const btn = document.getElementById('emp-save-btn');
@@ -4595,6 +4623,7 @@ const EmployeesModule = (() => {
   }
 
   async function render(container) {
+    if (container) mainContainer = container;
     if (!state.catalogs.dependencias || !state.catalogs.dependencias.length) {
       await loadCatalogs();
     }
@@ -4641,7 +4670,7 @@ const EmployeesModule = (() => {
                 onkeydown="EmployeesModule.handleMenuKeydown(event)"
                 hidden
               >
-                ${Auth.canEdit() ? `
+                ${Auth.canEdit('employees') ? `
                 <button
                   type="button"
                   class="emp-dropdown-item"
@@ -4685,7 +4714,7 @@ const EmployeesModule = (() => {
             </div>
 
             <!-- Botón Agregar Servidor (+) -->
-            ${Auth.canEdit() ? `
+            ${Auth.canEdit('employees') ? `
             <button
               type="button"
               class="btn-action-icon-add"
@@ -4790,6 +4819,10 @@ const EmployeesModule = (() => {
     await load();
     const countEl = document.getElementById('emp-count');
     if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
+    if (typeof App !== 'undefined') {
+      if (App.initFormUX) App.initFormUX(mainContainer || document);
+      if (App.refreshFloatingLabels) App.refreshFloatingLabels(mainContainer || document);
+    }
   }
 
   function search() {
@@ -4815,6 +4848,9 @@ const EmployeesModule = (() => {
     updateAdvFilterBadge();
     state.page = 1;
     load();
+    if (typeof App !== 'undefined') {
+      App.refreshFloatingLabels(mainContainer || document);
+    }
   }
 
   return {
@@ -4854,3 +4890,4 @@ const EmployeesModule = (() => {
     reactivateEmployee
   };
 })();
+window.EmployeesModule = EmployeesModule;

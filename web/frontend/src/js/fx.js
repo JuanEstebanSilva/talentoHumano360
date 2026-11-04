@@ -464,10 +464,10 @@ const FX = (() => {
     Sound.sidebarToggle();
 
     anime({
-      targets: '.sidebar-toggle svg',
-      rotate: isCollapsing ? [0, 180] : [180, 0],
-      duration: 380,
-      easing: 'easeInOutBack',
+      targets: '.sidebar-toggle',
+      scale: [0.92, 1],
+      duration: 320,
+      easing: 'easeOutCubic',
     });
   }
 

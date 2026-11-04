@@ -4,6 +4,12 @@
 
 const App = (() => {
 
+  // ─── Active Module State ───────────────────────────────────────────────────
+  let activeModule = 'dashboard';
+  function getCurrentModule() {
+    return activeModule;
+  }
+
   // ─── Toast System ──────────────────────────────────────────────────────────
   function showToast(message, type = 'info') {
     if (typeof Settings !== 'undefined' && !Settings.isNotificationTypeEnabled(type)) {
@@ -97,39 +103,246 @@ const App = (() => {
     }
   }
 
+  const DATE_INPUT_SELECTOR = 'input[type="date"]:not(.flatpickr-input-custom), input[data-datepicker]:not(.flatpickr-input-custom), input.datepicker-input:not(.flatpickr-input-custom), input.filter-datepicker:not(.flatpickr-input-custom), input.input-date:not(.flatpickr-input-custom)';
+
+  function ensureCalendarCustomUI(inst) {
+    if (!inst || !inst.calendarContainer) return;
+
+    // 1. Botón 'X' institucional para cerrar el calendario (Mockup Boyacá: cruz roja pura sin recuadro)
+    const monthsBar = inst.calendarContainer.querySelector('.flatpickr-months');
+    if (monthsBar) {
+      let closeBtn = inst.calendarContainer.querySelector('.flatpickr-custom-close');
+      if (!closeBtn) {
+        closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'flatpickr-custom-close';
+        closeBtn.title = 'Cerrar calendario';
+        closeBtn.setAttribute('aria-label', 'Cerrar calendario');
+        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ED1C24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          inst.close();
+        });
+        monthsBar.appendChild(closeBtn);
+      } else {
+        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ED1C24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      }
+    }
+
+    // 2. Selector Desplegable de Año institucional (rango 1920 a 2050, texto amarillo #FFF200)
+    const currentMonthEl = inst.calendarContainer.querySelector('.flatpickr-current-month');
+    const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
+    let yearSelect = null;
+    if (currentMonthEl && numInput) {
+      numInput.style.display = 'none';
+
+      yearSelect = currentMonthEl.querySelector('.flatpickr-year-dropdown');
+      const currentY = inst.currentYear || (inst.latestSelectedDateObj ? inst.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
+
+      if (!yearSelect) {
+        yearSelect = document.createElement('select');
+        yearSelect.className = 'flatpickr-year-dropdown';
+        yearSelect.setAttribute('aria-label', 'Seleccionar año');
+        yearSelect.title = 'Seleccionar año';
+
+        const minYear = 1920;
+        const maxYear = 2050;
+        let optionsHtml = '';
+        for (let y = minYear; y <= maxYear; y++) {
+          optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
+        }
+        yearSelect.innerHTML = optionsHtml;
+        yearSelect.value = currentY.toString();
+
+        yearSelect.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const newY = parseInt(e.target.value, 10);
+          if (!isNaN(newY)) {
+            inst.changeYear(newY);
+          }
+        });
+
+        numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
+        inst._customYearSelect = yearSelect;
+      } else {
+        if (yearSelect.value !== currentY.toString()) {
+          yearSelect.value = currentY.toString();
+        }
+        inst._customYearSelect = yearSelect;
+      }
+    }
+
+    // 3. Flechas apiladas de navegación (> arriba mes siguiente, < abajo mes anterior) en verde lima
+    if (currentMonthEl) {
+      let navWrap = currentMonthEl.querySelector('.flatpickr-stacked-nav');
+      if (!navWrap) {
+        navWrap = document.createElement('div');
+        navWrap.className = 'flatpickr-stacked-nav';
+        navWrap.innerHTML = `
+          <button type="button" class="fp-stacked-arrow fp-stacked-next" title="Mes siguiente" aria-label="Mes siguiente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#B5E61D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;">
+              <polyline points="9 4 17 12 9 20"></polyline>
+            </svg>
+          </button>
+          <button type="button" class="fp-stacked-arrow fp-stacked-prev" title="Mes anterior" aria-label="Mes anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#B5E61D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;">
+              <polyline points="15 4 7 12 15 20"></polyline>
+            </svg>
+          </button>
+        `;
+        navWrap.querySelector('.fp-stacked-next').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          inst.changeMonth(1);
+        });
+        navWrap.querySelector('.fp-stacked-prev').addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          inst.changeMonth(-1);
+        });
+        currentMonthEl.appendChild(navWrap);
+      }
+    }
+
+    // 4. Selector de Mes: Accesibilidad y auto-ajuste de anchura para evitar huecos o recortes tipográficos
+    const monthSelect = inst.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+    if (monthSelect) {
+      monthSelect.title = 'Seleccionar mes';
+      monthSelect.setAttribute('aria-label', 'Seleccionar mes');
+
+      const adjustWidth = () => {
+        const selectedOpt = monthSelect.options[monthSelect.selectedIndex];
+        const monthText = selectedOpt ? selectedOpt.text.trim() : '';
+        if (monthText) {
+          let ruler = inst.calendarContainer.querySelector('.fp-text-ruler');
+          if (!ruler) {
+            ruler = document.createElement('span');
+            ruler.className = 'fp-text-ruler';
+            ruler.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;font-family:Merriweather,Georgia,Times New Roman,serif;font-size:1.25rem;font-weight:800;letter-spacing:-0.3px;';
+            inst.calendarContainer.appendChild(ruler);
+          }
+          ruler.textContent = monthText;
+          const textWidth = Math.ceil(ruler.getBoundingClientRect().width);
+          const charEstimate = Math.ceil(monthText.length * 13.8);
+          const targetWidth = Math.max(textWidth + 20, charEstimate);
+          if (targetWidth > 0) {
+            monthSelect.style.width = targetWidth + 'px';
+          }
+        }
+      };
+
+      adjustWidth();
+
+      if (document.fonts && document.fonts.ready && !monthSelect._hasFontReadyListener) {
+        monthSelect._hasFontReadyListener = true;
+        document.fonts.ready.then(() => adjustWidth());
+      }
+
+      if (!monthSelect._hasAutoWidthListener) {
+        monthSelect._hasAutoWidthListener = true;
+        monthSelect.addEventListener('change', () => {
+          setTimeout(() => {
+            adjustWidth();
+            ensureCalendarCustomUI(inst);
+          }, 0);
+        });
+      }
+    }
+
+    // 4. Pie de acciones rápidas (Hoy / Limpiar)
+    if (!inst.calendarContainer.querySelector('.flatpickr-custom-footer')) {
+      const footer = document.createElement('div');
+      footer.className = 'flatpickr-custom-footer';
+      footer.innerHTML = `
+        <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
+        <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
+      `;
+      footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inst.setDate(new Date(), true);
+        inst.close();
+      });
+      footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inst.clear();
+        inst.close();
+      });
+      inst.calendarContainer.appendChild(footer);
+    }
+  }
+
   function initDatePickers(container = document) {
     if (typeof flatpickr === 'undefined') return;
     try {
+      if (flatpickr.l10ns && flatpickr.l10ns.es) {
+        flatpickr.localize(flatpickr.l10ns.es);
+      }
+      flatpickr.setDefaults({
+        locale: (flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+        firstDayOfWeek: 1,
+        weekNumbers: false
+      });
+
       const inputs = [];
-      if (container && container.matches && (container.matches('input[type="date"], input[data-datepicker], input.datepicker-input'))) {
+      if (container && container.matches && container.matches(DATE_INPUT_SELECTOR)) {
         inputs.push(container);
       } else if (container && container.querySelectorAll) {
-        inputs.push(...container.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input'));
+        inputs.push(...container.querySelectorAll(DATE_INPUT_SELECTOR));
       }
+
       inputs.forEach(input => {
-        if (input._flatpickr) return;
+        if (input._flatpickr || input.classList.contains('flatpickr-input-custom') || (input.type === 'hidden' && input.classList.contains('flatpickr-input'))) return;
         const currentVal = input.value || '';
         const minVal = input.getAttribute('min') || undefined;
         const maxVal = input.getAttribute('max') || undefined;
+
+        let baseClass = (input.className || 'form-input')
+          .replace(/\bflatpickr-input\b/g, '')
+          .replace(/\bflatpickr-input-custom\b/g, '')
+          .replace(/\binput-date\b/g, '')
+          .replace(/\bdatepicker-input\b/g, '')
+          .replace(/\bfilter-datepicker\b/g, '')
+          .trim();
+        if (!baseClass.includes('form-input')) {
+          baseClass += ' form-input';
+        }
+        const altClass = (baseClass + ' flatpickr-input-custom').trim();
+
         flatpickr(input, {
           locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
           dateFormat: 'Y-m-d',
           altInput: true,
           altFormat: 'd/m/Y',
-          altInputClass: ((input.className || 'form-input').replace(/\bflatpickr-input\b/g, '') + ' flatpickr-input-custom').trim(),
+          altInputClass: altClass,
           defaultDate: currentVal || null,
           minDate: minVal,
           maxDate: maxVal,
           allowInput: true,
+          weekNumbers: false,
+          disableMobile: true,
+          monthSelectorType: 'dropdown',
           onChange: function(selectedDates, dateStr) {
+            input.value = dateStr;
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
+            if (group) {
+              if (dateStr) group.classList.add('is-floated');
+              else group.classList.remove('is-floated');
+            }
             input.dispatchEvent(new Event('change', { bubbles: true }));
             input.dispatchEvent(new Event('input', { bubbles: true }));
           },
-          disableMobile: true,
-          monthSelectorType: 'dropdown',
           onReady: function(selectedDates, dateStr, instance) {
+            if (instance.altInput) {
+              instance.altInput.placeholder = input.getAttribute('placeholder') || ' ';
+              instance.altInput.setAttribute('autocomplete', 'off');
+              instance.altInput.setAttribute('aria-label', input.getAttribute('aria-label') || 'Seleccionar fecha');
+            }
+
             // Sincronización con etiquetas flotantes
-            const group = input.closest('.form-group');
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
               if (currentVal || dateStr) group.classList.add('is-floated');
               if (instance.altInput) {
@@ -141,135 +354,28 @@ const App = (() => {
               }
             }
 
-            if (!instance.calendarContainer) return;
-
-            function ensureCloseBtn(inst) {
-              if (!inst || !inst.calendarContainer) return;
-              const monthsBar = inst.calendarContainer.querySelector('.flatpickr-months');
-              if (monthsBar && !inst.calendarContainer.querySelector('.flatpickr-custom-close')) {
-                const closeBtn = document.createElement('button');
-                closeBtn.type = 'button';
-                closeBtn.className = 'flatpickr-custom-close';
-                closeBtn.title = 'Cerrar calendario';
-                closeBtn.setAttribute('aria-label', 'Cerrar calendario');
-                closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-                closeBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  inst.close();
-                });
-                monthsBar.appendChild(closeBtn);
-              }
-            }
-            instance._ensureCloseBtn = ensureCloseBtn;
-
-            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
-            ensureCloseBtn(instance);
-
-            // 2. Selector Desplegable de Año (fácil de usar, rango 1920 a 2050)
-            const currentMonthEl = instance.calendarContainer.querySelector('.flatpickr-current-month');
-            const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
-            if (currentMonthEl && numInput && !currentMonthEl.querySelector('.flatpickr-year-dropdown')) {
-              numInput.style.display = 'none';
-
-              const yearSelect = document.createElement('select');
-              yearSelect.className = 'flatpickr-year-dropdown';
-              yearSelect.setAttribute('aria-label', 'Seleccionar año');
-              yearSelect.title = 'Seleccionar año';
-
-              const minYear = 1920;
-              const maxYear = 2050;
-              const currentY = instance.currentYear || (instance.latestSelectedDateObj ? instance.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
-
-              let optionsHtml = '';
-              for (let y = minYear; y <= maxYear; y++) {
-                optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
-              }
-              yearSelect.innerHTML = optionsHtml;
-              yearSelect.value = currentY.toString();
-
-              yearSelect.addEventListener('change', (e) => {
-                e.stopPropagation();
-                const newY = parseInt(e.target.value, 10);
-                if (!isNaN(newY)) {
-                  instance.changeYear(newY);
-                }
-              });
-
-              numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
-              instance._customYearSelect = yearSelect;
-            }
-
-            // 3. Tooltip accesible en desplegable de mes
-            const monthSelect = instance.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
-            if (monthSelect) {
-              monthSelect.title = 'Seleccionar mes';
-            }
-
-            // 4. Footer institucional rápido (Hoy / Limpiar)
-            if (!instance.calendarContainer.querySelector('.flatpickr-custom-footer')) {
-              const footer = document.createElement('div');
-              footer.className = 'flatpickr-custom-footer';
-              footer.innerHTML = `
-                <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
-                <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
-              `;
-              footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.setDate(new Date(), true);
-                instance.close();
-              });
-              footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.clear();
-                instance.close();
-              });
-              instance.calendarContainer.appendChild(footer);
-            }
+            ensureCalendarCustomUI(instance);
           },
           onYearChange: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
-            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
+            ensureCalendarCustomUI(instance);
           },
           onMonthChange: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
-            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
+            ensureCalendarCustomUI(instance);
           },
           onOpen: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
-            if (instance._ensureCloseBtn) instance._ensureCloseBtn(instance);
-            const group = input.closest('.form-group');
+            ensureCalendarCustomUI(instance);
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) group.classList.add('is-focused', 'is-floated');
           },
           onClose: function(selectedDates, dateStr, instance) {
-            const group = input.closest('.form-group');
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
               group.classList.remove('is-focused');
               if (!input.value) group.classList.remove('is-floated');
             }
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
-          },
-          onChange: function(selectedDates, dateStr) {
-            input.value = dateStr;
-            const group = input.closest('.form-group');
-            if (group) {
-              if (dateStr) group.classList.add('is-floated');
-              else group.classList.remove('is-floated');
-            }
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dispatchEvent(new Event('input', { bubbles: true }));
+            ensureCalendarCustomUI(instance);
           }
         });
       });
@@ -277,6 +383,7 @@ const App = (() => {
       console.warn('[Flatpickr] Fallback to native datepicker:', e);
     }
   }
+
 
   /**
    * Inicializa la experiencia moderna de formularios institucional Talento360:
@@ -324,9 +431,9 @@ const App = (() => {
       const patchedSet = function(val) {
         originalSet.call(this, val);
         try {
-          const group = this.closest ? this.closest('.floating-group, .form-group, .adv-filter-field') : null;
+          const group = this.closest ? this.closest('.floating-group, .form-group, .adv-filter-field, .filter-group') : null;
           if (group) {
-            const hasVal = (val !== undefined && val !== null && String(val).trim() !== '') || (this.matches && this.matches('select'));
+            const hasVal = (val !== undefined && val !== null && String(val).trim() !== '');
             if (hasVal) {
               group.classList.add('is-floated');
             } else if (typeof document !== 'undefined' && document.activeElement !== this && !this._flatpickr) {
@@ -351,7 +458,7 @@ const App = (() => {
   function initFormUX(container = document) {
     if (!container) return;
     try {
-      const groups = container.querySelectorAll('.form-group, .adv-filter-field');
+      const groups = container.querySelectorAll('.form-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
         // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, excel dropzones, headers
         if (
@@ -368,14 +475,14 @@ const App = (() => {
           return;
         }
 
-        const label = group.querySelector('.form-label, label');
-        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const label = group.querySelector('.form-label, .filter-label, label');
+        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
         group.classList.add('floating-group');
         if (control.matches('select')) {
-          group.classList.add('is-select', 'is-floated');
+          group.classList.add('is-select');
         } else if (!control.getAttribute('placeholder')) {
           control.setAttribute('placeholder', ' ');
         }
@@ -383,9 +490,9 @@ const App = (() => {
         const updateState = () => {
           let hasVal = false;
           if (control.matches('select')) {
-            hasVal = true; // Selects siempre flotan el label al tope
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
           } else if (control.type === 'date' || control._flatpickr) {
-            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates.length > 0));
+            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
           } else {
             hasVal = Boolean(control.value && String(control.value).trim() !== '');
           }
@@ -472,14 +579,14 @@ const App = (() => {
   function refreshFloatingLabels(container = document) {
     if (!container) return;
     try {
-      const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field');
+      const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
         group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
-          hasVal = true;
+          hasVal = Boolean(control.value && String(control.value).trim() !== '');
           group.classList.add('is-select');
         } else if (control.type === 'date' || control._flatpickr) {
           hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
@@ -577,6 +684,7 @@ const App = (() => {
     }
 
     // 2. Ruta válida: ocultar overlay global 404 si estaba visible y asegurar visualización del app
+    activeModule = rawModule;
     if (typeof Error404Module !== 'undefined') {
       Error404Module.hide();
     }
@@ -753,12 +861,16 @@ const App = (() => {
       FX.animatePageTransition(container, async () => {
         await renderSelectedModule();
         enhanceAddButtons(container);
+        initFormUX(container);
+        refreshFloatingLabels(container);
         FX.onModuleRendered(container);
         container.scrollTop = 0;
       });
     } else {
       await renderSelectedModule();
       enhanceAddButtons(container);
+      initFormUX(container);
+      refreshFloatingLabels(container);
       container.scrollTop = 0;
     }
   }
@@ -1552,6 +1664,18 @@ const App = (() => {
 
   // ─── Init ──────────────────────────────────────────────────────────────────
   function init() {
+    // Configuración universal en Español para Flatpickr
+    if (typeof flatpickr !== 'undefined') {
+      if (flatpickr.l10ns && flatpickr.l10ns.es) {
+        flatpickr.localize(flatpickr.l10ns.es);
+      }
+      flatpickr.setDefaults({
+        locale: (flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+        firstDayOfWeek: 1,
+        weekNumbers: false
+      });
+    }
+
     // Initialize system settings & preferences
     if (typeof Settings !== 'undefined') {
       Settings.init();
@@ -1562,6 +1686,20 @@ const App = (() => {
     if (isCollapsed) {
       document.getElementById('app')?.classList.add('sidebar-collapsed');
     }
+    const updateSidebarToggleAttributes = (collapsed) => {
+      const toggleBtn = document.getElementById('sidebar-toggle');
+      if (!toggleBtn) return;
+      if (collapsed) {
+        toggleBtn.setAttribute('title', 'Abrir barra lateral (Alt + B)');
+        toggleBtn.setAttribute('aria-label', 'Abrir barra lateral');
+        toggleBtn.setAttribute('data-tooltip', 'Abrir barra lateral');
+      } else {
+        toggleBtn.setAttribute('title', 'Cerrar barra lateral (Alt + B)');
+        toggleBtn.setAttribute('aria-label', 'Cerrar barra lateral');
+        toggleBtn.setAttribute('data-tooltip', 'Cerrar barra lateral');
+      }
+    };
+    updateSidebarToggleAttributes(isCollapsed);
 
     // Topbar live date/time & quick controls
     updateTopbarDateTime();
@@ -1723,6 +1861,7 @@ const App = (() => {
       } else {
         const collapsed = app.classList.toggle('sidebar-collapsed');
         localStorage.setItem('talento360_sidebar_collapsed', String(collapsed));
+        updateSidebarToggleAttributes(collapsed);
         // FX: sidebar toggle animation
         if (typeof FX !== 'undefined') FX.animateSidebarToggle(collapsed);
       }
@@ -1842,11 +1981,24 @@ const App = (() => {
           if (m.addedNodes && m.addedNodes.length) {
             for (const node of m.addedNodes) {
               if (node.nodeType === 1) {
-                if (node.matches && node.matches('input[type="date"], input[data-datepicker], input.datepicker-input')) {
+                if (node.classList && (node.classList.contains('flatpickr-calendar') || node.classList.contains('flatpickr-input-custom') || node.classList.contains('flatpickr-wrapper'))) {
+                  continue;
+                }
+                if (node.matches && node.matches(DATE_INPUT_SELECTOR)) {
                   initDatePickers(node);
                 } else if (node.querySelectorAll) {
-                  const dates = node.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input');
+                  const dates = node.querySelectorAll(DATE_INPUT_SELECTOR);
                   if (dates.length) initDatePickers(node);
+                }
+                if (node.matches && node.matches('.form-group, .filter-group, .adv-filter-field')) {
+                  initFormUX(node);
+                  refreshFloatingLabels(node);
+                } else if (node.querySelectorAll) {
+                  const groups = node.querySelectorAll('.form-group, .filter-group, .adv-filter-field');
+                  if (groups.length) {
+                    initFormUX(node);
+                    refreshFloatingLabels(node);
+                  }
                 }
                 enhanceAddButtons(node);
               }
@@ -1864,7 +2016,7 @@ const App = (() => {
           this._flatpickr.open();
           return;
         }
-        if (this.type === 'date' || this.hasAttribute('data-datepicker')) {
+        if (this.matches && this.matches(DATE_INPUT_SELECTOR)) {
           initDatePickers(this);
           if (this._flatpickr) {
             this._flatpickr.open();
@@ -1879,7 +2031,7 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons };
+  return { init, navigate, getCurrentModule, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

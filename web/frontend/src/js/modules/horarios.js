@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const HorariosModule = (() => {
+  let mainContainer = null;
   const MODALIDADES = ['Todas', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
   const ESTADOS     = ['Todos', 'Activa', 'Pendiente', 'En revisión', 'Caducada', 'Finalizada'];
   const INSTITUTIONAL_DEPENDENCIAS = [
@@ -202,7 +203,8 @@ const HorariosModule = (() => {
 
   // ─── Renderizado Principal ────────────────────────────────────────────────
   async function render(container) {
-    const canManage = Auth.canEdit();
+    if (container) mainContainer = container;
+    const canManage = Auth.canEdit('horarios');
 
     container.innerHTML = `
       <div class="module-enter">
@@ -324,13 +326,12 @@ const HorariosModule = (() => {
         <div class="filters-card">
           <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div class="filter-group" style="flex:3; min-width:240px;">
-              <label class="filter-label" for="horarios-search">Buscar</label>
-              <input id="horarios-search" class="filter-input" placeholder="Nombre, cédula, cargo o resolución..." value="${escHtml(
+              <input id="horarios-search" class="filter-input" placeholder=" " value="${escHtml(
                 state.filters.q || ''
               )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" oninput="HorariosModule.onSearchInput(this.value)" />
+              <label class="filter-label" for="horarios-search">Buscar por nombre, cédula, cargo o resolución...</label>
             </div>
             <div class="filter-group" style="flex:1; min-width:160px;">
-              <label class="filter-label" for="filter-estado">Estado</label>
               <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por estado">
                 <option value="">TODOS</option>
                 ${ESTADOS.filter(e => e !== 'Todos').map(
@@ -340,6 +341,7 @@ const HorariosModule = (() => {
                     }>${e}</option>`
                 ).join('')}
               </select>
+              <label class="filter-label" for="filter-estado">Estado</label>
             </div>
             <div class="filters-actions-wrap" style="display:flex; gap:8px; align-items:flex-end;">
               <button type="button" id="hor-btn-adv-filter" class="btn-filter-adv ${getActiveFiltersCount() > 0 ? 'btn-filter-active' : ''}" onclick="HorariosModule.openAdvancedFiltersModal()" title="Abrir panel de filtros avanzados" aria-label="Filtros avanzados">
@@ -407,6 +409,10 @@ const HorariosModule = (() => {
     loadDependenciasCatalog();
     loadStats();
     await loadData();
+    if (typeof App !== 'undefined') {
+      if (App.initFormUX) App.initFormUX(container);
+      if (App.refreshFloatingLabels) App.refreshFloatingLabels(container);
+    }
   }
 
   async function loadDependenciasCatalog() {
@@ -805,14 +811,13 @@ const HorariosModule = (() => {
     ]);
 
     setTimeout(() => {
-      if (typeof flatpickr !== 'undefined') {
-        flatpickr('.filter-datepicker', {
-          dateFormat: 'Y-m-d',
-          allowInput: true,
-          locale: { firstDayOfWeek: 1 }
-        });
+      const modalEl = document.getElementById('modal-body') || document;
+      if (typeof App !== 'undefined') {
+        if (App.initDatePickers) App.initDatePickers(modalEl);
+        if (App.initFormUX) App.initFormUX(modalEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
       }
-    }, 100);
+    }, 50);
   }
 
   async function loadData() {
@@ -897,7 +902,7 @@ const HorariosModule = (() => {
       return;
     }
 
-    const canManage = Auth.canEdit();
+    const canManage = Auth.canEdit('horarios');
 
     tbody.innerHTML = state.data.map((item, idx) => {
       const tipoCalculoTag = item.tipo_calculo === 'Hábiles'
@@ -973,10 +978,14 @@ const HorariosModule = (() => {
           </td>
 
           <td>
+            ${canManage ? `
             <button type="button" class="badge badge--interactive ${badgeClass(item.estado)}" onclick="HorariosModule.openStatusPicker(${item.id_horario})" title="Clic para cambiar estado de este horario" aria-label="Cambiar estado: ${item.estado}">
               <span>${item.estado}</span>
               <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            </button>` : `
+            <span class="badge ${badgeClass(item.estado)}">
+              <span>${item.estado}</span>
+            </span>`}
           </td>
 
           <td class="td-actions" style="text-align: center;">
@@ -984,9 +993,13 @@ const HorariosModule = (() => {
               <button class="btn-action-view" onclick="HorariosModule.openView(${item.id_horario})" title="Ver Detalles y Trazabilidad">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte ${tieneSoporte ? 'btn-action-soporte--has-file' : ''}" onclick="HorariosModule.openUploadSoporteModal(${item.id_horario})" title="${tieneSoporte ? 'Ver / Reemplazar Hoja de Soporte' : 'Adjuntar Hoja de Soporte Firmada'}">
+              ${tieneSoporte ? `
+              <button class="btn-action-soporte btn-action-soporte--has-file" onclick="HorariosModule.viewSoporte(${item.id_horario})" title="Ver Hoja de Soporte Firmada">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-              </button>
+              </button>` : (canManage ? `
+              <button class="btn-action-soporte" onclick="HorariosModule.openUploadSoporteModal(${item.id_horario})" title="Adjuntar Hoja de Soporte Firmada">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>` : '')}
               ${canManage ? `
               <button class="btn-action-edit" onclick="HorariosModule.openEdit(${item.id_horario})" title="Editar Esquema">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1072,12 +1085,16 @@ const HorariosModule = (() => {
   }
 
   function openScheduleModal(item = null) {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos para ' + (item ? 'editar' : 'crear') + ' esquemas de horarios.', 'warning');
+      return;
+    }
     currentScheduleModalItem = item;
     const isEdit = Boolean(item);
     const title = isEdit ? 'Editar Esquema de Horario' : 'Registrar Nuevo Esquema de Horario';
 
     const curModalidad = item?.modalidad || 'Teletrabajo';
-    const curTipoCalc  = item?.tipo_calculo || 'Hábiles';
+    const curTipoCalc  = isEdit ? (item?.tipo_calculo || 'Hábiles') : (item?.tipo_calculo || '');
 
     const initialDaysLower = (item?.dias_teletrabajo || '').toLowerCase();
     const hasLun = isEdit ? initialDaysLower.includes('lun') : false;
@@ -1274,8 +1291,9 @@ const HorariosModule = (() => {
                   <input type="text" id="dias-teletrabajo" class="form-input font-bold" placeholder=" " enterkeyhint="next" value="${escHtml(item?.dias_teletrabajo || '')}" />
                   <label for="dias-teletrabajo" class="form-label">Días de Teletrabajo (Texto)</label>
                 </div>
-                <div class="form-group floating-group is-floated">
+                <div class="form-group floating-group ${item?.subtipo_teletrabajo ? 'is-floated' : ''}">
                   <select id="subtipo-teletrabajo" class="filter-select">
+                    <option value="" disabled ${!item?.subtipo_teletrabajo ? 'selected' : ''}>Seleccione subtipo...</option>
                     <option value="Suplementario (Híbrido)" ${item?.subtipo_teletrabajo === 'Suplementario (Híbrido)' ? 'selected' : ''}>Suplementario (Híbrido)</option>
                     <option value="Autónomo" ${item?.subtipo_teletrabajo === 'Autónomo' ? 'selected' : ''}>Autónomo (100% Remoto)</option>
                     <option value="Móvil" ${item?.subtipo_teletrabajo === 'Móvil' ? 'selected' : ''}>Móvil (Itinerante)</option>
@@ -1366,41 +1384,43 @@ const HorariosModule = (() => {
                 <label for="horario-resolucion" class="form-label">Número de Resolución / Acto (Opcional)</label>
               </div>
 
-              <div class="form-group floating-group is-floated">
+              <div class="form-group floating-group ${(item?.fecha_aprobacion || item?.fecha_resolucion) ? 'is-floated' : ''}">
                 <input type="date" id="horario-fecha-aprobacion" class="form-input" value="${
                   item?.fecha_aprobacion ? item.fecha_aprobacion.split('T')[0] : (item?.fecha_resolucion ? item.fecha_resolucion.split('T')[0] : '')
                 }" />
                 <label for="horario-fecha-aprobacion" class="form-label">Fecha del Acto / Aprobación (Opcional)</label>
               </div>
 
-              <div class="form-group floating-group is-floated">
+              <div class="form-group floating-group ${item?.fecha_inicio ? 'is-floated' : ''}">
                 <input type="date" id="horario-fecha-inicio" class="form-input" value="${
                   item?.fecha_inicio ? item.fecha_inicio.split('T')[0] : ''
                 }" />
                 <label for="horario-fecha-inicio" class="form-label">Fecha de Inicio del Esquema</label>
               </div>
 
-              <div class="form-group floating-group is-floated">
+              <div class="form-group floating-group ${item?.fecha_fin ? 'is-floated' : ''}">
                 <input type="date" id="horario-fecha-fin" class="form-input" value="${
                   item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
                 }" />
                 <label for="horario-fecha-fin" class="form-label">Fecha de Finalización (Opcional)</label>
               </div>
 
-              <div class="form-group floating-group is-floated">
+              <div class="form-group floating-group ${isEdit && curTipoCalc ? 'is-floated' : ''}">
                 <select id="horario-tipo-calculo" class="filter-select">
+                  <option value="" disabled ${!curTipoCalc ? 'selected' : ''}>Seleccione tipo de cómputo...</option>
                   <option value="Hábiles" ${curTipoCalc === 'Hábiles' ? 'selected' : ''}>Días Hábiles (L-V)</option>
                   <option value="Calendario" ${curTipoCalc === 'Calendario' ? 'selected' : ''}>Días Calendario</option>
                 </select>
                 <label for="horario-tipo-calculo" class="form-label">Tipo de Cómputo</label>
               </div>
 
-              <div class="form-group floating-group is-floated">
+              <div class="form-group floating-group ${isEdit && item?.estado ? 'is-floated' : ''}">
                 <select id="horario-estado" class="filter-select">
-                  <option value="Activa" ${!item?.estado || item?.estado === 'Activa' ? 'selected' : ''}>Activa (En vigencia)</option>
-                  <option value="Pendiente" ${item?.estado === 'Pendiente' ? 'selected' : ''}>Pendiente de inicio</option>
-                  <option value="En revisión" ${item?.estado === 'En revisión' ? 'selected' : ''}>En revisión técnica</option>
-                  <option value="Caducada" ${item?.estado === 'Caducada' ? 'selected' : ''}>Caducada (Finalizada)</option>
+                  <option value="" disabled ${!item?.estado ? 'selected' : ''}>Seleccione estado...</option>
+                  <option value="Activa" ${(isEdit && item?.estado === 'Activa') ? 'selected' : ''}>Activa (En vigencia)</option>
+                  <option value="Pendiente" ${(isEdit && item?.estado === 'Pendiente') ? 'selected' : ''}>Pendiente de inicio</option>
+                  <option value="En revisión" ${(isEdit && item?.estado === 'En revisión') ? 'selected' : ''}>En revisión técnica</option>
+                  <option value="Caducada" ${(isEdit && item?.estado === 'Caducada') ? 'selected' : ''}>Caducada (Finalizada)</option>
                 </select>
                 <label for="horario-estado" class="form-label">Estado del Esquema</label>
               </div>
@@ -1477,8 +1497,12 @@ const HorariosModule = (() => {
 
     bindModalFormEvents(item);
 
-    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
-      setTimeout(() => App.refreshFloatingLabels(document.getElementById('modal-body')), 50);
+    if (typeof App !== 'undefined') {
+      const modalBody = document.getElementById('modal-body');
+      if (App.initFormUX) App.initFormUX(modalBody);
+      if (App.refreshFloatingLabels) {
+        setTimeout(() => App.refreshFloatingLabels(modalBody), 50);
+      }
     }
   }
 
@@ -1952,6 +1976,10 @@ const HorariosModule = (() => {
 
   // ─── Envío del Formulario (Creación o Edición) ─────────────────────────────
   async function submitScheduleForm(existingId = null) {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos para ' + (existingId ? 'editar' : 'crear') + ' esquemas de horarios.', 'warning');
+      return;
+    }
     const numero_consecutivo = document.getElementById('horario-consecutivo')?.value;
     const codigo = document.getElementById('horario-codigo')?.value?.trim();
     const grado = document.getElementById('horario-grado')?.value?.trim();
@@ -2640,7 +2668,7 @@ const HorariosModule = (() => {
       const actions = [
         { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
       ];
-      if (Auth.canEdit()) {
+      if (Auth.canEdit('horarios')) {
         actions.push({
           text: 'Editar Horario',
           cls: 'btn-gold',
@@ -2704,7 +2732,7 @@ const HorariosModule = (() => {
   ];
 
   function openStatusPicker(id) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('horarios')) {
       App.showToast('No tienes permisos de edición para cambiar estados.', 'warning');
       return;
     }
@@ -2751,18 +2779,25 @@ const HorariosModule = (() => {
           ${cardsHtml}
         </div>
 
-        <div class="form-group" style="margin-top:var(--space-2);">
-          <label class="form-label">Observación / Justificación del Cambio (Opcional)</label>
-          <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder="Ej: Cambio de estado según acto administrativo..." />
+        <div class="form-group floating-group" style="margin-top:var(--space-2);">
+          <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder=" " />
+          <label class="form-label" for="quick-status-obs">Observación / Justificación del Cambio (Opcional)</label>
         </div>
       </div>`;
 
     App.openModal('Gestión Rápida de Estado', bodyHtml, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
     ]);
+    if (typeof App !== 'undefined' && App.initFormUX) {
+      App.initFormUX(document.getElementById('modal-body'));
+    }
   }
 
   async function selectQuickStatus(id, newStatus) {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos de edición para cambiar estados.', 'warning');
+      return;
+    }
     const obsInput = document.getElementById('quick-status-obs');
     const nota = obsInput ? obsInput.value.trim() : '';
     try {
@@ -2778,6 +2813,10 @@ const HorariosModule = (() => {
 
   // ─── Funciones Públicas de Gestión y Filtros ───────────────────────────────
   async function openCreate() {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos para crear esquemas de horarios.', 'warning');
+      return;
+    }
     try {
       const res = await API.getNextHorarioConsecutivo();
       if (res && res.nextConsecutivo != null) {
@@ -2791,6 +2830,10 @@ const HorariosModule = (() => {
   }
 
   function openEdit(id) {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos para editar horarios.', 'warning');
+      return;
+    }
     const item = state.data.find((d) => String(d.id_horario) === String(id));
     if (item) {
       openScheduleModal(item);
@@ -2837,6 +2880,10 @@ const HorariosModule = (() => {
   }
 
   async function openUploadSoporteModal(id) {
+    if (!Auth.canEdit('horarios')) {
+      App.showToast('No tienes permisos para adjuntar o modificar soportes de horarios.', 'warning');
+      return;
+    }
     let item = state.data.find((x) => String(x.id_horario) === String(id));
     if (!item) {
       try {
@@ -3054,7 +3101,7 @@ const HorariosModule = (() => {
   }
 
   function confirmDelete(id, nombre) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('horarios')) {
       App.showToast('No tienes permisos para eliminar esquemas.', 'warning');
       return;
     }
@@ -3123,6 +3170,9 @@ const HorariosModule = (() => {
     const selEst = document.getElementById('filter-estado');
     if (selEst) selEst.value = '';
     state.page = 1;
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels();
+    }
     renderStatsCards();
     loadData();
   }
@@ -4003,3 +4053,4 @@ const HorariosModule = (() => {
     submitScheduleForm,
   };
 })();
+window.HorariosModule = HorariosModule;

@@ -1148,9 +1148,9 @@ body {
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 16px 14px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 16px 12px 16px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.06);
   min-height: 72px;
@@ -1181,29 +1181,27 @@ body {
 .sidebar-logo svg,
 .sidebar-logo img,
 .sidebar-logo-condor {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
   object-fit: contain;
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35)) !important;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .sidebar-brand {
-  flex: 1;
-  min-width: 0;
-  overflow: visible;
-  margin-left: 6px;
   display: flex;
   align-items: center;
+  overflow: visible;
+  margin-left: -2px; /* Corrección para centrar y acercar armónicamente con el logo */
   transition: opacity var(--transition-base);
 }
 
 .sidebar-title {
   display: flex;
   align-items: baseline;
-  font-size: 1.62rem;
+  font-size: 1.58rem;
   font-weight: 800;
   color: #ffffff !important;
   white-space: nowrap;
@@ -1223,65 +1221,231 @@ body {
   display: none !important;
 }
 
-.app.sidebar-collapsed .sidebar-logo { display: none; }
-.app.sidebar-collapsed .sidebar-brand { display: none; }
+.app.sidebar-collapsed .sidebar-logo { display: none !important; }
+.app.sidebar-collapsed .sidebar-brand { display: none !important; }
 .app.sidebar-collapsed .sidebar-header {
   justify-content: center;
-  padding: var(--space-3) 0;
+  padding: 12px 0;
+  min-height: 72px;
 }
 
+/* ─── Sidebar Toggle Button (Gemini-style UX: sin recuadro de fondo) ───────── */
 .sidebar-toggle {
   flex-shrink: 0;
+  margin-left: auto;
   width: 32px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: transparent !important;
+  border: none !important;
   cursor: pointer;
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.85);
   padding: 0;
-  border-radius: 10px;
+  border-radius: 0 !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: none !important;
+  position: relative;
+  outline: none;
 }
 
 .sidebar-toggle:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.42);
-  transform: scale(1.06);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  color: #ffffff !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: scale(1.12);
 }
 
 .sidebar-toggle:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.sidebar-toggle svg {
-  width: 16px;
-  height: 16px;
-  transition: transform var(--transition-base);
+.sidebar-toggle-icon-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.sidebar-toggle-icon-collapse svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+  transition: transform 0.2s ease, filter 0.2s ease, stroke 0.2s ease;
+}
+
+.sidebar-toggle:hover .sidebar-toggle-icon-collapse svg {
+  stroke: #ffffff;
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.5));
+}
+
+/* Tooltip in expanded state (Gemini style) */
+.app:not(.sidebar-collapsed) .sidebar-toggle::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: rgba(20, 24, 20, 0.94);
+  backdrop-filter: blur(12px);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 1060;
+}
+
+.app:not(.sidebar-collapsed) .sidebar-toggle:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* While sidebar is expanded, hide collapsed elements */
+.app:not(.sidebar-collapsed) .sidebar-toggle-logo-collapsed,
+.app:not(.sidebar-collapsed) .sidebar-toggle-icon-expand {
+  display: none !important;
+}
+
+/* ─── Collapsed Sidebar Toggle (Gemini behavior: sin recuadro de fondo) ── */
 .app.sidebar-collapsed .sidebar-toggle {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  width: 48px;
+  height: 48px;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
 }
 
+/* In collapsed state: Hide the collapse icon */
+.app.sidebar-collapsed .sidebar-toggle-icon-collapse {
+  display: none !important;
+}
+
+/* In collapsed rest state: Show Cóndor logo (mismo tamaño 48px), hide expand icon */
+.app.sidebar-collapsed .sidebar-toggle:not(:hover) .sidebar-toggle-logo-collapsed {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+.app.sidebar-collapsed .sidebar-toggle:not(:hover) .sidebar-toggle-icon-expand {
+  display: none !important;
+}
+
+.sidebar-toggle-logo-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+.sidebar-toggle-logo-collapsed img {
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* On hover in collapsed state: Swap logo for expand icon SIN recuadro de fondo */
 .app.sidebar-collapsed .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: #ffffff;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: scale(1.1);
 }
 
-.app.sidebar-collapsed .sidebar-toggle svg {
-  transform: rotate(180deg);
+.app.sidebar-collapsed .sidebar-toggle:hover .sidebar-toggle-logo-collapsed {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .sidebar-toggle:hover .sidebar-toggle-icon-expand {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+.sidebar-toggle-icon-expand svg {
+  width: 24px;
+  height: 24px;
+  stroke: #ffffff;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.app.sidebar-collapsed .sidebar-toggle:hover .sidebar-toggle-icon-expand svg {
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.55));
+}
+
+/* Tooltip badge for collapsed sidebar toggle (Gemini style) */
+.app.sidebar-collapsed .sidebar-toggle::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: rgba(20, 24, 20, 0.94);
+  backdrop-filter: blur(16px);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 1060;
+}
+
+.app.sidebar-collapsed .sidebar-toggle:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+[data-theme="dark"] .app.sidebar-collapsed .sidebar-toggle::after {
+  background: #101935;
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .app.sidebar-collapsed .sidebar-toggle:not(:hover),
+[data-theme="dark"] .app.sidebar-collapsed .sidebar-toggle:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: var(--space-4) var(--space-3); }
@@ -1931,6 +2095,14 @@ body {
 .topbar-toggle-btn svg {
   width: 18px;
   height: 18px;
+}
+
+/* Hide duplicate sidebar toggle button on desktop (sidebar panel has its own toggle) */
+@media (min-width: 769px) {
+  .topbar-toggle-btn,
+  .topbar-vertical-divider {
+    display: none !important;
+  }
 }
 
 /* Breadcrumb: Dynamic behavior based on sidebar collapsed/expanded state */
@@ -2709,14 +2881,11 @@ body {
 [data-theme="dark"] .sidebar-dept {
   display: none !important;
 }
-[data-theme="dark"] .sidebar-toggle {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  color: #ffffff !important;
-}
-[data-theme="dark"] .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.42) !important;
+[data-theme="dark"] .app:not(.sidebar-collapsed) .sidebar-toggle,
+[data-theme="dark"] .app:not(.sidebar-collapsed) .sidebar-toggle:hover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   color: #ffffff !important;
 }
 [data-theme="dark"] .nav-item {

@@ -215,7 +215,7 @@ const ViaticosModule = (() => {
           <div class="skeleton-actions-wrap">
             <div class="skeleton skeleton-btn"></div>
             <div class="skeleton skeleton-btn"></div>
-            ${Auth.canEdit() ? '<div class="skeleton skeleton-btn"></div>' : ''}
+            ${Auth.canEdit('viaticos') ? '<div class="skeleton skeleton-btn"></div>' : ''}
           </div>
         </td>
       </tr>
@@ -461,14 +461,13 @@ const ViaticosModule = (() => {
     ]);
 
     setTimeout(() => {
-      if (typeof flatpickr !== 'undefined') {
-        flatpickr('.filter-datepicker', {
-          dateFormat: 'Y-m-d',
-          allowInput: true,
-          locale: { firstDayOfWeek: 1 }
-        });
+      const modalEl = document.getElementById('modal-body') || document;
+      if (typeof App !== 'undefined') {
+        if (App.initDatePickers) App.initDatePickers(modalEl);
+        if (App.initFormUX) App.initFormUX(modalEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
       }
-    }, 100);
+    }, 50);
   }
 
   async function load() {
@@ -521,10 +520,14 @@ const ViaticosModule = (() => {
         <td>${escHtml(String(r.dias ?? '—'))} días</td>
         <td class="td-currency">${formatCOP(r.valorTotal)}</td>
         <td>
+          ${Auth.canEdit('viaticos') ? `
           <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="ViaticosModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de este viático" aria-label="Cambiar estado: ${escHtml(r.estado)}">
             <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
+          </button>` : `
+          <span class="badge ${badgeClass(r.estado)}">
+            <span>${escHtml(r.estado)}</span>
+          </span>`}
         </td>
         <td class="td-actions">
           <div class="td-actions-wrap">
@@ -535,10 +538,11 @@ const ViaticosModule = (() => {
             <button class="btn-action-soporte" onclick="ViaticosModule.viewSoporte(${r.id})" title="Ver Factura / Soporte Adjunto">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>` : ''}
+            ${Auth.canEdit('viaticos') ? `
             <button class="btn-action-edit" onclick="ViaticosModule.openEdit(${r.id})" title="Editar Viático">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            ${Auth.canEdit() ? `<button class="btn-action-delete" onclick="ViaticosModule.confirmDelete(${r.id},'${escHtml(r.persona)}')" title="Eliminar Viático">
+            </button>` : ''}
+            ${Auth.canEdit('viaticos') ? `<button class="btn-action-delete" onclick="ViaticosModule.confirmDelete(${r.id},'${escHtml(r.persona)}')" title="Eliminar Viático">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
           </div>
@@ -623,7 +627,7 @@ const ViaticosModule = (() => {
   }
 
   function buildForm(r = {}) {
-    const dis = Auth.canEdit() ? '' : 'disabled';
+    const dis = Auth.canEdit('viaticos') ? '' : 'disabled';
     currentUploadedFile = r.soporte || null;
 
     const isIntl = r.tipoDestino === 'Internacional' || (r.destino && PAISES_INTERNACIONAL.some(p => r.destino.includes(p)));
@@ -657,9 +661,8 @@ const ViaticosModule = (() => {
         <div id="tab-vit-servidor" class="form-tab-pane active" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group span-2 autocomplete-wrapper">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <label class="form-label" style="margin:0;">Nombre Completo del Servidor</label>
-                <input id="vf-nombre" class="form-input" placeholder="Escribe el nombre o cédula del funcionario..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
+              <label class="form-label" for="vf-nombre">Nombre Completo del Servidor</label>
+              <input id="vf-nombre" class="form-input" placeholder=" " enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
@@ -720,7 +723,8 @@ const ViaticosModule = (() => {
               <div class="form-group">
                 <label class="form-label">País de Destino</label>
                 <select id="vf-pais" class="filter-select" onchange="ViaticosModule.updateDestinoFinal()" ${dis}>
-                  ${PAISES_INTERNACIONAL.map(p => `<option value="${p}">${p}</option>`).join('')}
+                  <option value="" disabled ${!r.destino ? 'selected' : ''}>Seleccione País...</option>
+                  ${PAISES_INTERNACIONAL.map(p => `<option value="${p}" ${r.destino && r.destino.includes(p) ? 'selected' : ''}>${p}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
@@ -1415,7 +1419,7 @@ const ViaticosModule = (() => {
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
-    if (Auth.canEdit()) {
+    if (Auth.canEdit('viaticos')) {
       actions.push({
         text: 'Editar Viático',
         cls: 'btn-gold',
@@ -1438,6 +1442,10 @@ const ViaticosModule = (() => {
 
   // ─── Acciones de Creación y Edición ───────────────────────────────────────
   function openCreate() {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para registrar viáticos.', 'warning');
+      return;
+    }
     currentFormIsEdit = false;
     currentFormEditId = null;
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
@@ -1455,13 +1463,21 @@ const ViaticosModule = (() => {
     App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => {
       initFormHelpers();
-      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
-        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      if (typeof App !== 'undefined') {
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+          App.initFormUX(modalBody);
+          App.refreshFloatingLabels(modalBody);
+        }
       }
     }, 50);
   }
 
   function openEdit(id) {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para editar viáticos.', 'warning');
+      return;
+    }
     const r = state.data.find(x => x.id === id);
     if (!r) return;
     currentFormIsEdit = true;
@@ -1482,13 +1498,21 @@ const ViaticosModule = (() => {
     App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => {
       initFormHelpers(r);
-      if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
-        App.refreshFloatingLabels(document.getElementById('modal-body'));
+      if (typeof App !== 'undefined') {
+        const modalBody = document.getElementById('modal-body');
+        if (modalBody) {
+          App.initFormUX(modalBody);
+          App.refreshFloatingLabels(modalBody);
+        }
       }
     }, 50);
   }
 
   async function saveCreate() {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para registrar viáticos.', 'warning');
+      return;
+    }
     const body = readForm();
     if (!body) return;
     const btn = document.getElementById('vit-save-btn');
@@ -1517,6 +1541,10 @@ const ViaticosModule = (() => {
   }
 
   async function saveEdit(id) {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para editar viáticos.', 'warning');
+      return;
+    }
     const body = readForm();
     if (!body) return;
     const btn = document.getElementById('vit-save-btn');
@@ -1607,7 +1635,7 @@ const ViaticosModule = (() => {
   ];
 
   function openStatusPicker(id) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos de edición para cambiar estados.', 'warning');
       return;
     }
@@ -1655,18 +1683,27 @@ const ViaticosModule = (() => {
           ${cardsHtml}
         </div>
 
-        <div class="form-group" style="margin-top:var(--space-2);">
-          <label class="form-label">Observación / Justificación (Opcional)</label>
-          <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder="Ej: Aprobado según soporte / resolución presentada..." value="${escHtml(r.observaciones || '')}" />
+        <div class="form-group floating-group ${r.observaciones ? 'is-floated' : ''}" style="margin-top:var(--space-2);">
+          <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder=" " value="${escHtml(r.observaciones || '')}" />
+          <label class="form-label" for="quick-status-obs">Observación / Justificación (Opcional)</label>
         </div>
       </div>`;
 
     App.openModal('Gestión Rápida de Estado', bodyHtml, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
     ]);
+    if (typeof App !== 'undefined') {
+      const modalBody = document.getElementById('modal-body');
+      if (App.initFormUX) App.initFormUX(modalBody);
+      if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBody);
+    }
   }
 
   async function selectQuickStatus(id, newStatus) {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para modificar el estado de viáticos.', 'warning');
+      return;
+    }
     const obs = document.getElementById('quick-status-obs')?.value.trim();
     try {
       await API.updateViaticoStatus(id, newStatus, obs);
@@ -1876,6 +1913,10 @@ const ViaticosModule = (() => {
   }
 
   function confirmDelete(id, nombre) {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para eliminar viáticos.', 'warning');
+      return;
+    }
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
     App.openModal('Confirmar Eliminación', `<p style="color:var(--text-secondary)">¿Eliminar el viático de <strong style="color:var(--text-primary)">${nombre}</strong>?</p>`, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
@@ -1927,6 +1968,9 @@ const ViaticosModule = (() => {
     }
     state.page = 1;
     load();
+    if (typeof App !== 'undefined') {
+      App.refreshFloatingLabels(mainContainer || document);
+    }
   }
   function goPage(p) { if (p < 1 || p > state.totalPages) return; state.page = p; load(); }
 
@@ -2209,7 +2253,7 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
-            ${yearPkgs.length === 0 && Auth.canEdit() ? `
+            ${yearPkgs.length === 0 && Auth.canEdit('viaticos') ? `
               <button
                 type="button"
                 class="btn-action-icon-delete"
@@ -2254,7 +2298,7 @@ const ViaticosModule = (() => {
       </div>
     `;
 
-    grid.innerHTML = cardsHtml + (Auth.canEdit() ? addCardHtml : '');
+    grid.innerHTML = cardsHtml + (Auth.canEdit('viaticos') ? addCardHtml : '');
   }
 
   // ─── Vista de Carpetas de un Año Específico ──────────────────────────────────
@@ -2343,7 +2387,7 @@ const ViaticosModule = (() => {
         <!-- Acciones en la base (Botones circulares según diseño del sistema) -->
         <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
           <div class="viaticos-pkg-action-group-left">
-            ${Auth.canEdit() ? `
+            ${Auth.canEdit('viaticos') ? `
             <button
               type="button"
               class="btn-action-delete"
@@ -2353,7 +2397,7 @@ const ViaticosModule = (() => {
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
-            ${Auth.canEdit() ? `
+            ${Auth.canEdit('viaticos') ? `
             <button
               type="button"
               class="btn-action-edit"
@@ -2399,7 +2443,7 @@ const ViaticosModule = (() => {
       </div>
     `;
 
-    grid.innerHTML = cardsHtml + addCardHtml;
+    grid.innerHTML = cardsHtml + (Auth.canEdit('viaticos') ? addCardHtml : '');
   }
 
   // ─── Enrutador Principal de Vistas ───────────────────────────────────────────
@@ -2421,7 +2465,7 @@ const ViaticosModule = (() => {
               <h1 class="module-hero-title">Viáticos</h1>
               <p class="module-hero-desc">Gestión de solicitudes, comisiones y aprobaciones de viáticos de la Gobernación de Boyacá</p>
             </div>
-            ${Auth.canEdit() ? `
+            ${Auth.canEdit('viaticos') ? `
             <div class="module-header-actions">
               <button
                 type="button"
@@ -2502,7 +2546,7 @@ const ViaticosModule = (() => {
                   aria-labelledby="vit-dropdown-toggle"
                   hidden
                 >
-                  ${Auth.canEdit() ? `
+                  ${Auth.canEdit('viaticos') ? `
                   <button
                     type="button"
                     class="actions-dropdown-item"
@@ -2542,7 +2586,7 @@ const ViaticosModule = (() => {
                       <small>Formato oficial institucional (.xlsx)</small>
                     </div>
                   </button>
-                  ${Auth.canEdit() ? `
+                  ${Auth.canEdit('viaticos') ? `
                   <button
                     type="button"
                     class="actions-dropdown-item text-danger"
@@ -2629,7 +2673,7 @@ const ViaticosModule = (() => {
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
               </button>
-              ${Auth.canEdit() ? `
+              ${Auth.canEdit('viaticos') ? `
               <button
                 type="button"
                 class="btn-action-icon-add"
@@ -2716,6 +2760,10 @@ const ViaticosModule = (() => {
       loadPackageDependencias(pkg.id_paquete);
       loadStatsPackage(pkg.id_paquete);
       await load();
+      if (typeof App !== 'undefined') {
+        App.initFormUX(mainContainer || document);
+        App.refreshFloatingLabels(mainContainer || document);
+      }
     }
   }
 
@@ -2731,7 +2779,7 @@ const ViaticosModule = (() => {
 
   // ─── Modal para Crear Nuevo Histórico Anual (Sin Excel) ─────────────────────
   function openCreateYearModal() {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para crear vigencias fiscales.', 'warning');
       return;
     }
@@ -2795,7 +2843,7 @@ const ViaticosModule = (() => {
 
   // ─── Confirmar y Eliminar Histórico Anual Completo ──────────────────────────
   function confirmDeleteYear(year) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para eliminar vigencias fiscales.', 'warning');
       return;
     }
@@ -2920,7 +2968,7 @@ const ViaticosModule = (() => {
 
   // ─── Modal para Agregar Nuevo Paquete / Excel ─────────────────────────────────
   function openCreatePackageModal(preselectedYear = null) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para crear paquetes de viáticos.', 'warning');
       return;
     }
@@ -3109,7 +3157,7 @@ const ViaticosModule = (() => {
 
   // ─── Modal para Editar Paquete Existente ──────────────────────────────────────
   function openEditPackageModal(id_paquete) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para editar paquetes.', 'warning');
       return;
     }
@@ -3229,7 +3277,7 @@ const ViaticosModule = (() => {
 
   // ─── Confirmación de Eliminación de Paquete ──────────────────────────────────
   function confirmDeletePackage(id_paquete, nombre) {
-    if (!Auth.canEdit()) {
+    if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para eliminar paquetes.', 'warning');
       return;
     }
@@ -4254,3 +4302,4 @@ const ViaticosModule = (() => {
     saveEdit,
   };
 })();
+window.ViaticosModule = ViaticosModule;

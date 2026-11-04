@@ -1269,58 +1269,128 @@
 }
 
 .filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
   flex: 1;
-  min-width: 160px;
+  min-width: 180px;
+  min-height: 56px;
+  margin: 0;
 }
 
-.filter-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-slate);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.filter-group > .filter-label,
+.filter-group > label {
+  position: absolute !important;
+  top: 18px !important;
+  left: 14px !important;
+  font-size: 0.92rem !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  pointer-events: none !important;
+  transform-origin: left top !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  z-index: 5 !important;
+  margin: 0 !important;
+  max-width: calc(100% - 38px) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-transform: none !important;
+}
+
+[data-theme="dark"] .filter-group > .filter-label,
+[data-theme="dark"] .filter-group > label {
+  color: #94a3b8 !important;
+}
+
+.filter-group.is-floated > .filter-label,
+.filter-group.is-floated > label,
+.filter-group:focus-within > .filter-label,
+.filter-group:focus-within > label,
+.filter-group:has(.filter-input:not(:placeholder-shown)) > .filter-label,
+.filter-group:has(.filter-input:not(:placeholder-shown)) > label,
+.filter-group:has(input:not(:placeholder-shown)) > .filter-label,
+.filter-group:has(input:not(:placeholder-shown)) > label {
+  top: 7px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+}
+
+.filter-group:focus-within > .filter-label,
+.filter-group:focus-within > label {
+  color: var(--color-green-dark, #287522) !important;
+}
+
+[data-theme="dark"] .filter-group:focus-within > .filter-label,
+[data-theme="dark"] .filter-group:focus-within > label {
+  color: #4ade80 !important;
 }
 
 .filter-input,
 .filter-select {
-  padding: 10px 14px;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 22px 14px 6px 14px !important;
   background: #ffffff;
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border, #cbd5e1);
+  border-radius: 14px !important;
   color: #0f172a;
-  font-size: var(--text-sm);
-  outline: none;
-  transition: all var(--transition-fast);
-  width: 100%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
+  outline: none !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 .filter-select {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23738993' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 38px;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23738993' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 38px !important;
+}
+
+[data-theme="dark"] .filter-input,
+[data-theme="dark"] .filter-select {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
 }
 
 .filter-select option {
-  background: #ffffff;
-  color: #0f172a;
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
 
-.filter-input::placeholder {
-  color: #94a3b8;
+[data-theme="dark"] .filter-select option {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
 }
 
 .filter-input:focus,
 .filter-select:focus {
-  border-color: var(--color-green-dark);
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(40, 117, 34, 0.15);
+  border-color: var(--color-green-dark, #287522) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18) !important;
+}
+
+[data-theme="dark"] .filter-input:focus,
+[data-theme="dark"] .filter-select:focus {
+  border-color: #4ade80 !important;
+  background: #1e293b !important;
+  box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22) !important;
 }
 
 /* ─── Table ──────────────────────────────────────────────────────────────── */
@@ -2152,92 +2222,114 @@ tbody tr:last-child td {
   margin-bottom: 0;
 }
 
-/* Campos de ~56px de altura, esquinas suaves y foco accesible */
+/* Campos de 56px de altura, esquinas suaves (14px) y foco accesible */
 .form-grid .form-input,
 .form-grid .filter-select,
+.form-grid .form-select,
+.form-grid select,
 .form-grid .flatpickr-input-custom,
 .form-group.floating-group .form-input,
 .form-group.floating-group .filter-select,
 .form-group.floating-group .form-select,
-.form-group.floating-group .flatpickr-input-custom {
+.form-group.floating-group select,
+.form-group.floating-group .flatpickr-input-custom,
+.filter-group.floating-group .filter-input,
+.filter-group.floating-group .filter-select,
+.filter-group.floating-group select {
   width: 100%;
   box-sizing: border-box;
   display: block;
-  min-height: 56px;
-  height: 56px;
-  padding: 22px 14px 6px 14px;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 22px 14px 6px 14px !important;
   background: #ffffff;
-  border: 1.5px solid var(--color-border);
-  border-radius: 12px;
+  border: 1.5px solid var(--color-border, #cbd5e1);
+  border-radius: 14px !important;
   color: #0f172a;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
   transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 [data-theme="dark"] .form-grid .form-input,
 [data-theme="dark"] .form-grid .filter-select,
+[data-theme="dark"] .form-grid .form-select,
+[data-theme="dark"] .form-grid select,
 [data-theme="dark"] .form-grid .flatpickr-input-custom,
 [data-theme="dark"] .form-group.floating-group .form-input,
 [data-theme="dark"] .form-group.floating-group .filter-select,
 [data-theme="dark"] .form-group.floating-group .form-select,
-[data-theme="dark"] .form-group.floating-group .flatpickr-input-custom {
-  background: #1e293b;
-  color: #f1f5f9;
-  border-color: #334155;
+[data-theme="dark"] .form-group.floating-group select,
+[data-theme="dark"] .form-group.floating-group .flatpickr-input-custom,
+[data-theme="dark"] .filter-group.floating-group .filter-input,
+[data-theme="dark"] .filter-group.floating-group .filter-select,
+[data-theme="dark"] .filter-group.floating-group select {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
 }
 
 .form-grid .form-input:focus,
 .form-grid .filter-select:focus,
+.form-grid .form-select:focus,
+.form-grid select:focus,
 .form-grid .flatpickr-input-custom:focus,
 .form-group.floating-group .form-input:focus,
 .form-group.floating-group .filter-select:focus,
 .form-group.floating-group .form-select:focus,
+.form-group.floating-group select:focus,
 .form-group.floating-group .flatpickr-input-custom:focus {
-  border-color: var(--color-green-dark, #287522);
-  background: #ffffff;
-  box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18);
+  border-color: var(--color-green-dark, #287522) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18) !important;
 }
 
 [data-theme="dark"] .form-grid .form-input:focus,
 [data-theme="dark"] .form-grid .filter-select:focus,
+[data-theme="dark"] .form-grid .form-select:focus,
+[data-theme="dark"] .form-grid select:focus,
 [data-theme="dark"] .form-grid .flatpickr-input-custom:focus,
 [data-theme="dark"] .form-group.floating-group .form-input:focus,
 [data-theme="dark"] .form-group.floating-group .filter-select:focus,
 [data-theme="dark"] .form-group.floating-group .form-select:focus,
+[data-theme="dark"] .form-group.floating-group select:focus,
 [data-theme="dark"] .form-group.floating-group .flatpickr-input-custom:focus {
-  border-color: #4ade80;
-  background: #1e293b;
-  box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22);
+  border-color: #4ade80 !important;
+  background: #1e293b !important;
+  box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22) !important;
 }
 
 .form-grid .form-input:disabled,
 .form-grid .filter-select:disabled,
+.form-grid select:disabled,
 .form-grid .flatpickr-input-custom:disabled,
 .form-group.floating-group .form-input:disabled,
 .form-group.floating-group .filter-select:disabled,
+.form-group.floating-group select:disabled,
 .form-group.floating-group .form-select:disabled,
 .form-group.floating-group .flatpickr-input-custom:disabled {
-  background: #f1f5f9;
-  color: #64748b;
-  border-color: var(--color-border);
-  cursor: not-allowed;
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  border-color: var(--color-border) !important;
+  cursor: not-allowed !important;
 }
 
 [data-theme="dark"] .form-grid .form-input:disabled,
 [data-theme="dark"] .form-grid .filter-select:disabled,
+[data-theme="dark"] .form-grid select:disabled,
 [data-theme="dark"] .form-grid .flatpickr-input-custom:disabled,
 [data-theme="dark"] .form-group.floating-group .form-input:disabled,
 [data-theme="dark"] .form-group.floating-group .filter-select:disabled,
+[data-theme="dark"] .form-group.floating-group select:disabled,
 [data-theme="dark"] .form-group.floating-group .form-select:disabled,
 [data-theme="dark"] .form-group.floating-group .flatpickr-input-custom:disabled {
-  background: #0f172a;
-  color: #64748b;
-  border-color: #1e293b;
+  background: #0f172a !important;
+  color: #64748b !important;
+  border-color: #1e293b !important;
 }
 
 /* ─── ETIQUETAS FLOTANTES (FLOATING LABELS) ─── */
@@ -2247,11 +2339,12 @@ tbody tr:last-child td {
   flex-direction: column;
 }
 
-.form-group.floating-group > .form-label {
+.form-group.floating-group > .form-label,
+.form-group.floating-group > label {
   position: absolute;
   top: 18px;
   left: 14px;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 500;
   color: #64748b;
   pointer-events: none;
@@ -2263,25 +2356,26 @@ tbody tr:last-child td {
               letter-spacing 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 5;
   margin: 0;
-  max-width: calc(100% - 28px);
+  max-width: calc(100% - 38px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-transform: none;
 }
 
-[data-theme="dark"] .form-group.floating-group > .form-label {
+[data-theme="dark"] .form-group.floating-group > .form-label,
+[data-theme="dark"] .form-group.floating-group > label {
   color: #94a3b8;
 }
 
-/* Estado flotante (Elevada al tope del campo) */
+/* Estado flotante (Elevada al tope del campo) — ÚNICAMENTE cuando tiene valor o foco */
 .form-group.floating-group.is-floated > .form-label,
+.form-group.floating-group.is-floated > label,
 .form-group.floating-group:focus-within > .form-label,
+.form-group.floating-group:focus-within > label,
 .form-group.floating-group:has(.form-input:not(:placeholder-shown)) > .form-label,
 .form-group.floating-group:has(input:not(:placeholder-shown)) > .form-label,
-.form-group.floating-group:has(textarea:not(:placeholder-shown)) > .form-label,
-.form-group.floating-group:has(select) > .form-label,
-.form-group.floating-group.is-select > .form-label {
+.form-group.floating-group:has(textarea:not(:placeholder-shown)) > .form-label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;
@@ -2291,28 +2385,34 @@ tbody tr:last-child td {
 }
 
 /* Color primario institucional al recibir foco */
-.form-group.floating-group:focus-within > .form-label {
-  color: var(--color-green-dark, #287522);
+.form-group.floating-group:focus-within > .form-label,
+.form-group.floating-group:focus-within > label {
+  color: var(--color-green-dark, #287522) !important;
 }
 
-[data-theme="dark"] .form-group.floating-group:focus-within > .form-label {
-  color: #4ade80;
+[data-theme="dark"] .form-group.floating-group:focus-within > .form-label,
+[data-theme="dark"] .form-group.floating-group:focus-within > label {
+  color: #4ade80 !important;
 }
 
-/* Soporte para textarea multilínea estilo chat/WhatsApp en grupos flotantes */
-.form-group.floating-group textarea.form-input {
-  min-height: 68px;
-  padding-top: 22px;
-  padding-bottom: 8px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-y: auto;
-  resize: none;
+/* Soporte para textarea multilínea estilo institucional en grupos flotantes */
+.form-group.floating-group textarea.form-input,
+.form-grid textarea.form-input {
+  min-height: 84px !important;
+  height: auto !important;
+  padding-top: 22px !important;
+  padding-bottom: 8px !important;
+  line-height: 1.45 !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-y: auto !important;
+  resize: vertical !important;
+  border-radius: 14px !important;
 }
 
 /* Ocultar placeholder mientras la etiqueta está en reposo para evitar colisión visual */
-.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder {
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder,
+.filter-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))) .filter-input::placeholder {
   color: transparent !important;
   opacity: 0 !important;
 }
@@ -2320,7 +2420,9 @@ tbody tr:last-child td {
 .form-group.floating-group:focus-within .form-input::placeholder,
 .form-group.floating-group.is-floated .form-input::placeholder,
 .form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
-.form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder {
+.form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
+.filter-group:focus-within .filter-input::placeholder,
+.filter-group.is-floated .filter-input::placeholder {
   color: #94a3b8 !important;
   opacity: 0.8 !important;
   transition: opacity 0.2s ease;
@@ -2329,23 +2431,46 @@ tbody tr:last-child td {
 [data-theme="dark"] .form-group.floating-group:focus-within .form-input::placeholder,
 [data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder,
 [data-theme="dark"] .form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
-[data-theme="dark"] .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder {
+[data-theme="dark"] .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
+[data-theme="dark"] .filter-group:focus-within .filter-input::placeholder,
+[data-theme="dark"] .filter-group.is-floated .filter-input::placeholder {
   color: #64748b !important;
 }
 
-/* Select vacío en reposo: texto transparente para mostrar limpiamente la etiqueta */
-.form-group.floating-group:not(.is-floated):not(:focus-within) select.filter-select {
+/* Select vacío en reposo: texto transparente para que la etiqueta ocupe el campo sin colisión */
+.form-group.floating-group:not(.is-floated):not(:focus-within) select,
+.filter-group:not(.is-floated):not(:focus-within) select,
+.adv-filter-field:not(.is-floated):not(:focus-within) select {
   color: transparent !important;
 }
 
-.form-group.floating-group.is-floated select.filter-select,
-.form-group.floating-group:focus-within select.filter-select {
+.form-group.floating-group.is-floated select,
+.form-group.floating-group:focus-within select,
+.filter-group.is-floated select,
+.filter-group:focus-within select,
+.adv-filter-field.is-floated select,
+.adv-filter-field:focus-within select {
   color: #0f172a !important;
 }
 
-[data-theme="dark"] .form-group.floating-group.is-floated select.filter-select,
-[data-theme="dark"] .form-group.floating-group:focus-within select.filter-select {
+[data-theme="dark"] .form-group.floating-group.is-floated select,
+[data-theme="dark"] .form-group.floating-group:focus-within select,
+[data-theme="dark"] .filter-group.is-floated select,
+[data-theme="dark"] .filter-group:focus-within select,
+[data-theme="dark"] .adv-filter-field.is-floated select,
+[data-theme="dark"] .adv-filter-field:focus-within select {
   color: #f1f5f9 !important;
+}
+
+/* Las opciones del menú desplegable al abrirse siempre son sólidas y perfectamente legibles */
+select option {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+}
+
+[data-theme="dark"] select option {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
 }
 
 /* ─── Loading Skeleton System (Mockup Baja Fidelidad & Shimmer) ────────── */
@@ -7903,52 +8028,60 @@ body.error-404-active #login-screen {
 
 /* ═══════════════════════════════════════════════════════════════════════════
 /* ═══════════════════════════════════════════════════════════════════════════
-   CALENDARIO MODERNO INSTITUCIONAL (FLATPICKR PREMIUM THEME)
+   CALENDARIO MODERNO INSTITUCIONAL (FLATPICKR PREMIUM — INSPIRADO EN DISEÑO)
+   - Tipografía prominente de Mes y Año en cabecera
+   - Desplegables inmediatos y fluidos para cambio rápido de Mes y Año (1920-2050)
+   - Controles de navegación y cierre agrupados en la derecha
+   - 7 columnas exactas en español (LUN-DOM) sin columna de semanas (CW)
+   - Insignia circular sólida Boyacá con punto indicador en día seleccionado
+   - Anillo dorado y acento distintivo para el día de hoy
+   - Soporte total para temas Claro y Oscuro con identidad corporativa
    ═══════════════════════════════════════════════════════════════════════════ */
 .flatpickr-calendar {
-  width: 340px !important;
-  font-family: 'Nunito Sans', var(--font-base), -apple-system, sans-serif !important;
-  border-radius: 14px !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.1) !important;
-  border: 1px solid rgba(40, 135, 27, 0.25) !important;
+  width: 326px !important;
+  font-family: 'Nunito Sans', var(--font-base), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 36px -4px rgba(15, 81, 50, 0.18), 0 24px 48px -8px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(15, 81, 50, 0.12) !important;
+  border: 1px solid rgba(22, 163, 74, 0.22) !important;
   background: #ffffff !important;
-  padding: 10px !important;
+  padding: 12px !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
-  animation: fpFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  z-index: 999999 !important;
+  animation: fpFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 9999999 !important;
 }
 
 @keyframes fpFadeIn {
-  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ─── Encabezado Verde Institucional con Flexbox Centrado ─── */
+/* ─── Encabezado Institucional Cápsula (Mockup Boyacá: Mes blanco serif, Año amarillo serif, flechas apiladas verde lima, X roja pura) ─── */
 .flatpickr-months {
   position: relative !important;
   width: 100% !important;
-  background: linear-gradient(135deg, #1d6a1b 0%, #28871b 100%) !important;
-  border-radius: 10px !important;
+  background: linear-gradient(180deg, #13753a 0%, #0d5e2d 100%) !important;
+  border-radius: 9999px !important;
   margin-bottom: 8px !important;
-  padding: 6px 6px !important;
+  padding: 0 16px 0 22px !important;
   color: #ffffff !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 4px !important;
-  height: 46px !important;
+  gap: 8px !important;
+  height: 52px !important;
   box-sizing: border-box !important;
-  overflow: hidden !important;
+  box-shadow: 0 4px 14px rgba(13, 94, 45, 0.35) !important;
+  overflow: visible !important;
 }
 
 .flatpickr-months .flatpickr-month {
-  position: static !important;
+  order: 1 !important;
   flex: 1 1 auto !important;
   min-width: 0 !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important;
+  justify-content: flex-start !important;
   height: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -7961,317 +8094,371 @@ body.error-404-active #login-screen {
   left: auto !important;
   padding: 0 !important;
   height: 100% !important;
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
   transform: none !important;
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  color: #ffffff !important;
+  overflow: visible !important;
 }
 
-/* Selector desplegable de mes y selector de año cómodos y nítidos */
-.flatpickr-current-month .flatpickr-monthDropdown-months,
+/* Ocultar botones de navegación nativos de Flatpickr */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  display: none !important;
+}
+
+/* Selector desplegable de Mes: Texto blanco puro, tipografía serif negrita, sin fondos ni bordes */
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.3px !important;
+  color: #ffffff !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 0 0 2px !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+  text-transform: capitalize !important;
+  box-sizing: border-box !important;
+  transition: opacity 0.15s ease !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+  opacity: 0.9 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Opciones dentro del desplegable nativo */
+.flatpickr-current-month .flatpickr-monthDropdown-months option,
+.flatpickr-current-month .flatpickr-year-dropdown option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+}
+
+/* Selector desplegable de Año: Texto amarillo vibrante (#FFF200), serif negrita, sin fondos */
 .flatpickr-current-month .flatpickr-year-dropdown {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
-  font-weight: 700 !important;
-  color: #ffffff !important;
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: calc(100% - 6px) center !important;
-  background-size: 10px 10px !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.42) !important;
-  border-radius: 7px !important;
-  padding: 2px 20px 2px 8px !important;
-  cursor: pointer !important;
-  font-size: 0.88rem !important;
-  height: 32px !important;
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif !important;
+  font-size: 1.25rem !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.3px !important;
+  color: #FFF200 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   outline: none !important;
+  padding: 0 0 0 4px !important;
+  margin: 0 !important;
+  height: auto !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 66px !important;
+  cursor: pointer !important;
+  line-height: 1.2 !important;
   box-sizing: border-box !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+  transition: opacity 0.15s ease !important;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months {
-  max-width: 108px !important;
-}
-
-.flatpickr-current-month .flatpickr-year-dropdown {
-  width: 68px !important;
-  min-width: 68px !important;
-  max-width: 72px !important;
-  flex-shrink: 0 !important;
-}
-
-.flatpickr-current-month .flatpickr-monthDropdown-months:hover,
 .flatpickr-current-month .flatpickr-year-dropdown:hover {
-  background-color: rgba(255, 255, 255, 0.32) !important;
-  border-color: rgba(255, 255, 255, 0.75) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16) !important;
+  opacity: 0.9 !important;
+  background: transparent !important;
+  border: none !important;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months:focus,
 .flatpickr-current-month .flatpickr-year-dropdown:focus {
-  border-color: #ffffff !important;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months option,
-.flatpickr-current-month .flatpickr-year-dropdown option {
-  background: #ffffff !important;
-  color: #1e293b !important;
-  font-weight: 600 !important;
-}
-
-/* Ocultar el stepper numérico por defecto para usar el nuevo dropdown de año cómodo */
+/* Ocultar el stepper numérico por defecto de Flatpickr */
 .flatpickr-current-month .numInputWrapper {
   display: none !important;
 }
 
-.flatpickr-current-month input.cur-year {
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  color: #ffffff !important;
-  padding: 0 24px 0 8px !important;
-  height: 100% !important;
-  border: none !important;
+/* ─── Flechas Apiladas (> arriba, < abajo) en Verde Lima (#B5E61D) ─── */
+.flatpickr-stacked-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 1px !important;
+  margin-left: 8px !important;
+  height: 32px !important;
+  user-select: none !important;
+}
+
+.fp-stacked-arrow {
   background: transparent !important;
-  outline: none !important;
-  box-sizing: border-box !important;
-}
-
-.flatpickr-current-month .numInputWrapper span {
-  position: absolute !important;
-  right: 2px !important;
-  width: 20px !important;
-  height: 13px !important;
-  opacity: 0.85 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-radius: 3px !important;
-  cursor: pointer !important;
   border: none !important;
-  transition: all 0.15s ease !important;
-}
-
-.flatpickr-current-month .numInputWrapper span:hover {
-  opacity: 1 !important;
-  background: rgba(255, 255, 255, 0.45) !important;
-}
-
-.flatpickr-current-month .numInputWrapper span.arrowUp {
-  top: 2px !important;
-}
-
-.flatpickr-current-month .numInputWrapper span.arrowDown {
-  bottom: 2px !important;
-}
-
-.flatpickr-current-month .numInputWrapper span.arrowUp:after {
-  border-left: 5px solid transparent !important;
-  border-right: 5px solid transparent !important;
-  border-bottom: 5px solid #ffffff !important;
-  top: 3px !important;
-}
-
-.flatpickr-current-month .numInputWrapper span.arrowDown:after {
-  border-left: 5px solid transparent !important;
-  border-right: 5px solid transparent !important;
-  border-top: 5px solid #ffffff !important;
-  top: 4px !important;
-}
-
-/* Flechas de navegación de mes perfectamente centradas */
-.flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month {
-  position: static !important;
-  top: auto !important;
-  bottom: auto !important;
-  left: auto !important;
-  right: auto !important;
-  transform: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 16px !important;
+  height: 14px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  flex-shrink: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 7px !important;
-  color: #ffffff !important;
-  fill: #ffffff !important;
-  background: rgba(255, 255, 255, 0.18) !important;
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
   cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  color: #B5E61D !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: transform 0.15s ease, filter 0.15s ease !important;
 }
 
-.flatpickr-months .flatpickr-prev-month:hover,
-.flatpickr-months .flatpickr-next-month:hover {
-  background: rgba(255, 255, 255, 0.35) !important;
-  transform: scale(1.06) !important;
+.fp-stacked-arrow:hover {
+  transform: scale(1.25) !important;
+  filter: drop-shadow(0 0 4px rgba(181, 230, 29, 0.8)) !important;
 }
 
-.flatpickr-months .flatpickr-prev-month svg,
-.flatpickr-months .flatpickr-next-month svg {
-  width: 13px !important;
-  height: 13px !important;
-  fill: #ffffff !important;
-  stroke: #ffffff !important;
+.fp-stacked-arrow:active {
+  transform: scale(0.95) !important;
 }
 
-/* Botón 'X' institucional para cerrar el calendario */
+.fp-stacked-arrow svg {
+  width: 14px !important;
+  height: 14px !important;
+  display: block !important;
+  stroke: #B5E61D !important;
+  stroke-width: 5px !important;
+}
+
+/* ─── Botón 'X' de Cierre en Rojo Vibrante (#ED1C24) SIN fondos ni bordes ─── */
 .flatpickr-custom-close {
+  order: 4 !important;
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-right: 4px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  max-width: 28px !important;
-  flex-shrink: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border-radius: 7px !important;
-  background: rgba(255, 255, 255, 0.18) !important;
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
-  color: #ffffff !important;
-  cursor: pointer !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  color: #ED1C24 !important;
+  transition: transform 0.15s ease, filter 0.15s ease !important;
 }
 
 .flatpickr-custom-close:hover {
-  background: #ef4444 !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
-  transform: scale(1.06) !important;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.45) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: scale(1.22) !important;
+  filter: drop-shadow(0 0 5px rgba(237, 28, 36, 0.85)) !important;
+}
+
+.flatpickr-custom-close:active {
+  transform: scale(0.92) !important;
 }
 
 .flatpickr-custom-close svg {
-  width: 13px !important;
-  height: 13px !important;
-  stroke: currentColor !important;
+  width: 20px !important;
+  height: 20px !important;
+  stroke: #ED1C24 !important;
+  stroke-width: 5px !important;
+  display: block !important;
 }
 
-/* Días de la semana */
+/* ─── Días de la Semana (7 Columnas en Español, SIN Columna de Semanas CW) ─── */
+.flatpickr-weeks {
+  display: none !important;
+}
+
 .flatpickr-weekdays {
-  width: 320px !important;
+  width: 100% !important;
   margin-top: 6px !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 6px !important;
+  height: 26px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.flatpickr-weekdaycontainer {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  text-align: center !important;
 }
 
 span.flatpickr-weekday {
-  color: #475569 !important;
-  font-weight: 700 !important;
-  font-size: 0.85rem !important;
+  color: #64748b !important;
+  font-weight: 800 !important;
+  font-size: 0.78rem !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.5px !important;
+  letter-spacing: 0.6px !important;
+  line-height: 26px !important;
 }
 
+/* ─── Grilla de Días con diseño circular inspirado en la referencia ─── */
 .flatpickr-days {
-  width: 320px !important;
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 
 .dayContainer {
-  width: 320px !important;
-  min-width: 320px !important;
-  max-width: 320px !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 2px !important;
   box-sizing: border-box !important;
 }
 
 .flatpickr-day {
-  max-width: 43px !important;
-  height: 40px !important;
-  line-height: 40px !important;
+  width: 38px !important;
+  height: 38px !important;
+  max-width: 38px !important;
+  line-height: 38px !important;
   font-size: 0.95rem !important;
   font-weight: 600 !important;
-  border-radius: 8px !important;
-  margin: 1px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
   color: #1e293b !important;
-  transition: all 0.15s ease !important;
+  margin: 0 auto !important;
+  position: relative !important;
+  border: 1px solid transparent !important;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .flatpickr-day:hover {
-  background: rgba(40, 135, 27, 0.12) !important;
-  color: #1d6a1b !important;
+  background: rgba(22, 163, 74, 0.12) !important;
+  color: #15803d !important;
   border-color: transparent !important;
+  transform: scale(1.08) !important;
 }
 
-.flatpickr-day.today {
-  border: 2px solid #d1ad2a !important;
-  color: #b8860b !important;
-  font-weight: 800 !important;
-}
-
+/* Día Seleccionado: Insignia circular sólida Boyacá con punto indicador */
 .flatpickr-day.selected,
 .flatpickr-day.startRange,
 .flatpickr-day.endRange {
-  background: linear-gradient(135deg, #1d6a1b 0%, #28871b 100%) !important;
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 100%) !important;
   color: #ffffff !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
+  border-radius: 50% !important;
   border-color: transparent !important;
-  box-shadow: 0 4px 10px rgba(40, 135, 27, 0.35) !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.45) !important;
+  transform: scale(1.06) !important;
+}
+
+.flatpickr-day.selected::after,
+.flatpickr-day.startRange::after,
+.flatpickr-day.endRange::after {
+  content: '' !important;
+  display: block !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  position: absolute !important;
+  bottom: 4px !important;
+}
+
+/* Día de Hoy: Anillo dorado refinado y punto distintivo */
+.flatpickr-day.today {
+  border: 2px solid #eab308 !important;
+  color: #ca8a04 !important;
+  font-weight: 800 !important;
+  border-radius: 50% !important;
+}
+
+.flatpickr-day.today:not(.selected)::after {
+  content: '' !important;
+  display: block !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+  background: #eab308 !important;
+  position: absolute !important;
+  bottom: 4px !important;
 }
 
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay {
   color: #94a3b8 !important;
+  opacity: 0.38 !important;
 }
 
 .flatpickr-day.disabled,
 .flatpickr-day.disabled:hover {
   color: #cbd5e1 !important;
+  opacity: 0.22 !important;
   cursor: not-allowed !important;
+  transform: none !important;
 }
 
-/* Pie de acciones rápidas (Hoy / Limpiar) */
+/* ─── Pie de Acciones Rápidas (Hoy / Limpiar) ─── */
 .flatpickr-custom-footer {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 8px 6px 2px 6px !important;
-  margin-top: 6px !important;
+  padding: 10px 8px 4px 8px !important;
+  margin-top: 8px !important;
   border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 .flatpickr-custom-footer button {
-  background: transparent !important;
-  border: 1px solid transparent !important;
-  padding: 4px 12px !important;
+  font-family: inherit !important;
   font-size: 0.82rem !important;
   font-weight: 700 !important;
-  border-radius: 6px !important;
+  border-radius: 20px !important;
+  padding: 5px 14px !important;
   cursor: pointer !important;
   transition: all 0.18s ease !important;
+  border: none !important;
 }
 
 .flatpickr-custom-footer .fp-btn-today {
-  color: #1D8096 !important;
-  background: rgba(29, 128, 150, 0.12) !important;
-  border-color: rgba(29, 128, 150, 0.38) !important;
+  color: #15803d !important;
+  background: rgba(22, 163, 74, 0.12) !important;
+  border: 1px solid rgba(22, 163, 74, 0.28) !important;
 }
 
 .flatpickr-custom-footer .fp-btn-today:hover {
-  background: #1D8096 !important;
-  border-color: #1D8096 !important;
+  background: #15803d !important;
+  border-color: #15803d !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(29, 128, 150, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35) !important;
 }
 
 .flatpickr-custom-footer .fp-btn-clear {
   color: #64748b !important;
+  background: transparent !important;
 }
 
 .flatpickr-custom-footer .fp-btn-clear:hover {
@@ -8279,91 +8466,52 @@ span.flatpickr-weekday {
   color: #ef4444 !important;
 }
 
-/* ─── Modo Oscuro (Dark Theme) ─── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODO OSCURO (DARK THEME — ALINEADO CON LA IMAGEN DE REFERENCIA)
+   ═══════════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] .flatpickr-calendar {
-  background: #0b1926 !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6) !important;
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.7), 0 28px 60px -8px rgba(0, 0, 0, 0.8) !important;
 }
 
-/* Encabezado y controles en Amarillo / Dorado en Modo Oscuro (Solicitud Usuario) */
 [data-theme="dark"] .flatpickr-months {
-  background: linear-gradient(135deg, #2b1f07 0%, #3d2c0a 100%) !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.14) !important;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
 }
 
-[data-theme="dark"] .flatpickr-months .flatpickr-prev-month,
-[data-theme="dark"] .flatpickr-months .flatpickr-next-month {
-  background: rgba(245, 158, 11, 0.18) !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
-  color: #fbbf24 !important;
-  fill: #fbbf24 !important;
+[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
+  color: #f8fafc !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
 }
 
-[data-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
-[data-theme="dark"] .flatpickr-months .flatpickr-next-month:hover {
-  background: rgba(245, 158, 11, 0.35) !important;
-  border-color: #fbbf24 !important;
-  color: #fef08a !important;
-  fill: #fef08a !important;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35) !important;
-}
-
-[data-theme="dark"] .flatpickr-months .flatpickr-prev-month svg,
-[data-theme="dark"] .flatpickr-months .flatpickr-next-month svg {
-  fill: #fbbf24 !important;
-  stroke: #fbbf24 !important;
-}
-
-/* Botón de cierre en modo oscuro: armonioso con el encabezado dorado */
-[data-theme="dark"] .flatpickr-custom-close {
-  background: rgba(245, 158, 11, 0.18) !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.45) !important;
-  color: #fbbf24 !important;
-}
-
-[data-theme="dark"] .flatpickr-custom-close:hover {
-  background: #ef4444 !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
-  transform: scale(1.06) !important;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
-}
-
-[data-theme="dark"] .flatpickr-custom-close svg {
-  stroke: currentColor !important;
-}
-
-[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
 [data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown {
-  background-color: rgba(15, 23, 42, 0.75) !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fbbf24' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
-  border: 1.5px solid rgba(245, 158, 11, 0.5) !important;
-  color: #fbbf24 !important;
-}
-
-[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months:hover,
-[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown:hover {
-  background-color: rgba(15, 23, 42, 0.95) !important;
-  border-color: #fbbf24 !important;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3) !important;
-}
-
-[data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months:focus,
-[data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown:focus {
-  border-color: #fde047 !important;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4) !important;
+  color: #34d399 !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
 }
 
 [data-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option,
 [data-theme="dark"] .flatpickr-current-month .flatpickr-year-dropdown option {
-  background: #0f172a !important;
+  background: #1e293b !important;
   color: #f8fafc !important;
 }
 
-[data-theme="dark"] .flatpickr-current-month .numInputWrapper {
-  display: none !important;
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month,
+[data-theme="dark"] .flatpickr-custom-close {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .flatpickr-months .flatpickr-prev-month svg,
+[data-theme="dark"] .flatpickr-months .flatpickr-next-month svg {
+  fill: #e2e8f0 !important;
+  stroke: #e2e8f0 !important;
 }
 
 [data-theme="dark"] span.flatpickr-weekday {
@@ -8375,8 +8523,16 @@ span.flatpickr-weekday {
 }
 
 [data-theme="dark"] .flatpickr-day:hover {
-  background: rgba(40, 180, 50, 0.2) !important;
-  color: #4ade80 !important;
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .flatpickr-day.selected,
+[data-theme="dark"] .flatpickr-day.startRange,
+[data-theme="dark"] .flatpickr-day.endRange {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5) !important;
 }
 
 [data-theme="dark"] .flatpickr-day.today {
@@ -8384,10 +8540,8 @@ span.flatpickr-weekday {
   color: #fde047 !important;
 }
 
-[data-theme="dark"] .flatpickr-day.selected {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45) !important;
+[data-theme="dark"] .flatpickr-day.today:not(.selected)::after {
+  background: #facc15 !important;
 }
 
 [data-theme="dark"] .flatpickr-day.prevMonthDay,
@@ -8400,16 +8554,16 @@ span.flatpickr-weekday {
 }
 
 [data-theme="dark"] .flatpickr-custom-footer .fp-btn-today {
-  color: #38bdf8 !important;
-  background: rgba(56, 189, 248, 0.16) !important;
-  border-color: rgba(56, 189, 248, 0.42) !important;
+  color: #34d399 !important;
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
 }
 
 [data-theme="dark"] .flatpickr-custom-footer .fp-btn-today:hover {
-  background: #1D8096 !important;
-  border-color: #38bdf8 !important;
+  background: #10b981 !important;
+  border-color: #10b981 !important;
   color: #ffffff !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.45) !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45) !important;
 }
 
 [data-theme="dark"] .flatpickr-custom-footer .fp-btn-clear {
@@ -8420,6 +8574,7 @@ span.flatpickr-weekday {
   background: rgba(239, 68, 68, 0.2) !important;
   color: #f87171 !important;
 }
+
 
 /* ─── Icono de Calendario SVG Nítido en todos los inputs de Fecha ─── */
 .flatpickr-input-custom,
@@ -10169,21 +10324,23 @@ input.flatpickr-input:hover {
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
+  height: 56px !important;
+  min-height: 56px !important;
   flex-shrink: 0 !important;
 }
 
 .btn-filter-adv,
 .btn-filter-clear {
-  height: 38px !important;
-  min-height: 38px !important;
+  height: 56px !important;
+  min-height: 56px !important;
   box-sizing: border-box !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 7px !important;
-  padding: 0 16px !important;
-  border-radius: 9999px !important;
-  font-size: 0.86rem !important;
+  gap: 8px !important;
+  padding: 0 20px !important;
+  border-radius: 14px !important;
+  font-size: 0.92rem !important;
   font-weight: 700 !important;
   line-height: 1 !important;
   cursor: pointer !important;
@@ -10458,7 +10615,7 @@ input.flatpickr-input:hover {
   padding: 22px 14px 6px 14px !important;
   background: #ffffff !important;
   border: 1.5px solid var(--color-border, #e2e8f0) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   color: #0f172a !important;
   font-size: 0.95rem !important;
   line-height: 1.4 !important;
@@ -10494,8 +10651,6 @@ input.flatpickr-input:hover {
 /* Estado flotante: la etiqueta vive adentro y sube al escribir o al tener valor */
 .adv-filter-field.is-floated label,
 .adv-filter-field:focus-within label,
-.adv-filter-field:has(select) label,
-.adv-filter-field.is-select label,
 .adv-filter-field:has(input:not(:placeholder-shown)) label {
   top: 7px !important;
   font-size: 0.72rem !important;
@@ -10835,18 +10990,21 @@ input.flatpickr-input:hover {
 }
 
 .retire-form-grid .form-input,
-.retire-form-grid .form-select {
-  width: 100%;
-  height: 42px;
-  padding: 0 12px;
-  border-radius: 9px;
-  border: 1px solid var(--color-border, #cbd5e1);
+.retire-form-grid .form-select,
+.retire-form-grid select {
+  width: 100% !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 22px 14px 6px 14px !important;
+  border-radius: 14px !important;
+  border: 1.5px solid var(--color-border, #cbd5e1);
   background: var(--color-bg-input, #ffffff);
   color: var(--text-primary, #0f172a);
-  font-size: 0.92rem;
+  font-size: 0.95rem !important;
   font-family: inherit;
   transition: all 0.2s ease;
   outline: none;
+  box-sizing: border-box !important;
 }
 
 .retire-form-grid .form-input:focus,
