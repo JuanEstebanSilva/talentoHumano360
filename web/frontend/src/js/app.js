@@ -108,17 +108,18 @@ const App = (() => {
   function ensureCalendarCustomUI(inst) {
     if (!inst || !inst.calendarContainer) return;
 
-    // 1. Botón 'X' institucional para cerrar el calendario (Mockup Boyacá: cruz roja pura sin recuadro)
+    // 1. Botón 'X' institucional estilizado para cerrar el calendario
     const monthsBar = inst.calendarContainer.querySelector('.flatpickr-months');
     if (monthsBar) {
       let closeBtn = inst.calendarContainer.querySelector('.flatpickr-custom-close');
+      const closeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
       if (!closeBtn) {
         closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'flatpickr-custom-close';
         closeBtn.title = 'Cerrar calendario';
         closeBtn.setAttribute('aria-label', 'Cerrar calendario');
-        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ED1C24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        closeBtn.innerHTML = closeSvg;
         closeBtn.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -126,7 +127,7 @@ const App = (() => {
         });
         monthsBar.appendChild(closeBtn);
       } else {
-        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ED1C24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+        closeBtn.innerHTML = closeSvg;
       }
     }
 
@@ -173,39 +174,15 @@ const App = (() => {
       }
     }
 
-    // 3. Flechas apiladas de navegación (> arriba mes siguiente, < abajo mes anterior) en verde lima
+    // 3. Eliminar flechas apiladas de navegación por solicitud del usuario
     if (currentMonthEl) {
-      let navWrap = currentMonthEl.querySelector('.flatpickr-stacked-nav');
-      if (!navWrap) {
-        navWrap = document.createElement('div');
-        navWrap.className = 'flatpickr-stacked-nav';
-        navWrap.innerHTML = `
-          <button type="button" class="fp-stacked-arrow fp-stacked-next" title="Mes siguiente" aria-label="Mes siguiente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#B5E61D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;">
-              <polyline points="9 4 17 12 9 20"></polyline>
-            </svg>
-          </button>
-          <button type="button" class="fp-stacked-arrow fp-stacked-prev" title="Mes anterior" aria-label="Mes anterior">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#B5E61D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:block;">
-              <polyline points="15 4 7 12 15 20"></polyline>
-            </svg>
-          </button>
-        `;
-        navWrap.querySelector('.fp-stacked-next').addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          inst.changeMonth(1);
-        });
-        navWrap.querySelector('.fp-stacked-prev').addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          inst.changeMonth(-1);
-        });
-        currentMonthEl.appendChild(navWrap);
-      }
+      const oldNav = currentMonthEl.querySelector('.flatpickr-stacked-nav');
+      if (oldNav) oldNav.remove();
     }
+    const anyOldNav = inst.calendarContainer.querySelector('.flatpickr-stacked-nav');
+    if (anyOldNav) anyOldNav.remove();
 
-    // 4. Selector de Mes: Accesibilidad y auto-ajuste de anchura para evitar huecos o recortes tipográficos
+    // 4. Selector de Mes: Ajuste exacto de ancho con medición precisa canvas
     const monthSelect = inst.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
     if (monthSelect) {
       monthSelect.title = 'Seleccionar mes';
@@ -215,20 +192,14 @@ const App = (() => {
         const selectedOpt = monthSelect.options[monthSelect.selectedIndex];
         const monthText = selectedOpt ? selectedOpt.text.trim() : '';
         if (monthText) {
-          let ruler = inst.calendarContainer.querySelector('.fp-text-ruler');
-          if (!ruler) {
-            ruler = document.createElement('span');
-            ruler.className = 'fp-text-ruler';
-            ruler.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;font-family:Merriweather,Georgia,Times New Roman,serif;font-size:1.25rem;font-weight:800;letter-spacing:-0.3px;';
-            inst.calendarContainer.appendChild(ruler);
+          if (!ensureCalendarCustomUI._canvas) {
+            ensureCalendarCustomUI._canvas = document.createElement('canvas');
           }
-          ruler.textContent = monthText;
-          const textWidth = Math.ceil(ruler.getBoundingClientRect().width);
-          const charEstimate = Math.ceil(monthText.length * 13.8);
-          const targetWidth = Math.max(textWidth + 20, charEstimate);
-          if (targetWidth > 0) {
-            monthSelect.style.width = targetWidth + 'px';
-          }
+          const ctx = ensureCalendarCustomUI._canvas.getContext('2d');
+          ctx.font = '800 1.25rem Merriweather, Georgia, serif';
+          const measured = Math.ceil(ctx.measureText(monthText).width);
+          // Ancho cómodo con padding suficiente para que ningún mes se recorte
+          monthSelect.style.width = Math.max(measured + 8, 56) + 'px';
         }
       };
 
