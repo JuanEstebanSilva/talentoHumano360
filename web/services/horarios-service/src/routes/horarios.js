@@ -815,8 +815,11 @@ router.post('/calculate-dates', auth, (req, res) => {
 
 // ─── GET /api/horarios/:id ───────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   try {
-    const { id } = req.params;
     const scheduleRes = await pool.query('SELECT * FROM horarios WHERE id_horario = $1', [id]);
     if (scheduleRes.rows.length === 0) {
       return res.status(404).json({ error: 'Esquema de horario no encontrado.' });
@@ -1516,7 +1519,10 @@ router.put('/:id', auth, async (req, res) => {
     return res.status(403).json({ error: 'No tienes permisos para modificar esquemas.' });
   }
 
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   const currentQ = await pool.query('SELECT * FROM horarios WHERE id_horario = $1', [id]);
   if (currentQ.rows.length === 0) {
     return res.status(404).json({ error: 'Esquema de horario no encontrado.' });
@@ -1771,7 +1777,10 @@ router.delete('/:id', auth, async (req, res) => {
     return res.status(403).json({ error: 'No tienes permisos para eliminar horarios.' });
   }
 
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   try {
     const del = await pool.query('DELETE FROM horarios WHERE id_horario = $1 RETURNING id_horario', [id]);
     if (del.rows.length === 0) return res.status(404).json({ error: 'Horario no encontrado.' });
