@@ -1723,11 +1723,6 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
-          
-          // Registrar consentimiento para que no bloquee el acceso fluido al dashboard
-          if (typeof LegalModule !== 'undefined' && LegalModule.recordConsent) {
-            LegalModule.recordConsent();
-          }
 
           const proceedToDashboard = () => {
             try {
@@ -1750,11 +1745,19 @@ const App = (() => {
             proceedToDashboard();
           };
 
+          const checkConsentAndProceed = () => {
+            if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+              LegalModule.requireConsentModal(safeProceed);
+            } else {
+              safeProceed();
+            }
+          };
+
           if (typeof FX !== 'undefined' && FX.animateLoginSuccess) {
-            FX.animateLoginSuccess(safeProceed);
-            setTimeout(safeProceed, 550);
+            FX.animateLoginSuccess(checkConsentAndProceed);
+            setTimeout(checkConsentAndProceed, 550);
           } else {
-            safeProceed();
+            checkConsentAndProceed();
           }
         } catch (err) {
           errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
@@ -1909,6 +1912,9 @@ const App = (() => {
         Settings.loadForUser(storedUser.username);
       }
       showApp();
+      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+        LegalModule.requireConsentModal();
+      }
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
       const [initMod, initQuery] = initialHash.split('?');
 

@@ -3,115 +3,183 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Declaración de Accesibilidad Web — Talento 360</title>
+  <title>Declaración de Accesibilidad Web — Talento 360 · Gobernación de Boyacá</title>
   <link rel="stylesheet" href="../css/main.css" />
   <link rel="stylesheet" href="../css/components.css" />
   <link rel="stylesheet" href="../css/legal.css" />
 </head>
 <body class="legal-body">
 
+  <!-- Encabezado Institucional con Barra de Accesibilidad Integrada -->
   <header class="legal-header" role="banner">
     <div class="legal-header-container">
       <div class="legal-brand">
         <img src="../imgs/logoCondor.png" alt="Escudo del Departamento de Boyacá" class="legal-logo" />
         <div>
           <span class="legal-institution">GOBERNACIÓN DE BOYACÁ</span>
-          <h1 class="legal-system-title">Talento 360 · Dirección de Talento Humano</h1>
+          <h1 class="legal-system-title">Talento 360 · Sistema de Talento Humano</h1>
+          <span class="legal-subdepartment">Secretaría General · Subdirección de Talento Humano</span>
         </div>
       </div>
-      <a href="../#/dashboard" class="btn btn-outline legal-back-btn">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-        <span>Volver a la Plataforma</span>
-      </a>
+
+      <!-- Barra de herramientas para usuarios (disponible con o sin inicio de sesión) -->
+      <div class="legal-toolbar" role="region" aria-label="Herramientas de visualización y accesibilidad">
+        <div class="legal-toolbar-group" title="Tamaño de letra del documento">
+          <button type="button" class="legal-tool-btn" id="btn-font-dec" aria-label="Reducir tamaño de letra">A-</button>
+          <span class="legal-font-indicator" id="font-scale-indicator">100%</span>
+          <button type="button" class="legal-tool-btn" id="btn-font-inc" aria-label="Aumentar tamaño de letra">A+</button>
+        </div>
+
+        <button type="button" class="legal-theme-btn" id="btn-legal-theme-toggle" aria-label="Cambiar entre modo claro y oscuro">
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display:none;">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span class="theme-label">Modo Oscuro</span>
+        </button>
+
+        <button type="button" class="legal-tool-btn" id="btn-legal-print" title="Imprimir o guardar como PDF" aria-label="Imprimir documento">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="6 9 6 2 18 2 18 9"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          <span>Imprimir</span>
+        </button>
+
+        <button type="button" class="legal-back-btn" id="btn-legal-back" title="Regresar a la pantalla anterior o principal">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Volver</span>
+        </button>
+      </div>
     </div>
   </header>
 
+  <!-- Pestañas de Navegación entre Vistas Normativas -->
+  <nav class="legal-tabs-wrapper" aria-label="Secciones normativas">
+    <div class="legal-tabs-nav">
+      <a href="terminos.html" class="legal-tab-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Términos y Condiciones</span>
+      </a>
+      <a href="privacidad.html" class="legal-tab-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <span>Política de Privacidad y Habeas Data</span>
+      </a>
+      <a href="accesibilidad.html" class="legal-tab-link active" aria-current="page">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="10" r="3"/>
+          <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
+        </svg>
+        <span>Accesibilidad Digital</span>
+      </a>
+    </div>
+  </nav>
+
   <main class="legal-main" role="main" id="contenido-principal">
-    <article class="legal-card card">
+    <article class="legal-card">
       <header class="legal-doc-header">
-        <span class="badge badge-success">Estándar MinTIC Colombia</span>
-        <h2 class="legal-title">DECLARACIÓN DE ACCESIBILIDAD DIGITAL DE LA PLATAFORMA</h2>
-        <p class="legal-meta">
-          <strong>Nivel de Conformidad:</strong> WCAG 2.1 Nivel AA (Directrices de Accesibilidad para el Contenido Web del W3C/WAI).<br />
-          <strong>Marco Reglamentario:</strong> Resolución 1519 de 2020 expedida por el Ministerio de Tecnologías de la Información y las Comunicaciones (MinTIC).<br />
-          <strong>Última Auditoría Técnica:</strong> Marzo de 2026.
-        </p>
+        <span class="legal-badge-scope">Estándar MinTIC Colombia · Nivel AA</span>
+        <h2 class="legal-title">Declaración de Accesibilidad Web de la Plataforma</h2>
+        <div class="legal-meta-box">
+          <div><strong>Conformidad Técnica:</strong> Directrices de Accesibilidad para el Contenido Web (WCAG 2.1) Nivel AA.</div>
+          <div><strong>Marco Nacional:</strong> Resolución 1519 de 2020 expedida por el Ministerio de las TIC (MinTIC).</div>
+          <div><strong>Entidad Responsable:</strong> Gobernación de Boyacá · Secretaría General y Dirección de TIC.</div>
+        </div>
       </header>
 
       <section class="legal-section">
         <h3>1. Compromiso Institucional de Inclusión Digital</h3>
         <p>
-          La <strong>Gobernación de Boyacá</strong> está firmemente comprometida con garantizar que sus servicios y sistemas digitales sean plenamente accesibles para todos los servidores públicos y ciudadanos, independientemente de sus capacidades físicas, visuales, auditivas, cognitivas o tecnológicas.
+          La <strong>Gobernación de Boyacá</strong> garantiza que sus herramientas de gestión pública sean accesibles para todos los servidores públicos y colaboradores, velando por la eliminación de cualquier barrera tecnológica, visual, auditiva o motriz.
         </p>
       </section>
 
       <section class="legal-section">
-        <h3>2. Principios y Características Técnicas Implementadas</h3>
-        <p>
-          La arquitectura de <strong>Talento 360</strong> cumple rigurosamente con los cuatro principios fundamentales de las directrices WCAG 2.1:
-        </p>
-
-        <div class="legal-accessibility-grid">
-          <div class="legal-acc-card">
-            <h4>1. Principio de Perceptibilidad</h4>
-            <ul>
-              <li><strong>Razón de Contraste Superior:</strong> Razón de contraste de color superior a <strong>4.5:1</strong> para texto normal y <strong>3:1</strong> para componentes de interfaz según el estándar WCAG AA.</li>
-              <li><strong>Modo Alto Contraste Integrado:</strong> Botón nativo en la barra superior que refuerza contornos y eleva la relación de contraste a niveles superiores a <strong>7:1 (AAA)</strong>.</li>
-              <li><strong>Modo Oscuro Oficial:</strong> Paleta adaptada que reduce la fatiga visual en jornadas laborales extensas.</li>
-              <li><strong>Alternativas Textuales:</strong> Toda la iconografía funcional y logotipos poseen atributos <code>alt</code> y <code>aria-label</code> descriptivos.</li>
-            </ul>
+        <h3>2. Características y Criterios Técnicos de Accesibilidad</h3>
+        <div class="legal-laws-container">
+          <div class="legal-law-card">
+            <h4 class="legal-law-card-title">1. Principio de Perceptibilidad</h4>
+            <p>
+              La plataforma ofrece un contraste de color superior a <strong>4.5:1</strong> para textos ordinarios, incorpora un <strong>Modo Oscuro</strong> y una opción de <strong>Líneas de Alto Contraste</strong> en la barra superior. Además, toda la iconografía dispone de descripciones textuales equivalentes (<code>aria-label</code> o <code>alt</code>).
+            </p>
           </div>
 
-          <div class="legal-acc-card">
-            <h4>2. Principio de Operabilidad</h4>
-            <ul>
-              <li><strong>Navegación 100% por Teclado:</strong> Toda la plataforma es operable mediante la tecla <code>Tab</code>, <code>Shift + Tab</code>, <code>Enter</code> y <code>Barra Espaciadora</code>.</li>
-              <li><strong>Sin Trampas de Foco:</strong> Los modales retienen el foco de manera controlada y se cierran de forma segura con la tecla <code>Escape</code>.</li>
-              <li><strong>Indicadores de Foco Resaltados:</strong> Anillos de foco visibles de 2px con color de alto contraste en cada elemento activo.</li>
-              <li><strong>Sin Destellos Perjudiciales:</strong> Respeto a la preferencia del sistema operativo <code>prefers-reduced-motion</code> para personas con trastornos vestibulares.</li>
-            </ul>
+          <div class="legal-law-card">
+            <h4 class="legal-law-card-title">2. Principio de Operabilidad</h4>
+            <p>
+              Todos los formularios, calendarios y tablas pueden operarse mediante teclado utilizando las teclas <code>Tab</code>, <code>Shift + Tab</code>, <code>Enter</code> y <code>Espacio</code>. Los modales retienen el foco y permiten su cierre mediante la tecla <code>Escape</code>.
+            </p>
           </div>
 
-          <div class="legal-acc-card">
-            <h4>3. Principio de Comprensibilidad</h4>
-            <ul>
-              <li><strong>Estructura Jerárquica Clara:</strong> Encabezados ordenados (<code>h1</code>, <code>h2</code>, <code>h3</code>) que facilitan la navegación estructural.</li>
-              <li><strong>Mensajes de Validación Asertivos:</strong> Los errores en formularios identifican el campo erróneo de forma descriptiva, sin depender únicamente de códigos de color.</li>
-              <li><strong>Consistencia en la Interfaz:</strong> Menús de navegación y acciones ubicadas siempre en la misma posición relativa.</li>
-            </ul>
+          <div class="legal-law-card">
+            <h4 class="legal-law-card-title">3. Principio de Comprensibilidad</h4>
+            <p>
+              Estructura jerárquica clara (<code>h1</code> a <code>h4</code>), validaciones descriptivas de errores en formularios sin depender exclusivamente de colores, y coherencia visual en todos los módulos operativos.
+            </p>
           </div>
 
-          <div class="legal-acc-card">
-            <h4>4. Principio de Robustez</h4>
-            <ul>
-              <li><strong>HTML5 Semántico Nativo:</strong> Uso estricto de elementos <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>, <code>&lt;header&gt;</code>, <code>&lt;article&gt;</code> y <code>&lt;button&gt;</code>.</li>
-              <li><strong>Compatibilidad con Lectores de Pantalla:</strong> Optimizado y probado con herramientas líderes como <strong>NVDA</strong> (Windows), <strong>JAWS</strong>, <strong>VoiceOver</strong> (macOS/iOS) y <strong>TalkBack</strong> (Android).</li>
-              <li><strong>Regiones Activas (ARIA Live):</strong> Notificaciones de tipo Toast e indicadores de carga anuncian cambios dinámicos a través de <code>aria-live="polite"</code>.</li>
-            </ul>
+          <div class="legal-law-card">
+            <h4 class="legal-law-card-title">4. Principio de Robustez</h4>
+            <p>
+              Uso estricto de HTML5 semántico nativo probado para compatibilidad con lectores de pantalla líderes (NVDA en Windows, JAWS, VoiceOver y TalkBack).
+            </p>
           </div>
         </div>
       </section>
 
       <section class="legal-section">
-        <h3>3. Canal de Retroalimentación sobre Barreras de Accesibilidad</h3>
+        <h3>3. Canal de Retroalimentación de Accesibilidad</h3>
         <p>
-          Si usted experimenta alguna dificultad de acceso, incompatibilidad con su tecnología de asistencia o desea proponer una mejora en la accesibilidad de <strong>Talento 360</strong>, ponemos a su disposición el canal especializado de la Dirección de Talento Humano y la Dirección de Sistemas:
+          Si experimenta alguna dificultad de acceso o desea proponer una mejora en la accesibilidad de la plataforma, puede remitir su observación a:
         </p>
-        <div class="legal-alert-box legal-alert-info">
-          <p><strong>Correo electrónico de soporte accesible:</strong> <a href="mailto:accesibilidad.talento@boyaca.gov.co">accesibilidad.talento@boyaca.gov.co</a></p>
-          <p><strong>Teléfono de atención:</strong> (+57) 608 7420150 Ext. 2155 · Subdirección de Talento Humano</p>
-          <p><em>Nos comprometemos a evaluar y dar respuesta a su requerimiento de accesibilidad en un término no mayor a cinco (5) días hábiles.</em></p>
+        <div class="legal-contact-grid">
+          <div class="legal-contact-card">
+            <h4 class="legal-contact-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <span>Dirección de Tecnologías de la Información y las Comunicaciones (TIC)</span>
+            </h4>
+            <ul class="legal-contact-info-list">
+              <li><strong>Sede:</strong> Edificio Lotería de Boyacá, Carrera 10 N° 19-35, Tunja, Boyacá (Plaza de Bolívar).</li>
+              <li><strong>Correo:</strong> <a href="mailto:tic@boyaca.gov.co" style="color:var(--color-primary); font-weight:700;">tic@boyaca.gov.co</a></li>
+            </ul>
+          </div>
         </div>
       </section>
     </article>
   </main>
 
   <footer class="legal-footer" role="contentinfo">
-    <p>© 2026 Gobernación de Boyacá · En cumplimiento de la Resolución 1519 de 2020 de MinTIC</p>
+    <p>© 2026 Gobernación de Boyacá · Talento 360 · Resolución 1519 de 2020 de MinTIC</p>
   </footer>
 
+  <!-- Script autónomo para accesibilidad, tamaño de fuente y navegación sin requerir login -->
+  <script src="../js/legal-viewer.js"></script>
 </body>
 </html>
