@@ -101,15 +101,15 @@ router.get('/stats', auth, async (_, res) => {
            FROM viaticos ORDER BY id_viatico DESC LIMIT 5)
         ) sub
         ORDER BY orden_id DESC LIMIT 10`),
-      // Conteo dinámico real y total de dependencias registradas en la entidad
+      // Conteo oficial de Secretarías y Dependencias Principales de la Gobernación de Boyacá (17 Secretarías y Despacho)
       pool.query(`
-        SELECT COUNT(DISTINCT NULLIF(TRIM(d.dependencia), '')) AS total_dependencias,
+        SELECT COUNT(DISTINCT SUBSTRING(TRIM(d.dependencia) FROM '^[0-9]+')) AS total_dependencias,
                COUNT(DISTINCT r.id_dependencia) AS dependencias_activas
         FROM dependencias d
         LEFT JOIN rel_principal r ON r.id_dependencia = d.id_dependencia
         WHERE d.dependencia IS NOT NULL 
           AND TRIM(d.dependencia) != ''
-          AND UPPER(TRIM(d.dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
+          AND d.dependencia ~ '^[0-9]+\\.'
       `)
     ]);
 
@@ -118,7 +118,7 @@ router.get('/stats', auth, async (_, res) => {
     const ar = adminReqs.rows[0];
     const vi = viaticos.rows[0];
     const depData = dependenciasCount.rows[0] || {};
-    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 34;
+    const totalDeps = parseInt(depData.total_dependencias) || 17;
 
     res.json({
       empleados: {
@@ -222,17 +222,17 @@ router.get('/chart', auth, async (_, res) => {
         LEFT JOIN personas p ON p.id_persona = r.id_persona
         LEFT JOIN estados e ON e.id_estado = r.id_estado
       `),
-      // Total general de dependencias de la entidad
+      // Total general de Secretarías y Dependencias Principales de la Gobernación de Boyacá (17 Secretarías y Despacho)
       pool.query(`
-        SELECT COUNT(DISTINCT NULLIF(TRIM(dependencia), '')) AS total
+        SELECT COUNT(DISTINCT SUBSTRING(TRIM(dependencia) FROM '^[0-9]+')) AS total
         FROM dependencias
         WHERE dependencia IS NOT NULL AND TRIM(dependencia) != ''
-          AND UPPER(TRIM(dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
+          AND dependencia ~ '^[0-9]+\\.'
       `)
     ]);
 
     const s = servRes.rows[0];
-    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 34;
+    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 17;
 
     res.json({
       porTipo: byType.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad)||0 })),

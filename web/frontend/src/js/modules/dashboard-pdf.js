@@ -35,6 +35,7 @@ const DashboardPDF = (() => {
     rosaIntenso:      [207, 58, 120],   // #CF3A78 Rosa intenso
     magenta:          [184, 75, 167],   // #B84BA7 Magenta
     vinoRosado:       [145, 65, 105],   // #914169 Vino rosado
+    purpuraInstitucional: [147, 51, 234], // #9333ea Púrpura institucional para Dependencias
 
     // Neutros, fondos y contraste WCAG 2.1 AA
     white:            [255, 255, 255],
@@ -335,17 +336,17 @@ const DashboardPDF = (() => {
       doc.roundedRect(cardX + 0.4, cardY, cardW - 0.8, 1.8, 0.8, 0.8, 'F');
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11.5);
+      doc.setFontSize(count >= 5 ? 10.5 : 11.5);
       doc.setTextColor(accent[0], accent[1], accent[2]);
       doc.text(String(c.value || '0'), cardX + (cardW / 2), cardY + 8.8, { align: 'center' });
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(5.5);
+      doc.setFontSize(count >= 5 ? 5.0 : 5.5);
       doc.setTextColor(PALETTE.slateMedium[0], PALETTE.slateMedium[1], PALETTE.slateMedium[2]);
       doc.text(String(c.label || '').toUpperCase(), cardX + (cardW / 2), cardY + 13.2, { align: 'center' });
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(4.9);
+      doc.setFontSize(count >= 5 ? 4.4 : 4.9);
       doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
       doc.text(String(c.sub || ''), cardX + (cardW / 2), cardY + 17.0, { align: 'center' });
     });
@@ -644,25 +645,25 @@ const DashboardPDF = (() => {
     const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '6.4';
 
     const topDeps = chart.porDependencia || [];
-    // Conteo dinámico y real de dependencias registradas en la entidad (34+ unidades)
+    // Conteo oficial de secretarías y dependencias principales de la entidad (17 Secretarías y Despacho)
     const numDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias)
-      || (catalogs.dependencias ? catalogs.dependencias.length : 0)
-      || 34;
+      || 17;
 
     // ─── PÁGINA 1: SERVIDORES ───
     drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · PLANTA Y SERVIDORES PÚBLICOS', logos);
     let curY = drawTitleBlock(
       doc,
       'INFORME OFICIAL DE PLANTA Y SERVIDORES PÚBLICOS',
-      `Consolidado institucional de planta de personal, cargos autorizados, vacantes y dotación en ${numDeps} dependencias activas.`
+      `Consolidado institucional de planta de personal, cargos autorizados, vacantes y dotación en las ${numDeps} dependencias y secretarías del departamento.`
     );
 
-    // Exactamente 4 tarjetas KPI (eliminada la redundancia de dependencias en KPI para balance perfecto)
+    // 5 Tarjetas KPI integradas en armonía visual total con el Dashboard Web
     const kpiCards = [
-      { value: activosEmp.toLocaleString('es-CO'), label: 'Servidores en Planta', sub: 'En ejercicio activo de funciones', accent: PALETTE.verdeOscuro },
-      { value: vacantesEmp.toLocaleString('es-CO'), label: 'Plazas Vacantes', sub: 'Por proveer en concurso / encargo', accent: PALETTE.amarilloMostaza },
-      { value: `${pctOcupacion}%`, label: 'Nivel de Ocupación', sub: `${activosEmp} de ${totalCargosPlanta} cargos provistos`, accent: PALETTE.verdeVivo },
-      { value: inactivosEmp.toLocaleString('es-CO'), label: 'Histórico Retiros', sub: 'Desvinculados (fuera de planta)', accent: PALETTE.naranjaQuemado }
+      { value: activosEmp.toLocaleString('es-CO'), label: 'Servidores Planta', sub: 'En ejercicio activo', accent: PALETTE.verdeOscuro },
+      { value: `${pctOcupacion}%`, label: 'Nivel Ocupación', sub: `${activosEmp} de ${totalCargosPlanta}`, accent: PALETTE.verdeVivo },
+      { value: vacantesEmp.toLocaleString('es-CO'), label: 'Plazas Vacantes', sub: 'Por proveer', accent: PALETTE.amarilloMostaza },
+      { value: inactivosEmp.toLocaleString('es-CO'), label: 'Histórico Retiros', sub: 'Fuera de planta', accent: PALETTE.naranjaQuemado },
+      { value: String(numDeps), label: 'Dependencias', sub: '17 Secretarías y Despacho', accent: PALETTE.purpuraInstitucional }
     ];
     curY = drawKpiCards(doc, kpiCards, curY);
 
@@ -710,7 +711,7 @@ const DashboardPDF = (() => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.6);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text(`2. Dependencias con Mayor Dotación de Personal (Total Entidad: ${numDeps} Dependencias)`, margin, curY);
+    doc.text(`2. Dependencias con Mayor Dotación de Personal (Estructura Departamental: ${numDeps} Secretarías y Dependencias Principales)`, margin, curY);
     curY += 4;
 
     const imgDep = getCanvasImage('chart-by-dep');
@@ -1044,8 +1045,7 @@ const DashboardPDF = (() => {
     const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '6.4';
 
     const numDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias)
-      || (catalogs.dependencias ? catalogs.dependencias.length : 0)
-      || 34;
+      || 17;
 
     const totalVac = parseInt(vac.total) || 0;
     const totalAdmin = (solAdm.permisos || 0) + (solAdm.incapacidades || 0) + (solAdm.licencias || 0);
@@ -1056,7 +1056,7 @@ const DashboardPDF = (() => {
     let curY = drawTitleBlock(
       doc,
       'INFORME EJECUTIVO INTEGRAL 360 DE TALENTO HUMANO',
-      `Consolidado estratégico departamental en ${numDeps} dependencias: Servidores públicos, trámites laborales, viáticos y seguridad en el trabajo.`
+      `Consolidado estratégico departamental en las ${numDeps} secretarías y dependencias principales: Servidores públicos, trámites laborales, viáticos y seguridad en el trabajo.`
     );
 
     // Exactamente 4 tarjetas KPI
