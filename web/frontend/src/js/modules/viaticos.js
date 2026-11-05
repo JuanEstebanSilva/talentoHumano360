@@ -334,7 +334,7 @@ const ViaticosModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
               <label>Tipo de Destino</label>
-              <select id="vit-filter-tipo-destino">
+              <select id="vit-filter-tipo-destino" class="filter-select">
                 <option value="">TODOS</option>
                 <option value="Nacional" ${current.tipoDestino === 'Nacional' ? 'selected' : ''}>Nacional</option>
                 <option value="Departamental" ${current.tipoDestino === 'Departamental' ? 'selected' : ''}>Departamental</option>
@@ -387,7 +387,7 @@ const ViaticosModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field" style="grid-column: 1 / -1;">
               <label>Ordenar resultados por</label>
-              <select id="vit-filter-sort-by">
+              <select id="vit-filter-sort-by" class="filter-select">
                 <option value="" ${!current.sortBy ? 'selected' : ''}>Predeterminado (Últimos registrados)</option>
                 <option value="fecha_desc" ${current.sortBy === 'fecha_desc' ? 'selected' : ''}>Fecha de Salida (Más recientes primero)</option>
                 <option value="fecha_asc" ${current.sortBy === 'fecha_asc' ? 'selected' : ''}>Fecha de Salida (Más antiguas primero)</option>

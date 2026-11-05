@@ -174,14 +174,14 @@ const DashboardModule = (() => {
             <button
               type="button"
               class="btn btn-primary btn-primary-cta"
-              onclick="App.navigate('employees')"
+              style="display:none !important;" hidden aria-hidden="true"
               style="display:inline-flex; align-items:center; gap:8px;"
-              title="Ir al directorio y gestión de servidores públicos"
+              id="btn-gestionar-servidores-removed" style="display:none !important;"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+
               </svg>
-              <span>Gestionar Servidores</span>
+
             </button>
             <button
               type="button"
@@ -277,9 +277,10 @@ const DashboardModule = (() => {
     destroyCharts();
 
     try {
-      const [stats, chart] = await Promise.all([
+      const [stats, chart, catalogs] = await Promise.all([
         API.getDashboardStats().catch(() => ({})),
         API.getDashboardChart().catch(() => ({ porDependencia: [] })),
+        API.getEmployeeCatalogs().catch(() => ({ dependencias: [] })),
       ]);
 
       lastStats = stats;
@@ -291,6 +292,9 @@ const DashboardModule = (() => {
       const vacantesEmp = parseInt(emp.vacantes) || 43;
       const inactivosEmp = parseInt(emp.inactivos) || 0;
       const topDeps = chart.porDependencia || [];
+      const totalDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || (catalogs?.dependencias ? catalogs.dependencias.length : 0) || 34;
+      const totalCargosPlanta = activosEmp + vacantesEmp;
+      const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
 
       // Render Stat Cards — Estándar Viáticos (Número Arriba, Texto Abajo)
       const grid = document.getElementById('db-stats-grid');
@@ -303,7 +307,7 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-emp">0</span>
-              <span class="stat-label">TOTAL EN PLANTA</span>
+              <span class="stat-label">SERVIDORES EN PLANTA</span>
             </div>
           </div>
 
@@ -314,7 +318,7 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-act">0</span>
-              <span class="stat-label">SERVIDORES ACTIVOS</span>
+              <span class="stat-label">OCUPACIÓN DE PLANTA</span>
             </div>
           </div>
 
@@ -336,7 +340,7 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-ina">0</span>
-              <span class="stat-label">INACTIVOS / RETIRO</span>
+              <span class="stat-label">HISTÓRICO RETIROS</span>
             </div>
           </div>
 
@@ -352,26 +356,26 @@ const DashboardModule = (() => {
           </div>
         `;
 
-        animateCount(document.getElementById('sv-emp'), totalEmp);
-        animateCount(document.getElementById('sv-act'), activosEmp);
+        animateCount(document.getElementById('sv-emp'), activosEmp);
+        const svActEl = document.getElementById('sv-act'); if (svActEl) svActEl.textContent = `${pctOcupacion}%`;
         animateCount(document.getElementById('sv-vac'), vacantesEmp);
         animateCount(document.getElementById('sv-ina'), inactivosEmp);
-        animateCount(document.getElementById('sv-dep'), topDeps.length || 5);
+        animateCount(document.getElementById('sv-dep'), totalDeps);
       }
 
       // Animar el KPI Central de la Dona
       const donutCenterNum = document.getElementById('donut-center-num');
       if (donutCenterNum) {
-        animateCount(donutCenterNum, totalEmp);
+        animateCount(donutCenterNum, activosEmp);
       }
 
       // Actualizar badges informativos
       const depBadge = document.getElementById('db-dep-badge');
-      if (depBadge) depBadge.textContent = `${topDeps.length || 5} Unidades Activas`;
+      if (depBadge) depBadge.textContent = `${totalDeps} Dependencias Activas`;
       const plantBadge = document.getElementById('db-plant-badge');
-      if (plantBadge) plantBadge.textContent = `${totalEmp.toLocaleString('es-CO')} Servidores`;
+      if (plantBadge) plantBadge.textContent = `${activosEmp.toLocaleString('es-CO')} en Planta`;
       const secBadge = document.getElementById('db-sec-badge');
-      if (secBadge) secBadge.textContent = `${topDeps.length || 5} Secretarías`;
+      if (secBadge) secBadge.textContent = `${totalDeps} Dependencias`;
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
@@ -1226,14 +1230,14 @@ const DashboardModule = (() => {
             <button
               type="button"
               class="btn btn-primary btn-primary-cta"
-              onclick="App.navigate('horarios')"
+              style="display:none !important;" hidden aria-hidden="true"
               style="display:inline-flex; align-items:center; gap:8px;"
-              title="Ir al módulo de horarios y modalidades"
+              id="btn-gestionar-horarios-removed"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span>Gestionar Horarios</span>
+
             </button>
             <button
               type="button"
@@ -1830,7 +1834,7 @@ const DashboardModule = (() => {
           </div>
         </div>`;
 
-      animateCount(document.getElementById('sv-emp'), stats.empleados?.total || 0);
+      animateCount(document.getElementById('sv-emp'), stats.empleados?.activos || 0);
       animateCount(document.getElementById('sv-vac'), stats.vacaciones?.total || 0);
       animateCount(document.getElementById('sv-adm'), totalAdmin);
       animateCount(document.getElementById('sv-vit'), stats.viaticos?.total || 0);
@@ -1839,7 +1843,7 @@ const DashboardModule = (() => {
       const empBadge = document.getElementById('sv-emp-badge');
       if (empBadge) {
         const emp = stats.empleados || {};
-        empBadge.textContent = `${emp.activos || 0} act. · ${emp.vacantes || 0} vac.`;
+        empBadge.textContent = `${emp.activos || 0} en planta activa · ${emp.vacantes || 0} vac.`;
       }
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
@@ -2954,6 +2958,7 @@ const DashboardModule = (() => {
   }
 
   function exportPDF() {
+    if (typeof DashboardPDF !== 'undefined' && DashboardPDF.exportPDF) { return DashboardPDF.exportPDF(); }
     confirmExportPDF();
   }
 

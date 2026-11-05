@@ -54,6 +54,19 @@
   margin-left: auto;
 }
 
+#btn-gestionar-servidores-removed,
+#btn-gestionar-horarios-removed {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  position: absolute !important;
+}
+
 /* ─── Stats Grid (5 Cards on 1 Row for Desktop) ──────────────────────────── */
 .stats-grid {
   display: grid;
@@ -1355,18 +1368,33 @@
   cursor: pointer !important;
   appearance: none !important;
   -webkit-appearance: none !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23738993' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 14px center !important;
-  padding-right: 38px !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
 }
 
-[data-theme="dark"] .filter-input,
-[data-theme="dark"] .filter-select {
+select.filter-select::-ms-expand {
+  display: none !important;
+}
+
+[data-theme="dark"] .filter-input {
   background: #1e293b !important;
   color: #f1f5f9 !important;
   border-color: #334155 !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}
+
+[data-theme="dark"] .filter-select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
 }
 
 .filter-select option {
@@ -1379,17 +1407,29 @@
   color: #f1f5f9 !important;
 }
 
-.filter-input:focus,
-.filter-select:focus {
+.filter-input:focus {
   border-color: var(--color-green-dark, #287522) !important;
-  background: #ffffff !important;
+  background-color: #ffffff !important;
   box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18) !important;
 }
 
-[data-theme="dark"] .filter-input:focus,
+.filter-select:focus {
+  border-color: var(--color-green-dark, #287522) !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23287522' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 0 0 3.5px rgba(40, 117, 34, 0.18) !important;
+}
+
+[data-theme="dark"] .filter-input:focus {
+  border-color: #4ade80 !important;
+  background-color: #1e293b !important;
+  box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22) !important;
+}
+
 [data-theme="dark"] .filter-select:focus {
   border-color: #4ade80 !important;
-  background: #1e293b !important;
+  background-color: #1e293b !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234ade80' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   box-shadow: 0 0 0 3.5px rgba(74, 222, 128, 0.22) !important;
 }
 
@@ -10641,7 +10681,7 @@ input.flatpickr-input:hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   z-index: 5 !important;
   margin: 0 !important;
-  max-width: calc(100% - 28px) !important;
+  max-width: calc(100% - 44px) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -10652,7 +10692,6 @@ input.flatpickr-input:hover {
   color: #94a3b8 !important;
 }
 
-.adv-filter-field select,
 .adv-filter-field input {
   width: 100% !important;
   box-sizing: border-box !important;
@@ -10660,7 +10699,7 @@ input.flatpickr-input:hover {
   min-height: 56px !important;
   height: 56px !important;
   padding: 22px 14px 6px 14px !important;
-  background: #ffffff !important;
+  background-color: #ffffff !important;
   border: 1.5px solid var(--color-border, #e2e8f0) !important;
   border-radius: 14px !important;
   color: #0f172a !important;
@@ -10673,26 +10712,119 @@ input.flatpickr-input:hover {
               background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-[data-theme="dark"] .adv-filter-field select,
+.adv-filter-field select {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  padding: 22px 42px 6px 14px !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  border: 1.5px solid var(--color-border, #e2e8f0) !important;
+  border-radius: 14px !important;
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
+  outline: none !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.adv-filter-field select::-ms-expand {
+  display: none !important;
+}
+
 [data-theme="dark"] .adv-filter-field input {
-  background: #1e293b !important;
+  background-color: #1e293b !important;
   color: #f1f5f9 !important;
   border-color: #334155 !important;
 }
 
+[data-theme="dark"] .adv-filter-field select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+}
+
 /* Foco con acento violeta/morado oficial institucional #B84BA7 */
-.adv-filter-field select:focus,
 .adv-filter-field input:focus {
   border-color: #B84BA7 !important;
-  background: #ffffff !important;
+  background-color: #ffffff !important;
   box-shadow: 0 0 0 3.5px rgba(184, 75, 167, 0.18) !important;
 }
 
-[data-theme="dark"] .adv-filter-field select:focus,
+.adv-filter-field select:focus {
+  border-color: #B84BA7 !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23B84BA7' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 0 0 3.5px rgba(184, 75, 167, 0.18) !important;
+}
+
 [data-theme="dark"] .adv-filter-field input:focus {
   border-color: #d946ef !important;
-  background: #1e293b !important;
+  background-color: #1e293b !important;
   box-shadow: 0 0 0 3.5px rgba(217, 70, 239, 0.22) !important;
+}
+
+[data-theme="dark"] .adv-filter-field select:focus {
+  border-color: #d946ef !important;
+  background-color: #1e293b !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d946ef' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 0 0 3.5px rgba(217, 70, 239, 0.22) !important;
+}
+
+/* ─── Universal Dropdown Chevron para ABSOLUTAMENTE TODOS los Filtros ──────── */
+select.filter-select,
+.filter-group select,
+.filters-card select,
+.adv-filter-field select,
+.adv-filter-card select,
+.adv-filter-modal-body select,
+.adv-filter-grid select,
+.filters-row select,
+select[id^="adv-"],
+select[id^="vit-filter-"],
+select[id^="hor-filter-"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  cursor: pointer !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 42px !important;
+}
+
+[data-theme="dark"] select.filter-select,
+[data-theme="dark"] .filter-group select,
+[data-theme="dark"] .filters-card select,
+[data-theme="dark"] .adv-filter-field select,
+[data-theme="dark"] .adv-filter-card select,
+[data-theme="dark"] .adv-filter-modal-body select,
+[data-theme="dark"] .adv-filter-grid select,
+[data-theme="dark"] .filters-row select,
+[data-theme="dark"] select[id^="adv-"],
+[data-theme="dark"] select[id^="vit-filter-"],
+[data-theme="dark"] select[id^="hor-filter-"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
 }
 
 /* Estado flotante: la etiqueta vive adentro y sube al escribir o al tener valor */

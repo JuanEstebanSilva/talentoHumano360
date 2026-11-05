@@ -3,7 +3,7 @@
  * legal-viewer.js — Controlador de Accesibilidad, Tipografía y Navegación
  * Funciona de manera 100% autónoma para vistas normativas públicas
  * (Términos, Privacidad y Accesibilidad), sin requerir autenticación previa.
- * Gobernación de Boyacá · Talento 360
+ * Gobernación de Boyacá — Talento 360
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -12,8 +12,8 @@
 
   const THEME_KEY = 'talento360_theme';
   const FONT_SCALE_KEY = 'talento360_legal_font_scale';
-  const SCALES = [0.9, 1.0, 1.15, 1.25];
-  let currentScaleIndex = 1; // 1.0 = 100% por defecto
+  const SCALES = [1.0, 1.15, 1.30, 1.45];
+  let currentScaleIndex = 0; // 1.0 = 100% por defecto
 
   /**
    * 1. Inicialización y Gestión del Tema (Claro / Oscuro)
@@ -88,15 +88,13 @@
     });
 
     document.getElementById('btn-font-reset')?.addEventListener('click', () => {
-      currentScaleIndex = 1;
+      currentScaleIndex = 0;
       saveAndApplyFontScale();
     });
 
     document.getElementById('btn-font-inc')?.addEventListener('click', () => {
-      if (currentScaleIndex < SCALES.length - 1) {
-        currentScaleIndex++;
-        saveAndApplyFontScale();
-      }
+      currentScaleIndex = (currentScaleIndex + 1) % SCALES.length;
+      saveAndApplyFontScale();
     });
   }
 
@@ -111,39 +109,71 @@
   function applyFontScale() {
     const scale = SCALES[currentScaleIndex];
     document.documentElement.style.setProperty('--legal-font-scale', String(scale));
+    document.body.style.setProperty('--legal-font-scale', String(scale));
 
+    // Escalar directamente la tarjeta legal y sus párrafos para asegurar cambio visual inmediato
+    const card = document.querySelector('.legal-card');
+    if (card) {
+      card.style.setProperty('--legal-font-scale', String(scale));
+      card.style.fontSize = `${scale * 100}%`;
+    }
+
+    const pct = Math.round(scale * 100);
     const indicator = document.getElementById('font-scale-indicator');
     if (indicator) {
-      const pct = Math.round(scale * 100);
       indicator.textContent = `${pct}%`;
     }
 
-    const btnDec = document.getElementById('btn-font-dec');
     const btnInc = document.getElementById('btn-font-inc');
-    if (btnDec) btnDec.disabled = (currentScaleIndex === 0);
-    if (btnInc) btnInc.disabled = (currentScaleIndex === SCALES.length - 1);
+    if (btnInc) {
+      btnInc.disabled = false;
+      const nextIdx = (currentScaleIndex + 1) % SCALES.length;
+      const nextPct = Math.round(SCALES[nextIdx] * 100);
+      const titleText = (currentScaleIndex === SCALES.length - 1)
+        ? `Tamaño al máximo (${pct}%). Clic para reiniciar a 100%`
+        : `Aumentar tamaño de letra a ${nextPct}% (actual: ${pct}%)`;
+      btnInc.setAttribute('title', titleText);
+      btnInc.setAttribute('aria-label', titleText);
+    }
   }
 
   /**
-   * 3. Navegación Inteligente y Botón de Retorno
+   * 3. Navegación Inteligente y Botón de Retorno al Login
    */
   function initNavigation() {
-    const backBtn = document.getElementById('btn-legal-back');
-    if (backBtn) {
-      backBtn.addEventListener('click', (e) => {
+    const handleReturnToLogin = (e) => {
+      e.preventDefault();
+
+      // Si la ventana fue abierta como pestaña secundaria desde el login, enfocar ventana principal y cerrar
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.focus();
+          window.close();
+          // Fallback por si la política de seguridad del navegador restringe window.close()
+          setTimeout(() => {
+            window.location.href = '../index.html';
+          }, 150);
+          return;
+        } catch (_) {}
+      }
+
+      // En la misma pestaña: regresar inmediatamente al Login
+      window.location.href = '../index.html';
+    };
+
+    document.querySelectorAll('.legal-back-btn, #btn-legal-back').forEach(btn => {
+      btn.addEventListener('click', handleReturnToLogin);
+    });
+
+    // Botón para regresar a la parte superior de la página
+    const scrollTopBtn = document.getElementById('btn-scroll-top') || document.querySelector('.legal-scroll-top-btn');
+    if (scrollTopBtn) {
+      scrollTopBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        // Si hay historial dentro del mismo origen, retroceder normalmente
-        if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host)) {
-          window.history.back();
-        } else {
-          // Fallback seguro: comprobar si hay sesión guardada
-          let isLoggedIn = false;
-          try {
-            const token = localStorage.getItem('h360_token') || localStorage.getItem('talento360_token');
-            isLoggedIn = Boolean(token);
-          } catch (_) {}
-          window.location.href = isLoggedIn ? '../#/dashboard' : '../';
-        }
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
       });
     }
 

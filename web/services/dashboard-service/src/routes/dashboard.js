@@ -33,7 +33,7 @@ function auth(req, res, next) {
 // ─── GET /api/dashboard/stats ─────────────────────────────────────────────────
 router.get('/stats', auth, async (_, res) => {
   try {
-    const [empleados, vacaciones, adminReqs, viaticos, recientes] = await Promise.all([
+    const [empleados, vacaciones, adminReqs, viaticos, recientes, dependenciasCount] = await Promise.all([
       pool.query(`
         SELECT 
           COUNT(*) AS total,
@@ -100,13 +100,25 @@ router.get('/stats', auth, async (_, res) => {
                   id_viatico AS orden_id
            FROM viaticos ORDER BY id_viatico DESC LIMIT 5)
         ) sub
-        ORDER BY orden_id DESC LIMIT 10`)
+        ORDER BY orden_id DESC LIMIT 10`),
+      // Conteo dinámico real y total de dependencias registradas en la entidad
+      pool.query(`
+        SELECT COUNT(DISTINCT NULLIF(TRIM(d.dependencia), '')) AS total_dependencias,
+               COUNT(DISTINCT r.id_dependencia) AS dependencias_activas
+        FROM dependencias d
+        LEFT JOIN rel_principal r ON r.id_dependencia = d.id_dependencia
+        WHERE d.dependencia IS NOT NULL 
+          AND TRIM(d.dependencia) != ''
+          AND UPPER(TRIM(d.dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
+      `)
     ]);
 
     const e = empleados.rows[0];
     const v = vacaciones.rows[0];
     const ar = adminReqs.rows[0];
     const vi = viaticos.rows[0];
+    const depData = dependenciasCount.rows[0] || {};
+    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 34;
 
     res.json({
       empleados: {
@@ -114,7 +126,9 @@ router.get('/stats', auth, async (_, res) => {
         activos: parseInt(e.activos) || 0,
         inactivos: parseInt(e.inactivos) || 0,
         vacantes: parseInt(e.vacantes) || 0,
+        totalDependencias: totalDeps
       },
+      totalDependencias: totalDeps,
       vacaciones: {
         total: parseInt(v.total)||0,
         pendientes: parseInt(v.pendientes)||0,
@@ -145,7 +159,7 @@ router.get('/stats', auth, async (_, res) => {
 // ─── GET /api/dashboard/chart ─────────────────────────────────────────────────
 router.get('/chart', auth, async (_, res) => {
   try {
-    const [byType, byStatus, byDep, servRes] = await Promise.all([
+    const [byType, byStatus, byDep, servRes, depCountRes] = await Promise.all([
       // Por tipo de solicitud
       pool.query(`
         SELECT 'Vacaciones' AS tipo, COUNT(*) AS cantidad FROM vacaciones
@@ -166,7 +180,7 @@ router.get('/chart', auth, async (_, res) => {
           UNION ALL SELECT estado FROM viaticos
         ) t GROUP BY estado ORDER BY cantidad DESC
       `),
-      // Top Dependencias reales según servidores asignados
+      // Top Dependencias reales según servidores asignados (para la gráfica de barras)
       pool.query(`
         SELECT COALESCE(NULLIF(TRIM(d.dependencia), ''), 'Sin Dependencia') AS dependencia, COUNT(r.id_registro) AS cantidad
         FROM rel_principal r
@@ -207,15 +221,24 @@ router.get('/chart', auth, async (_, res) => {
         FROM rel_principal r
         LEFT JOIN personas p ON p.id_persona = r.id_persona
         LEFT JOIN estados e ON e.id_estado = r.id_estado
+      `),
+      // Total general de dependencias de la entidad
+      pool.query(`
+        SELECT COUNT(DISTINCT NULLIF(TRIM(dependencia), '')) AS total
+        FROM dependencias
+        WHERE dependencia IS NOT NULL AND TRIM(dependencia) != ''
+          AND UPPER(TRIM(dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
       `)
     ]);
 
     const s = servRes.rows[0];
+    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 34;
 
     res.json({
       porTipo: byType.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad)||0 })),
       porEstado: byStatus.rows.map(r => ({ estado: r.estado, cantidad: parseInt(r.cantidad)||0 })),
       porDependencia: byDep.rows.map(r => ({ dependencia: r.dependencia, cantidad: parseInt(r.cantidad)||0 })),
+      totalDependencias: totalDeps,
       servidores: {
         activos: parseInt(s.activos) || 0,
         inactivos: parseInt(s.inactivos) || 0,
@@ -230,4 +253,3 @@ router.get('/chart', auth, async (_, res) => {
 });
 
 module.exports = router;
-

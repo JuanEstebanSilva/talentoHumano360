@@ -645,7 +645,7 @@ const HorariosModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field" style="grid-column: 1 / -1;">
               <label>Dependencia / Secretaría</label>
-              <select id="hor-filter-dependencia">
+              <select id="hor-filter-dependencia" class="filter-select">
                 <option value="">TODAS LAS DEPENDENCIAS</option>
                 ${depList.filter(d => d !== 'Todas').map(d => `<option value="${escHtml(d)}" ${current.dependencia === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
@@ -674,7 +674,7 @@ const HorariosModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
               <label>Modalidad de Trabajo</label>
-              <select id="hor-filter-modalidad">
+              <select id="hor-filter-modalidad" class="filter-select">
                 <option value="">TODAS LAS MODALIDADES</option>
                 <option value="Presencial" ${current.modalidad === 'Presencial' ? 'selected' : ''}>Presencial</option>
                 <option value="Teletrabajo" ${current.modalidad === 'Teletrabajo' ? 'selected' : ''}>Teletrabajo</option>
@@ -684,7 +684,7 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Subtipo de Teletrabajo</label>
-              <select id="hor-filter-subtipo">
+              <select id="hor-filter-subtipo" class="filter-select">
                 <option value="">TODOS</option>
                 <option value="Suplementario" ${current.subtipoTeletrabajo === 'Suplementario' ? 'selected' : ''}>Suplementario</option>
                 <option value="Autónomo" ${current.subtipoTeletrabajo === 'Autónomo' ? 'selected' : ''}>Autónomo</option>
@@ -693,7 +693,7 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Día Aplicable de la Semana</label>
-              <select id="hor-filter-dias-semana">
+              <select id="hor-filter-dias-semana" class="filter-select">
                 <option value="">TODOS LOS DÍAS</option>
                 <option value="Lunes" ${current.diasSemana === 'Lunes' ? 'selected' : ''}>Lunes</option>
                 <option value="Martes" ${current.diasSemana === 'Martes' ? 'selected' : ''}>Martes</option>
@@ -704,7 +704,7 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Notificación / Reporte ARL</label>
-              <select id="hor-filter-arl">
+              <select id="hor-filter-arl" class="filter-select">
                 <option value="">TODOS</option>
                 <option value="si" ${current.notificacionArl === 'si' ? 'selected' : ''}>Reportado a ARL (Sí)</option>
                 <option value="no" ${current.notificacionArl === 'no' ? 'selected' : ''}>Pendiente Reporte ARL (No)</option>
@@ -712,7 +712,7 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>¿Es Prórroga?</label>
-              <select id="hor-filter-prorroga">
+              <select id="hor-filter-prorroga" class="filter-select">
                 <option value="">TODOS</option>
                 <option value="si" ${current.prorroga === 'si' ? 'selected' : ''}>Sí (Es prórroga)</option>
                 <option value="no" ${current.prorroga === 'no' ? 'selected' : ''}>No (Inicial)</option>
@@ -730,7 +730,7 @@ const HorariosModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field" style="grid-column: 1 / -1;">
               <label>Ordenar registros por</label>
-              <select id="hor-filter-sort-by">
+              <select id="hor-filter-sort-by" class="filter-select">
                 <option value="" ${!current.sortBy ? 'selected' : ''}>Consecutivo Oficial (# Ascendente)</option>
                 <option value="consecutivo_desc" ${current.sortBy === 'consecutivo_desc' ? 'selected' : ''}>Consecutivo Oficial (# Descendente)</option>
                 <option value="fecha_inicio_desc" ${current.sortBy === 'fecha_inicio_desc' ? 'selected' : ''}>Fecha Inicio Vigencia (Más recientes primero)</option>

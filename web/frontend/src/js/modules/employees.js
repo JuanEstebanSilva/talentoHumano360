@@ -1060,14 +1060,14 @@ const EmployeesModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
               <label for="adv-tipo-sangre">Grupo Sanguíneo</label>
-              <select id="adv-tipo-sangre">
+              <select id="adv-tipo-sangre" class="filter-select">
                 <option value="">Todos</option>
                 ${gruposSanguineos.map(g => `<option value="${g}" ${af.tipoSangre === g ? 'selected' : ''}>${g}</option>`).join('')}
               </select>
             </div>
             <div class="adv-filter-field">
               <label for="adv-sexo">Sexo Biológico</label>
-              <select id="adv-sexo">
+              <select id="adv-sexo" class="filter-select">
                 <option value="">Todos</option>
                 <option value="MASCULINO" ${af.sexo === 'MASCULINO' ? 'selected' : ''}>Masculino (M)</option>
                 <option value="FEMENINO" ${af.sexo === 'FEMENINO' ? 'selected' : ''}>Femenino (F)</option>
@@ -1083,7 +1083,7 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-discapacidad-toggle">¿Tiene Discapacidad?</label>
-              <select id="adv-discapacidad-toggle">
+              <select id="adv-discapacidad-toggle" class="filter-select">
                 <option value="">Todos</option>
                 <option value="si" ${af.tieneDiscapacidad === 'si' ? 'selected' : ''}>Sí (Con Discapacidad)</option>
                 <option value="no" ${af.tieneDiscapacidad === 'no' ? 'selected' : ''}>No (Sin Discapacidad)</option>
@@ -1091,7 +1091,7 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-tipo-discapacidad">Tipo de Discapacidad</label>
-              <select id="adv-tipo-discapacidad">
+              <select id="adv-tipo-discapacidad" class="filter-select">
                 <option value="">Todas las condiciones</option>
                 ${(state.catalogs.discapacidades || []).map(d => `<option value="${escHtml(d)}" ${af.tipoDiscapacidad === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
@@ -1108,14 +1108,14 @@ const EmployeesModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
               <label for="adv-situacion">Situación Administrativa</label>
-              <select id="adv-situacion">
+              <select id="adv-situacion" class="filter-select">
                 <option value="">Todas</option>
                 ${situaciones.map(s => `<option value="${s}" ${af.situacion === s ? 'selected' : ''}>${s}</option>`).join('')}
               </select>
             </div>
             <div class="adv-filter-field">
               <label for="adv-clasificacion">Tipo de Vinculación</label>
-              <select id="adv-clasificacion">
+              <select id="adv-clasificacion" class="filter-select">
                 <option value="">Todas</option>
                 ${vinculaciones.map(v => `<option value="${escHtml(v)}" ${af.clasificacion === v ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
               </select>
@@ -1126,14 +1126,14 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-grado">Grado del Cargo</label>
-              <select id="adv-grado">
+              <select id="adv-grado" class="filter-select">
                 <option value="">Todos</option>
                 ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.grado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
               </select>
             </div>
             <div class="adv-filter-field">
               <label for="adv-concurso-toggle">¿Registra Concurso / OPEC?</label>
-              <select id="adv-concurso-toggle">
+              <select id="adv-concurso-toggle" class="filter-select">
                 <option value="">Todos</option>
                 <option value="si" ${af.concurso === 'si' ? 'selected' : ''}>Sí (Con OPEC / Concurso)</option>
                 <option value="no" ${af.concurso === 'no' ? 'selected' : ''}>No (Sin OPEC Registrada)</option>
@@ -1155,7 +1155,7 @@ const EmployeesModule = (() => {
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
               <label for="adv-encargo-toggle">¿Tiene Encargo Administrativo?</label>
-              <select id="adv-encargo-toggle">
+              <select id="adv-encargo-toggle" class="filter-select">
                 <option value="">Todos</option>
                 <option value="si" ${af.tieneEncargo === 'si' ? 'selected' : ''}>Sí (Con Encargo)</option>
                 <option value="no" ${af.tieneEncargo === 'no' ? 'selected' : ''}>No (Sin Encargo)</option>
@@ -1171,7 +1171,7 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-encargo-grado">Grado Encargo</label>
-              <select id="adv-encargo-grado">
+              <select id="adv-encargo-grado" class="filter-select">
                 <option value="">Todos</option>
                 ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.encargoGrado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
               </select>
@@ -1196,7 +1196,7 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field" style="grid-column: span 2;">
               <label for="adv-sort-by" style="color:#b45309;">Criterio de Ordenamiento</label>
-              <select id="adv-sort-by" style="border-color:rgba(217,119,6,0.4);font-weight:600;">
+              <select id="adv-sort-by" class="filter-select" style="border-color:rgba(217,119,6,0.4);font-weight:600;">
                 <option value="" ${!af.sortBy ? 'selected' : ''}>Predeterminado (Activos con cédula de primeras)</option>
                 <option value="fecha_ingreso_asc" ${af.sortBy === 'fecha_ingreso_asc' ? 'selected' : ''}>📅 Fecha de Ingreso: Menor a Mayor (Más antiguos primero)</option>
                 <option value="fecha_ingreso_desc" ${af.sortBy === 'fecha_ingreso_desc' ? 'selected' : ''}>📅 Fecha de Ingreso: Mayor a Menor (Más recientes primero)</option>
@@ -1230,7 +1230,7 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-diplomado-toggle">Diplomado / Capacitación SENA</label>
-              <select id="adv-diplomado-toggle">
+              <select id="adv-diplomado-toggle" class="filter-select">
                 <option value="">Todos</option>
                 <option value="si" ${af.tieneDiplomado === 'si' ? 'selected' : ''}>Sí (Tiene Diplomado / SENA)</option>
                 <option value="no" ${af.tieneDiplomado === 'no' ? 'selected' : ''}>No (Sin Diplomado)</option>

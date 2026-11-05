@@ -1,11 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    legal.js — Módulo de Cumplimiento Legal, Habeas Data y Consentimiento
-   Gobernación de Boyacá · Talento 360
+   Gobernación de Boyacá — Talento 360
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const LegalModule = (() => {
   const STORAGE_KEY = 'talento360_legal_consent';
-  const LEGAL_VERSION = '2026.3'; // Versión actualizada para verificación obligatoria en login
+  const LEGAL_VERSION = '2026.4'; // Versión actualizada para verificación obligatoria en login
+
+  /**
+   * Limpia el consentimiento guardado (útil para auditoría, pruebas y cierre de sesión).
+   */
+  function clearConsent() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
+  }
 
   /**
    * Verifica si el usuario actual ha aceptado la versión vigente de las políticas.
@@ -63,16 +72,24 @@ const LegalModule = (() => {
     overlay.innerHTML = `
       <div class="consent-modal-box">
         <div class="consent-modal-header">
-          <img src="imgs/logoCondor.png" alt="Escudo de Boyacá" class="consent-modal-header-icon" />
-          <div>
-            <span class="consent-modal-institution">GOBERNACIÓN DE BOYACÁ · TALENTO 360</span>
-            <h2 id="consent-modal-title" class="consent-modal-title">Compromiso de Confidencialidad y Uso Institucional</h2>
+          <div class="consent-modal-header-left">
+            <img src="imgs/logoCondor.png" alt="Escudo de Boyacá" class="consent-modal-header-icon" />
+            <div class="consent-modal-header-titles">
+              <span class="consent-modal-institution">GOBERNACIÓN DE BOYACÁ</span>
+              <h2 id="consent-modal-title" class="consent-modal-title">Compromiso de Confidencialidad y Uso Institucional</h2>
+            </div>
+          </div>
+          <div class="consent-modal-header-right">
+            <span class="brand-talento360 brand-talento360--header">
+              <span class="brand-talento">Talento</span>
+              <span class="brand-360">360</span>
+            </span>
           </div>
         </div>
 
         <div class="consent-modal-body">
           <p class="consent-intro-text">
-            Bienvenido(a) a <strong>Talento 360</strong>. Para salvaguardar la reserva de la información del personal departamental, verifique las siguientes condiciones normativas antes de continuar:
+            Bienvenido(a) a <strong class="brand-talento360"><span class="brand-talento">Talento</span> <span class="brand-360">360</span></strong>. Para salvaguardar la reserva de la información del personal departamental, verifique las siguientes condiciones normativas antes de continuar:
           </p>
 
           <div class="consent-summary-grid">
@@ -158,7 +175,7 @@ const LegalModule = (() => {
 
         <div class="consent-modal-footer">
           <button type="button" class="btn btn-secondary" id="btn-consent-decline">Cerrar Sesión</button>
-          <button type="button" class="btn btn-primary" id="btn-consent-accept">Aceptar y Continuar →</button>
+          <button type="button" class="btn btn-consent-accept" id="btn-consent-accept">Aceptar y Continuar →</button>
         </div>
       </div>
     `;
@@ -290,6 +307,7 @@ const LegalModule = (() => {
     hasAcceptedLegal,
     requireConsentModal,
     recordConsent,
+    clearConsent,
     render
   };
 })();

@@ -1726,8 +1726,14 @@ const App = (() => {
 
           const proceedToDashboard = () => {
             try {
+              if (typeof Settings !== 'undefined' && res.user && res.user.username) {
+                Settings.loadForUser(res.user.username);
+              }
               showApp();
               navigate('dashboard');
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+                LegalModule.requireConsentModal();
+              }
             } catch (transitionErr) {
               console.error('[Login Transition Error]:', transitionErr);
               const ls = document.getElementById('login-screen');
@@ -1735,6 +1741,9 @@ const App = (() => {
               const app = document.getElementById('app');
               if (app) app.style.setProperty('display', 'grid', 'important');
               try { navigate('dashboard'); } catch (_) {}
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+                LegalModule.requireConsentModal();
+              }
             }
           };
 
@@ -1745,19 +1754,11 @@ const App = (() => {
             proceedToDashboard();
           };
 
-          const checkConsentAndProceed = () => {
-            if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-              LegalModule.requireConsentModal(safeProceed);
-            } else {
-              safeProceed();
-            }
-          };
-
           if (typeof FX !== 'undefined' && FX.animateLoginSuccess) {
-            FX.animateLoginSuccess(checkConsentAndProceed);
-            setTimeout(checkConsentAndProceed, 550);
+            FX.animateLoginSuccess(safeProceed);
+            setTimeout(safeProceed, 550);
           } else {
-            checkConsentAndProceed();
+            safeProceed();
           }
         } catch (err) {
           errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
