@@ -900,7 +900,25 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Identificación y Nombres
-      let documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
+      let documento = (
+        row.documento ||
+        row.cedula ||
+        row['Cédula'] ||
+        row['Cedula'] ||
+        row['CÉDULA'] ||
+        row['CEDULA'] ||
+        row['NO DE CEDULA'] ||
+        row['NO. DE CEDULA'] ||
+        row['NO DE CÉDULA'] ||
+        row['Nro. De Identificación'] ||
+        row['Nro. De Identificacion'] ||
+        row['De Identificación'] ||
+        row['De Identificacion'] ||
+        row['Identificación'] ||
+        row['Identificacion'] ||
+        row['Documento'] ||
+        ''
+      ).toString().trim();
       let apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
       if (!apellidos_nombres && (row['APELLIDOS'] || row['NOMBRES'] || row.apellidos || row.nombres)) {
         apellidos_nombres = cleanString([row['APELLIDOS'] || row.apellidos, row['NOMBRES'] || row.nombres].filter(Boolean).join(' '));
@@ -966,7 +984,23 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Días / Horario específico
-      const diasRaw = cleanString(row.dias_teletrabajo || row['DIAS DE TELETRABAJO'] || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
+      const diasRaw = cleanString(
+        row.horario ||
+        row['horario'] ||
+        row['Horario'] ||
+        row['HORARIO'] ||
+        row.dias_teletrabajo ||
+        row['DIAS DE TELETRABAJO'] ||
+        row['Dias Teletrabajo'] ||
+        row['Días Teletrabajo'] ||
+        row['Dias teletrabajo'] ||
+        row['Días teletrabajo'] ||
+        row['Dias'] ||
+        row['Días'] ||
+        row['Franja'] ||
+        row['Jornada'] ||
+        ''
+      );
       let dias_teletrabajo = diasRaw;
       let subtipo_teletrabajo = null;
       let franja_ingreso = null;
@@ -985,7 +1019,20 @@ router.post('/bulk', auth, async (req, res) => {
       estado = matchedEst || 'Activa';
 
       // Fecha del acto / solicitud con soporte para números de serie de Excel y Date objects
-      const rawFechaVal = row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['fecha_inicio'] || row['Fecha Inicio'] || row['Fecha de Inicio'] || row['FECHA INICIO'] || row['FECHA DE INICIO'] || row['Fecha inicio'] || null;
+      const rawFechaVal = 
+        row.fecha ||
+        row['FECHA'] ||
+        row['fecha'] ||
+        row['fecha '] ||
+        row['Fecha'] ||
+        row.fecha_inicio ||
+        row['fecha_inicio'] ||
+        row['Fecha inicio'] ||
+        row['Fecha Inicio'] ||
+        row['FECHA INICIO'] ||
+        row['Fecha de Inicio'] ||
+        row['FECHA DE INICIO'] ||
+        null;
       let fecha_inicio = null;
       if (rawFechaVal != null && rawFechaVal !== '') {
         if (typeof rawFechaVal === 'number' && rawFechaVal > 30000 && rawFechaVal < 60000) {
@@ -1059,7 +1106,30 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Fecha Fin con soporte para nombres oficiales de columna, seriales y texto
-      const rawFechaFinVal = row.fecha_fin || row['Fecha Fin'] || row['Fecha de Fin'] || row['Fecha Finalización'] || row['Fecha Finalizacion'] || row['FECHA FIN'] || row['FECHA DE FIN'] || null;
+      const rawFechaFinVal = 
+        row.fecha_fin ||
+        row.fecha_terminacion ||
+        row['Fecha terminación'] ||
+        row['Fecha terminacion'] ||
+        row['Fecha Terminación'] ||
+        row['Fecha Terminacion'] ||
+        row['FECHA TERMINACIÓN'] ||
+        row['FECHA TERMINACION'] ||
+        row['Terminación'] ||
+        row['Terminacion'] ||
+        row['TERMINACIÓN'] ||
+        row['TERMINACION'] ||
+        row['Fecha de Fin'] ||
+        row['Fecha Fin'] ||
+        row['FECHA DE FIN'] ||
+        row['FECHA FIN'] ||
+        row['Fecha Finalización'] ||
+        row['Fecha Finalizacion'] ||
+        row['FECHA FINALIZACIÓN'] ||
+        row['FECHA FINALIZACION'] ||
+        row['Vencimiento'] ||
+        row['VENCIMIENTO'] ||
+        null;
       let finalFechaFin = null;
       if (rawFechaFinVal != null && rawFechaFinVal !== '') {
         if (typeof rawFechaFinVal === 'number' && rawFechaFinVal > 30000 && rawFechaFinVal < 60000) {
@@ -1084,6 +1154,16 @@ router.post('/bulk', auth, async (req, res) => {
             const num = parseInt(rawFechaFin, 10);
             if (num > 30000 && num < 60000) {
               finalFechaFin = excelSerialToIsoDate(num);
+            }
+          } else {
+            const months = {
+              enero: '01', febrero: '02', marzo: '03', abril: '04',
+              mayo: '05', junio: '06', julio: '07', agosto: '08',
+              septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+            };
+            const match = rawFechaFin.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+            if (match && months[match[2].toLowerCase()]) {
+              finalFechaFin = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
             }
           }
         }
@@ -1371,7 +1451,7 @@ router.post('/', auth, async (req, res) => {
   const isBusiness = checkIsBusiness(tipo_calculo);
   let finalDuracionTexto = duracion_texto || '';
   let finalDuracionDias = 0;
-  let finalFechaFin = fecha_fin || null;
+  let finalFechaFin = fecha_fin || req.body.fecha_terminacion || null;
 
   if (duracion_texto) {
     const parseRes = parseFlexibleDuration(duracion_texto);
@@ -1577,7 +1657,9 @@ router.put('/:id', auth, async (req, res) => {
     const isBusiness = checkIsBusiness(tipo_calculo);
     let finalDuracionTexto = duracion_texto;
     let finalDuracionDias = current.duracion_dias;
-    let finalFechaFin = fecha_fin;
+    let finalFechaFin = req.body.fecha_fin !== undefined 
+      ? req.body.fecha_fin 
+      : (req.body.fecha_terminacion !== undefined ? req.body.fecha_terminacion : fecha_fin);
 
     if (duracion_texto && duracion_texto !== current.duracion_texto) {
       const parseRes = parseFlexibleDuration(duracion_texto);

@@ -1402,7 +1402,7 @@ const HorariosModule = (() => {
                 <input type="date" id="horario-fecha-fin" class="form-input" value="${
                   item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
                 }" />
-                <label for="horario-fecha-fin" class="form-label">Fecha de Finalización (Opcional)</label>
+                <label for="horario-fecha-fin" class="form-label">Fecha de Terminación (Opcional)</label>
               </div>
 
               <div class="form-group floating-group ${isEdit && curTipoCalc ? 'is-floated' : ''}">
@@ -3448,7 +3448,11 @@ const HorariosModule = (() => {
       };
 
       const consecutivoRaw = getVal('NO', 'No.', 'No', 'N°', 'Consecutivo', 'Item', 'NUMERO', 'numero_consecutivo');
-      const documento = getVal('NO DE CEDULA', 'No. De Cedula', 'Nro. De Identificación', 'De Identificación', 'Identificación', 'Documento', 'Cédula', 'Cedula', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula');
+      const documento = getVal(
+        'Cédula', 'Cedula', 'CÉDULA', 'CEDULA', 'NO DE CEDULA', 'No. De Cedula',
+        'Nro. De Identificación', 'Nro. De Identificacion', 'De Identificación', 'De Identificacion',
+        'Identificación', 'Identificacion', 'Documento', 'C.C.', 'CC', 'No. Identificación', 'documento', 'cedula'
+      );
       const nombresVal = getVal('NOMBRES', 'Nombre', 'nombres');
       const apellidosVal = getVal('APELLIDOS', 'Apellido', 'apellidos');
       let nombre = [apellidosVal, nombresVal].filter(Boolean).join(' ').trim();
@@ -3456,15 +3460,28 @@ const HorariosModule = (() => {
         nombre = getVal('Nombres y Apellidos', 'Nombre y Apellidos', 'Servidor Público', 'Nombre Completo', 'Funcionario', 'apellidos_nombres');
       }
       const cargo = getVal('CARGO', 'Cargo', 'Cargo Actual', 'Denominación', 'Denominacion', 'cargo') || 'PROFESIONAL UNIVERSITARIO';
-      const codigo = getVal('COD', 'Código', 'Codigo', 'codigo');
+      const codigo = getVal('COD', 'Código', 'Codigo', 'Código ', 'codigo');
       const grado = getVal('GRA', 'Grado', 'grado');
       const dependencia = getVal('DEPENDENCIA', 'Dependencia', 'Área', 'Area', 'dependencia') || 'DESPACHO GOBERNADOR';
       const secretaria = getVal('SECRETARIA', 'Secretaría', 'Secretaria', 'secretaria') || dependencia;
       const situacion = getVal('SITUACION', 'Situación', 'Situacion', 'Situación Administrativa', 'Situacion Administrativa', 'Modalidad', 'modalidad') || 'Teletrabajo';
-      const diasTeletrabajo = getVal('DIAS DE TELETRABAJO', 'Dias Teletrabajo', 'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días', 'Horario', 'Jornada', 'dias_teletrabajo');
+      const diasTeletrabajo = getVal(
+        'horario', 'Horario', 'HORARIO', 'DIAS DE TELETRABAJO', 'Dias Teletrabajo',
+        'Días Teletrabajo', 'Dias teletrabajo', 'Días teletrabajo', 'Dias', 'Días',
+        'Jornada', 'Franja', 'dias_teletrabajo'
+      );
       const resolucion = getVal('RESOLUCION', 'Resolución', 'Resolucion', 'No. Resolución', 'No. Resolucion', 'numero_resolucion');
-      const fechaInicioRaw = getRawVal('Fecha de Inicio', 'Fecha Inicio', 'FECHA DE INICIO', 'FECHA INICIO', 'FECHA', 'fecha', 'fecha ', 'Fecha', 'fecha_inicio');
-      const fechaFinRaw = getRawVal('Fecha de Fin', 'Fecha Fin', 'FECHA DE FIN', 'FECHA FIN', 'Fecha Finalización', 'Fecha Finalizacion', 'FECHA FINALIZACION', 'fecha_fin', 'Vencimiento');
+      const fechaInicioRaw = getRawVal(
+        'Fecha inicio', 'Fecha Inicio', 'FECHA INICIO', 'Fecha de Inicio',
+        'FECHA DE INICIO', 'FECHA', 'fecha', 'fecha ', 'Fecha', 'fecha_inicio'
+      );
+      const fechaFinRaw = getRawVal(
+        'Fecha terminación', 'Fecha terminacion', 'Fecha Terminación', 'Fecha Terminacion',
+        'FECHA TERMINACIÓN', 'FECHA TERMINACION', 'Terminación', 'Terminacion',
+        'TERMINACIÓN', 'TERMINACION', 'Fecha de Fin', 'Fecha Fin',
+        'FECHA DE FIN', 'FECHA FIN', 'Fecha Finalización', 'Fecha Finalizacion',
+        'FECHA FINALIZACIÓN', 'FECHA FINALIZACION', 'fecha_fin', 'fecha_terminacion', 'Vencimiento'
+      );
       const telefono = getVal('TELEFONO', 'Teléfono', 'Telefono', 'tel.', 'celular');
 
       if (!nombre) {
@@ -3750,25 +3767,24 @@ const HorariosModule = (() => {
 
   /**
    * Estructura oficial de columnas para la Plantilla de Horarios y Modalidades:
-   * 14 columnas exactas en mayúscula sostenida y orden oficial:
-   * 1. NO, 2. NOMBRES, 3. APELLIDOS, 4. NO DE CEDULA, 5. CARGO, 6. COD, 7. GRA,
-   * 8. DEPENDENCIA, 9. SECRETARIA, 10. SITUACION, 11. DIAS DE TELETRABAJO,
-   * 12. RESOLUCION, 13. FECHA, 14. TELEFONO
+   * 1. No., 2. Nombres y Apellidos, 3. Cédula, 4. Cargo, 5. Código, 6. Grado,
+   * 7. Dependencia, 8. Secretaría, 9. Situación, 10. horario,
+   * 11. Fecha inicio, 12. Fecha terminación, 13. Resolución, 14. tel.
    */
   const HORARIOS_EXCEL_COLUMNS = [
     { header: 'No.', key: 'numero_consecutivo', width: 8, sample: '1' },
-    { header: 'Nombres y Apellidos', key: 'apellidos_nombres', width: 34, sample: 'MARIA CAROLINA SUAREZ LEON' },
-    { header: 'Nro. De Identificación', key: 'documento', width: 22, sample: '46376159' },
-    { header: 'Cargo', key: 'cargo', width: 30, sample: 'PROFESIONAL UNIVERSITARIO' },
-    { header: 'Código ', key: 'codigo', width: 12, sample: '219' },
-    { header: 'Grado', key: 'grado', width: 10, sample: '05' },
-    { header: 'Dependencia', key: 'dependencia', width: 36, sample: 'UNIDAD ESPECIAL DE ASESORIA Y DEFENSA JURIDICA' },
-    { header: 'Secretaría', key: 'secretaria', width: 30, sample: 'DESPACHO DEL GOBERNADOR' },
+    { header: 'Nombres y Apellidos', key: 'apellidos_nombres', width: 34, sample: 'YAMIT ENIDIO ALONSO RINCON' },
+    { header: 'Cédula', key: 'documento', width: 22, sample: '4298017' },
+    { header: 'Cargo', key: 'cargo', width: 30, sample: 'AUXILIAR ADMINISTRATIVO' },
+    { header: 'Código', key: 'codigo', width: 12, sample: '407' },
+    { header: 'Grado', key: 'grado', width: 10, sample: '06' },
+    { header: 'Dependencia', key: 'dependencia', width: 36, sample: 'SUBDIRECCION PROMOCION Y PREVENCION' },
+    { header: 'Secretaría', key: 'secretaria', width: 30, sample: 'SECRETARIA DE SALUD' },
     { header: 'Situación', key: 'modalidad', width: 20, sample: 'Teletrabajo' },
+    { header: 'horario', key: 'dias_teletrabajo', width: 30, sample: 'Miercoles, Jueves y Viernes' },
+    { header: 'Fecha inicio', key: 'fecha_inicio', width: 20, sample: '23/01/2026' },
+    { header: 'Fecha terminación', key: 'fecha_fin', width: 20, sample: '22/01/2027' },
     { header: 'Resolución', key: 'numero_resolucion', width: 18, sample: '4364' },
-    { header: 'Fecha de Inicio', key: 'fecha_inicio', width: 20, sample: '2026-01-01' },
-    { header: 'Fecha de Fin', key: 'fecha_fin', width: 20, sample: '2026-12-31' },
-    { header: 'Dias Teletrabajo', key: 'dias_teletrabajo', width: 30, sample: 'Lunes, Martes y Jueves ' },
     { header: 'tel.', key: 'telefono', width: 18, sample: '3112256904' }
   ];
 
@@ -3965,6 +3981,7 @@ const HorariosModule = (() => {
           // Encabezados exactos e idénticos a RELACION SITUACION ADMINISTRATIVA.xlsx
           'No.': numConsec,
           'Nombres y Apellidos': item.apellidos_nombres || (nombres && apellidos ? `${apellidos} ${nombres}` : (nombres || apellidos || '')),
+          'Cédula': item.documento || '',
           'Nro. De Identificación': item.documento || '',
           'Cargo': cargoStr,
           'Código ': codigoStr,
@@ -3973,7 +3990,11 @@ const HorariosModule = (() => {
           'Dependencia': depStr,
           'Secretaría': secStr,
           'Situación': modStr,
+          'horario': diasStr,
           'Resolución': resolStr,
+          'Fecha inicio': fechaInicioFormatted,
+          'Fecha terminación': fechaFinFormatted,
+          'Fecha Terminación': fechaFinFormatted,
           'Fecha de Inicio': fechaInicioFormatted,
           'Fecha de Fin': fechaFinFormatted,
           'fecha ': fechaInicioFormatted,
@@ -4051,6 +4072,7 @@ const HorariosModule = (() => {
     copyFichaText,
     switchFormTab,
     submitScheduleForm,
+    getTemplateColumns: () => HORARIOS_EXCEL_COLUMNS,
   };
 })();
 window.HorariosModule = HorariosModule;
