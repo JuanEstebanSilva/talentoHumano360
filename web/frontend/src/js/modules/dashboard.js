@@ -695,7 +695,7 @@ const DashboardModule = (() => {
             <div class="chart-wrap" id="wrap-chart-by-dep" style="height:260px;"><canvas id="chart-by-dep"></canvas></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.78rem;font-weight:700;color:var(--text-secondary);">
               <span>📍 Cobertura Territorial</span>
-              <span class="badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">884 Destinos Asignados</span>
+              <span class="badge" id="db-vit-destinos-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">0 Destinos Asignados</span>
             </div>
           </div>
         </div>
@@ -814,8 +814,11 @@ const DashboardModule = (() => {
         animateCount(document.getElementById('sv-vit-pend'), pendientes);
         animateCount(document.getElementById('sv-vit-val'), valorAprobado);
 
-        const totalDestinos = parseInt(vStats.total_destinos) || (new Set(viaticosData.map(v => (v.destino || '').trim().toUpperCase()).filter(Boolean))).size || 884;
+        const totalDestinos = parseInt(vStats.total_destinos) || (new Set(viaticosData.map(v => (v.destino || '').trim().toUpperCase()).filter(Boolean))).size || 0;
         animateCount(document.getElementById('sv-vit-dest'), totalDestinos);
+
+        const vitDestBadge = document.getElementById('db-vit-destinos-badge');
+        if (vitDestBadge) vitDestBadge.textContent = `${totalDestinos.toLocaleString('es-CO')} Destinos Asignados`;
       }
 
       // Animar el número central del KPI dentro de la Dona
