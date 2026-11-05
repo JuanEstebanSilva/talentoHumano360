@@ -880,6 +880,30 @@ router.get('/catalogs', auth, async (_, res) => {
   }
 });
 
+// ─── POST /api/employees/dependencias (Registro Directo de Nueva Dependencia) ─
+router.post('/dependencias', auth, async (req, res) => {
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  try {
+    const { nombre } = req.body;
+    const cleanName = clean(nombre)?.toUpperCase();
+    if (!cleanName || ['NO REGISTRADO', 'HOLAAAAAAAA', 'HOJA2', 'NINGUNA'].includes(cleanName)) {
+      return res.status(400).json({ error: 'Nombre de dependencia inválido.' });
+    }
+    const existing = await pool.query('SELECT id_dependencia, dependencia FROM dependencias WHERE LOWER(TRIM(dependencia)) = LOWER($1) LIMIT 1', [cleanName]);
+    if (existing.rows.length > 0) {
+      return res.json({ message: 'La dependencia ya existe', dependencia: existing.rows[0].dependencia, id_dependencia: existing.rows[0].id_dependencia });
+    }
+    const maxRes = await pool.query("SELECT COALESCE(MAX(SUBSTRING(id_dependencia FROM '[0-9]+')::int), 0) AS max_id FROM dependencias WHERE id_dependencia ~ '^DEP[0-9]+'");
+    const nextNum = (maxRes.rows[0]?.max_id || 0) + 1;
+    const newId = `DEP${String(nextNum).padStart(3, '0')}`;
+    await pool.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1, $2)', [newId, cleanName]);
+    res.status(201).json({ message: 'Dependencia creada exitosamente', id_dependencia: newId, dependencia: cleanName });
+  } catch (err) {
+    console.error('[employees] create dependencia error:', err.message);
+    res.status(500).json({ error: 'Error al registrar dependencia.' });
+  }
+});
+
 // ─── POST /api/employees (Crear Servidor con 22 Reglas Estrictas) ─────────────
 router.post('/', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });

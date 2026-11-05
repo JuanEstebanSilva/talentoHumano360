@@ -3612,6 +3612,14 @@ const EmployeesModule = (() => {
         state.catalogs.diplomados = cats.diplomados || state.catalogs.diplomados;
         state.catalogs.estudios = cats.estudios || [];
         state.catalogs.institucionesEstudios = cats.institucionesEstudios || [];
+
+        // Refrescar selector de dependencias en filtros si está presente
+        const filterDepSelect = document.getElementById('emp-filter-dep');
+        if (filterDepSelect && state.catalogs.dependencias) {
+          const curVal = filterDepSelect.value;
+          filterDepSelect.innerHTML = '<option value="">Todas las Dependencias</option>' +
+            state.catalogs.dependencias.map(d => `<option value="${escHtml(d)}" ${d === curVal ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
+        }
       }
     } catch (err) {
       console.warn('Error al cargar catálogos completos:', err);

@@ -292,7 +292,7 @@ const DashboardModule = (() => {
       const vacantesEmp = parseInt(emp.vacantes) || 43;
       const inactivosEmp = parseInt(emp.inactivos) || 0;
       const topDeps = chart.porDependencia || [];
-      const totalDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || 17;
+      const totalDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || (catalogs?.dependencias ? catalogs.dependencias.length : 0) || 90;
       const totalCargosPlanta = activosEmp + vacantesEmp;
       const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
 
@@ -344,7 +344,7 @@ const DashboardModule = (() => {
             </div>
           </div>
 
-          <div class="stat-card db-glass-card stat-card--purple" title="17 Secretarías de Despacho y Dependencias Principales de la Gobernación de Boyacá">
+          <div class="stat-card db-glass-card stat-card--purple" title="Total de dependencias institucionales registradas en la entidad">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--purple">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>

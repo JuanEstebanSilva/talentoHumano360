@@ -80,6 +80,7 @@ const API = (() => {
       return request(`/employees/${clean}`);
     },
     getEmployeeCatalogs: () => request('/employees/catalogs'),
+    createDependencia: (nombre) => request('/employees/dependencias', { method: 'POST', body: JSON.stringify({ nombre }) }),
     createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     bulkCreateEmployees: (rows) => request('/employees/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
     uploadEmployeesExcel: async (file) => {
@@ -207,3 +208,5 @@ const API = (() => {
     deleteSstSociodemografico: (id) => request(`/sst/sociodemografico/${id}`, { method: 'DELETE' }),
   };
 })();
+
+window.API = API;
