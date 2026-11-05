@@ -24,7 +24,6 @@ const poolConfig = process.env.DATABASE_URL
 const pool = new Pool(poolConfig);
 
 // Scripts SQL maestros para inicialización desde cero
-// NOTA: Se excluye 11_stress_test_data.sql para evitar contaminar producción con datos sintéticos
 const SQL_FILES = [
   '01_schema.sql',
   '02_seed_data.sql',
