@@ -166,10 +166,11 @@ const DashboardPDF = (() => {
   }
 
   /**
-   * Dibuja el encabezado institucional oficial en Verde Oscuro (#355833).
-   * - El logotipo oficial de la Gobernación de Boyacá se dibuja directamente, SIN fondo blanco ni marcos artificiales.
-   * - Los metadatos de emisión y certificación se alinean limpiamente a la derecha, sin cajas toscas.
-   * - Cinta dorada institucional en Amarillo Mostaza (#D1AD2A).
+   * Dibuja el encabezado institucional oficial de la Gobernación de Boyacá.
+   * - Logotipo Oficial del Escudo de Boyacá dibujado directamente con alta fidelidad y proporción.
+   * - Título institucional "GOBERNACIÓN DE BOYACÁ" en blanco puro y "SUBDIRECCIÓN DE TALENTO HUMANO" en Amarillo Mostaza.
+   * - Bloque superior derecho con "Página X de Y" e insignia institucional "Talento 360".
+   * - Franja dorada inferior continua (#D1AD2A / #DAA520).
    */
   function drawHeader(doc, pageNum, totalPages, subDepartmentTitle, logos) {
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -185,93 +186,94 @@ const DashboardPDF = (() => {
 
     let textLeft = margin;
     if (logoCon && logoCon.dataUrl) {
-      const logoW = 12.8;
-      const logoH = 16.8;
-      doc.addImage(logoCon.dataUrl, 'PNG', margin, 4.2, logoW, logoH);
-      textLeft = margin + logoW + 5.5;
+      const logoW = 14.0;
+      const logoH = 18.2;
+      doc.addImage(logoCon.dataUrl, 'PNG', margin, 3.8, logoW, logoH);
+      textLeft = margin + logoW + 5.2;
     } else if (logoGob && logoGob.dataUrl) {
       const logoW = 24;
       const logoH = Math.min(17, logoW / (logoGob.aspect || 1.71));
       doc.addImage(logoGob.dataUrl, 'PNG', margin, 4.2, logoW, logoH);
-      textLeft = margin + logoW + 5.5;
+      textLeft = margin + logoW + 5.2;
     }
 
     // 3. Títulos institucionales de alto contraste
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12.0);
+    doc.setFontSize(13.5);
     doc.setTextColor(255, 255, 255); // Blanco puro sobre verde oscuro
-    doc.text('GOBERNACIÓN DE BOYACÁ', textLeft, 10.0);
+    doc.text('GOBERNACIÓN DE BOYACÁ', textLeft, 10.2);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.0);
+    doc.setFontSize(8.4);
     doc.setTextColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]); // Amarillo Mostaza oficial
-    doc.text(subDepartmentTitle || 'SUBDIRECCIÓN DE TALENTO HUMANO', textLeft, 15.4);
+    doc.text(subDepartmentTitle || 'SUBDIRECCIÓN DE TALENTO HUMANO', textLeft, 15.6);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
-    doc.setTextColor(240, 253, 244);
-    doc.text('Talento 360 · Sistema de Gestión Pública Departamental', textLeft, 20.4);
+    doc.setFontSize(7.0);
+    doc.setTextColor(230, 242, 234);
+    doc.text('Talento 360 · Sistema de Gestión Pública Departamental', textLeft, 20.6);
 
-    // 4. Bloque oficial de certificación a la derecha (Limpio, sin caja tosca ni marcos amarillos)
+    // 4. Bloque derecho (Página X de Y arriba y Badge Talento 360 abajo)
     const rightX = pageWidth - margin;
 
+    // Número de página (Página X de Y)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.6);
-    doc.setTextColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
-    doc.text('INFORME OFICIAL CERTIFICADO', rightX, 9.8, { align: 'right' });
-
-    const fechaEmision = formatHumanDate();
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
+    doc.setFontSize(8.0);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Emisión: ${fechaEmision}`, rightX, 15.2, { align: 'right' });
+    doc.text(`Página ${pageNum} de ${totalPages}`, rightX, 10.0, { align: 'right' });
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.4);
-    doc.setTextColor(220, 245, 225);
-    doc.text('Vigencia Institucional 2026 · Talento 360', rightX, 20.2, { align: 'right' });
+    // Insignia / Pill Talento 360
+    const pillW = 28.5;
+    const pillH = 7.0;
+    const pillX = rightX - pillW;
+    const pillY = 14.8;
+
+    doc.setFillColor(24, 52, 25); // Verde muy oscuro para el pill institucional
+    doc.roundedRect(pillX, pillY, pillW, pillH, 1.8, 1.8, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.2);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Talento', pillX + 3.2, pillY + 4.9);
+    doc.setTextColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
+    doc.text('360', pillX + 16.6, pillY + 4.9);
 
     // 5. Franja dorada inferior oficial de la Gobernación (Amarillo Mostaza #D1AD2A)
     doc.setFillColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
-    doc.rect(0, 26, pageWidth, 2.2, 'F');
-
-    // 6. Fina línea de terminación
-    doc.setFillColor(PALETTE.verdeBosque[0], PALETTE.verdeBosque[1], PALETTE.verdeBosque[2]);
-    doc.rect(0, 28.2, pageWidth, 0.5, 'F');
+    doc.rect(0, 26, pageWidth, 2.6, 'F');
   }
 
   /**
    * Dibuja el pie de página con la Bandera Oficial del Departamento de Boyacá
-   * formada por 5 franjas delgaditas horizontales: Verde — Blanco — Rojo — Blanco — Verde.
+   * (Verde — Blanco — Rojo — Blanco — Verde) y la certificación con fecha de emisión a la derecha.
    */
   function drawFooter(doc, pageNum, totalPages) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
-    const y = pageHeight - 13;
+    const y = pageHeight - 12;
 
-    // Bandera oficial del Departamento de Boyacá (Ordenanza N° 8 de 1968)
     const stripeW = pageWidth - (margin * 2);
 
     // 1. Franja Verde Oscuro
     doc.setFillColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.rect(margin, y - 4.0, stripeW, 0.65, 'F');
+    doc.rect(margin, y - 4.5, stripeW, 0.75, 'F');
 
     // 2. Franja Blanca (separación)
     doc.setFillColor(255, 255, 255);
-    doc.rect(margin, y - 3.35, stripeW, 0.35, 'F');
+    doc.rect(margin, y - 3.75, stripeW, 0.35, 'F');
 
     // 3. Franja Roja Gules (#E32431 de Colorimetría)
     doc.setFillColor(PALETTE.rojo[0], PALETTE.rojo[1], PALETTE.rojo[2]);
-    doc.rect(margin, y - 3.0, stripeW, 0.85, 'F');
+    doc.rect(margin, y - 3.4, stripeW, 0.85, 'F');
 
     // 4. Franja Blanca (separación)
     doc.setFillColor(255, 255, 255);
-    doc.rect(margin, y - 2.15, stripeW, 0.35, 'F');
+    doc.rect(margin, y - 2.55, stripeW, 0.35, 'F');
 
     // 5. Franja Verde Oscuro
     doc.setFillColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.rect(margin, y - 1.8, stripeW, 0.65, 'F');
+    doc.rect(margin, y - 2.2, stripeW, 0.75, 'F');
 
     // Texto oficial del pie de página
     doc.setFont('helvetica', 'normal');
@@ -279,79 +281,76 @@ const DashboardPDF = (() => {
     doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
     doc.text('Gobernación de Boyacá · Talento 360 · Reporte Oficial Certificado sin datos sensibles (Ley 1581 de 2012)', margin, y + 3.0);
 
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Página ${pageNum} de ${totalPages}`, pageWidth - margin, y + 3.0, { align: 'right' });
+    const fechaEmision = formatHumanDate();
+    doc.text(`Emisión: ${fechaEmision}`, pageWidth - margin, y + 3.0, { align: 'right' });
   }
 
   /**
-   * Dibuja el bloque de título con espaciado cómodo (startY = 35mm).
+   * Dibuja el bloque de título alineado limpiamente con tipografía corporativa Bold Italic.
    */
-  function drawTitleBlock(doc, title, desc, startY = 35) {
+  function drawTitleBlock(doc, title, desc, startY = 34) {
     const margin = 14;
 
-    // Píldora lateral con Verde Oscuro (#355833) y acento Amarillo Mostaza (#D1AD2A)
-    doc.setFillColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.roundedRect(margin, startY, 3.5, 12, 1, 1, 'F');
-    doc.setFillColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
-    doc.rect(margin + 2.5, startY, 1.0, 12, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11.8);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(12.2);
     doc.setTextColor(PALETTE.slateDark[0], PALETTE.slateDark[1], PALETTE.slateDark[2]);
-    doc.text(title, margin + 6.5, startY + 4.8);
+    doc.text(title, margin, startY + 4.2);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.4);
     doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
-    doc.text(desc, margin + 6.5, startY + 10.2);
+    doc.text(desc, margin, startY + 9.2);
 
-    return startY + 16.5;
+    return startY + 14.0;
   }
 
   /**
-   * Dibuja una cuadrícula balanceada de exactamente 4 tarjetas KPI,
-   * con ancho espacioso y colores armonizados de Colorimetría.
+   * Dibuja la cuadrícula ejecutiva de tarjetas KPI, con ancho espacioso y colores armonizados.
    */
   function drawKpiCards(doc, cards, startY) {
     const margin = 14;
     const contentWidth = doc.internal.pageSize.getWidth() - (margin * 2);
     const count = cards.length;
-    const gap = 3.5;
+    const gap = 3.0;
     const cardW = (contentWidth - ((count - 1) * gap)) / count;
-    const cardH = 20;
+    const cardH = 19.5;
 
     cards.forEach((c, idx) => {
       const cardX = margin + (idx * (cardW + gap));
       const cardY = startY;
 
       doc.setFillColor(PALETTE.slateLight[0], PALETTE.slateLight[1], PALETTE.slateLight[2]);
-      doc.roundedRect(cardX, cardY, cardW, cardH, 2, 2, 'F');
+      doc.roundedRect(cardX, cardY, cardW, cardH, 1.8, 1.8, 'F');
 
       doc.setDrawColor(PALETTE.border[0], PALETTE.border[1], PALETTE.border[2]);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(cardX, cardY, cardW, cardH, 2, 2, 'S');
+      doc.setLineWidth(0.25);
+      doc.roundedRect(cardX, cardY, cardW, cardH, 1.8, 1.8, 'S');
 
       const accent = c.accent || PALETTE.verdeOscuro;
       doc.setFillColor(accent[0], accent[1], accent[2]);
-      doc.roundedRect(cardX + 0.4, cardY, cardW - 0.8, 1.8, 0.8, 0.8, 'F');
+      doc.roundedRect(cardX + 0.3, cardY, cardW - 0.6, 1.8, 0.8, 0.8, 'F');
 
+      // Valor numérico
+      const valColor = c.valueColor || (idx === 0 ? PALETTE.slateDark : accent);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(count >= 5 ? 10.5 : 11.5);
-      doc.setTextColor(accent[0], accent[1], accent[2]);
-      doc.text(String(c.value || '0'), cardX + (cardW / 2), cardY + 8.8, { align: 'center' });
+      doc.setFontSize(count >= 5 ? 10.8 : 11.8);
+      doc.setTextColor(valColor[0], valColor[1], valColor[2]);
+      doc.text(String(c.value || '0'), cardX + (cardW / 2), cardY + 8.4, { align: 'center' });
 
+      // Etiqueta
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(count >= 5 ? 5.0 : 5.5);
+      doc.setFontSize(count >= 5 ? 4.9 : 5.5);
       doc.setTextColor(PALETTE.slateMedium[0], PALETTE.slateMedium[1], PALETTE.slateMedium[2]);
-      doc.text(String(c.label || '').toUpperCase(), cardX + (cardW / 2), cardY + 13.2, { align: 'center' });
+      doc.text(String(c.label || '').toUpperCase(), cardX + (cardW / 2), cardY + 12.8, { align: 'center' });
 
+      // Subetiqueta
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(count >= 5 ? 4.4 : 4.9);
+      doc.setFontSize(count >= 5 ? 4.2 : 4.8);
       doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
-      doc.text(String(c.sub || ''), cardX + (cardW / 2), cardY + 17.0, { align: 'center' });
+      doc.text(String(c.sub || ''), cardX + (cardW / 2), cardY + 16.6, { align: 'center' });
     });
 
-    return startY + cardH + 7;
+    return startY + cardH + 6.5;
   }
 
   /**
@@ -651,7 +650,7 @@ const DashboardPDF = (() => {
       || 90;
 
     // ─── PÁGINA 1: SERVIDORES ───
-    drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · PLANTA Y SERVIDORES PÚBLICOS', logos);
+    drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO', logos);
     let curY = drawTitleBlock(
       doc,
       'INFORME OFICIAL DE PLANTA Y SERVIDORES PÚBLICOS',
@@ -660,23 +659,23 @@ const DashboardPDF = (() => {
 
     // 5 Tarjetas KPI integradas en armonía visual total con el Dashboard Web
     const kpiCards = [
-      { value: activosEmp.toLocaleString('es-CO'), label: 'Servidores Planta', sub: 'En ejercicio activo', accent: PALETTE.verdeOscuro },
-      { value: `${pctOcupacion}%`, label: 'Nivel Ocupación', sub: `${activosEmp} de ${totalCargosPlanta}`, accent: PALETTE.verdeVivo },
-      { value: vacantesEmp.toLocaleString('es-CO'), label: 'Plazas Vacantes', sub: 'Por proveer', accent: PALETTE.amarilloMostaza },
-      { value: inactivosEmp.toLocaleString('es-CO'), label: 'Histórico Retiros', sub: 'Fuera de planta', accent: PALETTE.naranjaQuemado },
-      { value: String(numDeps), label: 'Dependencias', sub: `${numDeps} Unidades Activas`, accent: PALETTE.purpuraInstitucional }
+      { value: activosEmp.toLocaleString('es-CO'), label: 'SERVIDORES EN PLANTA', sub: 'En ejercicio activo', accent: PALETTE.verdeOscuro, valueColor: PALETTE.slateDark },
+      { value: `${pctOcupacion}%`, label: 'NIVEL OCUPACIÓN', sub: `${activosEmp} de ${totalCargosPlanta}`, accent: PALETTE.verdeVivo },
+      { value: vacantesEmp.toLocaleString('es-CO'), label: 'PLAZAS VACANTES', sub: 'Por proveer', accent: PALETTE.amarilloMostaza },
+      { value: inactivosEmp.toLocaleString('es-CO'), label: 'HISTÓRICO RETIROS', sub: 'Fuera de planta', accent: PALETTE.rojo },
+      { value: String(numDeps), label: 'DEPENDENCIAS', sub: `${numDeps} Unidades Activas`, accent: PALETTE.purpuraInstitucional }
     ];
     curY = drawKpiCards(doc, kpiCards, curY);
 
     // Sección 1: Estado y Disponibilidad de la Planta (Gráfica circular 1:1)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.6);
+    doc.setFontSize(9.8);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
     doc.text('1. Estado y Disponibilidad de la Planta de Personal', margin, curY);
     curY += 4;
 
     const imgServ = getCanvasImage('chart-by-servidores', { isCircular: true });
-    const chartSize = 48; // Círculo perfecto 1:1
+    const chartSize = 46; // Círculo perfecto 1:1
 
     const empStatusRows = [
       ['Servidores Activos en Planta', String(activosEmp.toLocaleString('es-CO')), `${pctOcupacion}%`, 'Personal vinculado y en ejercicio activo de funciones'],
@@ -699,25 +698,30 @@ const DashboardPDF = (() => {
       styles: { fontSize: 7.2, cellPadding: 2.0, textColor: PALETTE.slateMedium, lineColor: PALETTE.border, lineWidth: 0.2 },
       alternateRowStyles: { fillColor: PALETTE.slateLight },
       columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold' },
-        1: { cellWidth: 20, halign: 'center' },
-        2: { cellWidth: 26, halign: 'center' }, // Ancho amplio para que 'Participación %' jamás se corte
+        0: { cellWidth: 48, fontStyle: 'bold' },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 24, halign: 'center' }, // Ancho amplio para que 'Participación %' jamás se corte
         3: { cellWidth: 'auto' }
+      },
+      didParseCell: function(data) {
+        if (data.row.index === 2) {
+          data.cell.styles.fontStyle = 'bold';
+        }
       }
     });
 
-    curY = Math.max(curY + chartSize, doc.lastAutoTable.finalY) + 7;
+    curY = Math.max(curY + chartSize, doc.lastAutoTable.finalY) + 6.5;
 
     // Sección 2: Top Dependencias con Mayor Dotación
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.6);
+    doc.setFontSize(9.8);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
     doc.text(`2. Dependencias con Mayor Dotación de Personal (Total Entidad: ${numDeps} Dependencias Registradas)`, margin, curY);
     curY += 4;
 
     const imgDep = getCanvasImage('chart-by-dep');
-    const chartW = 66;
-    const chartH = 44;
+    const chartW = 64;
+    const chartH = 40;
 
     const depRows = topDeps.slice(0, 5).map(d => [
       d.dependencia || 'SECRETARÍA GENERAL',
@@ -734,22 +738,22 @@ const DashboardPDF = (() => {
       startY: curY,
       margin: { left: imgDep ? (margin + chartW + 5) : margin, right: margin },
       head: [['Dependencia / Secretaría', 'Servidores', 'Participación %', 'Sede Operativa']],
-      body: depRows.length ? depRows : [['SECRETARÍA GENERAL', '100', '100%', 'Casa de la Torre']],
+      body: depRows.length ? depRows : [['SECRETARÍA GENERAL', '100', '100%', 'Sede Central y Unidades']],
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.6, cellPadding: 2.2 },
       styles: { fontSize: 7.2, cellPadding: 2.0, textColor: PALETTE.slateMedium, lineColor: PALETTE.border, lineWidth: 0.2 },
       alternateRowStyles: { fillColor: PALETTE.slateLight },
       columnStyles: {
-        0: { cellWidth: 48, fontStyle: 'bold' },
-        1: { cellWidth: 20, halign: 'center' },
-        2: { cellWidth: 26, halign: 'center' },
+        0: { cellWidth: 48, fontStyle: 'bold', fontSize: 6.8 },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 24, halign: 'center' },
         3: { cellWidth: 'auto' }
       }
     });
 
     // ─── PÁGINA 2: SERVIDORES ───
     doc.addPage('letter', 'portrait');
-    drawHeader(doc, 2, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · PLANTA Y SERVIDORES PÚBLICOS', logos);
+    drawHeader(doc, 2, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO', logos);
     curY = 35;
 
     // Sección 3: Distribución General de Planta y Situaciones Administrativas
