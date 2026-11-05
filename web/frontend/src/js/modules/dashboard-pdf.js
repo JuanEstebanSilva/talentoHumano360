@@ -833,13 +833,14 @@ const DashboardPDF = (() => {
     const contentWidth = pageWidth - (margin * 2);
 
     const [hStats] = await Promise.all([
-      API.getHorariosStats().catch(() => ({ total: 0, presencial: 0, teletrabajo: 0, flexible: 0, porVencer: 0 }))
+      API.getHorariosStats().catch(() => ({ total: 0, presencial: 0, teletrabajo: 0, trabajoEnCasa: 0, horarioFlexible: 0, porVencer: 0 }))
     ]);
 
     const totalH = parseInt(hStats.total) || 0;
-    const presH = parseInt(hStats.presencial) || 0;
     const teleH = parseInt(hStats.teletrabajo) || 0;
-    const flexH = parseInt(hStats.flexible) || 0;
+    const casaH = parseInt(hStats.trabajoEnCasa) || 0;
+    const flexH = parseInt(hStats.horarioFlexible) || 0;
+    const presH = parseInt(hStats.presencial) || 0;
     const vencH = parseInt(hStats.porVencer) || 0;
 
     // ─── PÁGINA 1: HORARIOS ───
@@ -850,12 +851,12 @@ const DashboardPDF = (() => {
       'Consolidado estadístico institucional de adopción de modalidades laborales, teletrabajo y vigencia de resoluciones.'
     );
 
-    // Exactamente 4 tarjetas KPI
+    // Exactamente 4 tarjetas KPI (Total + las 3 modalidades alternas)
     const kpiCards = [
       { value: totalH.toLocaleString('es-CO'), label: 'Total Asignaciones', sub: 'Servidores con esquema', accent: PALETTE.verdeOscuro },
-      { value: presH.toLocaleString('es-CO'), label: 'Jornada Presencial', sub: `${totalH ? ((presH/totalH)*100).toFixed(1) : 0}% en sede física`, accent: PALETTE.verdeVivo },
-      { value: teleH.toLocaleString('es-CO'), label: 'Teletrabajo', sub: `${totalH ? ((teleH/totalH)*100).toFixed(1) : 0}% suplementario/total`, accent: PALETTE.amarilloMostaza },
-      { value: flexH.toLocaleString('es-CO'), label: 'Jornada Flexible', sub: 'Horarios escalonados acordados', accent: PALETTE.azulPetroleo }
+      { value: teleH.toLocaleString('es-CO'), label: 'Teletrabajo', sub: `${totalH ? ((teleH/totalH)*100).toFixed(1) : 0}% suplementario/total`, accent: PALETTE.azulPetroleo },
+      { value: casaH.toLocaleString('es-CO'), label: 'Trabajo en Casa', sub: `${totalH ? ((casaH/totalH)*100).toFixed(1) : 0}% autorización temporal`, accent: PALETTE.verdeVivo },
+      { value: flexH.toLocaleString('es-CO'), label: 'Horario Flexible', sub: `${totalH ? ((flexH/totalH)*100).toFixed(1) : 0}% jornada adaptada`, accent: PALETTE.amarilloMostaza }
     ];
     curY = drawKpiCards(doc, kpiCards, curY);
 
@@ -870,11 +871,14 @@ const DashboardPDF = (() => {
     const chartSize = 48; // Círculo perfecto 1:1
 
     const modStatusRows = [
-      ['Jornada Flexible y Escalonada', String(flexH.toLocaleString('es-CO')), totalH ? `${((flexH/totalH)*100).toFixed(1)}%` : '0%', 'Horarios especiales acordados por resolución'],
-      ['Presencial en Sede Central', String(presH.toLocaleString('es-CO')), totalH ? `${((presH/totalH)*100).toFixed(1)}%` : '0%', 'Cumplimiento habitual en oficinas Casa de la Torre'],
       ['Teletrabajo Suplementario / Total', String(teleH.toLocaleString('es-CO')), totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '0%', 'Acuerdo individual bajo Decreto 1227 / Ley 1221'],
-      ['Total Servidores con Esquema Formal', String(totalH.toLocaleString('es-CO')), '100.0%', 'Cobertura general de la entidad departamental']
+      ['Trabajo en Casa Temporal', String(casaH.toLocaleString('es-CO')), totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '0%', 'Autorización excepcional Ley 2088 de 2021'],
+      ['Horario Flexible y Escalonado', String(flexH.toLocaleString('es-CO')), totalH ? `${((flexH/totalH)*100).toFixed(1)}%` : '0%', 'Horarios especiales acordados por resolución']
     ];
+    if (presH > 0) {
+      modStatusRows.push(['Presencial en Sede Central', String(presH.toLocaleString('es-CO')), totalH ? `${((presH/totalH)*100).toFixed(1)}%` : '0%', 'Cumplimiento habitual en oficinas']);
+    }
+    modStatusRows.push(['Total Servidores con Esquema Formal', String(totalH.toLocaleString('es-CO')), '100.0%', 'Cobertura general de la entidad departamental']);
 
     if (imgModalidad && imgModalidad.dataUrl) {
       doc.addImage(imgModalidad.dataUrl, 'PNG', margin, curY, chartSize, chartSize);

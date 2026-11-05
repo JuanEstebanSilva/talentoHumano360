@@ -1350,9 +1350,10 @@ const DashboardModule = (() => {
       lastStats = gStats;
 
       const totalHorarios = parseInt(hStats.total) || (hListRes.data ? hListRes.data.length : 0);
-      const presencial = parseInt(hStats.presencial) || 0;
       const teletrabajo = parseInt(hStats.teletrabajo) || 0;
-      const flexible = (parseInt(hStats.trabajoEnCasa) || 0) + (parseInt(hStats.horarioFlexible) || 0);
+      const trabajoEnCasa = parseInt(hStats.trabajoEnCasa) || 0;
+      const horarioFlexible = parseInt(hStats.horarioFlexible) || 0;
+      const presencial = parseInt(hStats.presencial) || 0;
       const porVencer = parseInt(hStats.porVencer) || 0;
       const activas = parseInt(hStats.activas) || 0;
       const caducadas = parseInt(hStats.caducadas) || 0;
@@ -1373,17 +1374,6 @@ const DashboardModule = (() => {
             </div>
           </div>
 
-          <div class="stat-card db-glass-card stat-card--green">
-            <div class="stat-top-stripe"></div>
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value" id="sv-hor-pres">0</span>
-              <span class="stat-label">MODALIDAD PRESENCIAL</span>
-            </div>
-          </div>
-
           <div class="stat-card db-glass-card stat-card--purple">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--purple">
@@ -1392,6 +1382,17 @@ const DashboardModule = (() => {
             <div class="stat-info">
               <span class="stat-value" id="sv-hor-tele">0</span>
               <span class="stat-label">TELETRABAJO</span>
+            </div>
+          </div>
+
+          <div class="stat-card db-glass-card stat-card--green">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-hor-casa">0</span>
+              <span class="stat-label">TRABAJO EN CASA</span>
             </div>
           </div>
 
@@ -1419,9 +1420,9 @@ const DashboardModule = (() => {
         `;
 
         animateCount(document.getElementById('sv-hor-total'), totalHorarios);
-        animateCount(document.getElementById('sv-hor-pres'), presencial);
         animateCount(document.getElementById('sv-hor-tele'), teletrabajo);
-        animateCount(document.getElementById('sv-hor-flex'), flexible);
+        animateCount(document.getElementById('sv-hor-casa'), trabajoEnCasa);
+        animateCount(document.getElementById('sv-hor-flex'), horarioFlexible);
         animateCount(document.getElementById('sv-hor-venc'), porVencer);
       }
 
@@ -1443,14 +1444,17 @@ const DashboardModule = (() => {
       const ctxStatus = document.getElementById('chart-by-status')?.getContext('2d');
       const pillsHorarios = document.getElementById('db-horarios-pills');
 
-      const pctPres = totalHorarios > 0 ? ((presencial / totalHorarios) * 100).toFixed(1) : '0';
-      const pctTele = totalHorarios > 0 ? ((teletrabajo / totalHorarios) * 100).toFixed(1) : '0';
-      const pctFlex = totalHorarios > 0 ? ((flexible / totalHorarios) * 100).toFixed(1) : '0';
+      const denom = totalHorarios > 0 ? totalHorarios : 1;
+      const pctTele = totalHorarios > 0 ? ((teletrabajo / denom) * 100).toFixed(1) : '0';
+      const pctCasa = totalHorarios > 0 ? ((trabajoEnCasa / denom) * 100).toFixed(1) : '0';
+      const pctFlex = totalHorarios > 0 ? ((horarioFlexible / denom) * 100).toFixed(1) : '0';
+      const pctPres = totalHorarios > 0 ? ((presencial / denom) * 100).toFixed(1) : '0';
 
       if (pillsHorarios) {
-        pillsHorarios.innerHTML = `
-          <div class="viaticos-status-chips">
-            <div class="vstatus-chip vstatus-chip--presencial" title="Servidores en modalidad presencial estándar">
+        let presencialPillHtml = '';
+        if (presencial > 0) {
+          presencialPillHtml = `
+            <div class="vstatus-chip vstatus-chip--presencial" title="Servidores en modalidad presencial ordinaria">
               <div class="vstatus-chip-dot"></div>
               <div class="vstatus-chip-info">
                 <span class="vstatus-chip-label">Presencial</span>
@@ -1458,6 +1462,11 @@ const DashboardModule = (() => {
               </div>
               <span class="vstatus-chip-pct">${pctPres}%</span>
             </div>
+          `;
+        }
+
+        pillsHorarios.innerHTML = `
+          <div class="viaticos-status-chips">
             <div class="vstatus-chip vstatus-chip--teletrabajo" title="Servidores en modalidad de teletrabajo suplementario o total">
               <div class="vstatus-chip-dot"></div>
               <div class="vstatus-chip-info">
@@ -1466,14 +1475,23 @@ const DashboardModule = (() => {
               </div>
               <span class="vstatus-chip-pct">${pctTele}%</span>
             </div>
-            <div class="vstatus-chip vstatus-chip--flexible" title="Jornada escalonada, flexible o trabajo en casa">
+            <div class="vstatus-chip vstatus-chip--casa" title="Servidores autorizados temporalmente para trabajo en casa">
               <div class="vstatus-chip-dot"></div>
               <div class="vstatus-chip-info">
-                <span class="vstatus-chip-label">Flexible</span>
-                <span class="vstatus-chip-num">${flexible.toLocaleString('es-CO')}</span>
+                <span class="vstatus-chip-label">Trabajo en Casa</span>
+                <span class="vstatus-chip-num">${trabajoEnCasa.toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctCasa}%</span>
+            </div>
+            <div class="vstatus-chip vstatus-chip--flexible" title="Servidores con jornada escalonada o flexible">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Horario Flexible</span>
+                <span class="vstatus-chip-num">${horarioFlexible.toLocaleString('es-CO')}</span>
               </div>
               <span class="vstatus-chip-pct">${pctFlex}%</span>
             </div>
+            ${presencialPillHtml}
           </div>`;
       }
 
@@ -1501,25 +1519,42 @@ const DashboardModule = (() => {
             }
           });
         } else {
-          const gradPres = ctxStatus.createLinearGradient(0, 0, 0, 240);
-          gradPres.addColorStop(0, '#28871B');
-          gradPres.addColorStop(1, '#1b5e16');
+          const chartLabels = ['Teletrabajo', 'Trabajo en Casa', 'Horario Flexible'];
+          const chartData = [teletrabajo, trabajoEnCasa, horarioFlexible];
 
+          // 1. Teletrabajo — Azul brillante y profundo institucional Boyacá
           const gradTele = ctxStatus.createLinearGradient(0, 0, 0, 240);
           gradTele.addColorStop(0, '#007BC7');
-          gradTele.addColorStop(1, '#005a92');
+          gradTele.addColorStop(1, '#005387');
 
+          // 2. Trabajo en Casa — Verde esmeralda vivo y bosque institucional Boyacá
+          const gradCasa = ctxStatus.createLinearGradient(0, 0, 0, 240);
+          gradCasa.addColorStop(0, '#28871B');
+          gradCasa.addColorStop(1, '#1b5e16');
+
+          // 3. Horario Flexible — Ámbar cálido / Dorado sol Boyacá
           const gradFlex = ctxStatus.createLinearGradient(0, 0, 0, 240);
-          gradFlex.addColorStop(0, '#D1AD2A');
-          gradFlex.addColorStop(1, '#977A14');
+          gradFlex.addColorStop(0, '#F59E0B');
+          gradFlex.addColorStop(1, '#D97706');
+
+          const chartColors = [gradTele, gradCasa, gradFlex];
+
+          if (presencial > 0) {
+            chartLabels.push('Presencial');
+            chartData.push(presencial);
+            const gradPres = ctxStatus.createLinearGradient(0, 0, 0, 240);
+            gradPres.addColorStop(0, '#738993');
+            gradPres.addColorStop(1, '#475569');
+            chartColors.push(gradPres);
+          }
 
           chartDona = safeCreateChart(ctxStatus, {
             type: 'doughnut',
             data: {
-              labels: ['Presencial', 'Teletrabajo', 'Trabajo en Casa / Flexible'],
+              labels: chartLabels,
               datasets: [{
-                data: [presencial, teletrabajo, flexible],
-                backgroundColor: [gradPres, gradTele, gradFlex],
+                data: chartData,
+                backgroundColor: chartColors,
                 borderColor: chartBorderColor,
                 borderWidth: 3,
                 hoverOffset: 9,

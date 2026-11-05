@@ -732,13 +732,13 @@ router.get('/stats', auth, async (req, res) => {
     const statsQuery = await pool.query(`
       SELECT
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE modalidad = 'Presencial') AS presencial,
-        COUNT(*) FILTER (WHERE modalidad = 'Teletrabajo') AS teletrabajo,
-        COUNT(*) FILTER (WHERE modalidad = 'Trabajo en casa') AS trabajo_en_casa,
-        COUNT(*) FILTER (WHERE modalidad = 'Horario flexible') AS horario_flexible,
-        COUNT(*) FILTER (WHERE estado = 'Activa') AS activas,
-        COUNT(*) FILTER (WHERE estado = 'Caducada') AS caducadas,
-        COUNT(*) FILTER (WHERE estado = 'Activa' AND fecha_fin IS NOT NULL AND fecha_fin <= CURRENT_DATE + INTERVAL '30 days') AS por_vencer
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%presencial%') AS presencial,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%teletrabaj%') AS teletrabajo,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%casa%') AS trabajo_en_casa,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%flexib%') AS horario_flexible,
+        COUNT(*) FILTER (WHERE estado ILIKE '%activa%') AS activas,
+        COUNT(*) FILTER (WHERE estado ILIKE '%caducad%') AS caducadas,
+        COUNT(*) FILTER (WHERE estado ILIKE '%activa%' AND fecha_fin IS NOT NULL AND fecha_fin <= CURRENT_DATE + INTERVAL '30 days') AS por_vencer
       FROM horarios
     `);
 
