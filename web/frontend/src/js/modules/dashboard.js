@@ -287,14 +287,14 @@ const DashboardModule = (() => {
       lastChart = chart;
 
       const emp = stats.empleados || {};
-      const totalEmp = parseInt(emp.total) || 2050;
-      const activosEmp = parseInt(emp.activos) || 2007;
-      const vacantesEmp = parseInt(emp.vacantes) || 43;
+      const totalEmp = parseInt(emp.total) || 0;
+      const activosEmp = parseInt(emp.activos) || 0;
+      const vacantesEmp = parseInt(emp.vacantes) || 0;
       const inactivosEmp = parseInt(emp.inactivos) || 0;
       const topDeps = chart.porDependencia || [];
       const totalDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || (catalogs?.dependencias ? catalogs.dependencias.length : 0) || 90;
       const totalCargosPlanta = activosEmp + vacantesEmp;
-      const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
+      const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
 
       // Render Stat Cards — Estándar Viáticos (Número Arriba, Texto Abajo)
       const grid = document.getElementById('db-stats-grid');
@@ -418,67 +418,85 @@ const DashboardModule = (() => {
       }
 
       if (ctxServ) {
-        const gradActivos = ctxServ.createLinearGradient(0, 0, 0, 240);
-        gradActivos.addColorStop(0, '#28871B');
-        gradActivos.addColorStop(1, '#1b5e16');
+        if (totalEmp === 0) {
+          chartServidores = safeCreateChart(ctxServ, {
+            type: 'doughnut',
+            data: {
+              labels: ['Sin servidores registrados'],
+              datasets: [{
+                data: [1],
+                backgroundColor: [isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'],
+                borderColor: chartBorderColor,
+                borderWidth: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+              },
+              cutout: '68%'
+            }
+          });
+        } else {
+          const gradActivos = ctxServ.createLinearGradient(0, 0, 0, 240);
+          gradActivos.addColorStop(0, '#28871B');
+          gradActivos.addColorStop(1, '#1b5e16');
 
-        const gradVacantes = ctxServ.createLinearGradient(0, 0, 0, 240);
-        gradVacantes.addColorStop(0, '#D1AD2A');
-        gradVacantes.addColorStop(1, '#977A14');
+          const gradVacantes = ctxServ.createLinearGradient(0, 0, 0, 240);
+          gradVacantes.addColorStop(0, '#D1AD2A');
+          gradVacantes.addColorStop(1, '#977A14');
 
-        const gradInactivos = ctxServ.createLinearGradient(0, 0, 0, 240);
-        gradInactivos.addColorStop(0, '#E32431');
-        gradInactivos.addColorStop(1, '#9b111e');
+          const gradInactivos = ctxServ.createLinearGradient(0, 0, 0, 240);
+          gradInactivos.addColorStop(0, '#E32431');
+          gradInactivos.addColorStop(1, '#9b111e');
 
-        chartServidores = safeCreateChart(ctxServ, {
-          type: 'doughnut',
-          data: {
-            labels: ['Activos', 'Vacantes', 'Inactivos'],
-            datasets: [{
-              data: [activosEmp, vacantesEmp, inactivosEmp],
-              backgroundColor: [gradActivos, gradVacantes, gradInactivos],
-              borderColor: chartBorderColor,
-              borderWidth: 3,
-              hoverOffset: 9,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
-                titleColor: isDark ? '#f8fafc' : '#0f172a',
-                bodyColor: isDark ? '#cbd5e1' : '#334155',
-                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                borderWidth: 1,
-                padding: 12,
-                boxPadding: 6,
-                usePointStyle: true,
-                callbacks: {
-                  label: function(ctx) {
-                    const val = ctx.raw || 0;
-                    const pct = totalEmp > 0 ? ((val / totalEmp) * 100).toFixed(1) : 0;
-                    return ` ${ctx.label}: ${val.toLocaleString('es-CO')} servidores (${pct}%)`;
+          chartServidores = safeCreateChart(ctxServ, {
+            type: 'doughnut',
+            data: {
+              labels: ['Activos', 'Vacantes', 'Inactivos'],
+              datasets: [{
+                data: [activosEmp, vacantesEmp, inactivosEmp],
+                backgroundColor: [gradActivos, gradVacantes, gradInactivos],
+                borderColor: chartBorderColor,
+                borderWidth: 3,
+                hoverOffset: 9,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
+                  titleColor: isDark ? '#f8fafc' : '#0f172a',
+                  bodyColor: isDark ? '#cbd5e1' : '#334155',
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                  borderWidth: 1,
+                  padding: 12,
+                  boxPadding: 6,
+                  usePointStyle: true,
+                  callbacks: {
+                    label: function(ctx) {
+                      const val = ctx.raw || 0;
+                      const pct = totalEmp > 0 ? ((val / totalEmp) * 100).toFixed(1) : 0;
+                      return ` ${ctx.label}: ${val.toLocaleString('es-CO')} servidores (${pct}%)`;
+                    }
                   }
                 }
-              }
-            },
-            cutout: '68%'
-          }
-        });
+              },
+              cutout: '68%'
+            }
+          });
+        }
       }
 
       // Chart 2: Top Dependencias con Mayor Personal (Horizontal Bar)
       const ctxDep = document.getElementById('chart-by-dep')?.getContext('2d');
-      const depsToShow = topDeps.length ? topDeps.slice(0, 5) : [
-        { dependencia: '1. DESPACHO DEL GOBERNADOR', cantidad: 76 },
-        { dependencia: '5.2 DIRECCION SERVICIOS ADMI...', cantidad: 69 },
-        { dependencia: '10.3 DIRECCION DE PROMOCION...', cantidad: 58 },
-        { dependencia: '5.1 DIRECCION GENERAL DE TAL...', cantidad: 40 },
-        { dependencia: '3.2 TESORERIA GENERAL', cantidad: 37 }
-      ];
+      const depsToShow = topDeps.length ? topDeps.slice(0, 5) : [];
 
       if (ctxDep) {
         chartDep = safeCreateChart(ctxDep, {
@@ -574,23 +592,9 @@ const DashboardModule = (() => {
         `).join('');
       } else if (list) {
         list.innerHTML = `
-          <li class="activity-item">
-            <div class="activity-dot activity-dot--vacacion"></div>
-            <div class="activity-content">
-              <div class="activity-persona">Actualización de Planta de Personal</div>
-              <div class="activity-meta">
-                <span>Provisión de Cargos</span><span>·</span><span>Subdirección de Talento Humano</span><span>·</span><span class="badge badge--aprobada">Normalizada</span><span>·</span><span>Hoy</span>
-              </div>
-            </div>
-          </li>
-          <li class="activity-item">
-            <div class="activity-dot activity-dot--permiso"></div>
-            <div class="activity-content">
-              <div class="activity-persona">Revisión de Novedades y Vinculaciones</div>
-              <div class="activity-meta">
-                <span>Expedientes Laborales</span><span>·</span><span>Secretaría General</span><span>·</span><span class="badge badge--aprobada">Al día</span><span>·</span><span>Esta semana</span>
-              </div>
-            </div>
+          <li class="activity-item" style="padding: 24px; text-align: center; color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.4;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span style="font-size: 0.88rem; font-weight: 500;">No hay actividades recientes de servidores públicos registradas.</span>
           </li>
         `;
       }
@@ -1342,13 +1346,13 @@ const DashboardModule = (() => {
       lastHorariosStats = hStats;
       lastStats = gStats;
 
-      const totalHorarios = parseInt(hStats.total) || (hListRes.data ? hListRes.data.length : 2318);
-      const presencial = parseInt(hStats.presencial) || 760;
-      const teletrabajo = parseInt(hStats.teletrabajo) || 506;
-      const flexible = (parseInt(hStats.trabajoEnCasa) || 0) + (parseInt(hStats.horarioFlexible) || 1052);
+      const totalHorarios = parseInt(hStats.total) || (hListRes.data ? hListRes.data.length : 0);
+      const presencial = parseInt(hStats.presencial) || 0;
+      const teletrabajo = parseInt(hStats.teletrabajo) || 0;
+      const flexible = (parseInt(hStats.trabajoEnCasa) || 0) + (parseInt(hStats.horarioFlexible) || 0);
       const porVencer = parseInt(hStats.porVencer) || 0;
-      const activas = parseInt(hStats.activas) || (totalHorarios - (parseInt(hStats.caducadas) || 650));
-      const caducadas = parseInt(hStats.caducadas) || Math.max(0, totalHorarios - activas);
+      const activas = parseInt(hStats.activas) || 0;
+      const caducadas = parseInt(hStats.caducadas) || 0;
       const horariosList = hListRes.data || [];
 
       // Render Stat Cards — Estándar Viáticos (Número Arriba, Texto Abajo)
@@ -1471,56 +1475,80 @@ const DashboardModule = (() => {
       }
 
       if (ctxStatus) {
-        const gradPres = ctxStatus.createLinearGradient(0, 0, 0, 240);
-        gradPres.addColorStop(0, '#28871B');
-        gradPres.addColorStop(1, '#1b5e16');
+        if (totalHorarios === 0) {
+          chartDona = safeCreateChart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+              labels: ['Sin horarios registrados'],
+              datasets: [{
+                data: [1],
+                backgroundColor: [isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'],
+                borderColor: chartBorderColor,
+                borderWidth: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+              },
+              cutout: '68%'
+            }
+          });
+        } else {
+          const gradPres = ctxStatus.createLinearGradient(0, 0, 0, 240);
+          gradPres.addColorStop(0, '#28871B');
+          gradPres.addColorStop(1, '#1b5e16');
 
-        const gradTele = ctxStatus.createLinearGradient(0, 0, 0, 240);
-        gradTele.addColorStop(0, '#007BC7');
-        gradTele.addColorStop(1, '#005a92');
+          const gradTele = ctxStatus.createLinearGradient(0, 0, 0, 240);
+          gradTele.addColorStop(0, '#007BC7');
+          gradTele.addColorStop(1, '#005a92');
 
-        const gradFlex = ctxStatus.createLinearGradient(0, 0, 0, 240);
-        gradFlex.addColorStop(0, '#D1AD2A');
-        gradFlex.addColorStop(1, '#977A14');
+          const gradFlex = ctxStatus.createLinearGradient(0, 0, 0, 240);
+          gradFlex.addColorStop(0, '#D1AD2A');
+          gradFlex.addColorStop(1, '#977A14');
 
-        chartDona = safeCreateChart(ctxStatus, {
-          type: 'doughnut',
-          data: {
-            labels: ['Presencial', 'Teletrabajo', 'Trabajo en Casa / Flexible'],
-            datasets: [{
-              data: [presencial || 1, teletrabajo, flexible],
-              backgroundColor: [gradPres, gradTele, gradFlex],
-              borderColor: chartBorderColor,
-              borderWidth: 3,
-              hoverOffset: 9,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
-                titleColor: isDark ? '#f8fafc' : '#0f172a',
-                bodyColor: isDark ? '#cbd5e1' : '#334155',
-                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                borderWidth: 1,
-                padding: 12,
-                boxPadding: 6,
-                usePointStyle: true,
-                callbacks: {
-                  label: function(ctx) {
-                    const val = ctx.raw || 0;
-                    const pct = totalHorarios > 0 ? ((val / totalHorarios) * 100).toFixed(1) : 0;
-                    return ` ${ctx.label}: ${val.toLocaleString('es-CO')} asignaciones (${pct}%)`;
+          chartDona = safeCreateChart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+              labels: ['Presencial', 'Teletrabajo', 'Trabajo en Casa / Flexible'],
+              datasets: [{
+                data: [presencial, teletrabajo, flexible],
+                backgroundColor: [gradPres, gradTele, gradFlex],
+                borderColor: chartBorderColor,
+                borderWidth: 3,
+                hoverOffset: 9,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
+                  titleColor: isDark ? '#f8fafc' : '#0f172a',
+                  bodyColor: isDark ? '#cbd5e1' : '#334155',
+                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                  borderWidth: 1,
+                  padding: 12,
+                  boxPadding: 6,
+                  usePointStyle: true,
+                  callbacks: {
+                    label: function(ctx) {
+                      const val = ctx.raw || 0;
+                      const pct = totalHorarios > 0 ? ((val / totalHorarios) * 100).toFixed(1) : 0;
+                      return ` ${ctx.label}: ${val.toLocaleString('es-CO')} asignaciones (${pct}%)`;
+                    }
                   }
                 }
-              }
-            },
-            cutout: '68%'
-          }
-        });
+              },
+              cutout: '68%'
+            }
+          });
+        }
       }
 
       // Chart 2: Estado de vigencias
@@ -1572,8 +1600,8 @@ const DashboardModule = (() => {
         depCounts[dep] = (depCounts[dep] || 0) + 1;
       });
       const topDeps = Object.entries(depCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-      const depLabels = topDeps.length ? topDeps.map(d => truncate(d[0], 25)) : ['Sec. General', 'Sec. Hacienda', 'Sec. Salud', 'Sec. Educación', 'Sec. Infraestructura'];
-      const depValues = topDeps.length ? topDeps.map(d => d[1]) : [18, 14, 12, 9, 7];
+      const depLabels = topDeps.length ? topDeps.map(d => truncate(d[0], 25)) : [];
+      const depValues = topDeps.length ? topDeps.map(d => d[1]) : [];
 
       const depBadgeCount = document.getElementById('db-dep-count-badge');
       if (depBadgeCount) depBadgeCount.textContent = `${depLabels.length} Secretarías`;
@@ -1625,23 +1653,9 @@ const DashboardModule = (() => {
         `).join('');
       } else if (list) {
         list.innerHTML = `
-          <li class="activity-item">
-            <div class="activity-dot activity-dot--permiso"></div>
-            <div class="activity-content">
-              <div class="activity-persona">Renovación de Teletrabajo Suplementario</div>
-              <div class="activity-meta">
-                <span>Resolución Vigente</span><span>·</span><span>Secretaría de TIC y Gobierno Abierto</span><span>·</span><span class="badge badge--aprobada">Activa</span><span>·</span><span>Hoy</span>
-              </div>
-            </div>
-          </li>
-          <li class="activity-item">
-            <div class="activity-dot activity-dot--vacacion"></div>
-            <div class="activity-content">
-              <div class="activity-persona">Asignación de Jornada Escalonada Flexible</div>
-              <div class="activity-meta">
-                <span>Acuerdo Laboral</span><span>·</span><span>Secretaría de Hacienda</span><span>·</span><span class="badge badge--aprobada">Vigente</span><span>·</span><span>Esta semana</span>
-              </div>
-            </div>
+          <li class="activity-item" style="padding: 24px; text-align: center; color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.4;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span style="font-size: 0.88rem; font-weight: 500;">No hay asignaciones ni novedades de horarios registradas.</span>
           </li>
         `;
       }
@@ -2708,10 +2722,10 @@ const DashboardModule = (() => {
         ];
         if (getUserDashboardType() === 'horarios') {
           const hSt = lastHorariosStats || {};
-          const totH = parseInt(hSt.total) || 2318;
-          const presH = parseInt(hSt.presencial) || 760;
-          const teleH = parseInt(hSt.teletrabajo) || 506;
-          const flexH = (parseInt(hSt.trabajoEnCasa) || 0) + (parseInt(hSt.horarioFlexible) || 1052);
+          const totH = parseInt(hSt.total) || 0;
+          const presH = parseInt(hSt.presencial) || 0;
+          const teleH = parseInt(hSt.teletrabajo) || 0;
+          const flexH = (parseInt(hSt.trabajoEnCasa) || 0) + (parseInt(hSt.horarioFlexible) || 0);
           const vencH = parseInt(hSt.porVencer) || 0;
           kpiRows = [
             ['Total Asignaciones de Horario', String(totH.toLocaleString('es-CO')), 'Servidores públicos con esquema de jornada formalizado'],
@@ -2721,16 +2735,17 @@ const DashboardModule = (() => {
             ['Autorizaciones por Vencer (<30d)', String(vencH), 'Convenios o resoluciones próximas a fecha límite de renovación']
           ];
         } else if (getUserDashboardType() === 'employees') {
-          const totE = parseInt(emp.total) || 2050;
-          const actE = parseInt(emp.activos) || 2007;
-          const vacE = parseInt(emp.vacantes) || 43;
+          const totE = parseInt(emp.total) || 0;
+          const actE = parseInt(emp.activos) || 0;
+          const vacE = parseInt(emp.vacantes) || 0;
           const inaE = parseInt(emp.inactivos) || 0;
+          const numDeps = parseInt(lastStats?.totalDependencias || emp.totalDependencias || 90) || 90;
           kpiRows = [
             ['Total Planta de Personal', String(totE.toLocaleString('es-CO')), 'Cargos autorizados en la estructura institucional departamental'],
             ['Servidores Públicos Activos', String(actE.toLocaleString('es-CO')), `${totE > 0 ? ((actE/totE)*100).toFixed(1) : 0}% con funciones y vinculación vigente`],
             ['Plazas Vacantes por Proveer', String(vacE.toLocaleString('es-CO')), 'Cargos disponibles para nombramiento o encargo'],
             ['Inactivos / Retiro', String(inaE.toLocaleString('es-CO')), 'Registros históricos de servidores desvinculados o pensionados'],
-            ['Dependencias Organizacionales', String((lastChart?.porDependencia || []).length || 5) + ' Unidades', 'Secretarías y direcciones con dotación de planta activa']
+            ['Dependencias Organizacionales', String(numDeps) + ' Unidades', 'Secretarías y direcciones institucionales registradas']
           ];
         }
 

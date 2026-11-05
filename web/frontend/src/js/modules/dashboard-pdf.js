@@ -636,13 +636,13 @@ const DashboardPDF = (() => {
     // Los servidores en planta son EXCLUSIVAMENTE los activos (624 en funciones).
     // Las 43 vacantes son cargos disponibles, NO servidores.
     // Los 3 retirados son registros históricos de desvinculación, FUERA de planta.
-    const activosEmp = parseInt(emp.activos) || 624;
-    const vacantesEmp = parseInt(emp.vacantes) || 43;
-    const inactivosEmp = parseInt(emp.inactivos) || 3;
+    const activosEmp = parseInt(emp.activos) || 0;
+    const vacantesEmp = parseInt(emp.vacantes) || 0;
+    const inactivosEmp = parseInt(emp.inactivos) || 0;
 
-    const totalCargosPlanta = activosEmp + vacantesEmp; // 624 + 43 = 667 cargos autorizados
-    const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
-    const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '6.4';
+    const totalCargosPlanta = activosEmp + vacantesEmp;
+    const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
+    const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
 
     const topDeps = chart.porDependencia || [];
     // Conteo dinámico y real de dependencias registradas en la entidad
@@ -833,14 +833,14 @@ const DashboardPDF = (() => {
     const contentWidth = pageWidth - (margin * 2);
 
     const [hStats] = await Promise.all([
-      API.getHorariosStats().catch(() => ({ total: 2318, presencial: 760, teletrabajo: 506, flexible: 1052, porVencer: 14 }))
+      API.getHorariosStats().catch(() => ({ total: 0, presencial: 0, teletrabajo: 0, flexible: 0, porVencer: 0 }))
     ]);
 
-    const totalH = parseInt(hStats.total) || 2318;
-    const presH = parseInt(hStats.presencial) || 760;
-    const teleH = parseInt(hStats.teletrabajo) || 506;
-    const flexH = parseInt(hStats.flexible) || 1052;
-    const vencH = parseInt(hStats.porVencer) || 14;
+    const totalH = parseInt(hStats.total) || 0;
+    const presH = parseInt(hStats.presencial) || 0;
+    const teleH = parseInt(hStats.teletrabajo) || 0;
+    const flexH = parseInt(hStats.flexible) || 0;
+    const vencH = parseInt(hStats.porVencer) || 0;
 
     // ─── PÁGINA 1: HORARIOS ───
     drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · CONTROL DE HORARIOS Y TELETRABAJO', logos);
@@ -1024,12 +1024,13 @@ const DashboardPDF = (() => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const contentWidth = pageWidth - (margin * 2);
 
-    const [stats, chart, viatStats, sstStats, catalogs] = await Promise.all([
+    const [stats, chart, viatStats, sstStats, catalogs, hStats] = await Promise.all([
       API.getDashboardStats().catch(() => ({})),
       API.getDashboardChart().catch(() => ({ porDependencia: [], porTipo: [], porEstado: [] })),
       API.getViaticosStats().catch(() => ({})),
       API.getSstStats().catch(() => ({})),
-      API.getEmployeeCatalogs().catch(() => ({ dependencias: [] }))
+      API.getEmployeeCatalogs().catch(() => ({ dependencias: [] })),
+      API.getHorariosStats().catch(() => ({}))
     ]);
 
     const emp = stats.empleados || {};
@@ -1038,12 +1039,12 @@ const DashboardPDF = (() => {
     const viat = viatStats || {};
     const sst = sstStats || {};
 
-    const activosEmp = parseInt(emp.activos) || 624;
-    const vacantesEmp = parseInt(emp.vacantes) || 43;
-    const inactivosEmp = parseInt(emp.inactivos) || 3;
-    const totalCargosPlanta = activosEmp + vacantesEmp; // 667 cargos autorizados
-    const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
-    const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '6.4';
+    const activosEmp = parseInt(emp.activos) || 0;
+    const vacantesEmp = parseInt(emp.vacantes) || 0;
+    const inactivosEmp = parseInt(emp.inactivos) || 0;
+    const totalCargosPlanta = activosEmp + vacantesEmp;
+    const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
+    const pctVacancia = totalCargosPlanta > 0 ? ((vacantesEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
 
     const numDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias)
       || (catalogs.dependencias ? catalogs.dependencias.length : 0)
@@ -1172,7 +1173,7 @@ const DashboardPDF = (() => {
       ['Gestión de Vacaciones', String(vac.total || 0), String(vac.aprobadas || 0), String(vac.pendientes || 0), 'Dirección de Talento Humano'],
       ['Solicitudes Administrativas (Permisos / Lic.)', String(totalAdmin), String(solAdm.aprobadas || totalAdmin), '0', 'Secretaría General'],
       ['Comisiones y Liquidación de Viáticos', String(viat.total || 0), String(viat.aprobadas || 0), String(viat.pendientes || 0), 'Control Presupuestal'],
-      ['Control de Horarios y Teletrabajo', '2,318', '2,304', '14 prórrogas', 'Seguimiento Laboral']
+      ['Control de Horarios y Teletrabajo', String(hStats.total || 0), String(hStats.activas || 0), `${hStats.porVencer || 0} por vencer`, 'Seguimiento Laboral']
     ];
 
     doc.autoTable({
@@ -1202,8 +1203,8 @@ const DashboardPDF = (() => {
     curY += 4;
 
     const sstRows = [
-      ['Exámenes Médicos Ocupacionales (EMO)', `${sst.emoVigentes || 850} vigentes`, `${sst.emoAlertas || 0} alertas médicas`, 'Vigilancia Médica'],
-      ['Entrega y Dotación de EPP', `${sst.servidoresDotados || 420} servidores`, '100% de cobertura en áreas operativas', 'Dotado'],
+      ['Exámenes Médicos Ocupacionales (EMO)', `${sst.emoVigentes || 0} vigentes`, `${sst.emoAlertas || 0} alertas médicas`, 'Vigilancia Médica'],
+      ['Entrega y Dotación de EPP', `${sst.servidoresDotados || 0} servidores`, 'Cobertura en áreas operativas', 'Dotado'],
       ['Vigilancia Epidemiológica (PVE)', 'Ergonomía y Psicosocial', 'Talleres y valoraciones preventivas', 'Activo'],
       ['Perfil Sociodemográfico Departamental', `${activosEmp} servidores caracterizados`, '100% de la planta institucional activa', 'Consolidado']
     ];
