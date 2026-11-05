@@ -1825,7 +1825,8 @@ const DashboardModule = (() => {
       const totalAdmin = (stats.solicitudesAdmin?.permisos||0) + (stats.solicitudesAdmin?.incapacidades||0) + (stats.solicitudesAdmin?.licencias||0);
       const totalAprobadas = (stats.vacaciones?.aprobadas||0) + (chart.porEstado?.find(x=>x.estado==='Aprobada')?.cantidad||0);
 
-      grid.innerHTML = `
+      if (grid) {
+        grid.innerHTML = `
         <div class="stat-card db-glass-card">
           <div class="stat-top-stripe"></div>
           <div class="stat-icon stat-icon--blue">
@@ -1885,6 +1886,7 @@ const DashboardModule = (() => {
             <span class="stat-badge stat-badge--purple" title="${totalAprobadas} solicitudes gestionadas">✓ ${totalAprobadas} gestionadas</span>
           </div>
         </div>`;
+      }
 
       animateCount(document.getElementById('sv-emp'), stats.empleados?.activos || 0);
       animateCount(document.getElementById('sv-vac'), stats.vacaciones?.total || 0);
