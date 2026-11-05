@@ -43,6 +43,14 @@ async function main() {
         modulos: 'dashboard,employees,viaticos,horarios'
       },
       {
+        username: 'blanca.soler@boyaca.gov.co',
+        pass: '@Blanca123',
+        nombre: 'Blanca Soler',
+        rol: 'Usuario',
+        cargo: 'Gestión de Servidores Públicos',
+        modulos: 'dashboard,employees,viaticos,horarios'
+      },
+      {
         username: 'bergenet.gutierrez@boyaca.gov.co',
         pass: '@Bergenet123',
         nombre: 'Bergenet Gutiérrez',

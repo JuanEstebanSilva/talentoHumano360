@@ -70,7 +70,7 @@ function canEdit(user) {
   const mods  = (typeof user === 'object' && Array.isArray(user.modules)) ? user.modules : [];
   if (role.includes('administrador') || role.includes('coordinador') || uname === 'admin') return true;
   if (mods.includes('*') || mods.includes('all') || mods.includes('employees_write')) return true;
-  if (uname.includes('angela') || name.includes('angela')) return true;
+  if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca')) return true;
   return false;
 }
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }

@@ -1161,7 +1161,7 @@ const App = (() => {
 
   function isUserAdmin(user = {}) {
     const username = (user.username || '').toLowerCase();
-    return username === 'admin' || (user.role && user.role.toLowerCase() === 'administrador' && !username.includes('angela') && !username.includes('bergenet') && !username.includes('doris'));
+    return username === 'admin' || (user.role && user.role.toLowerCase() === 'administrador' && !username.includes('angela') && !username.includes('blanca') && !username.includes('bergenet') && !username.includes('doris'));
   }
 
   function applyNavigationPermissions(user = {}) {
@@ -1190,7 +1190,7 @@ const App = (() => {
       return String(user.jobTitle).trim();
     }
     const username = String(user.username || '').toLowerCase();
-    if (username.includes('angela')) return 'Gestión de Servidores Públicos';
+    if (username.includes('angela') || username.includes('blanca')) return 'Gestión de Servidores Públicos';
     if (username.includes('bergenet')) return 'Gestión de Viáticos';
     if (username.includes('doris')) return 'Gestión de Horarios y Modalidades';
     if (username === 'admin') return 'Administrador del Sistema';
@@ -1895,7 +1895,7 @@ const App = (() => {
       if (storedUser && typeof storedUser === 'object') {
         const u = (storedUser.username || '').toLowerCase();
         let changed = false;
-        if (u.includes('angela') || u.includes('bergenet') || u.includes('doris')) {
+        if (u.includes('angela') || u.includes('blanca') || u.includes('bergenet') || u.includes('doris')) {
           if (storedUser.role === 'Administrador' || storedUser.role === 'Administradora') {
             storedUser.role = 'Usuario';
             changed = true;

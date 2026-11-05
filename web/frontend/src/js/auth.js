@@ -70,6 +70,7 @@ const Auth = (() => {
     }
     // Todas las funcionarias tienen acceso de consulta a los 3 módulos misionales
     if (uname.includes('angela') || name.includes('angela') ||
+        uname.includes('blanca') || name.includes('blanca') ||
         uname.includes('bergenet') || name.includes('bergenet') ||
         uname.includes('doris') || name.includes('doris')) {
       return ['dashboard', 'employees', 'viaticos', 'horarios'];
@@ -120,8 +121,8 @@ const Auth = (() => {
     }
 
     // 3. Matriz Estricta de Permisos por Funcionario
-    // 3.1 Angela Ussa -> Únicamente Servidores Públicos
-    if (uname.includes('angela') || name.includes('angela')) {
+    // 3.1 Angela Ussa y Blanca Soler -> Únicamente Servidores Públicos
+    if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca')) {
       return targetMod === 'employees' || targetMod === 'servidores' || targetMod === 'servidores-publicos';
     }
 

@@ -103,6 +103,7 @@ Credenciales de administrador precargadas:
 |---|---|---|
 | `admin` o `admin@boyaca.gov.co` | `admin123` | Administrador General |
 | `angela.ussa` o `angela.ussa@boyaca.gov.co` | `@Angela123` | Directora de Talento Humano |
+| `blanca.soler` o `blanca.soler@boyaca.gov.co` | `@Blanca123` | Gestión de Servidores Públicos |
 
 ---
 

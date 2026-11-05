@@ -120,8 +120,8 @@ const DashboardModule = (() => {
     const name  = (user.name || '').toLowerCase();
     const modules = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : [];
 
-    // Angela Ussa -> Servidores Públicos
-    if (uname.includes('angela') || name.includes('angela') || (modules.includes('employees') && !modules.includes('*') && !modules.includes('viaticos') && !modules.includes('horarios'))) {
+    // Angela Ussa & Blanca Soler -> Servidores Públicos
+    if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca') || (modules.includes('employees') && !modules.includes('*') && !modules.includes('viaticos') && !modules.includes('horarios'))) {
       return 'employees';
     }
     // Bergenet Gutierrez -> Viáticos

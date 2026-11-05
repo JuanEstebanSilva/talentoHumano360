@@ -174,7 +174,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       allowedModules = user.modulos.split(',').map(m => m.trim().toLowerCase());
     } else {
       const uname = (user.username || '').toLowerCase();
-      if (uname.includes('angela')) allowedModules = ['dashboard', 'employees'];
+      if (uname.includes('angela') || uname.includes('blanca')) allowedModules = ['dashboard', 'employees'];
       else if (uname.includes('bergenet')) allowedModules = ['dashboard', 'viaticos'];
       else if (uname.includes('doris')) allowedModules = ['dashboard', 'horarios'];
       else if (uname === 'admin' || (user.rol && user.rol.toLowerCase().includes('admin'))) allowedModules = ['*'];
