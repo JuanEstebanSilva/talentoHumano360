@@ -1,37 +1,67 @@
 # Talento 360 — Plataforma de Gestión de Talento Humano
 
-Plataforma web institucional para la administración integral de servidores públicos de la **Gobernación de Boyacá**, solicitudes de vacaciones, trámites administrativos (permisos, incapacidades, licencias), comisiones de viáticos, modalidades de trabajo/horarios y gestión de **Seguridad y Salud en el Trabajo (SST)**. Desarrollada con arquitectura de microservicios en Node.js, base de datos relacional PostgreSQL y frontend SPA de alto rendimiento con diseño accesible (WCAG 2.1 AA).
+Plataforma web institucional para la administración integral del talento humano de la **Gobernación de Boyacá**. Diseñada para centralizar la gestión de servidores públicos, modalidades laborales flexibles, comisiones de viáticos, trámites administrativos, vacaciones y **Seguridad y Salud en el Trabajo (SST)**. 
+
+Desarrollada con arquitectura de microservicios en **Node.js**, base de datos relacional **PostgreSQL**, frontend SPA de alto rendimiento con interfaz moderna, diseño accesible (WCAG 2.1 AA) y motor institucional de generación de informes ejecutivos en PDF.
 
 ---
 
 ## 🏛️ Módulos de la Plataforma
 
-- **📊 Dashboard Integral:** Métricas ejecutivas, distribución por dependencias, alertas de solicitudes y exportación de reportes PDF/Excel.
-- **👥 Directorio de Servidores Públicos:** Hoja de vida digital, historial de vinculaciones, cargos homologados (Ley 785 de 2005), registro de discapacidades y motor inteligente de importación/exportación masiva en Excel (XLSX).
-- **🏖️ Gestión de Vacaciones:** Solicitud, cálculo automático de días hábiles y flujo de aprobación por talento humano.
-- **📋 Trámites Administrativos:** Permisos laborales, incapacidades médicas con soporte documental y licencias remuneradas/no remuneradas/maternidad.
-- **✈️ Comisiones y Viáticos:** Registro de resoluciones, anticipos, legalizaciones y tarifas departamentales.
-- **⏰ Horarios y Modalidades:** Control de esquemas laborales (Presencial, Teletrabajo, Trabajo en Casa y Horario Flexible).
-- **🦺 Seguridad y Salud en el Trabajo (SST):** Perfil epidemiológico y seguimiento a EMOs, matriz de entrega de Elementos de Protección Personal (EPP) y caracterización sociodemográfica de la planta.
+- **📊 Dashboard Integral y Analítico:**
+  - Paneles adaptados por rol operativo (`admin`, `employees`, `viaticos`, `horarios`).
+  - Métricas en tiempo real, distribución por secretarías/dependencias y control temporal.
+  - Generador de informes ejecutivos en **PDF de alta resolución** (formato institucional estandarizado en 2 páginas completas, gráficos vectoriales, cabecera limpia *Talento 360* y espacio amplio para firmas físicas o digitales).
+
+- **👥 Directorio de Servidores Públicos:**
+  - Hoja de vida digital y administración completa de la planta institucional (personal activo, plazas vacantes por proveer y registro histórico de servidores retirados con motivo de desvinculación).
+  - Flujo de reincorporación / revinculación a la planta.
+  - Homologación de cargos y niveles jerárquicos (Directivo, Asesor, Profesional, Técnico, Asistencial).
+  - Motor de importación masiva desde plantillas Excel (`.xlsx`) con validación de estructura y exportación de reportes.
+
+- **⏰ Horarios y Modalidades Laborales:**
+  - Registro, seguimiento y control de esquemas laborales concertados: **Teletrabajo**, **Trabajo en Casa** y **Horario Flexible**.
+  - Importación masiva por Excel con soporte para `Fecha inicio` y `Fecha terminación` (esquemas de vigencia definida o indefinida).
+  - Semáforo y alertas preventivas de vencimiento de resoluciones y acuerdos.
+
+- **✈️ Comisiones y Viáticos:**
+  - Radicación, liquidación y seguimiento de comisiones departamentales (123 municipios de Boyacá), nacionales y especiales.
+  - Parametrización de escalas tarifarias departamentales por año fiscal (2024, 2025, 2026, 2027), pernoctadas y transporte.
+  - Filtros dinámicos por vigencia/año y cargue masivo de históricos presupuestales.
+
+- **🏖️ Gestión de Vacaciones y Novedades:**
+  - Radicación de solicitudes de vacaciones ordinarias y compensadas.
+  - Cálculo automático de días hábiles descontando fines de semana y festivos de Colombia.
+  - Flujo de aprobación por talento humano y trazabilidad del estado.
+
+- **📋 Trámites y Solicitudes Administrativas:**
+  - Gestión de permisos laborales remunerados, licencias (maternidad, paternidad, luto, remuneradas y no remuneradas) e incapacidades médicas con soporte documental.
+
+- **🦺 Seguridad y Salud en el Trabajo (SST):**
+  - Vigilancia epidemiológica y seguimiento a Exámenes Médicos Ocupacionales (EMO).
+  - Matriz de entrega y dotación de Elementos de Protección Personal (EPP).
+  - Caracterización sociodemográfica de la planta institucional.
 
 ---
 
 ## 🏗️ Arquitectura y Microservicios
 
+El sistema opera bajo un entorno desacoplado orquestado mediante **Docker Compose**:
+
 | Servicio | Contenedor | Puerto Interno | Responsabilidad |
 |---|---|---|---|
-| **Frontend Gateway** | `talento360_frontend` | `80` | Servidor Nginx SPA y proxy inverso hacia los microservicios |
-| **Auth Service** | `talento360_auth` | `3001` | Autenticación, JWT, roles y permisos de acceso |
-| **Employees Service** | `talento360_employees` | `3002` | Servidores públicos, cargos, perfiles e importador masivo |
+| **Frontend Gateway** | `talento360_frontend` | `80` | Servidor Nginx SPA, enrutamiento estático y reverse proxy hacia APIs |
+| **Auth Service** | `talento360_auth` | `3001` | Autenticación JWT, control de sesiones, roles y permisos de acceso |
+| **Employees Service** | `talento360_employees` | `3002` | Servidores públicos, planta de cargos, retiros e importador Excel |
 | **Requests Service** | `talento360_requests` | `3003` | Solicitudes y aprobaciones de vacaciones |
-| **Admin Requests** | `talento360_admin_requests` | `3004` | Permisos, incapacidades y licencias |
-| **Viáticos Service** | `talento360_viaticos` | `3005` | Comisiones de servicio, viáticos y legalizaciones |
-| **Dashboard Service** | `talento360_dashboard` | `3006` | Agregación de KPIs y analítica institucional |
-| **Horarios Service** | `talento360_horarios` | `3007` | Modalidades de trabajo y franjas horarias |
-| **SST Service** | `talento360_sst` | `3008` | Perfil epidemiológico, EMO, EPP y sociodemográfico |
-| **PostgreSQL** | `talento360_db` | `5432` | Base de datos relacional (esquemas `01_` a `10_`) |
+| **Admin Requests** | `talento360_admin_requests` | `3004` | Permisos laborales, incapacidades médicas y licencias |
+| **Viáticos Service** | `talento360_viaticos` | `3005` | Comisiones de servicio, liquidación de tarifas y legalizaciones |
+| **Dashboard Service** | `talento360_dashboard` | `3006` | Agregación analítica de métricas y KPIs institucionales |
+| **Horarios Service** | `talento360_horarios` | `3007` | Modalidades laborales (teletrabajo, trabajo en casa, flexible) |
+| **SST Service** | `talento360_sst` | `3008` | Perfil epidemiológico, EMO, dotación EPP y sociodemográfico |
+| **PostgreSQL Database** | `talento360_db` | `5432` | Base de datos relacional con esquemas modulares (`01_` a `10_`) |
 
-> Para despliegues en la nube Serverless (Render / Netlify), el proyecto cuenta además con un **Backend Unificado / API Gateway** en `web/backend/server.js` y blueprint `render.yaml`. Consulta la [Guía de Despliegue en Netlify + Render](docs/DEPLOY_NETLIFY_RENDER.md).
+> **Nota para despliegues Serverless (Render / Netlify):** El proyecto incluye además una arquitectura unificada en `web/backend/server.js` y blueprint `render.yaml`. Consulta la guía en [`docs/DEPLOY_NETLIFY_RENDER.md`](docs/DEPLOY_NETLIFY_RENDER.md).
 
 ---
 
@@ -57,26 +87,34 @@ Plataforma web institucional para la administración integral de servidores púb
 
 ## 🎨 Identidad Institucional
 
-Las normas de colorimetría departamental y recursos gráficos oficiales se encuentran documentados en [`docs/branding/`](docs/branding/README.md).
+La interfaz y los reportes generados respetan la paleta oficial y los lineamientos gráficos de la Gobernación de Boyacá:
+- **Verde Boyacá Principal:** `#355833`
+- **Verde Oscuro:** `#1C331A`
+- **Amarillo Mostaza:** `#D1AD2A`
+- **Rojo Bandera:** `#C42B1C`
+- **Gris Pizarra / Neutro:** `#2D3748`
+
+Para más detalles, consulta la documentación en [`docs/branding/`](docs/branding/README.md).
 
 ---
 
-## 💻 Requisitos de Entorno Local
+## 💻 Requisitos del Entorno
 
 * **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (con Docker Compose v2+)
 * **[Git](https://git-scm.com/)**
+* **Navegador web moderno** (Google Chrome, Microsoft Edge, Mozilla Firefox o Safari)
 
 ---
 
-## 🚀 Ejecutar desde Cero
+## 🚀 Despliegue y Ejecución Local
 
-### 1. Clonar el repositorio y entrar a la carpeta de ejecución
+### 1. Clonar el repositorio y acceder a la carpeta de despliegue
 ```bash
-git clone https://github.com/juanSilvaE/talentoHumano360.git
+git clone https://github.com/JuanEstebanSilva/talentoHumano360.git
 cd talentoHumano360/web
 ```
 
-### 2. Configurar variables de entorno (Solo la primera vez)
+### 2. Configurar variables de entorno
 * **En Windows (PowerShell):**
   ```powershell
   Copy-Item .env.example .env
@@ -86,69 +124,55 @@ cd talentoHumano360/web
   cp .env.example .env
   ```
 
-### 3. Construir y levantar todos los contenedores
+### 3. Construir e iniciar los contenedores
 ```bash
 docker compose up --build -d
 ```
-> Este comando crea la red interna, inicializa PostgreSQL ejecutando automáticamente los esquemas SQL (`01_schema.sql` a `10_sst_module.sql`), compila los microservicios y levanta el servidor web Nginx en segundo plano.
+> Este comando inicializa la red interna, levanta la base de datos PostgreSQL cargando automáticamente todos los esquemas (`01_schema.sql` a `10_sst_module.sql`), compila los microservicios e inicia el servidor web Nginx.
 
-### 4. Abrir la aplicación
-Ingresa en tu navegador web a:
+### 4. Acceder al sistema
+Abre tu navegador e ingresa a:
 👉 **[http://localhost](http://localhost)**
 
-### 5. Iniciar sesión
-Credenciales de administrador precargadas:
+---
 
-| Usuario / Alias | Contraseña | Rol |
-|---|---|---|
-| `admin` o `admin@boyaca.gov.co` | `admin123` | Administrador General |
-| `angela.ussa` o `angela.ussa@boyaca.gov.co` | `@Angela123` | Directora de Talento Humano |
-| `blanca.soler` o `blanca.soler@boyaca.gov.co` | `@Blanca123` | Gestión de Servidores Públicos |
+## 🔑 Credenciales de Acceso
+
+La plataforma cuenta con usuarios precargados según su rol operativo:
+
+| Usuario / Correo | Contraseña | Perfil / Área de Gestión | Módulos Autorizados |
+|---|---|---|---|
+| `admin` / `admin@boyaca.gov.co` | `admin123` | **Administrador General** | Acceso total al sistema y configuraciones |
+| `angela.ussa` / `angela.ussa@boyaca.gov.co` | `@Angela123` | **Dirección de Talento Humano** | Servidores públicos, planta de personal y reportes |
+| `blanca.soler` / `blanca.soler@boyaca.gov.co` | `@Blanca123` | **Gestión de Servidores Públicos** | Servidores públicos, cargos y novedades de personal |
+| `doris.canon` / `doris.canon@boyaca.gov.co` | `@Doris123` | **Control de Horarios y Modalidades** | Teletrabajo, trabajo en casa, horarios flexibles |
+| `bergenet.gutierrez` / `bergenet.gutierrez@boyaca.gov.co` | `@Bergenet123` | **Gestión de Viáticos y Comisiones** | Resoluciones de viáticos, liquidación y destinos |
 
 ---
 
-## 🔄 Flujo de Trabajo tras Modificaciones
+## 🔄 Mantenimiento y Comandos Frecuentes
 
-### Cambios de Frontend (`.html`, `.css`, `.js`)
-La carpeta `frontend/src/` está montada directamente como volumen. **No es necesario reconstruir contenedores.**
-1. Guarda los cambios en tu editor.
-2. Recarga en el navegador con limpieza de caché forzada: **`Ctrl + F5`** (o **`Cmd + Shift + R`** en Mac).
-
-### Cambios en Microservicios (`services/`)
-* **Recompilar todos los servicios:**
-  ```bash
-  docker compose up --build -d
-  ```
-* **Recompilar un solo servicio (ejemplo: `sst-service` o `employees-service`):**
-  ```bash
-  docker compose up --build -d sst-service
-  ```
-
-### Cambios en Nginx (`frontend/nginx.conf`)
-```bash
-docker compose restart frontend
-```
-
-### Reiniciar la Base de Datos desde Cero
-> ⚠️ **Atención:** Este comando borrará los datos creados localmente y volverá a cargar las tablas y semillas originales.
-```bash
-docker compose down -v
-docker compose up --build -d
-```
-
----
-
-## 🛠️ Comandos Principales
-
-Todos estos comandos deben ejecutarse dentro de la carpeta `web/`:
+Todos los comandos deben ejecutarse dentro de la carpeta `web/`:
 
 | Acción | Comando |
 |---|---|
-| **Levantar todo en segundo plano** | `docker compose up -d` |
-| **Recompilar y levantar tras cambios** | `docker compose up --build -d` |
-| **Detener contenedores (manteniendo datos)** | `docker compose stop` |
+| **Levantar contenedores en segundo plano** | `docker compose up -d` |
+| **Recompilar y levantar tras cambios de código** | `docker compose up --build -d` |
+| **Recompilar un microservicio específico** | `docker compose up --build -d <nombre-servicio>` |
+| **Detener contenedores (preservando datos)** | `docker compose stop` |
 | **Reanudar contenedores detenidos** | `docker compose start` |
 | **Apagar y desmontar contenedores** | `docker compose down` |
-| **Ver estado de los servicios** | `docker compose ps` |
-| **Ver registros/logs en tiempo real** | `docker compose logs -f` |
-| **Ver logs de un servicio puntual** | `docker compose logs -f <nombre-servicio>` |
+| **Ver estado y salud de los contenedores** | `docker compose ps` |
+| **Monitorear logs en tiempo real** | `docker compose logs -f` |
+| **Monitorear logs de un microservicio puntual** | `docker compose logs -f <nombre-servicio>` |
+| **Reiniciar base de datos desde cero (recarga de datos)** | `docker compose down -v && docker compose up --build -d` |
+
+### Flujo de desarrollo en Frontend (`frontend/src/`)
+Los archivos del frontend se encuentran vinculados como volumen directo en el contenedor Nginx. Los cambios en archivos `.html`, `.css` y `.js` se reflejan de inmediato al recargar el navegador con limpieza de caché forzada (**`Ctrl + F5`** o **`Cmd + Shift + R`**).
+
+---
+
+## 📄 Licencia y Uso Institucional
+
+Desarrollado para la **Gobernación de Boyacá** — Subdirección de Talento Humano.  
+Todos los derechos reservados © 2026.
