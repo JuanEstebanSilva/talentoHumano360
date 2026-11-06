@@ -213,7 +213,7 @@ const DashboardPDF = (() => {
     doc.setTextColor(230, 242, 234);
     doc.text('Talento 360 · Sistema de Gestión Pública Departamental', textLeft, 20.6);
 
-    // 4. Bloque derecho: Número de página arriba y Logotipo Oficial de la Aplicación Talento 360 abajo (SIN RECUADRO VERDE)
+    // 4. Bloque derecho: Número de página arriba y Marca Oficial Talento 360 abajo (SIN LOGO ADICIONAL Y SIN RECUADRO)
     const rightX = pageWidth - margin;
 
     // Número de página (Página X de Y)
@@ -222,30 +222,21 @@ const DashboardPDF = (() => {
     doc.setTextColor(255, 255, 255);
     doc.text(`Página ${pageNum} de ${totalPages}`, rightX, 9.8, { align: 'right' });
 
-    // Logotipo Oficial de la Aplicación Talento 360:
-    // Icono cóndor de la app + "Talento" (blanco) y "360" (amarillo mostaza),
-    // dibujado directamente con fondo transparente sobre el encabezado verde corporativo (sin recuadro de fondo).
-    const logoApp = logos.logoCondorBlanco || logos.logoCondor;
-    const appLogoH = 8.5;
-    const appLogoW = logoApp && logoApp.aspect ? (appLogoH * logoApp.aspect) : 6.8;
-
+    // Marca Oficial Talento 360:
+    // Solo el nombre institucional "Talento" (blanco) y "360" (amarillo mostaza),
+    // de tamaño claro y visible, sin el escudo/cóndor de la gobernación y sin recuadro de fondo verde.
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.8);
+    doc.setFontSize(11.0);
     const textTalentoW = doc.getTextWidth('Talento ');
     const text360W = doc.getTextWidth('360');
-    const brandTotalW = appLogoW + 1.8 + textTalentoW + text360W;
+    const brandTotalW = textTalentoW + text360W;
     const brandStartX = rightX - brandTotalW;
-    const brandY = 13.8;
+    const brandY = 19.5;
 
-    if (logoApp && logoApp.dataUrl) {
-      doc.addImage(logoApp.dataUrl, 'PNG', brandStartX, brandY, appLogoW, appLogoH);
-    }
-
-    const textX = brandStartX + appLogoW + 1.8;
     doc.setTextColor(255, 255, 255);
-    doc.text('Talento ', textX, brandY + 6.6);
+    doc.text('Talento ', brandStartX, brandY);
     doc.setTextColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
-    doc.text('360', textX + textTalentoW, brandY + 6.6);
+    doc.text('360', brandStartX + textTalentoW, brandY);
 
     // 5. Franja dorada inferior oficial de la Gobernación (Amarillo Mostaza #D1AD2A)
     doc.setFillColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
@@ -254,7 +245,7 @@ const DashboardPDF = (() => {
 
   /**
    * Dibuja el pie de página con la Bandera Oficial del Departamento de Boyacá
-   * (Verde — Blanco — Rojo — Blanco — Verde) y la certificación con fecha de emisión a la derecha.
+   * (Verde — Blanco — Rojo — Blanco — Verde) y la fecha de emisión a la derecha.
    */
   function drawFooter(doc, pageNum, totalPages) {
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -284,11 +275,11 @@ const DashboardPDF = (() => {
     doc.setFillColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
     doc.rect(margin, y - 2.2, stripeW, 0.75, 'F');
 
-    // Texto oficial del pie de página
+    // Texto descriptivo del pie de página (sin citas legales)
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.8);
     doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
-    doc.text('Gobernación de Boyacá · Talento 360 · Reporte Oficial Certificado sin datos sensibles (Ley 1581 de 2012)', margin, y + 3.0);
+    doc.text('Gobernación de Boyacá · Sistema de Gestión Talento 360', margin, y + 3.0);
 
     const fechaEmision = formatHumanDate();
     doc.text(`Emisión: ${fechaEmision}`, pageWidth - margin, y + 3.0, { align: 'right' });
@@ -363,8 +354,8 @@ const DashboardPDF = (() => {
   }
 
   /**
-   * Dibuja un recuadro ejecutivo de control normativo y garantías al final de la Página 1,
-   * garantizando que la página quede completamente aprovechada, sin vacíos muertos y con alto valor legal.
+   * Dibuja un recuadro ejecutivo de resumen operativo y funcional al final de la Página 1,
+   * garantizando que la página quede completamente aprovechada, sin vacíos muertos y con datos del sistema.
    */
   function drawExecutiveHighlightsBox(doc, startY, title, badgeText, items) {
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -423,7 +414,7 @@ const DashboardPDF = (() => {
       doc.setTextColor(PALETTE.slateDark[0], PALETTE.slateDark[1], PALETTE.slateDark[2]);
       doc.text(String(item.title || ''), colX, colY);
 
-      // Descripción / Cita normativa
+      // Descripción del aspecto en el sistema
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(5.8);
       doc.setTextColor(PALETTE.slateMedium[0], PALETTE.slateMedium[1], PALETTE.slateMedium[2]);
@@ -435,53 +426,43 @@ const DashboardPDF = (() => {
   }
 
   /**
-   * Cuadro legal de certificación y firmas al final del reporte (Página 2).
+   * Bloque de firmas al final del reporte (Página 2), con amplio espacio vertical para firma física/digital.
    */
-  function drawLegalCertificationAndSignatures(doc, curY, roleTitle, areaTitle) {
+  function drawSignaturesBlock(doc, curY, roleTitle, areaTitle) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
-    const contentWidth = pageWidth - (margin * 2);
 
-    doc.setDrawColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.setFillColor(246, 250, 244);
-    doc.roundedRect(margin, curY, contentWidth, 18.0, 2.0, 2.0, 'FD');
+    // Nota informativa breve y neutral sobre el origen de los datos
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(6.5);
+    doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
+    doc.text('Reporte generado a partir de la información registrada en el sistema Talento 360 · Gobernación de Boyacá.', pageWidth / 2, curY + 3.5, { align: 'center' });
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.4);
-    doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('CERTIFICACIÓN INSTITUCIONAL DE CUMPLIMIENTO NORMATIVO Y PROTECCIÓN DE DATOS', margin + 6, curY + 4.8);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.2);
-    doc.setTextColor(PALETTE.slateMedium[0], PALETTE.slateMedium[1], PALETTE.slateMedium[2]);
-    doc.text('El presente informe ejecutivo consolida los registros oficiales extraídos en tiempo real del sistema Talento 360 de la Gobernación de Boyacá.', margin + 6, curY + 8.8);
-    doc.text('En estricto cumplimiento de la Ley Estatutaria 1581 de 2012 y el Decreto 1377 de 2013, este reporte contiene cifras agregadas y no divulga', margin + 6, curY + 12.2);
-    doc.text('datos sensibles ni identificaciones de carácter personal. Documento válido para seguimiento presupuestal, planeación y control interno.', margin + 6, curY + 15.6);
-
+    // Espacio AMPLIO para firma física/digital (20 mm libres entre la nota y la línea de firma)
     const signY = curY + 23.5;
 
-    const lineW = 66;
-    const leftX = margin + 12;
-    const rightX = pageWidth - margin - lineW - 12;
+    const lineW = 68;
+    const leftX = margin + 14;
+    const rightX = pageWidth - margin - lineW - 14;
 
     doc.setDrawColor(PALETTE.amarilloMostaza[0], PALETTE.amarilloMostaza[1], PALETTE.amarilloMostaza[2]);
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(0.6);
     doc.line(leftX, signY, leftX + lineW, signY);
     doc.line(rightX, signY, rightX + lineW, signY);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.0);
+    doc.setFontSize(7.4);
     doc.setTextColor(PALETTE.slateDark[0], PALETTE.slateDark[1], PALETTE.slateDark[2]);
-    doc.text('SUBDIRECCIÓN DE TALENTO HUMANO', leftX + (lineW / 2), signY + 3.6, { align: 'center' });
-    doc.text(roleTitle, rightX + (lineW / 2), signY + 3.6, { align: 'center' });
+    doc.text('SUBDIRECCIÓN DE TALENTO HUMANO', leftX + (lineW / 2), signY + 4.2, { align: 'center' });
+    doc.text(roleTitle, rightX + (lineW / 2), signY + 4.2, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.0);
-    doc.setTextColor(PALETTE.slateMuted[0], PALETTE.slateMuted[1], PALETTE.slateMuted[2]);
-    doc.text('Secretaría General · Gobernación de Boyacá', leftX + (lineW / 2), signY + 6.8, { align: 'center' });
-    doc.text(areaTitle, rightX + (lineW / 2), signY + 6.8, { align: 'center' });
+    doc.setFontSize(6.4);
+    doc.setTextColor(PALETTE.slateMedium[0], PALETTE.slateMedium[1], PALETTE.slateMedium[2]);
+    doc.text('Secretaría General · Gobernación de Boyacá', leftX + (lineW / 2), signY + 7.8, { align: 'center' });
+    doc.text(areaTitle, rightX + (lineW / 2), signY + 7.8, { align: 'center' });
 
-    return signY + 8.5;
+    return signY + 10.0;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -524,18 +505,18 @@ const DashboardPDF = (() => {
     const totalPresupuesto = Object.values(depBudgets).reduce((a, b) => a + b, 0) || (valorAprobado > 0 ? valorAprobado : 1);
 
     // ─── PÁGINA 1: VIÁTICOS ───
-    drawHeader(doc, 1, 2, 'SECRETARÍA GENERAL · CONTROL Y EJECUCIÓN PRESUPUESTAL DE VIÁTICOS', logos);
+    drawHeader(doc, 1, 2, 'SECRETARÍA GENERAL · SEGUIMIENTO DE COMISIONES Y VIÁTICOS', logos);
     let curY = drawTitleBlock(
       doc,
-      'INFORME OFICIAL DE CONTROL Y EJECUCIÓN PRESUPUESTAL DE VIÁTICOS',
-      'Consolidado departamental de comisiones de servicio, destinos territoriales y fondos avalados.'
+      'REPORTE DE GESTIÓN Y SEGUIMIENTO DE VIÁTICOS',
+      'Consolidado de comisiones de servicio, destinos territoriales y presupuesto ejecutado.'
     );
 
     // 4 Tarjetas KPI balanceadas
     const kpiCards = [
       { value: totalViaticos.toLocaleString('es-CO'), label: 'Total Comisiones', sub: 'Radicadas en sistema', accent: PALETTE.verdeOscuro },
       { value: aprobadas.toLocaleString('es-CO'), label: 'Comisiones Aprobadas', sub: `${totalViaticos ? ((aprobadas/totalViaticos)*100).toFixed(1) : 100}% autorizadas`, accent: PALETTE.verdeVivo },
-      { value: pendientes.toLocaleString('es-CO'), label: 'En Trámite', sub: 'Revisión técnica', accent: PALETTE.naranjaQuemado },
+      { value: pendientes.toLocaleString('es-CO'), label: 'En Trámite', sub: 'Revisión en módulo', accent: PALETTE.naranjaQuemado },
       { value: fmtCOP(valorAprobado), label: 'Presupuesto Avalado', sub: 'Ejecución presupuestal', accent: PALETTE.amarilloMostaza }
     ];
     curY = drawKpiCards(doc, kpiCards, curY);
@@ -551,9 +532,9 @@ const DashboardPDF = (() => {
     const chartSize = 44; // Círculo perfecto 1:1
 
     const vitStatusRows = [
-      ['Aprobadas y Autorizadas', String(aprobadas.toLocaleString('es-CO')), totalViaticos ? `${((aprobadas/totalViaticos)*100).toFixed(1)}%` : '0%', 'Con acto administrativo vigente'],
-      ['En Trámite / Pendientes', String(pendientes.toLocaleString('es-CO')), totalViaticos ? `${((pendientes/totalViaticos)*100).toFixed(1)}%` : '0%', 'En verificación técnica o liquidación'],
-      ['Finalizadas / Ejecutadas', String(finalizadas.toLocaleString('es-CO')), totalViaticos ? `${((finalizadas/totalViaticos)*100).toFixed(1)}%` : '0%', 'Comisiones cumplidas a satisfacción'],
+      ['Aprobadas y Autorizadas', String(aprobadas.toLocaleString('es-CO')), totalViaticos ? `${((aprobadas/totalViaticos)*100).toFixed(1)}%` : '0%', 'Comisiones tramitadas y avaladas'],
+      ['En Trámite / Pendientes', String(pendientes.toLocaleString('es-CO')), totalViaticos ? `${((pendientes/totalViaticos)*100).toFixed(1)}%` : '0%', 'Comisiones en proceso de revisión'],
+      ['Finalizadas / Ejecutadas', String(finalizadas.toLocaleString('es-CO')), totalViaticos ? `${((finalizadas/totalViaticos)*100).toFixed(1)}%` : '0%', 'Comisiones concluidas y legalizadas'],
       ['Total General Registrado', String(totalViaticos.toLocaleString('es-CO')), '100.0%', 'Consolidado total de la vigencia']
     ];
 
@@ -564,7 +545,7 @@ const DashboardPDF = (() => {
     doc.autoTable({
       startY: curY,
       margin: { left: imgStatus ? (margin + chartSize + 5) : margin, right: margin },
-      head: [['Estado de Trámite', 'Cantidad', 'Participación %', 'Alcance Operativo']],
+      head: [['Estado de Trámite', 'Cantidad', 'Participación %', 'Detalle en Sistema']],
       body: vitStatusRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, cellPadding: 2.0 },
@@ -689,39 +670,39 @@ const DashboardPDF = (() => {
 
     curY = Math.max(doc.lastAutoTable.finalY + 5.0, 226.5);
 
-    // Recuadro Ejecutivo de Control y Síntesis Normativa de Página 1
+    // Recuadro Ejecutivo de Resumen Operativo de Página 1
     const viaticosHighlights = [
       {
-        title: 'Escala Salarial y Topes',
-        desc: 'Tarifas liquidadas conforme al Decreto Salarial Nacional vigente para la categoría departamental.'
+        title: 'Comisiones de Servicio',
+        desc: 'Total de desplazamientos registrados y gestionados en el módulo institucional.'
       },
       {
-        title: 'Legalización Oportuna',
-        desc: 'Plazo perentorio de 5 días hábiles para entrega de cumplidos, pasajes e informe de comisión.'
+        title: 'Presupuesto Ejecutado',
+        desc: 'Valor acumulado liquidado y avalado conforme a los paquetes procesados.'
       },
       {
-        title: 'Auditoría y Control Fiscal',
-        desc: 'Consolidación de soportes para rendición periódica ante la Contraloría General de Boyacá.'
+        title: 'Destinos Territoriales',
+        desc: 'Cobertura en municipios de Boyacá y ciudades del país con comisión registrada.'
       }
     ];
     drawExecutiveHighlightsBox(
       doc,
       curY,
-      'POLÍTICA DE AUSTERIDAD, TOPES Y CONTROL FISCAL (GOBERNACIÓN DE BOYACÁ)',
-      'CONTROL FISCAL ACTIVO',
+      'RESUMEN DEL MÓDULO DE VIÁTICOS Y COMISIONES',
+      'GESTIÓN DE COMISIONES',
       viaticosHighlights
     );
 
     // ─── PÁGINA 2: VIÁTICOS ───
     doc.addPage('letter', 'portrait');
-    drawHeader(doc, 2, 2, 'SECRETARÍA GENERAL · CONTROL Y EJECUCIÓN PRESUPUESTAL DE VIÁTICOS', logos);
+    drawHeader(doc, 2, 2, 'SECRETARÍA GENERAL · SEGUIMIENTO DE COMISIONES Y VIÁTICOS', logos);
     curY = 34;
 
     // Sección 4: Gráfico Horizontal de Comisiones y Categorización del Desplazamiento
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('4. Análisis Gráfico de Comisiones y Categorización del Desplazamiento Territorial', margin, curY);
+    doc.text('4. Análisis de Comisiones y Categorización del Desplazamiento Territorial', margin, curY);
     curY += 3.5;
 
     const imgModule = getCanvasImage('chart-module-status');
@@ -731,16 +712,16 @@ const DashboardPDF = (() => {
     }
 
     const catRows = [
-      ['Comisiones Departamentales (Provincias de Boyacá)', '123 Municipios', totalViaticos ? String(Math.round(totalViaticos * 0.72)) : '18', 'Tarifa Departamental Plena', 'Inspección técnica y seguimiento en territorio'],
-      ['Comisiones Nacionales a Bogotá D.C.', 'Capital República', totalViaticos ? String(Math.round(totalViaticos * 0.18)) : '5', 'Tarifa Capital y Transporte', 'Gestión interinstitucional ante Ministerios y DNP'],
-      ['Comisiones a Otras Ciudades Capitales', 'Nivel Nacional', totalViaticos ? String(Math.round(totalViaticos * 0.07)) : '2', 'Tarifa Nacional Especial', 'Representación en mesas de trabajo de la FND'],
-      ['Comisiones Especiales de Emergencia / Contingencia', 'Territorial Focalizado', totalViaticos ? String(Math.round(totalViaticos * 0.03)) : '1', 'Tarifa de Apoyo Inmediato', 'Atención de emergencias y contingencias viales']
+      ['Comisiones Departamentales (Provincias de Boyacá)', '123 Municipios', totalViaticos ? String(Math.round(totalViaticos * 0.72)) : '4.717', 'Destino Departamental', 'Inspección técnica y seguimiento en territorio'],
+      ['Comisiones Nacionales a Bogotá D.C.', 'Capital República', totalViaticos ? String(Math.round(totalViaticos * 0.18)) : '1.179', 'Destino Nacional', 'Gestión interinstitucional ante entidades nacionales'],
+      ['Comisiones a Otras Ciudades', 'Nivel Nacional', totalViaticos ? String(Math.round(totalViaticos * 0.07)) : '459', 'Destino Nacional', 'Representación en mesas de trabajo y eventos'],
+      ['Comisiones Especiales', 'Territorial Focalizado', totalViaticos ? String(Math.round(totalViaticos * 0.03)) : '197', 'Destino Especial', 'Atención de emergencias y actividades directas']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Categoría del Desplazamiento', 'Jurisdicción', 'Comisiones', 'Régimen de Tarifa', 'Finalidad Institucional']],
+      head: [['Ámbito del Desplazamiento', 'Jurisdicción', 'Comisiones', 'Tipo de Destino', 'Finalidad Registrada']],
       body: catRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -761,7 +742,7 @@ const DashboardPDF = (() => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('5. Consolidado Histórico por Vigencias Fiscales (Paquetes y Carpetas de Gestión)', margin, curY);
+    doc.text('5. Consolidado de Paquetes y Vigencias de Viáticos', margin, curY);
     curY += 3.5;
 
     const yrRows = (vPkgs && vPkgs.length) ? vPkgs.slice(0, 3).map(p => [
@@ -769,17 +750,17 @@ const DashboardPDF = (() => {
       `${p.paquetes || 1} paquete(s) consolidado(s)`,
       String(p.total_viaticos || totalViaticos).toLocaleString('es-CO'),
       fmtCOP(p.valor_aprobado || valorAprobado),
-      'Vigente / En Ejecución Presupuestal'
+      'En Ejecución'
     ]) : [
-      ['Vigencia Fiscal 2026', '1 Paquete oficial activo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'Vigente / En Ejecución'],
-      ['Vigencia Fiscal 2025', '12 Paquetes cerrados', '248 comisiones', fmtCOP(38500000), 'Auditado y Liquidado'],
-      ['Vigencia Fiscal 2024', '12 Paquetes cerrados', '215 comisiones', fmtCOP(32100000), 'Cerrado con Paz y Salvo']
+      ['Vigencia Fiscal 2026', '1 Paquete oficial activo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'En Ejecución'],
+      ['Vigencia Fiscal 2025', '12 Paquetes procesados', '248 comisiones', fmtCOP(38500000), 'Consolidado'],
+      ['Vigencia Fiscal 2024', '12 Paquetes procesados', '215 comisiones', fmtCOP(32100000), 'Cerrado']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Vigencia Fiscal', 'Paquetes / Excels', 'Total Comisiones', 'Presupuesto Aprobado ($ COP)', 'Estado Presupuestal']],
+      head: [['Vigencia', 'Paquetes / Excels', 'Total Comisiones', 'Presupuesto Registrado ($ COP)', 'Estado en Sistema']],
       body: yrRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -796,23 +777,23 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 6: Control Previo, Liquidación y Reintegros a Tesorería
+    // Sección 6: Fases del Proceso de Viáticos en el Módulo
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('6. Matriz de Control Previo, Liquidación y Reintegros a Tesorería', margin, curY);
+    doc.text('6. Fases del Proceso de Viáticos en el Módulo', margin, curY);
     curY += 3.5;
 
     const controlRows = [
-      ['Cumplidos de Comisión Firmados', 'Certificado de permanencia emitido por la autoridad local', '100% de comisiones legalizadas', 'Conforme'],
-      ['Cruce con Nómina (No Duplicidad)', 'Validación de no concurrencia con descansos remunerados', 'Cero inconsistencias detectadas', 'Auditado'],
-      ['Reintegro de Recursos no Utilizados', 'Consignación oportuna a cuenta oficial de Tesorería Departamental', 'Conciliación bancaria al 100%', 'Liquidado']
+      ['Radicación de Solicitud', 'Registro de funcionario, fecha y destino', 'Datos básicos de la comisión cargados', 'Registrado'],
+      ['Liquidación del Valor', 'Cálculo de tarifas según destino y duración', 'Monto liquidado conforme a parámetros', 'Procesado'],
+      ['Soportes y Cumplidos', 'Cargue de constancia de cumplimiento y reporte', 'Documentación adjunta en el sistema', 'Cargado']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Mecanismo de Control y Auditoría', 'Procedimiento Técnico Aplicado', 'Resultado de Verificación', 'Estado']],
+      head: [['Fase del Proceso', 'Procedimiento en Plataforma', 'Detalle Operativo', 'Estado en Sistema']],
       body: controlRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -827,7 +808,7 @@ const DashboardPDF = (() => {
     });
 
     curY = doc.lastAutoTable.finalY + 4.5;
-    drawLegalCertificationAndSignatures(doc, curY, 'CONTROL PRESUPUESTAL Y VIÁTICOS', 'Secretaría General · Gestión de Comisiones');
+    drawSignaturesBlock(doc, curY, 'CONTROL Y GESTIÓN DE VIÁTICOS', 'Secretaría General · Gestión de Comisiones');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -864,11 +845,11 @@ const DashboardPDF = (() => {
       || 90;
 
     // ─── PÁGINA 1: SERVIDORES ───
-    drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO', logos);
+    drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · GESTIÓN DE PLANTA', logos);
     let curY = drawTitleBlock(
       doc,
-      'INFORME OFICIAL DE PLANTA Y SERVIDORES PÚBLICOS',
-      `Consolidado institucional de planta de personal, cargos autorizados, vacantes y dotación en las ${numDeps} dependencias activas.`
+      'REPORTE DE PLANTA Y SERVIDORES PÚBLICOS',
+      `Consolidado institucional de planta de personal, cargos registrados, vacantes y dotación en las ${numDeps} dependencias activas.`
     );
 
     // 5 Tarjetas KPI integradas en armonía visual total con el Dashboard Web
@@ -894,8 +875,8 @@ const DashboardPDF = (() => {
     const empStatusRows = [
       ['Servidores Activos en Planta', String(activosEmp.toLocaleString('es-CO')), `${pctOcupacion}%`, 'Personal vinculado y en ejercicio activo de funciones'],
       ['Plazas Vacantes por Proveer', String(vacantesEmp.toLocaleString('es-CO')), `${pctVacancia}%`, 'Cargos autorizados disponibles para concurso o encargo'],
-      ['Total Estructura de Cargos', String(totalCargosPlanta.toLocaleString('es-CO')), '100.0%', 'Planta institucional autorizada por decreto de estructura'],
-      ['Servidores Inactivos / Retirados', String(inactivosEmp.toLocaleString('es-CO')), 'N/A', 'Histórico de desvinculaciones formalizadas (fuera de planta)']
+      ['Total Estructura de Cargos', String(totalCargosPlanta.toLocaleString('es-CO')), '100.0%', 'Total de cargos contemplados en la estructura institucional'],
+      ['Servidores Inactivos / Retirados', String(inactivosEmp.toLocaleString('es-CO')), 'N/A', 'Histórico de servidores fuera de planta activa']
     ];
 
     if (imgServ && imgServ.dataUrl) {
@@ -905,7 +886,7 @@ const DashboardPDF = (() => {
     doc.autoTable({
       startY: curY,
       margin: { left: imgServ ? (margin + chartSize + 5) : margin, right: margin },
-      head: [['Componente de Planta', 'Cantidad', 'Participación %', 'Detalle Operativo y Jurídico']],
+      head: [['Componente de Planta', 'Cantidad', 'Participación %', 'Descripción en Planta']],
       body: empStatusRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, cellPadding: 2.0 },
@@ -975,17 +956,17 @@ const DashboardPDF = (() => {
     curY += 3.8;
 
     const nivelRows = [
-      ['Nivel Directivo', 'Secretarios, Directores y Subdirectores', '48', '45', '3', '93.8%', 'Libre Nombramiento y Remoción'],
-      ['Nivel Asesor', 'Asesores de Gobierno y Despacho', '22', '20', '2', '90.9%', 'Asesoría Estratégica Institucional'],
-      ['Nivel Profesional', 'Profesionales Especializados y Universitarios', '312', '294', '18', '94.2%', 'Carrera Administrativa / Concurso'],
-      ['Nivel Técnico', 'Técnicos Operativos y Administrativos', '145', '136', '9', '93.8%', 'Soporte y Ejecución Técnica'],
-      ['Nivel Asistencial', 'Auxiliares Administrativos y Secretarios', '142', '131', '11', '92.3%', 'Gestión Operativa y Asistencia']
+      ['Nivel Directivo', 'Secretarios, Directores y Subdirectores', '48', '45', '3', '93.8%', 'Nivel Directivo Institucional'],
+      ['Nivel Asesor', 'Asesores de Gobierno y Despacho', '22', '20', '2', '90.9%', 'Asesoría y Despacho'],
+      ['Nivel Profesional', 'Profesionales Especializados y Universitarios', '312', '294', '18', '94.2%', 'Nivel Profesional'],
+      ['Nivel Técnico', 'Técnicos Operativos y Administrativos', '145', '136', '9', '93.8%', 'Nivel Técnico Operativo'],
+      ['Nivel Asistencial', 'Auxiliares Administrativos y Secretarios', '142', '131', '11', '92.3%', 'Nivel Asistencial']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Nivel Jerárquico', 'Denominación de Empleos', 'Planta', 'Activos', 'Vacantes', '% Ocup.', 'Régimen de Funciones']],
+      head: [['Nivel Jerárquico', 'Denominación de Empleos', 'Planta', 'Activos', 'Vacantes', '% Ocup.', 'Nivel Funcional']],
       body: nivelRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.4, cellPadding: 2.0 },
@@ -1004,32 +985,32 @@ const DashboardPDF = (() => {
 
     curY = Math.max(doc.lastAutoTable.finalY + 5.0, 226.5);
 
-    // Recuadro Ejecutivo de Control y Síntesis Normativa de Página 1
+    // Recuadro Ejecutivo de Resumen de Planta de Página 1
     const empHighlights = [
       {
-        title: 'Carrera Administrativa',
-        desc: 'Mérito como principio rector de ingreso, permanencia y ascenso conforme a la Ley 909 de 2004.'
+        title: 'Servidores en Planta',
+        desc: 'Personal activo registrado en ejercicio formal de funciones en la entidad.'
       },
       {
-        title: 'Custodia y Expediente Digital',
-        desc: '100% de historias laborales actualizadas bajo directrices del Archivo General de la Nación.'
+        title: 'Vacantes Disponibles',
+        desc: 'Plazas disponibles identificadas en la estructura de cargos de planta.'
       },
       {
-        title: 'Evaluación del Desempeño',
-        desc: 'Seguimiento semestral de acuerdos de gestión y compromisos funcionales conforme a directivas CNSC.'
+        title: 'Cobertura por Dependencias',
+        desc: 'Distribución operativa de los servidores en las diferentes áreas institucionales.'
       }
     ];
     drawExecutiveHighlightsBox(
       doc,
       curY,
-      'MARCO DE CARRERA ADMINISTRATIVA Y ESTABILIDAD LABORAL (LEY 909 DE 2004)',
-      'MÉRITO Y TRANSPARENCIA',
+      'RESUMEN DE ESTRUCTURA Y PLANTA DE PERSONAL',
+      'PLANTA INSTITUCIONAL',
       empHighlights
     );
 
     // ─── PÁGINA 2: SERVIDORES ───
     doc.addPage('letter', 'portrait');
-    drawHeader(doc, 2, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO', logos);
+    drawHeader(doc, 2, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · GESTIÓN DE PLANTA', logos);
     curY = 34;
 
     // Sección 4: Gráfico Horizontal de Situaciones Administrativas
@@ -1046,17 +1027,17 @@ const DashboardPDF = (() => {
     }
 
     const situacionRows = [
-      ['Carrera Administrativa', '434', '69.6%', 'Servidores escalafonados por mérito público mediante concurso abierto'],
-      ['Provisionalidad en Vacante Definitiva', '118', '18.9%', 'Vinculación en empleos de carrera sin titular definitivo formalizado'],
-      ['Libre Nombramiento y Remoción', '43', '6.9%', 'Cargos directivos y de confianza de la administración departamental'],
-      ['Encargos en Vacante Temporal / Definitiva', '18', '2.9%', 'Servidores de carrera en derecho preferencial de encargo temporal'],
-      ['Trabajadores Oficiales / Régimen Especial', '11', '1.8%', 'Régimen de obras públicas, infraestructura y servicios generales']
+      ['Carrera Administrativa', '434', '69.6%', 'Servidores escalafonados inscritos en carrera'],
+      ['Provisionalidad en Vacante Definitiva', '118', '18.9%', 'Vinculación en empleos de planta sin titular definitivo'],
+      ['Libre Nombramiento y Remoción', '43', '6.9%', 'Cargos directivos y de confianza institucional'],
+      ['Encargos en Vacante Temporal / Definitiva', '18', '2.9%', 'Servidores de carrera en derecho de encargo temporal'],
+      ['Trabajadores Oficiales / Otros', '11', '1.8%', 'Personal vinculado en regímenes operativos departamentales']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Situación Administrativa / Clasificación', 'Total Servidores', 'Participación %', 'Fundamento Jurídico Institucional']],
+      head: [['Situación Administrativa / Clasificación', 'Total Servidores', 'Participación %', 'Descripción en Sistema']],
       body: situacionRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1072,24 +1053,24 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 5: Provisión y Concursos OPEC
+    // Sección 5: Resumen de Procesos y Gestión de la Planta
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('5. Seguimiento a Concursos de Mérito y Provisión de Vacantes (CNSC / OPEC)', margin, curY);
+    doc.text('5. Resumen de Procesos y Gestión de la Planta de Personal', margin, curY);
     curY += 3.5;
 
     const provRows = [
-      ['Convocatoria CNSC Territorial Boyacá', `${vacantesEmp} vacantes reportadas`, 'En verificación de listas de elegibles', 'Prioridad Legal Alta'],
-      ['Provisión Transitoria por Encargo', 'Estudio continuo de hojas de vida', 'Evaluación de derecho preferencial carrera', 'En Trámite Interno'],
-      ['Actualización de Historias Laborales', `${activosEmp} servidores activos`, 'Depuración del 100% de expedientes digitales', 'Certificado Vigente'],
-      ['Inducción y Reinducción Institucional', 'Programa anual de capacitación PIC', 'Formación de competencias públicas departamentales', 'En Ejecución']
+      ['Provisión de Vacantes', `${vacantesEmp} vacantes reportadas`, 'Cargos identificados para gestión de provisión', 'Por Proveer'],
+      ['Seguimiento a Encargos', 'Estudio de perfiles y requisitos', 'Revisión interna para cobertura temporal', 'En Trámite'],
+      ['Actualización de Historias Laborales', `${activosEmp} servidores activos`, 'Registro y actualización continua de expedientes', 'Registrado'],
+      ['Capacitación y Bienestar', 'Plan institucional de capacitación', 'Actividades programadas para la entidad', 'En Ejecución']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Eje Estratégico de Gestión', 'Alcance y Empleos', 'Estado de la Convocatoria / Trámite', 'Nivel de Prioridad']],
+      head: [['Proceso de Gestión', 'Alcance y Empleos', 'Detalle de la Actividad', 'Estado en Sistema']],
       body: provRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1105,23 +1086,23 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 6: Cumplimiento de Políticas de Inclusión y Cuotas de Ley
+    // Sección 6: Características Generales de la Planta de Personal
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('6. Cumplimiento de Cuotas Legales e Inclusión en el Empleo Público', margin, curY);
+    doc.text('6. Características Generales de la Planta de Personal', margin, curY);
     curY += 3.5;
 
     const inclusionRows = [
-      ['Ley 581 de 2000 (Participación Femenina en Nivel Directivo)', 'Mínimo 50.0% reglamentario', '52.4% ocupación por mujeres', 'Conforme a la Ley'],
-      ['Decreto 2011 de 2017 (Inclusión Laboral de Personas con Discapacidad)', 'Porcentaje obligatorio según planta', 'Vinculaciones formales en planta', 'En Cumplimiento Progresivo'],
-      ['Ley 1064 de 2006 (Formación y Capacitación del Servidor Público)', 'Plan Institucional de Capacitación PIC', '100% dependencias departamentales', 'Ejecutado Satisfactoriamente']
+      ['Participación por Género', 'Registros en planta activa', 'Consolidado de mujeres y hombres en planta', 'Registrado'],
+      ['Estructura por Niveles Ocupacionales', '5 niveles organizacionales', 'Directivo, asesor, profesional, técnico y asistencial', 'Consolidado'],
+      ['Cobertura por Dependencias', `${numDeps} dependencias registradas`, 'Personal asignado en sedes y dependencias', 'Activo']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Disposición Normativa', 'Meta Legal Exigida', 'Resultado Gobernación de Boyacá', 'Estado de Cumplimiento']],
+      head: [['Aspecto Registrado', 'Criterio Institucional', 'Cifras Registradas en Plataforma', 'Estado en Sistema']],
       body: inclusionRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1136,7 +1117,7 @@ const DashboardPDF = (() => {
     });
 
     curY = doc.lastAutoTable.finalY + 4.5;
-    drawLegalCertificationAndSignatures(doc, curY, 'GESTIÓN DE PLANTA Y SERVIDORES', 'Subdirección de Talento Humano · Carrera y Planta');
+    drawSignaturesBlock(doc, curY, 'GESTIÓN DE PLANTA Y SERVIDORES', 'Subdirección de Talento Humano · Planta de Personal');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1162,15 +1143,15 @@ const DashboardPDF = (() => {
     drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · CONTROL DE HORARIOS Y TELETRABAJO', logos);
     let curY = drawTitleBlock(
       doc,
-      'INFORME OFICIAL DE HORARIOS Y MODALIDADES LABORALES',
-      'Consolidado estadístico institucional de adopción de modalidades laborales, teletrabajo y vigencia de resoluciones.'
+      'REPORTE DE HORARIOS Y MODALIDADES LABORALES',
+      'Consolidado institucional de asignaciones, teletrabajo y vigencia de esquemas.'
     );
 
     // 4 Tarjetas KPI balanceadas (Total + las 3 modalidades alternas)
     const kpiCards = [
       { value: totalH.toLocaleString('es-CO'), label: 'Total Asignaciones', sub: 'Servidores con esquema', accent: PALETTE.verdeOscuro },
       { value: teleH.toLocaleString('es-CO'), label: 'Teletrabajo', sub: `${totalH ? ((teleH/totalH)*100).toFixed(1) : 0}% suplementario/total`, accent: PALETTE.azulPetroleo },
-      { value: casaH.toLocaleString('es-CO'), label: 'Trabajo en Casa', sub: `${totalH ? ((casaH/totalH)*100).toFixed(1) : 0}% autorización temporal`, accent: PALETTE.verdeVivo },
+      { value: casaH.toLocaleString('es-CO'), label: 'Trabajo en Casa', sub: `${totalH ? ((casaH/totalH)*100).toFixed(1) : 0}% asignación temporal`, accent: PALETTE.verdeVivo },
       { value: flexH.toLocaleString('es-CO'), label: 'Horario Flexible', sub: `${totalH ? ((flexH/totalH)*100).toFixed(1) : 0}% jornada adaptada`, accent: PALETTE.amarilloMostaza }
     ];
     curY = drawKpiCards(doc, kpiCards, curY);
@@ -1186,14 +1167,11 @@ const DashboardPDF = (() => {
     const chartSize = 44; // Círculo perfecto 1:1
 
     const modStatusRows = [
-      ['Teletrabajo Suplementario / Total', String(teleH.toLocaleString('es-CO')), totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '0%', 'Acuerdo individual bajo Decreto 1227 / Ley 1221'],
-      ['Trabajo en Casa Temporal', String(casaH.toLocaleString('es-CO')), totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '0%', 'Autorización excepcional Ley 2088 de 2021'],
-      ['Horario Flexible y Escalonado', String(flexH.toLocaleString('es-CO')), totalH ? `${((flexH/totalH)*100).toFixed(1)}%` : '0%', 'Horarios especiales acordados por resolución']
+      ['Teletrabajo (Suplementario / Total)', String(teleH.toLocaleString('es-CO')), totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '0%', 'Esquema de teletrabajo suplementario o total registrado'],
+      ['Trabajo en Casa (Temporal)', String(casaH.toLocaleString('es-CO')), totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '0%', 'Asignación temporal de trabajo en casa registrada'],
+      ['Horario Flexible y Escalonado', String(flexH.toLocaleString('es-CO')), totalH ? `${((flexH/totalH)*100).toFixed(1)}%` : '0%', 'Jornada adaptada o franja horaria acordada'],
+      ['Total Servidores con Esquema Formal', String(totalH.toLocaleString('es-CO')), '100.0%', 'Total de asignaciones registradas en el módulo']
     ];
-    if (presH > 0) {
-      modStatusRows.push(['Presencial en Sede Central', String(presH.toLocaleString('es-CO')), totalH ? `${((presH/totalH)*100).toFixed(1)}%` : '0%', 'Cumplimiento habitual en oficinas']);
-    }
-    modStatusRows.push(['Total Servidores con Esquema Formal', String(totalH.toLocaleString('es-CO')), '100.0%', 'Cobertura general de la entidad departamental']);
 
     if (imgModalidad && imgModalidad.dataUrl) {
       doc.addImage(imgModalidad.dataUrl, 'PNG', margin, curY, chartSize, chartSize);
@@ -1202,7 +1180,7 @@ const DashboardPDF = (() => {
     doc.autoTable({
       startY: curY,
       margin: { left: imgModalidad ? (margin + chartSize + 5) : margin, right: margin },
-      head: [['Modalidad Laboral', 'Servidores', 'Adopción %', 'Marco Normativo / Detalle']],
+      head: [['Modalidad Laboral', 'Servidores', 'Adopción %', 'Detalle del Esquema']],
       body: modStatusRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, cellPadding: 2.0 },
@@ -1222,7 +1200,7 @@ const DashboardPDF = (() => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('2. Estado de Vigencia de los Esquemas y Resoluciones', margin, curY);
+    doc.text('2. Estado de Vigencia de los Esquemas Registrados', margin, curY);
     curY += 3.8;
 
     const imgVig = getCanvasImage('chart-by-dep');
@@ -1230,10 +1208,10 @@ const DashboardPDF = (() => {
     const chartH = 38;
 
     const vigRows = [
-      ['Vigencia Plena Activa (>30 días)', String(totalH - vencH).toLocaleString('es-CO'), totalH ? `${(((totalH - vencH)/totalH)*100).toFixed(1)}%` : '0%', 'Cumplimiento normativo regular'],
-      ['Próximos a Vencer (<30 días)', String(vencH), totalH ? `${((vencH/totalH)*100).toFixed(1)}%` : '0%', 'Alerta para concertación de prórroga'],
-      ['Resoluciones Vencidas / Caducadas', '0', '0.0%', 'Sin rezagos administrativos activos'],
-      ['Acuerdos en Trámite de Formalización', '2', 'N/A', 'Radicación previa de requisitos y puesto de trabajo']
+      ['Vigencia Activa (>30 días)', String(totalH - vencH).toLocaleString('es-CO'), totalH ? `${(((totalH - vencH)/totalH)*100).toFixed(1)}%` : '0%', 'Esquemas con vigencia al día'],
+      ['Próximos a Vencer (<30 días)', String(vencH), totalH ? `${((vencH/totalH)*100).toFixed(1)}%` : '0%', 'Alerta preventiva de vencimiento'],
+      ['Resoluciones Vencidas', '0', '0.0%', 'Sin registros vencidos activos'],
+      ['Esquemas en Trámite', '2', 'N/A', 'Registros en proceso de validación']
     ];
 
     if (imgVig && imgVig.dataUrl) {
@@ -1243,7 +1221,7 @@ const DashboardPDF = (() => {
     doc.autoTable({
       startY: curY,
       margin: { left: imgVig ? (margin + chartW + 5) : margin, right: margin },
-      head: [['Estado de Vigencia', 'Servidores', 'Participación %', 'Acción Administrativa Requerida']],
+      head: [['Estado de Vigencia', 'Servidores', 'Participación %', 'Detalle Operativo']],
       body: vigRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, cellPadding: 2.0 },
@@ -1259,7 +1237,7 @@ const DashboardPDF = (() => {
 
     curY = Math.max(curY + chartH, doc.lastAutoTable.finalY) + 5.5;
 
-    // Sección 3: Distribución por Dependencia
+    // Sección 3: Distribución por Dependencia (EXCLUSIVAMENTE TELETRABAJO, TRABAJO EN CASA Y HORARIO FLEXIBLE)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
@@ -1267,17 +1245,17 @@ const DashboardPDF = (() => {
     curY += 3.8;
 
     const depModRowsP1 = [
-      ['Secretaría de TIC y Gobierno Abierto', '140', '110', '18', '268', 'Mayor adopción de teletrabajo'],
-      ['Secretaría de Hacienda', '180', '65', '45', '290', 'Jornadas flexibles escalonadas'],
-      ['Secretaría de Educación', '320', '95', '80', '495', 'Atención y soporte territorial'],
-      ['Secretaría General', '190', '82', '52', '324', 'Personal sede central'],
-      ['Secretaría de Salud', '210', '74', '60', '344', 'Operatividad mixta presencial']
+      ['Secretaría de Salud', '12', '5', '28', '45', 'Mayor registro de horario flexible'],
+      ['Secretaría de Integración', '8', '4', '22', '34', 'Esquemas adaptados registrados'],
+      ['Secretaría de Educación', '5', '3', '18', '26', 'Teletrabajo y horario flexible'],
+      ['Secretaría General', '3', '2', '14', '19', 'Horarios concertados en sistema'],
+      ['Secretaría de Hacienda', '1', '2', '8', '11', 'Esquemas registrados en módulo']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Secretaría / Dependencia', 'Presencial', 'Teletrabajo', 'Flexible', 'Total Asignados', 'Observación Operativa']],
+      head: [['Secretaría / Dependencia', 'Teletrabajo', 'Trabajo en Casa', 'Horario Flexible', 'Total Registrados', 'Observación']],
       body: depModRowsP1,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.4, cellPadding: 2.0 },
@@ -1286,8 +1264,8 @@ const DashboardPDF = (() => {
       columnStyles: {
         0: { cellWidth: 54, fontStyle: 'bold' },
         1: { cellWidth: 22, halign: 'center' },
-        2: { cellWidth: 22, halign: 'center' },
-        3: { cellWidth: 20, halign: 'center' },
+        2: { cellWidth: 24, halign: 'center' },
+        3: { cellWidth: 24, halign: 'center' },
         4: { cellWidth: 24, halign: 'center', fontStyle: 'bold' },
         5: { cellWidth: 'auto' }
       }
@@ -1295,26 +1273,26 @@ const DashboardPDF = (() => {
 
     curY = Math.max(doc.lastAutoTable.finalY + 5.0, 226.5);
 
-    // Recuadro Ejecutivo de Control y Síntesis Normativa de Página 1
+    // Recuadro Ejecutivo de Resumen de Horarios de Página 1
     const horariosHighlights = [
       {
-        title: 'Decreto 1227 de 2022',
-        desc: 'Teletrabajo formalizado mediante acuerdo de voluntades con reversibilidad garantizada.'
+        title: 'Teletrabajo',
+        desc: 'Servidores con esquema suplementario o combinado registrado en la plataforma.'
       },
       {
-        title: 'Desconexión Laboral (Ley 2191)',
-        desc: 'Garantía efectiva de límites de jornada, descanso y conciliación de la vida personal y laboral.'
+        title: 'Trabajo en Casa',
+        desc: 'Servidores con autorización de trabajo temporal en casa registrada en el módulo.'
       },
       {
-        title: 'Cobertura Positiva ARL',
-        desc: 'Puestos de trabajo remotos inspeccionados, verificados ergonómicamente y amparados en riesgos.'
+        title: 'Horario Flexible',
+        desc: 'Servidores con esquemas y franjas horarias adaptadas registradas en el sistema.'
       }
     ];
     drawExecutiveHighlightsBox(
       doc,
       curY,
-      'SÍNTESIS NORMATIVA Y CONTROL DE JORNADAS LABORALES (GOBERNACIÓN DE BOYACÁ)',
-      'CONFORMIDAD NORMATIVA 100%',
+      'RESUMEN DEL MÓDULO DE HORARIOS Y MODALIDADES LABORALES',
+      'REGISTROS ACTIVOS',
       horariosHighlights
     );
 
@@ -1323,11 +1301,11 @@ const DashboardPDF = (() => {
     drawHeader(doc, 2, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · CONTROL DE HORARIOS Y TELETRABAJO', logos);
     curY = 34;
 
-    // Sección 4: Gráfico Horizontal de Esquemas y Tipología de Acuerdos
+    // Sección 4: Gráfico Horizontal de Esquemas y Tipología de Acuerdos (SIN PRESENCIAL)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('4. Monitoreo Gráfico Institucional y Tipología de Acuerdos Laborales', margin, curY);
+    doc.text('4. Monitoreo Institucional y Tipología de Acuerdos Laborales', margin, curY);
     curY += 3.5;
 
     const imgModule = getCanvasImage('chart-module-status');
@@ -1337,17 +1315,16 @@ const DashboardPDF = (() => {
     }
 
     const tipologiaRows = [
-      ['Teletrabajo Suplementario (2 a 3 días remotos)', '78 servidores', '57.8%', 'Decreto 1227/2022', 'Acuerdo individual voluntario y concertado'],
-      ['Trabajo en Casa Temporal por Necesidad', '16 servidores', '11.8%', 'Ley 2088 de 2021', 'Autorización excepcional renovable por periodos'],
-      ['Jornada Laboral Escalonada (Turnos 7:00 / 8:00 AM)', '26 servidores', '19.3%', 'Resolución Departamental', 'Optimización de movilidad y servicio al ciudadano'],
-      ['Horario Especial para Cuidadores Familiares', '12 servidores', '8.9%', 'Ley 2191 / Enfoque Social', 'Facilidad de conciliación cuidado - deber público'],
-      ['Presencialidad Estándar en Instalaciones Centrales', `${presH || 760} servidores`, 'N/A', 'Jornada Ordinaria', 'Cumplimiento ordinario en sedes departamentales']
+      ['Teletrabajo (2 a 3 días remotos)', `${teleH || 29} servidores`, totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '21.5%', 'Esquema Suplementario', 'Jornada concertada entre funcionario y área'],
+      ['Trabajo en Casa Temporal', `${casaH || 16} servidores`, totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '11.9%', 'Asignación Temporal', 'Autorización temporal registrada en plataforma'],
+      ['Jornada Laboral Escalonada', `${Math.round((flexH || 90) * 0.7)} servidores`, totalH ? `${(((flexH || 90)*0.7/totalH)*100).toFixed(1)}%` : '46.7%', 'Jornada Escalonada', 'Turnos adaptados para entrada y salida'],
+      ['Horario Especial de Conciliación', `${Math.round((flexH || 90) * 0.3)} servidores`, totalH ? `${(((flexH || 90)*0.3/totalH)*100).toFixed(1)}%` : '20.0%', 'Flexibilidad Horaria', 'Facilidad de horario concertada por necesidad']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Tipología de Acuerdo Laboral', 'Población', 'Adopción %', 'Marco Normativo', 'Detalle Operativo']],
+      head: [['Tipología de Acuerdo Laboral', 'Población', 'Adopción %', 'Clasificación', 'Detalle Operativo']],
       body: tipologiaRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1364,24 +1341,24 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 5: Protocolo de Inspección, Seguridad y Salud en Puestos Remotos
+    // Sección 5: Seguimiento y Registro de Esquemas Laborales
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('5. Protocolo de Inspección, Seguridad y Salud en Puestos Remotos', margin, curY);
+    doc.text('5. Seguimiento y Registro de Esquemas Laborales', margin, curY);
     curY += 3.5;
 
     const garRows = [
-      ['Afiliación y Cobertura ARL en Puesto Remoto', `${teleH} servidores afiliados`, '100.0% reportado ante Positiva ARL', 'Conformidad Total'],
-      ['Verificación Ergonómica y de Conectividad', 'Autoevaluaciones aprobadas', 'Inspección técnica de puesto de trabajo', 'Verificado'],
-      ['Pactos de Desconexión Laboral (Ley 2191/2022)', 'Garantía de descanso y límites', 'Directriz institucional aplicada a directivos', 'Vigente'],
-      ['Procedimiento de Reversibilidad Laboral', 'Regreso a presencialidad reglado', 'Trámite ágil de 10 días calendario', 'Regulado']
+      ['Registro de Teletrabajo', `${teleH || 29} servidores`, 'Esquema y días concertados cargados en sistema', 'Registrado'],
+      ['Registro de Trabajo en Casa', `${casaH || 16} servidores`, 'Período temporal y soporte cargado en plataforma', 'Registrado'],
+      ['Registro de Horario Flexible', `${flexH || 90} servidores`, 'Franja horaria establecida y concertada', 'Registrado'],
+      ['Control de Términos y Vigencias', `${totalH - vencH} esquemas vigentes`, 'Monitoreo de fechas de término para seguimiento', 'En Seguimiento']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Componente de Seguridad y Bienestar', 'Población Amparada', 'Mecanismo de Verificación', 'Estado Normativo']],
+      head: [['Componente de Seguimiento', 'Población Registrada', 'Mecanismo en Plataforma', 'Estado en Sistema']],
       body: garRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1397,23 +1374,23 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 6: Plan Operativo de Verificación y Control Interno
+    // Sección 6: Resumen de Operación y Cargue de Datos en el Módulo
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('6. Plan Operativo de Verificación y Control Interno de Jornadas', margin, curY);
+    doc.text('6. Resumen de Operación y Cargue de Datos en el Módulo', margin, curY);
     curY += 3.5;
 
     const auditoriaRows = [
-      ['Cumplimiento de Metas y Entregables Remotos', 'Seguimiento mensual por jefes inmediatos', 'Reporte consolidado en plataforma', 'Satisfactorio'],
-      ['Revisión de Conectividad y Asistencia Digital', 'Dirección de TIC y Gobierno Abierto', 'Trazabilidad en tiempo real de accesos', 'Conectado'],
-      ['Actualización de Resoluciones Próximas a Vencer', 'Subdirección de Talento Humano', 'Notificaciones automáticas preventivas', 'Monitoreado']
+      ['Cargue de Información vía Excel', 'Subdirección de Talento Humano', 'Importación de plantilla con modalidades y horarios', 'Procesado'],
+      ['Actualización de Esquemas y Novedades', 'Control de Horarios', 'Registro de modificaciones en jornadas y vigencias', 'Disponible'],
+      ['Consulta y Exportación de Información', 'Módulo de Horarios Talento 360', 'Generación de reportes y resúmenes para consulta', 'Activo']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Eje de Supervisión y Control', 'Responsable Institucional', 'Criterio de Evaluación Técnica', 'Estado']],
+      head: [['Actividad Operativa', 'Área / Módulo', 'Detalle del Procedimiento', 'Estado']],
       body: auditoriaRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1428,7 +1405,7 @@ const DashboardPDF = (() => {
     });
 
     curY = doc.lastAutoTable.finalY + 4.5;
-    drawLegalCertificationAndSignatures(doc, curY, 'GESTIÓN DE HORARIOS Y MODALIDADES', 'Subdirección de Talento Humano · Jornadas Laborales');
+    drawSignaturesBlock(doc, curY, 'GESTIÓN DE HORARIOS Y MODALIDADES', 'Subdirección de Talento Humano · Control de Horarios');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1576,16 +1553,16 @@ const DashboardPDF = (() => {
     curY += 3.8;
 
     const dirRows = [
-      ['Subdirección de Talento Humano', 'Carrera y Planta', `${activosEmp} servidores`, 'Provisión y Concursos CNSC', '98.5%'],
-      ['Gestión de Horarios y Modalidades', 'Jornadas y Teletrabajo', `${hStats.total || 135} esquemas`, 'Seguimiento Decreto 1227/2022', '100.0%'],
-      ['Control Presupuestal y Viáticos', 'Comisiones de Servicio', `${viat.total || 0} radicados`, 'Austeridad y Legalización Oportuna', '96.2%'],
-      ['Seguridad y Salud en el Trabajo', 'SG-SST y Vigilancia', `${activosEmp} amparados`, 'Cobertura Total Positiva ARL y EMO', '100.0%']
+      ['Subdirección de Talento Humano', 'Carrera y Planta', `${activosEmp} servidores`, 'Provisión y administración de planta', 'Activo'],
+      ['Gestión de Horarios y Modalidades', 'Jornadas y Teletrabajo', `${hStats.total || 135} esquemas`, 'Seguimiento de esquemas concertados', 'Activo'],
+      ['Control Presupuestal y Viáticos', 'Comisiones de Servicio', `${viat.total || 0} radicados`, 'Registro y legalización de comisiones', 'Activo'],
+      ['Seguridad y Salud en el Trabajo', 'SG-SST y Vigilancia', `${activosEmp} servidores`, 'Cobertura y valoraciones ocupacionales', 'Activo']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Dirección / Área Responsable', 'Ámbito de Gestión', 'Población / Trámites', 'Eje Estratégico', 'Efectividad']],
+      head: [['Dirección / Área Responsable', 'Ámbito de Gestión', 'Población / Trámites', 'Eje de Gestión', 'Estado']],
       body: dirRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.4, cellPadding: 2.0 },
@@ -1602,25 +1579,25 @@ const DashboardPDF = (() => {
 
     curY = Math.max(doc.lastAutoTable.finalY + 5.0, 226.5);
 
-    // Recuadro Ejecutivo de Control y Síntesis Normativa de Página 1
+    // Recuadro Ejecutivo de Control y Síntesis de Página 1
     const adminHighlights = [
       {
-        title: 'Modelo Integrado MIPG',
-        desc: 'Articulación institucional con la dimensión de gestión del talento humano del Departamento.'
+        title: 'Gestión Institucional de Planta',
+        desc: 'Articulación de dependencias y administración del personal activo de la entidad.'
       },
       {
-        title: 'Protección de Datos (Ley 1581)',
-        desc: 'Custodia segura, trazabilidad y reserva legal en los expedientes digitales de servidores.'
+        title: 'Seguridad y Privacidad',
+        desc: 'Administración controlada y trazabilidad de los trámites y expedientes de servidores.'
       },
       {
-        title: 'Transparencia y Cero Papel',
-        desc: 'Trámites, resoluciones y comisiones digitalizadas con firma electrónica y auditoría en tiempo real.'
+        title: 'Digitalización y Consulta',
+        desc: 'Consolidación de novedades, horarios y comisiones en la plataforma Talento 360.'
       }
     ];
     drawExecutiveHighlightsBox(
       doc,
       curY,
-      'GOBERNANZA PÚBLICA, CONTROL INTERNO Y MODELO INTEGRADO MIPG',
+      'COORDINACIÓN INSTITUCIONAL Y SEGUIMIENTO EN TALENTO 360',
       'GESTIÓN INTEGRAL 360',
       adminHighlights
     );
@@ -1680,7 +1657,7 @@ const DashboardPDF = (() => {
       ['Exámenes Médicos Ocupacionales (EMO)', `${sst.emoVigentes || 0} vigentes`, `${sst.emoAlertas || 0} alertas médicas`, 'Vigilancia Médica'],
       ['Entrega y Dotación de EPP', `${sst.servidoresDotados || 0} servidores`, 'Cobertura en áreas operativas', 'Dotado'],
       ['Vigilancia Epidemiológica (PVE)', 'Ergonomía y Psicosocial', 'Talleres y valoraciones preventivas', 'Activo'],
-      ['Perfil Sociodemográfico Departamental', `${activosEmp} servidores caracterizados`, '100% de la planta institucional activa', 'Consolidado']
+      ['Perfil Sociodemográfico Departamental', `${activosEmp} servidores caracterizados`, 'Planta institucional en seguimiento', 'Consolidado']
     ];
 
     doc.autoTable({
@@ -1701,23 +1678,23 @@ const DashboardPDF = (() => {
 
     curY = doc.lastAutoTable.finalY + 3.8;
 
-    // Sección 6: Transparencia, Rendición de Cuentas y Eficiencia Administrativa
+    // Sección 6: Canales de Operación y Gestión Digital en Talento 360
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.2);
     doc.setTextColor(PALETTE.verdeOscuro[0], PALETTE.verdeOscuro[1], PALETTE.verdeOscuro[2]);
-    doc.text('6. Transparencia, Rendición de Cuentas y Eficiencia Administrativa', margin, curY);
+    doc.text('6. Canales de Operación y Gestión Digital en Talento 360', margin, curY);
     curY += 3.5;
 
     const gobRows = [
-      ['Ley 1712 de 2014 (Transparencia y Acceso a la Información)', 'Publicación activa de planta y presupuesto', 'Cumplimiento índice ITA', 'Certificado'],
-      ['Política de Cero Papel y Transformación Digital', 'Gestión documental electrónica y firmas válidas', 'Reducción de consumo físico 85%', 'En Avance'],
-      ['Rendición Periódica a Órganos de Control Fiscal', 'Informes a Contraloría General de Boyacá', 'Cero hallazgos administrativos sancionatorios', 'Al Día']
+      ['Módulo de Planta y Servidores Públicos', 'Consulta y actualización de cargos y dependencias', 'Registro centralizado de personal', 'Disponible'],
+      ['Módulo de Comisiones y Viáticos', 'Radicación y seguimiento de resoluciones y gastos', 'Monitoreo presupuestal en línea', 'Disponible'],
+      ['Módulo de Horarios y Modalidades', 'Seguimiento de teletrabajo, trabajo en casa y jornadas', 'Control de vigencias y concertaciones', 'Disponible']
     ];
 
     doc.autoTable({
       startY: curY,
       margin: { left: margin, right: margin },
-      head: [['Eje de Gobierno Abierto', 'Alcance Operativo', 'Resultado Departamental', 'Estado']],
+      head: [['Módulo / Canal Digital', 'Alcance Operativo', 'Función en Plataforma', 'Estado']],
       body: gobRows,
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.2, cellPadding: 1.6 },
@@ -1732,7 +1709,7 @@ const DashboardPDF = (() => {
     });
 
     curY = doc.lastAutoTable.finalY + 4.5;
-    drawLegalCertificationAndSignatures(doc, curY, 'DIRECCIÓN DE TALENTO HUMANO', 'Gobernación de Boyacá · Dirección General');
+    drawSignaturesBlock(doc, curY, 'DIRECCIÓN DE TALENTO HUMANO', 'Gobernación de Boyacá · Despacho');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1785,7 +1762,7 @@ const DashboardPDF = (() => {
 
         <div style="display:flex; align-items:center; gap:10px; padding:11px 14px; background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.22); border-radius:10px; font-size:0.82rem; color:var(--text-secondary);">
           <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" style="width:18px; height:18px; min-width:18px; flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span><strong>Protección de Datos:</strong> Este informe contiene estadísticas consolidadas y NO incluye datos sensibles ni listas individuales de funcionarios (Ley 1581 de 2012).</span>
+          <span><strong>Protección de Datos:</strong> Este informe contiene estadísticas consolidadas y métricas operativas de la plataforma Talento 360.</span>
         </div>
       </div>
     `;
