@@ -176,6 +176,7 @@ const requestsRoutes      = require('../services/requests-service/src/routes/req
 const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
 const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
 const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
+const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
 const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
 const sstRoutes           = require('../services/sst-service/src/routes/sst');
 
@@ -186,6 +187,7 @@ app.use('/api/requests', requestsRoutes);
 app.use('/api/admin-requests', adminRequestsRoutes);
 app.use('/api/viaticos', viaticosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/sst', sstRoutes);
 

@@ -601,6 +601,8 @@ const App = (() => {
 
   // ─── Navigation ────────────────────────────────────────────────────────────
   const MODULE_TITLES = {
+    'admin-errors': 'Centro de Errores e Incidentes',
+    'admin-backups': 'Copias de Seguridad del Sistema',
     dashboard: 'Dashboard',
     employees: 'Servidores Públicos',
     requests: 'Solicitudes de Vacaciones',
@@ -615,6 +617,8 @@ const App = (() => {
   };
 
   const MODULE_ICONS = {
+    'admin-errors': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    'admin-backups': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
     employees: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     requests: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -629,6 +633,8 @@ const App = (() => {
   };
 
   const VALID_ROUTES = new Set([
+    'admin-errors',
+    'admin-backups',
     'dashboard',
     'employees',
     'requests',
@@ -661,12 +667,31 @@ const App = (() => {
     }
 
     // 2.1 Control de permisos por rol / módulo
-    const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
-    if (!publicRoutes.includes(rawModule)) {
-      if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
-        showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+    const isAdmin = isUserAdmin(user);
+
+    if (isAdmin) {
+      // Para Administrador técnico (admin): panel tranquilo centrado en errores, copias de seguridad y ajustes
+      const adminAllowed = ['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
+      if (!adminAllowed.includes(rawModule)) {
+        navigate('admin-errors');
+        return;
+      }
+    } else {
+      // Para usuarios regulares: bloquear módulos de administración técnica
+      if (rawModule === 'admin-errors' || rawModule === 'admin-backups') {
+        showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
         navigate('dashboard');
         return;
+      }
+
+      const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
+      if (!publicRoutes.includes(rawModule)) {
+        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
+          showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+          navigate('dashboard');
+          return;
+        }
       }
     }
 
@@ -687,6 +712,12 @@ const App = (() => {
       b.classList.remove('active');
       b.removeAttribute('aria-current');
     });
+
+    const activeNavBtn = document.getElementById(`nav-${rawModule}`);
+    if (activeNavBtn) {
+      activeNavBtn.classList.add('active');
+      activeNavBtn.setAttribute('aria-current', 'page');
+    }
 
     if (rawModule === 'admin-requests') {
       const adminGroupBtn = document.getElementById('nav-admin-group');
@@ -769,6 +800,12 @@ const App = (() => {
     const renderSelectedModule = async () => {
       try {
         switch (rawModule) {
+          case 'admin-errors':
+            if (typeof AdminErrorsModule !== 'undefined') await AdminErrorsModule.render(container);
+            break;
+          case 'admin-backups':
+            if (typeof AdminBackupsModule !== 'undefined') await AdminBackupsModule.render(container);
+            break;
           case 'dashboard':      await DashboardModule.render(container); break;
           case 'employees':     await EmployeesModule.render(container); break;
           case 'requests':      await RequestsModule.render(container); break;
@@ -1165,6 +1202,7 @@ const App = (() => {
   }
 
   function applyNavigationPermissions(user = {}) {
+    const isAdmin = isUserAdmin(user);
     const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : ['dashboard'];
     const hasAll = mods.includes('*') || mods.includes('all');
 
@@ -1175,14 +1213,41 @@ const App = (() => {
       li.style.display = isVisible ? '' : 'none';
     };
 
-    setVisibility('nav-dashboard', true);
-    setVisibility('nav-employees', hasAll || mods.includes('employees'));
-    setVisibility('nav-requests', hasAll || mods.includes('requests'));
-    setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
-    setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
-    setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
-    setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
-    setVisibility('nav-settings', true);
+    if (isAdmin) {
+      // Para el Administrador técnico (admin / admin123):
+      // Su panel es tranquilo: no tiene los módulos de talento humano, sino únicamente Errores, Copias de Seguridad y Ajustes
+      setVisibility('li-admin-errors', true);
+      setVisibility('li-admin-backups', true);
+      setVisibility('nav-admin-errors', true);
+      setVisibility('nav-admin-backups', true);
+      setVisibility('nav-settings', true);
+
+      // Ocultar módulos funcionales departamentales
+      setVisibility('nav-dashboard', false);
+      setVisibility('nav-employees', false);
+      setVisibility('nav-requests', false);
+      setVisibility('nav-admin-group', false);
+      setVisibility('nav-viaticos', false);
+      setVisibility('nav-horarios', false);
+      setVisibility('nav-sst-group', false);
+    } else {
+      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
+      // Ocultar las herramientas de administración técnica
+      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-backups', false);
+      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-backups', false);
+
+      // Mostrar sus módulos funcionales según permisos
+      setVisibility('nav-dashboard', true);
+      setVisibility('nav-employees', hasAll || mods.includes('employees'));
+      setVisibility('nav-requests', hasAll || mods.includes('requests'));
+      setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
+      setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
+      setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
+      setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
+      setVisibility('nav-settings', true);
+    }
   }
 
   function resolveJobTitle(user = {}) {
@@ -1729,8 +1794,9 @@ const App = (() => {
               if (typeof Settings !== 'undefined' && res.user && res.user.username) {
                 Settings.loadForUser(res.user.username);
               }
+              const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
               showApp();
-              navigate('dashboard');
+              navigate(defaultMod);
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
                 LegalModule.requireConsentModal();
               }
@@ -1740,7 +1806,8 @@ const App = (() => {
               if (ls) ls.style.setProperty('display', 'none', 'important');
               const app = document.getElementById('app');
               if (app) app.style.setProperty('display', 'grid', 'important');
-              try { navigate('dashboard'); } catch (_) {}
+              const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
+              try { navigate(defaultMod); } catch (_) {}
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
                 LegalModule.requireConsentModal();
               }
@@ -1928,7 +1995,8 @@ const App = (() => {
         if (params.get('pkg')) options.pkg = params.get('pkg');
         navigate(initMod, options);
       } else {
-        navigate('dashboard');
+        const defaultMod = (storedUser && isUserAdmin(storedUser)) ? 'admin-errors' : 'dashboard';
+        navigate(defaultMod);
       }
     } else {
       if (typeof Settings !== 'undefined') {
@@ -2009,20 +2077,22 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, getCurrentModule, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons };
+  return { init, navigate, getCurrentModule, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons, isUserAdmin };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)
 window.App = App;
 window.app = App;
 
-// Enrutador reactivo por hash en URL (ej: http://localhost/#/settingsggg o #/sst?tab=epp)
+// Enrutador reactivo por hash en URL (ej: http://localhost/#/settings o #/sst?tab=epp)
 window.addEventListener('hashchange', () => {
   const fullHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
   if (typeof App !== 'undefined' && App.navigate) {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
-        App.navigate('dashboard');
+        const user = Auth.getUser ? Auth.getUser() : null;
+        const defaultMod = (user && App.isUserAdmin && App.isUserAdmin(user)) ? 'admin-errors' : 'dashboard';
+        App.navigate(defaultMod);
       } else {
         App.showLogin();
       }
@@ -2038,6 +2108,128 @@ window.addEventListener('hashchange', () => {
     App.navigate(mod, options);
   }
 });
+
+// ─── Monitor Global de Errores y Excepciones para Administración Técnica ────
+(function setupGlobalErrorMonitor() {
+  if (typeof window === 'undefined') return;
+
+  // 1. Excepciones no capturadas de JavaScript en ventana
+  window.addEventListener('error', (event) => {
+    try {
+      if (!event) return;
+      const message = event.message || (typeof event.error === 'object' && event.error ? event.error.message : String(event));
+      if (!message || message.includes('ResizeObserver') || message.includes('Script error.')) {
+        return;
+      }
+      const stack = event.error && event.error.stack ? event.error.stack : '';
+      const url = event.filename || window.location.href;
+      let usuario = 'Anónimo';
+      try {
+        const u = localStorage.getItem('h360_user');
+        if (u) usuario = JSON.parse(u).username || 'Usuario';
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'JS_EXCEPTION',
+          mensaje: message,
+          url,
+          stack,
+          usuario
+        });
+      }
+    } catch (_) {}
+  });
+
+  // 2. Promesas rechazadas no manejadas (unhandledrejection)
+  window.addEventListener('unhandledrejection', (event) => {
+    try {
+      if (!event) return;
+      const reason = event.reason;
+      let message = 'Unhandled Promise Rejection';
+      let stack = '';
+      if (typeof reason === 'string') {
+        message = reason;
+      } else if (reason && typeof reason === 'object') {
+        message = reason.message || reason.name || JSON.stringify(reason);
+        stack = reason.stack || '';
+      }
+      let usuario = 'Anónimo';
+      try {
+        const u = localStorage.getItem('h360_user');
+        if (u) usuario = JSON.parse(u).username || 'Usuario';
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'PROMISE_REJECTION',
+          mensaje: message,
+          url: window.location.href,
+          stack,
+          usuario
+        });
+      }
+    } catch (_) {}
+  });
+
+  // 3. Captura automática y transparente de console.error
+  if (typeof console !== 'undefined' && console.error) {
+    const origConsoleError = console.error;
+    let isReporting = false;
+
+    console.error = function(...args) {
+      try {
+        origConsoleError.apply(console, args);
+      } catch (_) {}
+
+      if (isReporting) return;
+      try {
+        const firstArg = args[0];
+        // Evitar bucles con las propias llamadas de monitoreo o red de admin
+        if (typeof firstArg === 'string' && (
+          firstArg.includes('[Admin Errors API]') ||
+          firstArg.includes('/api/admin/errors') ||
+          firstArg.includes('[API.reportError]')
+        )) {
+          return;
+        }
+
+        const msg = args.map(a => {
+          if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack || ''}`;
+          if (typeof a === 'object') {
+            try { return JSON.stringify(a); } catch (_) { return String(a); }
+          }
+          return String(a);
+        }).join(' ');
+
+        if (!msg || msg.trim().length === 0) return;
+
+        let usuario = 'Anónimo';
+        try {
+          const u = localStorage.getItem('h360_user');
+          if (u) usuario = JSON.parse(u).username || 'Usuario';
+        } catch (_) {}
+
+        isReporting = true;
+        if (typeof API !== 'undefined' && API.reportError) {
+          API.reportError({
+            tipo: 'CONSOLE_ERROR',
+            mensaje: msg.slice(0, 4000),
+            url: window.location.href,
+            stack: (new Error()).stack || null,
+            usuario
+          }).finally(() => {
+            isReporting = false;
+          });
+        } else {
+          isReporting = false;
+        }
+      } catch (_) {
+        isReporting = false;
+      }
+    };
+  }
+})();
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => App.init());

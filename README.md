@@ -142,11 +142,29 @@ La plataforma cuenta con usuarios precargados según su rol operativo:
 
 | Usuario / Correo | Contraseña | Perfil / Área de Gestión | Módulos Autorizados |
 |---|---|---|---|
-| `admin` / `admin@boyaca.gov.co` | `admin123` | **Administrador General** | Acceso total al sistema y configuraciones |
+| `admin` / `admin@boyaca.gov.co` | `admin` | **Administrador Técnico del Sistema** | Centro de errores, copias de seguridad de la plataforma y ajustes |
 | `angela.ussa` / `angela.ussa@boyaca.gov.co` | `@Angela123` | **Dirección de Talento Humano** | Servidores públicos, planta de personal y reportes |
 | `blanca.soler` / `blanca.soler@boyaca.gov.co` | `@Blanca123` | **Gestión de Servidores Públicos** | Servidores públicos, cargos y novedades de personal |
 | `doris.canon` / `doris.canon@boyaca.gov.co` | `@Doris123` | **Control de Horarios y Modalidades** | Teletrabajo, trabajo en casa, horarios flexibles |
 | `bergenet.gutierrez` / `bergenet.gutierrez@boyaca.gov.co` | `@Bergenet123` | **Gestión de Viáticos y Comisiones** | Resoluciones de viáticos, liquidación y destinos |
+
+---
+
+## 🛠️ Panel del Administrador del Sistema
+
+El rol de Administrador Técnico (`admin`) cuenta con un entorno dedicado y enfocado exclusivamente en la estabilidad, continuidad e infraestructura de la plataforma:
+
+1. **Centro de Monitoreo de Errores e Incidentes:**
+   * **Captura automática de excepciones:** Escucha y registra errores de consola (`console.error`), excepciones de scripts de cliente (`window.onerror`), promesas no capturadas y fallos de microservicios.
+   * **Detección y reporte de 404:** Cuando un usuario intenta acceder a una ruta inexistente, el sistema registra el evento y ofrece en la vista un botón interactivo **"Reportar"** para alertar al equipo técnico.
+   * **Gestión técnica:** Vista con KPIs en tiempo real (pendientes, resueltos, 404, consola, API), filtrado por tipo/estado, visor modal de stack trace completo y cambio de estado a *Resuelto*.
+2. **Copias de Seguridad Integrales (Backups):**
+   * **Respaldo bajo demanda (manual):** Generación instantánea de volcados SQL nativos con integridad transaccional (`BEGIN...COMMIT`) de las 27 tablas y más de 18.000 registros de la entidad.
+   * **Descarga flexible a disco o memoria USB:** Permite guardar el archivo `.sql` en cualquier directorio local o dispositivo externo.
+   * **Programación automática diaria:** Motor programador continuo que genera respaldos diarios a la hora configurada (por defecto 23:00) con políticas de retención automática para optimizar almacenamiento.
+3. **Aislamiento Seguro por Roles:**
+   * El panel de administración oculta todos los módulos de gestión de talento humano que no conciernen a infraestructura.
+   * Las rutas y endpoints de errores y copias de seguridad están estrictamente restringidos y devuelven `403 Forbidden` a usuarios operativos.
 
 ---
 

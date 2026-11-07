@@ -81,6 +81,7 @@
   <link rel="stylesheet" href="css/components.css?v=20261105_v8" />
   <link rel="stylesheet" href="css/animations.css?v=20261104_gemini_v1" />
   <link rel="stylesheet" href="css/legal.css?v=20261104_gemini_v1" />
+  <link rel="stylesheet" href="css/admin.css?v=20261106_admin_v1" />
 
   <!-- Flatpickr (Calendario Institucional Moderno) -->
   <link rel="stylesheet" href="css/flatpickr.min.css" />
@@ -266,6 +267,27 @@
 
       <nav class="sidebar-nav">
         <ul role="list">
+          <!-- Módulos de Administración Técnica (Solo visibles para Rol Admin) -->
+          <li id="li-admin-errors" style="display:none;">
+            <button class="nav-item" data-module="admin-errors" id="nav-admin-errors" title="Monitoreo de Errores" data-tooltip="Errores">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span class="nav-label">Centro de Errores</span>
+            </button>
+          </li>
+          <li id="li-admin-backups" style="display:none;">
+            <button class="nav-item" data-module="admin-backups" id="nav-admin-backups" title="Copias de Seguridad" data-tooltip="Backups">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              <span class="nav-label">Copias de Seguridad</span>
+            </button>
+          </li>
           <li>
             <button class="nav-item active" data-module="dashboard" id="nav-dashboard" aria-current="page"
               title="Dashboard" data-tooltip="Dashboard">
@@ -617,6 +639,8 @@
   <script src="js/modules/sst.js?v=20261104_gemini_v1"></script>
   <script src="js/modules/error404.js?v=20261104_gemini_v1"></script>
   <script src="js/modules/legal.js?v=20261104_gemini_v1"></script>
+  <script src="js/modules/admin-errors.js?v=20261106_v1"></script>
+  <script src="js/modules/admin-backups.js?v=20261106_v1"></script>
   <script src="js/app.js?v=20261104_gemini_v1"></script>
 </body>
 

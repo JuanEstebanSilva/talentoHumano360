@@ -24,6 +24,7 @@ services:
       - ../database/10_sst_module.sql:/docker-entrypoint-initdb.d/10_sst_module.sql
       - ../database/12_performance_indexes.sql:/docker-entrypoint-initdb.d/12_performance_indexes.sql
       - ../database/13_paquetes_viaticos.sql:/docker-entrypoint-initdb.d/13_paquetes_viaticos.sql
+      - ../database/18_system_errors_and_backups.sql:/docker-entrypoint-initdb.d/18_system_errors_and_backups.sql
     ports:
       - "${POSTGRES_PORT:-5432:5432}"
     networks:

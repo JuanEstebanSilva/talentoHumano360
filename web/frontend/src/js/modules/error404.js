@@ -189,6 +189,13 @@ const Error404Module = (() => {
                   </svg>
                   <span>Página Anterior</span>
                 </button>
+                <button id="error-404-btn-report" class="error-404-btn-report" type="button" onclick="Error404Module.report()" title="Reportar este incidente al administrador del sistema">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:8px; display:inline-block; vertical-align:middle;">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                  </svg>
+                  <span id="error-404-report-text">Reportar</span>
+                </button>
               </div>
 
             </div>
@@ -203,6 +210,55 @@ const Error404Module = (() => {
 
       </div>
     `;
+  }
+
+  async function report() {
+    safeFxClick();
+    const btn = document.getElementById('error-404-btn-report');
+    const textEl = document.getElementById('error-404-report-text');
+    if (btn) btn.disabled = true;
+    if (textEl) textEl.textContent = 'Reportando...';
+
+    try {
+      let currentUsername = 'Anónimo';
+      try {
+        const uStr = localStorage.getItem('h360_user');
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          currentUsername = u.username || u.name || 'Usuario';
+        }
+      } catch (_) {}
+
+      const currentRoute = (window.location.hash || '').replace(/^#\/?/, '').trim() || '404';
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        await API.reportError({
+          tipo: 'PAGE_404',
+          mensaje: `Reporte voluntario de usuario: Ruta o recurso no encontrado en #${currentRoute}`,
+          url: window.location.href,
+          usuario: currentUsername,
+          reportadoPorUsuario: true
+        });
+      }
+
+      if (textEl) textEl.textContent = '¡Reportado!';
+      if (btn) {
+        btn.classList.add('reported-success');
+        btn.style.setProperty('background-color', '#355833', 'important');
+        btn.style.setProperty('color', '#ffffff', 'important');
+        btn.style.setProperty('border-color', '#355833', 'important');
+      }
+
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('Incidencia reportada con éxito a la administración.', 'success');
+      }
+    } catch (e) {
+      if (textEl) textEl.textContent = 'Reportar';
+      if (btn) btn.disabled = false;
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('No se pudo enviar el reporte.', 'error');
+      }
+    }
   }
 
   function bindEvents(rootEl) {
@@ -222,11 +278,41 @@ const Error404Module = (() => {
         goBack();
       };
     }
+
+    const btnReport = rootEl.querySelector('#error-404-btn-report');
+    if (btnReport) {
+      btnReport.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        report();
+      };
+    }
   }
 
   function show(requestedModule = '404', errorMessage = '') {
     const overlay = document.getElementById('error-screen-404');
     if (!overlay) return;
+
+    // Reporte automático al administrador en segundo plano
+    try {
+      let currentUsername = 'Anónimo';
+      try {
+        const uStr = localStorage.getItem('h360_user');
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          currentUsername = u.username || u.name || 'Usuario';
+        }
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'PAGE_404',
+          mensaje: `Acceso a ruta inexistente o no disponible: #${requestedModule || '404'}${errorMessage ? ` - ${errorMessage}` : ''}`,
+          url: window.location.href,
+          usuario: currentUsername,
+          reportadoPorUsuario: false
+        });
+      }
+    } catch (_) {}
 
     // 1. Ocultar completamente el layout de la app y la pantalla de login para evitar cualquier superposición
     const appEl = document.getElementById('app');
@@ -297,6 +383,7 @@ const Error404Module = (() => {
     render,
     goDashboard,
     goBack,
+    report,
     hideFullScreen: hide
   };
 })();

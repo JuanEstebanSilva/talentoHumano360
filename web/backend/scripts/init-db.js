@@ -40,6 +40,7 @@ const SQL_FILES = [
   '15_user_roles_permissions.sql',
   '16_encargo_columns.sql',
   '17_add_fecha_retiro.sql',
+  '18_system_errors_and_backups.sql',
 ];
 
 function findDatabaseDir() {

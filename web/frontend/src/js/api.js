@@ -25,10 +25,32 @@ const API = (() => {
       'Content-Type': 'application/json',
       ...options.headers,
     };
-    const token = Auth.getToken();
+    const token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(BASE + url, { ...options, headers });
+    let res;
+    try {
+      res = await fetch(BASE + url, { ...options, headers });
+    } catch (networkErr) {
+      if (!url.includes('/admin/errors')) {
+        let uName = 'Anónimo';
+        try {
+          const uStr = localStorage.getItem('h360_user');
+          if (uStr) uName = JSON.parse(uStr).username || 'Usuario';
+        } catch (_) {}
+        fetch(BASE + '/admin/errors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'API_ERROR',
+            mensaje: `Fallo de conexión o red al consultar: ${options.method || 'GET'} ${url} — ${networkErr.message}`,
+            url: window.location.href,
+            usuario: uName
+          })
+        }).catch(() => {});
+      }
+      throw networkErr;
+    }
 
     const data = await res.json().catch(() => ({}));
 
@@ -38,6 +60,25 @@ const API = (() => {
         App.showLogin();
         throw new Error(data.error || 'Sesión expirada. Por favor inicia sesión de nuevo.');
       }
+
+      if (res.status >= 500 && !url.includes('/admin/errors')) {
+        let uName = 'Anónimo';
+        try {
+          const uStr = localStorage.getItem('h360_user');
+          if (uStr) uName = JSON.parse(uStr).username || 'Usuario';
+        } catch (_) {}
+        fetch(BASE + '/admin/errors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'API_ERROR',
+            mensaje: `Error ${res.status} en servidor: ${options.method || 'GET'} ${url} — ${data.error || 'Error interno'}`,
+            url: window.location.href,
+            usuario: uName
+          })
+        }).catch(() => {});
+      }
+
       throw new Error(data.error || `Error ${res.status}`);
     }
 
@@ -206,6 +247,37 @@ const API = (() => {
     updateSstSociodemografico: (id, data) => request(`/sst/sociodemografico/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     bulkCreateSstSociodemografico: (rows) => request('/sst/sociodemografico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
     deleteSstSociodemografico: (id) => request(`/sst/sociodemografico/${id}`, { method: 'DELETE' }),
+
+    // Administración Técnica: Monitoreo de Errores y Copias de Seguridad
+    reportError: (payload) =>
+      request('/admin/errors', { method: 'POST', body: JSON.stringify(payload) }).catch(err => {
+        console.warn('[API.reportError] No se pudo enviar el reporte:', err.message);
+        return { success: false };
+      }),
+    getAdminErrors: (params = {}) =>
+      request('/admin/errors?' + new URLSearchParams(params)),
+    updateAdminErrorStatus: (id, estado) =>
+      request(`/admin/errors/${id}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+    deleteAdminError: (id) =>
+      request(`/admin/errors/${id}`, { method: 'DELETE' }),
+    clearAllAdminErrors: (onlyResolved = false) =>
+      request('/admin/errors/clear-all', { method: 'POST', body: JSON.stringify({ onlyResolved }) }),
+
+    // Administración Técnica: Copias de Seguridad (Backups)
+    getAdminBackups: () =>
+      request('/admin/backups'),
+    generateAdminBackup: () =>
+      request('/admin/backups/generate', { method: 'POST' }),
+    deleteAdminBackup: (id) =>
+      request(`/admin/backups/${id}`, { method: 'DELETE' }),
+    getAdminBackupConfig: () =>
+      request('/admin/backups/config'),
+    updateAdminBackupConfig: (config) =>
+      request('/admin/backups/config', { method: 'PUT', body: JSON.stringify(config) }),
+    getAdminBackupDownloadUrl: (id) => {
+      const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
+      return `${((window.TALENTO360_API_URL || '').replace(/\/+$/, ''))}/api/admin/backups/download/${id}?token=${encodeURIComponent(token)}`;
+    },
   };
 })();
 
