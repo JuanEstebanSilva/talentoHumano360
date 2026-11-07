@@ -151,18 +151,34 @@ const AdminBackupsModule = (() => {
 
     if (chkInterval) {
       chkInterval.checked = currentConfig.backup_interval_enabled === 'true';
+      toggleCardDisabled('card-cfg-interval', chkInterval.checked);
     }
     if (selInterval && currentConfig.backup_interval_minutes) {
       selInterval.value = currentConfig.backup_interval_minutes;
     }
     if (chkDaily) {
       chkDaily.checked = currentConfig.backup_daily_enabled === 'true';
+      toggleCardDisabled('card-cfg-daily', chkDaily.checked);
     }
     if (selDaily && currentConfig.backup_daily_hour !== undefined) {
       selDaily.value = parseInt(currentConfig.backup_daily_hour);
     }
     if (selMaxCopies && currentConfig.backup_max_copies) {
       selMaxCopies.value = currentConfig.backup_max_copies;
+    }
+  }
+
+  function toggleCardDisabled(cardId, isEnabled) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    const select = card.querySelector('select');
+    if (select) {
+      select.disabled = !isEnabled;
+    }
+    if (isEnabled) {
+      card.classList.remove('is-disabled');
+    } else {
+      card.classList.add('is-disabled');
     }
   }
 
@@ -484,7 +500,10 @@ const AdminBackupsModule = (() => {
 
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Guardando...';
+      btn.innerHTML = `
+        <span class="btn-progress-pulse" aria-hidden="true"></span>
+        <span>Guardando...</span>
+      `;
     }
 
     try {
@@ -502,7 +521,10 @@ const AdminBackupsModule = (() => {
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Guardar Configuración de Automatización';
+        btn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>Guardar Programación</span>
+        `;
       }
     }
   }
@@ -513,8 +535,9 @@ const AdminBackupsModule = (() => {
     const hoursOptions = Array.from({ length: 24 }, (_, i) => {
       const val = String(i).padStart(2, '0');
       const label = i === 0 ? '12:00 AM (Medianoche)' : (i < 12 ? `${i}:00 AM` : (i === 12 ? '12:00 PM (Mediodía)' : `${i - 12}:00 PM`));
+      const tag = i === 17 ? ' — Fin de jornada' : (i === 12 ? ' — Mediodía' : '');
       const selected = i === 17 ? 'selected' : '';
-      return `<option value="${i}" ${selected}>${val}:00 — ${label}</option>`;
+      return `<option value="${i}" ${selected}>⏰ ${val}:00 (${label}${tag})</option>`;
     }).join('');
 
     container.innerHTML = `
@@ -576,90 +599,141 @@ const AdminBackupsModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjeta de Programación y Automatización (filters-card estilizada) -->
-        <div class="filters-card" style="margin-bottom: 20px;">
-          <div class="admin-section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--color-border, #e2e8f0);">
-            <div class="section-title-wrap" style="display:flex; align-items:center; gap:10px;">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#254d32" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <h2 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--text-primary);">Programación de Copias Automáticas y Rotación</h2>
+        <!-- ─── Panel Modernizado de Programación y Automatización ─────────── -->
+        <div class="backup-automation-card">
+          <div class="backup-automation-header">
+            <div class="header-left" style="display:flex; align-items:center; gap:14px;">
+              <div class="backup-header-icon-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:22px; height:22px;">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="backup-automation-title">Programación de Copias Automáticas y Rotación</h2>
+                <p class="backup-automation-subtitle">Garantiza la continuidad operativa y preservación del histórico sin saturar el almacenamiento del servidor.</p>
+              </div>
             </div>
-            <span class="badge badge-success">Continuidad Operativa</span>
+            <div class="header-right">
+              <span class="badge-status-pill badge-status-pill--active">
+                <span class="pulse-dot"></span>
+                <span>Continuidad Activa</span>
+              </span>
+            </div>
           </div>
-          
-          <div class="admin-schedule-form" style="display:flex; flex-direction:column; gap:18px;">
-            
-            <!-- Opción 1: Respaldo Periódico por Intervalo -->
-            <div class="schedule-toggle-row" style="display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:14px; border-bottom:1px solid var(--color-border, #f1f5f9);">
-              <div style="display:flex; align-items:flex-start; gap:14px; flex:1;">
-                <label class="admin-switch">
-                  <input type="checkbox" id="cfg-backup-interval-enabled" checked />
-                  <span class="admin-slider"></span>
-                </label>
-                <div class="schedule-toggle-label">
-                  <strong style="font-size:0.95rem; color:var(--text-primary); display:block; margin-bottom:2px;">Copia periódica automática por intervalo de tiempo</strong>
-                  <p style="font-size:0.83rem; color:var(--text-secondary); margin:0;">Genera un respaldo automático periódicamente mientras el servidor se encuentre activo.</p>
+
+          <!-- Grid de 3 Tarjetas de Configuración -->
+          <div class="backup-cards-grid">
+
+            <!-- Tarjeta 1: Intervalo Periódico -->
+            <div class="backup-config-card" id="card-cfg-interval">
+              <div class="config-card-top">
+                <div class="config-icon-box config-icon--interval">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 10"/></svg>
+                </div>
+                <div class="config-card-heading">
+                  <div class="config-card-title">Respaldo por Intervalo</div>
+                  <div class="config-card-sub">Ejecución continua periódica</div>
+                </div>
+                <div class="config-card-switch">
+                  <label class="admin-switch" title="Activar o desactivar copia por intervalo">
+                    <input type="checkbox" id="cfg-backup-interval-enabled" checked />
+                    <span class="admin-slider"></span>
+                  </label>
                 </div>
               </div>
-
-              <div class="schedule-time-selectors" style="display:flex; align-items:center; gap:8px;">
-                <label for="cfg-backup-interval-minutes" style="font-size:0.82rem; font-weight:700; color:var(--text-secondary);">Frecuencia:</label>
-                <select id="cfg-backup-interval-minutes" class="filter-select" style="min-width:180px; height:40px; padding:6px 12px;">
-                  <option value="10">Cada 10 minutos</option>
-                  <option value="15">Cada 15 minutos</option>
-                  <option value="20">Cada 20 minutos</option>
-                  <option value="30" selected>Cada 30 minutos (Recomendado)</option>
-                  <option value="45">Cada 45 minutos</option>
-                  <option value="60">Cada 1 hora</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Opción 2: Respaldo Diario a Hora Específica -->
-            <div class="schedule-toggle-row" style="display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:14px; border-bottom:1px solid var(--color-border, #f1f5f9);">
-              <div style="display:flex; align-items:flex-start; gap:14px; flex:1;">
-                <label class="admin-switch">
-                  <input type="checkbox" id="cfg-backup-daily-enabled" checked />
-                  <span class="admin-slider"></span>
+              <p class="config-card-desc">Genera copias recurrentes mientras el servidor permanezca activo.</p>
+              <div class="config-field-wrap">
+                <label class="config-control-label" for="cfg-backup-interval-minutes">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Frecuencia de captura</span>
                 </label>
-                <div class="schedule-toggle-label">
-                  <strong style="font-size:0.95rem; color:var(--text-primary); display:block; margin-bottom:2px;">Copia diaria fija al cierre de jornada</strong>
-                  <p style="font-size:0.83rem; color:var(--text-secondary); margin:0;">Genera un respaldo formal del día a la hora seleccionada (ideal 5:00 PM al finalizar actividades).</p>
+                <div class="config-select-wrapper">
+                  <select id="cfg-backup-interval-minutes" class="config-custom-select">
+                    <option value="10">⚡ Cada 10 minutos</option>
+                    <option value="15">⚡ Cada 15 minutos</option>
+                    <option value="20">⚡ Cada 20 minutos</option>
+                    <option value="30" selected>⭐ Cada 30 minutos (Recomendado)</option>
+                    <option value="45">⏱️ Cada 45 minutos</option>
+                    <option value="60">⏱️ Cada 1 hora (60 min)</option>
+                  </select>
                 </div>
               </div>
+            </div>
 
-              <div class="schedule-time-selectors" style="display:flex; align-items:center; gap:8px;">
-                <label for="cfg-backup-daily-hour" style="font-size:0.82rem; font-weight:700; color:var(--text-secondary);">Hora Diaria:</label>
-                <select id="cfg-backup-daily-hour" class="filter-select" style="min-width:180px; height:40px; padding:6px 12px;">
-                  ${hoursOptions}
-                </select>
+            <!-- Tarjeta 2: Respaldo Diario Fijo -->
+            <div class="backup-config-card" id="card-cfg-daily">
+              <div class="config-card-top">
+                <div class="config-icon-box config-icon--daily">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div class="config-card-heading">
+                  <div class="config-card-title">Cierre de Jornada</div>
+                  <div class="config-card-sub">Copia fija al final del día</div>
+                </div>
+                <div class="config-card-switch">
+                  <label class="admin-switch" title="Activar o desactivar copia diaria fija">
+                    <input type="checkbox" id="cfg-backup-daily-enabled" checked />
+                    <span class="admin-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <p class="config-card-desc">Consolida el día a la hora fijada (ideal 5:00 PM al finalizar labores).</p>
+              <div class="config-field-wrap">
+                <label class="config-control-label" for="cfg-backup-daily-hour">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Hora diaria de ejecución</span>
+                </label>
+                <div class="config-select-wrapper">
+                  <select id="cfg-backup-daily-hour" class="config-custom-select">
+                    ${hoursOptions}
+                  </select>
+                </div>
               </div>
             </div>
 
-            <!-- Opción 3: Rotación Inteligente de Almacenamiento (Máximo 15 copias) -->
-            <div class="schedule-toggle-row" style="display:flex; align-items:center; justify-content:space-between; gap:20px;">
-              <div style="flex:1;">
-                <strong style="font-size:0.95rem; color:var(--text-primary); display:block; margin-bottom:2px;">Política de rotación y almacenamiento inteligente</strong>
-                <p style="font-size:0.83rem; color:var(--text-secondary); margin:0;">Al alcanzarse el límite de copias guardadas, el sistema depura automáticamente el archivo más antiguo para optimizar el disco.</p>
+            <!-- Tarjeta 3: Rotación Inteligente (Máximo 15 copias) -->
+            <div class="backup-config-card" id="card-cfg-retention">
+              <div class="config-card-top">
+                <div class="config-icon-box config-icon--retention">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                </div>
+                <div class="config-card-heading">
+                  <div class="config-card-title">Rotación de Archivos</div>
+                  <div class="config-card-sub">Control de espacio en disco</div>
+                </div>
+                <div class="config-card-switch">
+                  <span class="badge-smart-retention">Inteligente</span>
+                </div>
               </div>
-
-              <div class="schedule-time-selectors" style="display:flex; align-items:center; gap:8px;">
-                <label for="cfg-backup-max-copies" style="font-size:0.82rem; font-weight:700; color:var(--text-secondary);">Máximo Almacenadas:</label>
-                <select id="cfg-backup-max-copies" class="filter-select" style="min-width:180px; height:40px; padding:6px 12px;">
-                  <option value="10">10 copias</option>
-                  <option value="15" selected>15 copias (Recomendado)</option>
-                  <option value="20">20 copias</option>
-                  <option value="30">30 copias</option>
-                </select>
+              <p class="config-card-desc">Al alcanzar el tope máximo, se depura automáticamente el archivo más antiguo.</p>
+              <div class="config-field-wrap">
+                <label class="config-control-label" for="cfg-backup-max-copies">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span>Límite máximo almacenado</span>
+                </label>
+                <div class="config-select-wrapper">
+                  <select id="cfg-backup-max-copies" class="config-custom-select">
+                    <option value="10">📦 Máximo 10 archivos</option>
+                    <option value="15" selected>⭐ Máximo 15 archivos (Recomendado)</option>
+                    <option value="20">📦 Máximo 20 archivos</option>
+                    <option value="30">📦 Máximo 30 archivos</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-              <button id="btn-save-backup-cfg" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:8px; font-weight:700;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                <span>Guardar Configuración de Automatización</span>
-              </button>
-            </div>
+          </div>
 
+          <!-- Barra Inferior de Acción y Consejos -->
+          <div class="backup-automation-footer">
+            <div class="footer-note">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.3" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <span>Los cambios de programación se aplican de inmediato en segundo plano sin reiniciar el servidor.</span>
+            </div>
+            <button id="btn-save-backup-cfg" class="btn-save-schedule" title="Guardar ajustes de automatización">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span>Guardar Programación</span>
+            </button>
           </div>
         </div>
 
@@ -732,6 +806,16 @@ const AdminBackupsModule = (() => {
 
     const btnSaveCfg = document.getElementById('btn-save-backup-cfg');
     if (btnSaveCfg) btnSaveCfg.onclick = saveConfig;
+
+    const chkInterval = document.getElementById('cfg-backup-interval-enabled');
+    if (chkInterval) {
+      chkInterval.onchange = (e) => toggleCardDisabled('card-cfg-interval', e.target.checked);
+    }
+
+    const chkDaily = document.getElementById('cfg-backup-daily-enabled');
+    if (chkDaily) {
+      chkDaily.onchange = (e) => toggleCardDisabled('card-cfg-daily', e.target.checked);
+    }
   }
 
   return {

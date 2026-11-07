@@ -329,6 +329,295 @@
   stroke: #ffffff !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Panel Modernizado de Programación y Automatización (3 Feature Cards)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.backup-automation-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-xl, 18px);
+  padding: 24px 26px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.backup-automation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+}
+
+.backup-header-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(37, 77, 50, 0.1);
+  color: #254d32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.backup-automation-title {
+  margin: 0;
+  font-size: 1.20rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.25;
+}
+
+.backup-automation-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+.badge-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-status-pill--active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  display: inline-block;
+}
+
+/* ─── Grid de 3 Tarjetas de Configuración ─────────────────────────────────── */
+.backup-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.backup-config-card {
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+}
+
+.backup-config-card:hover {
+  border-color: rgba(37, 77, 50, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.backup-config-card.is-disabled {
+  opacity: 0.55;
+}
+
+.backup-config-card.is-disabled .config-custom-select {
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.config-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.config-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.config-icon--interval {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+
+.config-icon--daily {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803d;
+}
+
+.config-icon--retention {
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+}
+
+.config-card-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-card-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.2;
+}
+
+.config-card-sub {
+  font-size: 0.74rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.config-card-switch {
+  flex-shrink: 0;
+}
+
+.badge-smart-retention {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.28);
+}
+
+.config-card-desc {
+  font-size: 0.81rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+  min-height: 38px;
+}
+
+.config-field-wrap {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.config-control-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.config-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.config-custom-select {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border, #cbd5e1);
+  background: #ffffff;
+  padding: 0 34px 0 14px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.config-custom-select:hover {
+  border-color: #254d32;
+}
+
+.config-custom-select:focus,
+.config-custom-select:focus-visible {
+  outline: none !important;
+  border-color: #254d32 !important;
+  box-shadow: 0 0 0 3px rgba(37, 77, 50, 0.15) !important;
+}
+
+/* ─── Footer de la Tarjeta de Automatización ──────────────────────────────── */
+.backup-automation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border, #f1f5f9);
+}
+
+.footer-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.81rem;
+  color: var(--text-secondary, #64748b);
+  max-width: 620px;
+  line-height: 1.4;
+}
+
+.btn-save-schedule {
+  background: #254d32 !important;
+  color: #ffffff !important;
+  border: 1px solid #1a3827 !important;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 12px rgba(37, 77, 50, 0.28);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.btn-save-schedule:hover {
+  background: #2e5d3c !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 77, 50, 0.42);
+}
+
+.btn-save-schedule:active {
+  transform: translateY(0);
+}
+
 /* ─── Empty State ─────────────────────────────────────────────────────────── */
 .admin-empty-state {
   text-align: center;
@@ -515,14 +804,44 @@
 }
 
 /* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
-[data-theme="dark"] .btn-backup-pill-now {
+[data-theme="dark"] .btn-backup-pill-now,
+[data-theme="dark"] .btn-save-schedule {
   background: #1b3d26 !important;
-  border-color: #2e6b41;
+  border-color: #2e6b41 !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
-[data-theme="dark"] .btn-backup-pill-now:hover {
+[data-theme="dark"] .btn-backup-pill-now:hover,
+[data-theme="dark"] .btn-save-schedule:hover {
   background: #254d32 !important;
+}
+
+[data-theme="dark"] .backup-automation-card {
+  background: var(--glass-bg-card, rgba(15, 23, 42, 0.65));
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .backup-automation-header,
+[data-theme="dark"] .backup-automation-footer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .backup-config-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .backup-config-card:hover {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .config-custom-select {
+  background-color: rgba(15, 23, 42, 0.8);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 [data-theme="dark"] .admin-table-styled thead th {
