@@ -622,3 +622,4 @@ const AdminErrorsModule = (() => {
 if (typeof window !== 'undefined') {
   window.AdminErrorsModule = AdminErrorsModule;
 }
+
