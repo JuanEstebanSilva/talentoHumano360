@@ -78,51 +78,51 @@
   transform: translateY(0) scale(0.97) !important;
 }
 
-/* 1. Verde Institucional Boyacá (Actualizar y Generar Copia) */
+/* 1. Verde Institucional Boyacá (Actualizar y Generar Copia) — Tono Sereno */
 .btn-slide--green {
   background: #254d32 !important;
   border-color: #1a3827 !important;
-  box-shadow: 0 4px 14px rgba(37, 77, 50, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(26, 56, 39, 0.22) !important;
 }
 
 .btn-slide--green:hover {
   background: #2e5d3c !important;
   border-color: #254d32 !important;
-  box-shadow: 0 6px 20px rgba(37, 77, 50, 0.48) !important;
+  box-shadow: 0 4px 12px rgba(26, 56, 39, 0.30) !important;
 }
 
 .btn-slide--green:hover svg {
   transform: rotate(180deg);
 }
 
-/* 2. Azul Oscuro / Petróleo (Depurar Resueltos) */
+/* 2. Azul Petróleo Mate / Pizarra (Depurar Resueltos) — No Fosforescente, Descanso Visual */
 .btn-slide--blue {
-  background: #0369a1 !important;
-  border-color: #075985 !important;
-  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.35) !important;
+  background: #234a65 !important;
+  border-color: #173549 !important;
+  box-shadow: 0 2px 8px rgba(23, 53, 73, 0.20) !important;
 }
 
 .btn-slide--blue:hover {
-  background: #0284c7 !important;
-  border-color: #0369a1 !important;
-  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.48) !important;
+  background: #2d5a7b !important;
+  border-color: #234a65 !important;
+  box-shadow: 0 4px 12px rgba(23, 53, 73, 0.28) !important;
 }
 
 .btn-slide--blue:hover svg {
   transform: rotate(-10deg) scale(1.1);
 }
 
-/* 3. Rojo Carmesí Alerta (Limpiar Todo) */
+/* 3. Rojo Vino / Borgoña Mate (Limpiar Todo) — No Fosforescente, Cálido y Sobrio */
 .btn-slide--red {
-  background: #dc2626 !important;
-  border-color: #b91c1c !important;
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35) !important;
+  background: #7a2e2e !important;
+  border-color: #5c1f1f !important;
+  box-shadow: 0 2px 8px rgba(92, 31, 31, 0.20) !important;
 }
 
 .btn-slide--red:hover {
-  background: #ef4444 !important;
-  border-color: #dc2626 !important;
-  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.48) !important;
+  background: #8e3636 !important;
+  border-color: #7a2e2e !important;
+  box-shadow: 0 4px 12px rgba(92, 31, 31, 0.28) !important;
 }
 
 .btn-slide--red:hover svg {
@@ -1089,19 +1089,19 @@
 }
 
 [data-theme="dark"] .btn-slide--blue {
-  background: #0c4a6e !important;
-  border-color: rgba(56, 189, 248, 0.3) !important;
+  background: #1a3547 !important;
+  border-color: rgba(147, 197, 253, 0.25) !important;
 }
 [data-theme="dark"] .btn-slide--blue:hover {
-  background: #0369a1 !important;
+  background: #234a65 !important;
 }
 
 [data-theme="dark"] .btn-slide--red {
-  background: #991b1b !important;
-  border-color: rgba(248, 113, 113, 0.3) !important;
+  background: #522020 !important;
+  border-color: rgba(252, 165, 165, 0.25) !important;
 }
 [data-theme="dark"] .btn-slide--red:hover {
-  background: #b91c1c !important;
+  background: #6e2a2a !important;
 }
 
 [data-theme="dark"] .admin-detail-metric-card {
