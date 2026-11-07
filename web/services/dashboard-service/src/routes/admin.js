@@ -42,6 +42,14 @@ function requireAdmin(req, res, next) {
     if (match) token = decodeURIComponent(match[1]);
   }
 
+  // Sanitización de token por si vino duplicado en la query string (p.ej. token=XXX?token=YYY)
+  if (Array.isArray(token)) token = token[0];
+  if (typeof token === 'string') {
+    if (token.includes('?token=')) token = token.split('?token=')[0];
+    if (token.includes('&token=')) token = token.split('&token=')[0];
+    token = token.trim();
+  }
+
   if (!token) {
     return res.status(401).json({ error: 'No autorizado. Se requiere inicio de sesión de Administrador.' });
   }

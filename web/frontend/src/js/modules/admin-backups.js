@@ -319,20 +319,77 @@ const AdminBackupsModule = (() => {
     }
   }
 
-  function downloadBackup(id) {
-    const downloadUrl = API.getAdminBackupDownloadUrl(id);
-    const token = Auth.getToken();
-    
-    const link = document.createElement('a');
-    link.href = `${downloadUrl}?token=${encodeURIComponent(token)}`;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  async function downloadBackup(id, customFilename) {
+    const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
+    const base = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
+    const endpoint = `${base}/admin/backups/download/${id}`;
 
     if (typeof App !== 'undefined' && App.showToast) {
-      App.showToast('Descarga iniciada. Puedes guardar el archivo SQL en tu PC o memoria USB.', 'info');
+      App.showToast('Iniciando descarga del archivo SQL...', 'info');
+    }
+
+    try {
+      // 1. Descarga directa con Authorization Header via fetch y Blob para evitar abrir pestañas en blanco
+      const response = await fetch(endpoint, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+
+      if (!response.ok) {
+        let errMsg = 'No se pudo descargar la copia de seguridad.';
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const blob = await response.blob();
+
+      // Determinamos el nombre del archivo
+      let filename = customFilename || '';
+      if (!filename) {
+        const item = backupsList.find(b => b.id === id);
+        if (item && item.filename) filename = item.filename;
+      }
+      if (!filename) {
+        const disposition = response.headers.get('content-disposition');
+        if (disposition && disposition.includes('filename=')) {
+          const m = disposition.match(/filename="?([^";]+)"?/);
+          if (m && m[1]) filename = m[1].trim();
+        }
+      }
+      if (!filename) {
+        filename = `talento360_backup_${id}.sql`;
+      }
+
+      // Disparador invisible de guardado local de archivo en el equipo del usuario
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 3000);
+
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast(`Copia de seguridad "${filename}" guardada en tu equipo.`, 'success');
+      }
+    } catch (err) {
+      console.warn('[AdminBackupsModule] Fallo descarga Blob, ejecutando enlace directo:', err);
+      // Fallback a URL directa limpia sin concatenación de tokens duplicados
+      const directUrl = API.getAdminBackupDownloadUrl(id);
+      const link = document.createElement('a');
+      link.href = directUrl;
+      link.download = customFilename || '';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast(err.message || 'Error al procesar la descarga.', 'error');
+      }
     }
   }
 

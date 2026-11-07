@@ -276,7 +276,8 @@ const API = (() => {
       request('/admin/backups/config', { method: 'PUT', body: JSON.stringify(config) }),
     getAdminBackupDownloadUrl: (id) => {
       const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
-      return `${((window.TALENTO360_API_URL || '').replace(/\/+$/, ''))}/api/admin/backups/download/${id}?token=${encodeURIComponent(token)}`;
+      const base = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
+      return `${base}/admin/backups/download/${id}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
     },
   };
 })();
