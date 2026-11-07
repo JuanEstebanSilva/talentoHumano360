@@ -4,7 +4,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── Botones de Acción Deslizantes Circulares (Estilo Crear Servidor Público) ── */
-.btn-action-slide-admin {
+.btn-action-slide-admin,
+.btn-hdr-admin {
   height: 52px;
   min-width: 52px;
   border-radius: 9999px;
@@ -131,7 +132,8 @@
 
 /* Clases de compatibilidad */
 .btn-hdr-admin {
-  composes: btn-action-slide-admin;
+  height: 52px;
+  min-width: 52px;
 }
 
 /* ─── Botón Principal Tipo Pill (media_1794013826912_b0be86de.png) ────────── */
