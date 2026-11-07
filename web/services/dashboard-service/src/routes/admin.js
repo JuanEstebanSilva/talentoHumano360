@@ -206,7 +206,15 @@ router.patch('/errors/:id', requireAdmin, async (req, res) => {
   try {
     const errorId = parseInt(req.params.id);
     const { estado } = req.body || {};
-    const cleanEstado = ['Pendiente', 'Revisado', 'Resuelto'].includes(estado) ? estado : 'Resuelto';
+    const rawEstado = String(estado || '').trim().toLowerCase();
+    
+    let cleanEstado = 'Pendiente';
+    if (rawEstado.includes('revis') || rawEstado === 'en revisión') {
+      cleanEstado = 'En Revisión';
+    } else if (rawEstado.includes('resuelto') || rawEstado.includes('solucion')) {
+      cleanEstado = 'Resuelto';
+    }
+
     const resolvedBy = cleanEstado === 'Resuelto' ? (req.user.username || 'admin') : null;
     const resolvedAt = cleanEstado === 'Resuelto' ? new Date() : null;
 

@@ -91,27 +91,57 @@ const AdminErrorsModule = (() => {
 
   function getTipoBadge(tipo) {
     const t = String(tipo || '').toUpperCase();
-    if (t === 'PAGE_404') {
-      return `<span class="admin-badge badge-warning" title="Página o ruta 404 no encontrada"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Error 404</span>`;
+    if (t === 'PAGE_404' || t === 'NOT_FOUND_404') {
+      return `<span class="badge badge-warning" title="Página o ruta 404 no encontrada"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Error 404</span>`;
     }
     if (t === 'CONSOLE_ERROR') {
-      return `<span class="admin-badge badge-danger" title="Error de JavaScript en el navegador"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
+      return `<span class="badge badge-danger" title="Error de JavaScript en el navegador"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
     }
     if (t === 'API_ERROR') {
-      return `<span class="admin-badge badge-secondary" title="Fallo en llamada a microservicio o red"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Servidor</span>`;
+      return `<span class="badge badge-secondary" title="Fallo en llamada a microservicio o red"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Red</span>`;
     }
-    return `<span class="admin-badge badge-info" title="Promesa rechazada o evento no controlado">${escHtml(t)}</span>`;
+    return `<span class="badge badge-info" title="Excepción del sistema">${escHtml(t)}</span>`;
   }
 
-  function getEstadoBadge(estado) {
-    const e = String(estado || 'Pendiente');
-    if (e === 'Resuelto') {
-      return `<span class="admin-badge badge-success"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>Resuelto</span>`;
+  function renderEstadoSelect(item) {
+    const est = item.estado || 'Pendiente';
+    let cls = 'status-pendiente';
+    if (est === 'Resuelto') cls = 'status-resuelto';
+    else if (est === 'En Revisión' || est === 'Revisado') cls = 'status-revision';
+
+    return `
+      <div class="admin-status-dropdown-wrap">
+        <select 
+          class="admin-status-select ${cls}" 
+          onchange="AdminErrorsModule.updateStatus(${item.id}, this.value)"
+          title="Haz clic para cambiar el estado de la incidencia">
+          <option value="Pendiente" ${est === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
+          <option value="En Revisión" ${(est === 'En Revisión' || est === 'Revisado') ? 'selected' : ''}>🔍 En Revisión</option>
+          <option value="Resuelto" ${est === 'Resuelto' ? 'selected' : ''}>✅ Resuelto</option>
+        </select>
+      </div>
+    `;
+  }
+
+  async function updateStatus(id, nuevoEstado) {
+    try {
+      // Actualización optimista inmediata
+      const item = currentErrors.find(e => e.id === id);
+      if (item) item.estado = nuevoEstado;
+      renderTable();
+      renderStats();
+
+      await API.updateAdminErrorStatus(id, nuevoEstado);
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast(`Estado actualizado a "${nuevoEstado}".`, 'success');
+      }
+      await loadData(currentPagination.page);
+    } catch (err) {
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('No se pudo actualizar el estado.', 'error');
+      }
+      await loadData(currentPagination.page);
     }
-    if (e === 'Revisado') {
-      return `<span class="admin-badge badge-info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>En Revisión</span>`;
-    }
-    return `<span class="admin-badge badge-pending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Pendiente</span>`;
   }
 
   function renderTable() {
@@ -142,44 +172,35 @@ const AdminErrorsModule = (() => {
     tbody.innerHTML = currentErrors.map(item => `
       <tr class="admin-error-row ${item.estado === 'Resuelto' ? 'row-resolved' : ''}" data-id="${item.id}">
         <td style="text-align: center;">
-          ${getEstadoBadge(item.estado)}
+          ${renderEstadoSelect(item)}
         </td>
         <td style="text-align: center;">
           ${getTipoBadge(item.tipo)}
-          ${item.reportado_por_usuario ? '<div style="margin-top:4px;"><span class="admin-badge badge-user-report" title="Reportado manualmente por el usuario mediante botón">🙋 Por Usuario</span></div>' : ''}
+          ${item.reportado_por_usuario ? '<div style="margin-top:4px;"><span class="badge badge-user-report" title="Reportado manualmente por el usuario mediante botón">🙋 Por Usuario</span></div>' : ''}
         </td>
         <td class="col-error-msg">
           <div class="error-msg-main" title="${escHtml(item.mensaje)}">${escHtml(item.mensaje)}</div>
           ${item.stack ? `<div class="error-has-stack-hint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Traza de pila disponible</div>` : ''}
         </td>
         <td class="col-error-url" title="${escHtml(item.url || 'No especificada')}">
-          <code class="admin-url-code">${escHtml(truncateUrl(item.url || 'N/A', 45))}</code>
+          <span class="admin-url-text">${escHtml(truncateUrl(item.url || 'N/A', 40))}</span>
         </td>
         <td style="text-align: center;">
-          <span class="admin-user-pill" title="Usuario que experimentó la incidencia">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            ${escHtml(item.usuario || 'Anónimo')}
+          <span class="admin-user-text" title="Usuario que experimentó la incidencia">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>${escHtml(item.usuario || 'Anónimo')}</span>
           </span>
         </td>
         <td style="text-align: center; font-size: 0.82rem; color: var(--text-secondary); white-space: nowrap;">
           ${formatDate(item.creado_en)}
         </td>
-        <td class="col-actions" style="text-align: center;">
-          <div class="admin-table-actions">
-            <button class="btn-action-icon btn-view-error" title="Ver detalles y traza completa" onclick="AdminErrorsModule.openDetailModal(${item.id})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <td class="td-actions" style="text-align: center;">
+          <div class="td-actions-wrap" style="justify-content: center; gap: 8px;">
+            <button class="btn-action-view" title="Ver detalles y traza completa" aria-label="Ver detalles del error ${item.id}" onclick="AdminErrorsModule.openDetailModal(${item.id})">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            ${item.estado !== 'Resuelto' ? `
-              <button class="btn-action-icon btn-resolve-error" title="Marcar como resuelto" onclick="AdminErrorsModule.toggleResolve(${item.id}, 'Resuelto')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-            ` : `
-              <button class="btn-action-icon btn-reopen-error" title="Reabrir incidencia" onclick="AdminErrorsModule.toggleResolve(${item.id}, 'Pendiente')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
-              </button>
-            `}
-            <button class="btn-action-icon btn-delete-error" title="Eliminar registro" onclick="AdminErrorsModule.deleteError(${item.id})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <button class="btn-action-delete" title="Eliminar registro" aria-label="Eliminar registro de error ${item.id}" onclick="AdminErrorsModule.confirmDelete(${item.id})">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>
           </div>
         </td>
@@ -189,7 +210,7 @@ const AdminErrorsModule = (() => {
     renderPaginationButtons();
   }
 
-  function truncateUrl(url, max = 50) {
+  function truncateUrl(url, max = 40) {
     if (!url) return '';
     if (url.length <= max) return url;
     try {
@@ -224,9 +245,9 @@ const AdminErrorsModule = (() => {
     const modalBody = `
       <div class="admin-error-modal-detail">
         <div class="admin-detail-header-badges">
-          ${getEstadoBadge(item.estado)}
+          ${renderEstadoSelect(item)}
           ${getTipoBadge(item.tipo)}
-          ${item.reportado_por_usuario ? '<span class="admin-badge badge-user-report">🙋 Reporte Voluntario de Usuario</span>' : '<span class="admin-badge badge-auto">🤖 Detección Automática de Sistema</span>'}
+          ${item.reportado_por_usuario ? '<span class="badge badge-user-report">🙋 Reporte Voluntario de Usuario</span>' : '<span class="badge badge-auto">🤖 Detección Automática de Sistema</span>'}
         </div>
 
         <div class="admin-detail-group">
@@ -237,66 +258,52 @@ const AdminErrorsModule = (() => {
         <div class="admin-detail-grid">
           <div>
             <label class="admin-detail-label">Ruta / URL afectada:</label>
-            <div class="admin-detail-box-meta"><code style="word-break: break-all;">${escHtml(item.url || 'No especificada')}</code></div>
+            <div class="admin-detail-box-meta"><span class="admin-url-text" style="font-weight:600;">${escHtml(item.url || 'No especificada')}</span></div>
           </div>
           <div>
-            <label class="admin-detail-label">Usuario en sesión:</label>
-            <div class="admin-detail-box-meta">${escHtml(item.usuario || 'Anónimo / Sin autenticar')}</div>
+            <label class="admin-detail-label">Usuario registrado:</label>
+            <div class="admin-detail-box-meta"><strong>${escHtml(item.usuario || 'Anónimo')}</strong></div>
           </div>
           <div>
             <label class="admin-detail-label">Fecha y Hora:</label>
             <div class="admin-detail-box-meta">${formatDate(item.creado_en)}</div>
           </div>
           <div>
-            <label class="admin-detail-label">Dirección IP y Origen:</label>
+            <label class="admin-detail-label">Dirección IP:</label>
             <div class="admin-detail-box-meta">${escHtml(item.ip_address || '127.0.0.1')}</div>
           </div>
         </div>
 
         ${item.stack ? `
-          <div class="admin-detail-group" style="margin-top:14px;">
+          <div class="admin-detail-group">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <label class="admin-detail-label" style="margin:0;">Traza de Pila (Stack Trace):</label>
-              <button type="button" class="btn-copy-stack" onclick="AdminErrorsModule.copyStackToClipboard('${item.id}')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <button class="btn btn-secondary btn-sm" onclick="AdminErrorsModule.copyStackToClipboard(${item.id})">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 Copiar Traza
               </button>
             </div>
-            <pre class="admin-stack-trace" id="stack-content-${item.id}">${escHtml(item.stack)}</pre>
+            <pre id="stack-content-${item.id}" class="admin-detail-stack">${escHtml(item.stack)}</pre>
           </div>
         ` : ''}
 
-        ${item.user_agent ? `
-          <div class="admin-detail-group" style="margin-top:12px;">
-            <label class="admin-detail-label">Navegador y Sistema (User Agent):</label>
-            <div class="admin-detail-box-ua">${escHtml(item.user_agent)}</div>
-          </div>
-        ` : ''}
-
-        ${item.resuelto_en ? `
-          <div class="admin-detail-resolved-note" style="margin-top:14px; padding:10px 14px; background:rgba(53,88,51,0.08); border-left:3px solid #355833; border-radius:6px; font-size:0.83rem;">
-            ✅ <strong>Resuelto por:</strong> ${escHtml(item.resuelto_por || 'admin')} el ${formatDate(item.resuelto_en)}
+        ${item.estado === 'Resuelto' && item.resuelto_en ? `
+          <div class="admin-detail-resolved-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Incidencia marcada como resuelta el <strong>${formatDate(item.resuelto_en)}</strong> por <strong>${escHtml(item.resuelto_por || 'admin')}</strong>.</span>
           </div>
         ` : ''}
       </div>
     `;
 
-    const actions = [
-      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
-    ];
-
-    if (item.estado !== 'Resuelto') {
-      actions.push({
-        text: 'Marcar como Resuelto',
-        cls: 'btn-primary-cta',
-        action: async () => {
-          App.closeModal();
-          await toggleResolve(item.id, 'Resuelto');
-        }
-      });
-    }
-
-    App.openModal(`Detalle del Incidente #${item.id}`, modalBody, actions);
+    App.openModal(
+      `Detalle de Incidencia Técnica #${item.id}`,
+      modalBody,
+      [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      ],
+      'modal-lg'
+    );
   }
 
   function copyStackToClipboard(id) {
@@ -310,79 +317,206 @@ const AdminErrorsModule = (() => {
     }
   }
 
-  async function toggleResolve(id, nuevoEstado) {
-    try {
-      await API.updateAdminErrorStatus(id, nuevoEstado);
-      if (typeof App !== 'undefined' && App.showToast) {
-        App.showToast(`Incidencia marcada como ${nuevoEstado.toLowerCase()}.`, 'success');
-      }
-      await loadData(currentPagination.page);
-    } catch (err) {
-      if (typeof App !== 'undefined' && App.showToast) {
-        App.showToast('No se pudo actualizar el estado.', 'error');
-      }
-    }
-  }
+  /**
+   * Eliminación con doble confirmación tipada (como en Viáticos)
+   */
+  function confirmDelete(id) {
+    const requiredConfirmation = 'ELIMINAR';
+    const html = `
+      <div style="padding:10px 4px 6px; text-align:center;">
+        <div style="width:58px;height:58px;margin:0 auto 16px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:28px;height:28px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Registro de Incidencia #${id}?</h3>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;max-width:440px;margin:0 auto 16px;">
+          Esta acción removerá el registro técnico de error de manera permanente de la base de datos y no se puede deshacer.
+        </p>
 
-  async function deleteError(id) {
-    App.openModal(
-      'Confirmar Eliminación',
-      '<p style="margin:0; font-size:0.95rem; color:var(--text-secondary);">¿Estás seguro de que deseas eliminar este registro de error? Esta acción no se puede deshacer.</p>',
-      [
-        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-        {
-          text: 'Eliminar Registro',
-          cls: 'btn-danger-confirm',
-          action: async () => {
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Confirmación Requerida
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin:0;line-height:1.45;">
+            Para confirmar la eliminación, por favor escribe exactamente <strong style="color:#dc2626;user-select:all;">${requiredConfirmation}</strong> a continuación:
+          </p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="admin-confirm-delete-input"
+            class="form-input"
+            placeholder="Escribe ${requiredConfirmation}"
+            autocomplete="off"
+            style="text-align:center; font-weight:800; font-size:14.5px; letter-spacing:0.8px; text-transform:uppercase; border:1.5px solid var(--color-border); padding:10px 14px; width:100%; border-radius:8px;"
+            oninput="
+              const val = this.value.trim().toUpperCase();
+              const btn = document.getElementById('btn-confirm-delete-action');
+              if (btn) {
+                if (val === '${requiredConfirmation}') {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  btn.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
+                } else {
+                  btn.disabled = true;
+                  btn.style.opacity = '0.45';
+                  btn.style.cursor = 'not-allowed';
+                  btn.style.boxShadow = 'none';
+                }
+              }
+            "
+          />
+        </div>
+      </div>
+    `;
+
+    App.openModal('Confirmar Eliminación de Incidencia', html, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      {
+        text: 'Sí, Eliminar Registro',
+        cls: 'btn-danger',
+        id: 'btn-confirm-delete-action',
+        action: async () => {
+          const inputEl = document.getElementById('admin-confirm-delete-input');
+          const typedVal = inputEl ? inputEl.value.trim().toUpperCase() : '';
+          if (typedVal !== requiredConfirmation) {
+            App.showToast(`Debes escribir "${requiredConfirmation}" para proceder.`, 'warning');
+            if (inputEl) inputEl.focus();
+            return;
+          }
+          const btn = document.getElementById('btn-confirm-delete-action');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+          }
+          try {
+            await API.deleteAdminError(id);
             App.closeModal();
-            try {
-              await API.deleteAdminError(id);
-              if (typeof App !== 'undefined' && App.showToast) {
-                App.showToast('Registro de error eliminado.', 'success');
-              }
-              await loadData(currentPagination.page);
-            } catch (_) {
-              if (typeof App !== 'undefined' && App.showToast) {
-                App.showToast('Error al eliminar.', 'error');
-              }
+            App.showToast('Registro de error eliminado correctamente.', 'success');
+            await loadData(currentPagination.page);
+          } catch (err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = 'Sí, Eliminar Registro';
             }
+            App.showToast('Error al eliminar el registro.', 'error');
           }
         }
-      ]
-    );
+      }
+    ]);
+
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirm-delete-action');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+      }
+      const inp = document.getElementById('admin-confirm-delete-input');
+      if (inp) inp.focus();
+    }, 50);
   }
 
-  async function clearAllErrors(onlyResolved = false) {
-    const title = onlyResolved ? 'Depurar Errores Resueltos' : 'Limpiar Todo el Historial de Errores';
-    const msg = onlyResolved
-      ? '¿Deseas eliminar permanentemente todas las incidencias marcadas como resueltas?'
-      : '¿Deseas vaciar completamente el registro de errores e incidentes del sistema?';
+  function confirmClearAll(onlyResolved = false) {
+    const requiredConfirmation = onlyResolved ? 'DEPURAR' : 'LIMPIAR';
+    const title = onlyResolved ? 'Depurar Errores Resueltos' : 'Limpiar Todo el Historial';
+    const desc = onlyResolved
+      ? 'Se eliminarán permanentemente todas las incidencias marcadas como <strong>Resuelto</strong>.'
+      : 'Se vaciará completamente el registro histórico de incidencias y errores del sistema.';
 
-    App.openModal(
-      title,
-      `<p style="margin:0; font-size:0.95rem; color:var(--text-secondary);">${msg}</p>`,
-      [
-        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-        {
-          text: onlyResolved ? 'Depurar Resueltos' : 'Vaciar Todo',
-          cls: 'btn-danger-confirm',
-          action: async () => {
+    const html = `
+      <div style="padding:10px 4px 6px; text-align:center;">
+        <div style="width:58px;height:58px;margin:0 auto 16px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:28px;height:28px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:8px;">${title}</h3>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;max-width:440px;margin:0 auto 16px;">
+          ${desc} Esta acción no se puede deshacer.
+        </p>
+
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;">
+          <p style="font-size:12px;color:var(--text-secondary);margin:0;line-height:1.45;">
+            Para confirmar, escribe exactamente <strong style="color:#dc2626;user-select:all;">${requiredConfirmation}</strong> a continuación:
+          </p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="admin-confirm-clear-input"
+            class="form-input"
+            placeholder="Escribe ${requiredConfirmation}"
+            autocomplete="off"
+            style="text-align:center; font-weight:800; font-size:14.5px; letter-spacing:0.8px; text-transform:uppercase; border:1.5px solid var(--color-border); padding:10px 14px; width:100%; border-radius:8px;"
+            oninput="
+              const val = this.value.trim().toUpperCase();
+              const btn = document.getElementById('btn-confirm-clear-action');
+              if (btn) {
+                if (val === '${requiredConfirmation}') {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  btn.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
+                } else {
+                  btn.disabled = true;
+                  btn.style.opacity = '0.45';
+                  btn.style.cursor = 'not-allowed';
+                  btn.style.boxShadow = 'none';
+                }
+              }
+            "
+          />
+        </div>
+      </div>
+    `;
+
+    App.openModal(title, html, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      {
+        text: onlyResolved ? 'Sí, Depurar Resueltos' : 'Sí, Vaciar Todo',
+        cls: 'btn-danger',
+        id: 'btn-confirm-clear-action',
+        action: async () => {
+          const inputEl = document.getElementById('admin-confirm-clear-input');
+          const typedVal = inputEl ? inputEl.value.trim().toUpperCase() : '';
+          if (typedVal !== requiredConfirmation) {
+            App.showToast(`Debes escribir "${requiredConfirmation}" para proceder.`, 'warning');
+            if (inputEl) inputEl.focus();
+            return;
+          }
+          const btn = document.getElementById('btn-confirm-clear-action');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+          }
+          try {
+            await API.clearAllAdminErrors(onlyResolved);
             App.closeModal();
-            try {
-              await API.clearAllAdminErrors(onlyResolved);
-              if (typeof App !== 'undefined' && App.showToast) {
-                App.showToast(onlyResolved ? 'Incidentes resueltos eliminados.' : 'Historial de errores depurado.', 'success');
-              }
-              await loadData(1);
-            } catch (_) {
-              if (typeof App !== 'undefined' && App.showToast) {
-                App.showToast('Error al depurar.', 'error');
-              }
+            App.showToast(onlyResolved ? 'Incidentes resueltos eliminados.' : 'Historial de errores depurado.', 'success');
+            await loadData(1);
+          } catch (err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = 'Reintentar';
             }
+            App.showToast('Error al depurar.', 'error');
           }
         }
-      ]
-    );
+      }
+    ]);
+
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirm-clear-action');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+      }
+      const inp = document.getElementById('admin-confirm-clear-input');
+      if (inp) inp.focus();
+    }, 50);
   }
 
   async function render(container) {
@@ -392,21 +526,21 @@ const AdminErrorsModule = (() => {
       <div class="admin-panel-container">
         
         <!-- Cabecera del Módulo -->
-        <div class="page-header">
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
           <div class="page-header-info">
-            <h1 class="page-title">Centro de Monitoreo de Errores e Incidentes</h1>
-            <p class="page-subtitle">Supervisión en tiempo real de fallos técnicos, excepciones de JavaScript, errores de microservicios y páginas 404 reportadas en Talento 360.</p>
+            <h1 class="page-title" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:0 0 6px;">Centro de Monitoreo de Errores e Incidentes</h1>
+            <p class="page-subtitle" style="font-size:0.88rem; color:var(--text-secondary); margin:0;">Supervisión técnica de fallos, excepciones de JavaScript, errores de servidor y páginas 404 reportadas en Talento 360.</p>
           </div>
-          <div class="page-actions">
-            <button id="btn-admin-err-refresh" class="btn-secondary" title="Actualizar lista de incidencias">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:6px;"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <div class="page-actions" style="display:flex; align-items:center; gap:10px;">
+            <button id="btn-admin-err-refresh" class="btn btn-outline" title="Actualizar lista de incidencias" style="display:inline-flex; align-items:center; gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               <span>Actualizar</span>
             </button>
-            <button id="btn-admin-err-clear-resolved" class="btn-secondary" title="Eliminar únicamente las incidencias resueltas">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:6px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <button id="btn-admin-err-clear-resolved" class="btn btn-secondary" title="Eliminar incidencias resueltas" style="display:inline-flex; align-items:center; gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               <span>Depurar Resueltos</span>
             </button>
-            <button id="btn-admin-err-clear-all" class="btn-secondary" style="color:var(--color-danger, #c42b1c);" title="Vaciar todo el registro">
+            <button id="btn-admin-err-clear-all" class="btn btn-outline" style="color:var(--color-danger, #c42b1c); border-color:rgba(196,43,28,0.35);" title="Vaciar todo el registro">
               <span>Limpiar Todo</span>
             </button>
           </div>
@@ -477,8 +611,8 @@ const AdminErrorsModule = (() => {
             <select id="admin-filter-estado" class="admin-select">
               <option value="TODOS">Todos los Estados</option>
               <option value="Pendiente" selected>Solo Pendientes</option>
+              <option value="En Revisión">En Revisión</option>
               <option value="Resuelto">Resueltos</option>
-              <option value="Revisado">En Revisión</option>
             </select>
           </div>
 
@@ -497,13 +631,13 @@ const AdminErrorsModule = (() => {
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th style="width: 120px; text-align: center;">Estado</th>
+                  <th style="width: 140px; text-align: center;">Estado</th>
                   <th style="width: 140px; text-align: center;">Tipo</th>
                   <th>Detalle del Incidente</th>
                   <th style="width: 220px;">Ruta / URL Afectada</th>
                   <th style="width: 130px; text-align: center;">Usuario</th>
                   <th style="width: 160px; text-align: center;">Fecha y Hora</th>
-                  <th style="width: 120px; text-align: center;">Acciones</th>
+                  <th style="width: 110px; text-align: center;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="admin-errors-tbody">
@@ -518,10 +652,10 @@ const AdminErrorsModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="#355833" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
             <h3 class="empty-title">Plataforma Operando con Normalidad</h3>
-            <p class="empty-desc">No se registran errores técnicos ni incidencias 404 pendientes con los filtros seleccionados.</p>
+            <p class="empty-desc">No se registran fallos técnicos ni incidencias pendientes con los filtros seleccionados.</p>
           </div>
 
-          <!-- Paginación y Contador -->
+          <!-- Footer y Paginador -->
           <div class="admin-table-footer">
             <div id="admin-errors-count-info" class="count-info">Cargando incidencias...</div>
             <div id="admin-errors-pagination" class="pagination-buttons">
@@ -529,7 +663,7 @@ const AdminErrorsModule = (() => {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                 <span>Anterior</span>
               </button>
-              <span id="admin-errors-page-indicator" class="page-indicator">Página 1 de 1</span>
+              <span id="admin-errors-page-indicator" style="font-size:0.83rem; font-weight:700; color:var(--text-primary);">Página 1</span>
               <button id="admin-errors-btn-next" class="btn-page">
                 <span>Siguiente</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -541,85 +675,92 @@ const AdminErrorsModule = (() => {
       </div>
     `;
 
-    bindDOMEvents();
+    setupEvents();
     await loadData(1);
 
-    // Auto-refrescar suavemente cada 30 segundos mientras la vista esté activa
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(() => {
-      if (document.getElementById('admin-errors-tbody')) {
-        loadData(currentPagination.page);
-      } else {
-        clearInterval(autoRefreshTimer);
-      }
-    }, 30 * 1000);
+      loadData(currentPagination.page);
+    }, 45 * 1000);
   }
 
-  function bindDOMEvents() {
+  function setupEvents() {
     const btnRefresh = document.getElementById('btn-admin-err-refresh');
-    if (btnRefresh) btnRefresh.onclick = () => loadData(currentPagination.page);
+    if (btnRefresh) {
+      btnRefresh.onclick = () => {
+        loadData(currentPagination.page);
+        if (typeof App !== 'undefined' && App.showToast) App.showToast('Incidentes actualizados', 'info');
+      };
+    }
 
     const btnClearResolved = document.getElementById('btn-admin-err-clear-resolved');
-    if (btnClearResolved) btnClearResolved.onclick = () => clearAllErrors(true);
+    if (btnClearResolved) {
+      btnClearResolved.onclick = () => confirmClearAll(true);
+    }
 
     const btnClearAll = document.getElementById('btn-admin-err-clear-all');
-    if (btnClearAll) btnClearAll.onclick = () => clearAllErrors(false);
+    if (btnClearAll) {
+      btnClearAll.onclick = () => confirmClearAll(false);
+    }
 
-    const selectTipo = document.getElementById('admin-filter-tipo');
-    if (selectTipo) {
-      selectTipo.onchange = (e) => {
+    const filterTipo = document.getElementById('admin-filter-tipo');
+    if (filterTipo) {
+      filterTipo.onchange = (e) => {
         currentFilterTipo = e.target.value;
         loadData(1);
       };
     }
 
-    const selectEstado = document.getElementById('admin-filter-estado');
-    if (selectEstado) {
-      selectEstado.onchange = (e) => {
+    const filterEstado = document.getElementById('admin-filter-estado');
+    if (filterEstado) {
+      filterEstado.onchange = (e) => {
         currentFilterEstado = e.target.value;
         loadData(1);
       };
     }
 
-    const inputSearch = document.getElementById('admin-filter-search');
+    const filterSearch = document.getElementById('admin-filter-search');
     let searchDebounce = null;
-    if (inputSearch) {
-      inputSearch.oninput = (e) => {
+    if (filterSearch) {
+      filterSearch.oninput = (e) => {
         clearTimeout(searchDebounce);
         searchDebounce = setTimeout(() => {
-          currentSearch = e.target.value;
+          currentSearch = e.target.value.trim();
           loadData(1);
-        }, 300);
+        }, 320);
       };
     }
 
-    const btnPrev = document.getElementById('admin-errors-btn-prev');
-    if (btnPrev) {
-      btnPrev.onclick = () => {
-        if (currentPagination.page > 1) loadData(currentPagination.page - 1);
+    const prevBtn = document.getElementById('admin-errors-btn-prev');
+    if (prevBtn) {
+      prevBtn.onclick = () => {
+        if (currentPagination.page > 1) {
+          loadData(currentPagination.page - 1);
+        }
       };
     }
 
-    const btnNext = document.getElementById('admin-errors-btn-next');
-    if (btnNext) {
-      btnNext.onclick = () => {
-        if (currentPagination.page < currentPagination.totalPages) loadData(currentPagination.page + 1);
+    const nextBtn = document.getElementById('admin-errors-btn-next');
+    if (nextBtn) {
+      nextBtn.onclick = () => {
+        if (currentPagination.page < currentPagination.totalPages) {
+          loadData(currentPagination.page + 1);
+        }
       };
     }
   }
 
   return {
     render,
+    loadData,
+    updateStatus,
     openDetailModal,
     copyStackToClipboard,
-    toggleResolve,
-    deleteError,
-    clearAllErrors,
-    refresh: () => loadData(currentPagination.page)
+    confirmDelete,
+    confirmClearAll
   };
 })();
 
 if (typeof window !== 'undefined') {
   window.AdminErrorsModule = AdminErrorsModule;
 }
-

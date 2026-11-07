@@ -145,6 +145,13 @@ async function generateFullDatabaseDump(pool, options = {}) {
       `Copia de seguridad completada con éxito: ${tableNames.length} tablas y ${totalRowsCount.toLocaleString('es-CO')} registros respaldados.`
     ]);
 
+    // Aplicar política de rotación y retención (máximo 15 copias guardadas)
+    try {
+      await applyBackupRetentionPolicy(client);
+    } catch (rotErr) {
+      console.warn('[Talento 360 Backup Generator] Advertencia al aplicar rotación:', rotErr.message);
+    }
+
     return {
       success: true,
       backup: insertRes.rows[0],
@@ -156,6 +163,44 @@ async function generateFullDatabaseDump(pool, options = {}) {
     };
   } finally {
     client.release();
+  }
+}
+
+/**
+ * Aplica la política de retención automática: mantiene como máximo N copias (por defecto 15)
+ * y elimina del disco y de la base de datos los archivos de respaldo más antiguos.
+ */
+async function applyBackupRetentionPolicy(db) {
+  const settingsRes = await db.query(`
+    SELECT key, value FROM system_settings 
+    WHERE key IN ('backup_max_copies', 'backup_retention_days');
+  `);
+  
+  let maxCopies = 15;
+  for (const row of settingsRes.rows) {
+    if (row.key === 'backup_max_copies') {
+      const parsed = parseInt(row.value);
+      if (!isNaN(parsed) && parsed >= 3) maxCopies = parsed;
+    }
+  }
+
+  const allRes = await db.query(`
+    SELECT id, filename, filepath 
+    FROM system_backups 
+    ORDER BY creado_en DESC;
+  `);
+
+  if (allRes.rows.length > maxCopies) {
+    const toRemove = allRes.rows.slice(maxCopies);
+    for (const b of toRemove) {
+      try {
+        if (fs.existsSync(b.filepath)) {
+          fs.unlinkSync(b.filepath);
+        }
+      } catch (_) {}
+      await db.query('DELETE FROM system_backups WHERE id = $1', [b.id]);
+      console.log(`[Talento 360 Backup Rotation] Respaldo antiguo rotado y depurado (límite ${maxCopies}): ${b.filename}`);
+    }
   }
 }
 
@@ -235,18 +280,29 @@ async function deleteBackup(pool, backupId) {
 }
 
 /**
- * Configuración del programador de backups
+ * Configuración del programador de backups (Intervalo + Diario + Retención)
  */
 async function getBackupConfig(pool) {
   const res = await pool.query(`
     SELECT key, value FROM system_settings 
-    WHERE key IN ('backup_daily_enabled', 'backup_daily_hour', 'backup_daily_minute', 'backup_retention_days');
+    WHERE key IN (
+      'backup_interval_enabled', 
+      'backup_interval_minutes', 
+      'backup_daily_enabled', 
+      'backup_daily_hour', 
+      'backup_daily_minute', 
+      'backup_max_copies', 
+      'backup_retention_days'
+    );
   `);
 
   const config = {
+    backup_interval_enabled: 'true',
+    backup_interval_minutes: '30',
     backup_daily_enabled: 'true',
-    backup_daily_hour: '23',
+    backup_daily_hour: '17',
     backup_daily_minute: '00',
+    backup_max_copies: '15',
     backup_retention_days: '30'
   };
 
@@ -257,7 +313,15 @@ async function getBackupConfig(pool) {
 }
 
 async function updateBackupConfig(pool, newConfig = {}) {
-  const keys = ['backup_daily_enabled', 'backup_daily_hour', 'backup_daily_minute', 'backup_retention_days'];
+  const keys = [
+    'backup_interval_enabled',
+    'backup_interval_minutes',
+    'backup_daily_enabled',
+    'backup_daily_hour',
+    'backup_daily_minute',
+    'backup_max_copies',
+    'backup_retention_days'
+  ];
   for (const key of keys) {
     if (newConfig[key] !== undefined) {
       await pool.query(`
@@ -271,44 +335,62 @@ async function updateBackupConfig(pool, newConfig = {}) {
 }
 
 /**
- * Inicializador del Scheduler Diario en Node.js
+ * Inicializador del Scheduler en Node.js (Soporta Intervalo periódico y Hora fija diaria)
  */
 let schedulerInterval = null;
 let lastDailyExecutionDate = null;
+let lastIntervalExecutionTimestamp = Date.now();
 
 function initDailyBackupScheduler(pool) {
   if (schedulerInterval) clearInterval(schedulerInterval);
 
-  console.log('[Talento 360 Backup Scheduler] Inicializando programador diario de copias de seguridad...');
+  console.log('[Talento 360 Backup Scheduler] Inicializando programador automático de copias de seguridad (Intervalo + Diario)...');
 
   schedulerInterval = setInterval(async () => {
     try {
       const config = await getBackupConfig(pool);
-      if (config.backup_daily_enabled !== 'true') return;
-
       const now = new Date();
-      const targetHour = parseInt(config.backup_daily_hour) || 23;
-      const targetMinute = parseInt(config.backup_daily_minute) || 0;
 
-      const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-
-      if (now.getHours() === targetHour && now.getMinutes() === targetMinute) {
-        if (lastDailyExecutionDate !== todayStr) {
-          lastDailyExecutionDate = todayStr;
-          console.log(`[Talento 360 Backup Scheduler] Ejecutando copia de seguridad programada diaria (${targetHour}:${targetMinute})...`);
-          
-          const result = await generateFullDatabaseDump(pool, {
+      // 1. Respaldo periódico por intervalo (ej: cada 30 min, 10 min, etc.)
+      if (config.backup_interval_enabled === 'true') {
+        const intervalMins = Math.max(10, Math.min(60, parseInt(config.backup_interval_minutes) || 30));
+        const intervalMs = intervalMins * 60 * 1000;
+        
+        if (Date.now() - lastIntervalExecutionTimestamp >= intervalMs) {
+          lastIntervalExecutionTimestamp = Date.now();
+          console.log(`[Talento 360 Backup Scheduler] Ejecutando copia periódica automática (cada ${intervalMins} minutos)...`);
+          const res = await generateFullDatabaseDump(pool, {
             tipo: 'AUTOMATICO',
-            creado_por: 'Sistema Programado'
+            creado_por: `Sistema Automático (Cada ${intervalMins} min)`
           });
-          
-          console.log(`[Talento 360 Backup Scheduler] Backup automático generado exitosamente: ${result.filename} (${formatBytes(result.filesize)})`);
+          console.log(`[Talento 360 Backup Scheduler] Backup periódico creado: ${res.filename} (${formatBytes(res.filesize)})`);
+        }
+      }
+
+      // 2. Respaldo diario a hora fija (ej: 17:00 / 5:00 PM)
+      if (config.backup_daily_enabled === 'true') {
+        const targetHour = parseInt(config.backup_daily_hour) || 17;
+        const targetMinute = parseInt(config.backup_daily_minute) || 0;
+        const todayStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+        if (now.getHours() === targetHour && now.getMinutes() === targetMinute) {
+          if (lastDailyExecutionDate !== todayStr) {
+            lastDailyExecutionDate = todayStr;
+            console.log(`[Talento 360 Backup Scheduler] Ejecutando copia programada diaria (${targetHour}:${String(targetMinute).padStart(2, '0')})...`);
+            
+            const result = await generateFullDatabaseDump(pool, {
+              tipo: 'AUTOMATICO',
+              creado_por: `Sistema Diario (${targetHour}:${String(targetMinute).padStart(2, '0')})`
+            });
+            
+            console.log(`[Talento 360 Backup Scheduler] Backup diario generado: ${result.filename} (${formatBytes(result.filesize)})`);
+          }
         }
       }
     } catch (err) {
       console.error('[Talento 360 Backup Scheduler] Error en el ciclo del programador:', err.message);
     }
-  }, 45 * 1000); // Comprobación cada 45 segundos
+  }, 30 * 1000); // Comprobación cada 30 segundos
 }
 
 module.exports = {

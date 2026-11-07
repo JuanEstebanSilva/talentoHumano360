@@ -45,9 +45,12 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 -- Valores iniciales de configuración para copias de seguridad automáticas
 INSERT INTO system_settings (key, value) VALUES
+  ('backup_interval_enabled', 'true'),
+  ('backup_interval_minutes', '30'),
   ('backup_daily_enabled', 'true'),
-  ('backup_daily_hour', '23'),
+  ('backup_daily_hour', '17'),
   ('backup_daily_minute', '00'),
+  ('backup_max_copies', '15'),
   ('backup_retention_days', '30')
 ON CONFLICT (key) DO NOTHING;
 
