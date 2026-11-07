@@ -96,6 +96,8 @@ const AdminBackupsModule = (() => {
     const totalCountEl = document.getElementById('stat-backup-total-count');
     const dailyStatusEl = document.getElementById('stat-backup-daily-status');
     const dailyHourEl = document.getElementById('stat-backup-daily-hour');
+    const diskSpaceEl = document.getElementById('stat-backup-disk-space');
+    const policyCopiesEl = document.getElementById('stat-backup-policy-copies');
     const tableCountBadge = document.getElementById('admin-backups-count-badge');
 
     if (backupsList.length > 0) {
@@ -109,6 +111,22 @@ const AdminBackupsModule = (() => {
 
     if (totalCountEl) {
       totalCountEl.textContent = backupsList.length.toLocaleString('es-CO');
+    }
+
+    if (diskSpaceEl) {
+      const totalBytes = backupsList.reduce((acc, b) => acc + (parseInt(b.filesize) || 0), 0);
+      if (totalBytes > 1024 * 1024) {
+        diskSpaceEl.textContent = `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+      } else if (totalBytes > 0) {
+        diskSpaceEl.textContent = `${(totalBytes / 1024).toFixed(1)} KB`;
+      } else {
+        diskSpaceEl.textContent = '0 MB';
+      }
+    }
+
+    if (policyCopiesEl) {
+      const maxC = currentConfig.backup_max_copies || '15';
+      policyCopiesEl.textContent = `Máx ${maxC} Copias`;
     }
 
     if (tableCountBadge) {
@@ -234,7 +252,7 @@ const AdminBackupsModule = (() => {
         <td style="text-align: center;">
           ${formatDateTwoLines(item.creado_en)}
         </td>
-        <td style="text-align: center;">
+        <td class="td-user-col">
           ${renderUserCell(item.creado_por)}
         </td>
         <td style="text-align: center;">
@@ -249,7 +267,7 @@ const AdminBackupsModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <button class="btn-action-view" title="Ver detalles técnicos del respaldo" aria-label="Ver detalles de copia ${item.id}" onclick="AdminBackupsModule.showDetail(${item.id})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             <button class="btn-action-delete" title="Eliminar copia del servidor" aria-label="Eliminar copia de seguridad ${item.id}" onclick="AdminBackupsModule.confirmDeleteBackup(${item.id}, '${escHtml(item.filename)}')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -270,7 +288,7 @@ const AdminBackupsModule = (() => {
       btn.disabled = true;
       btn.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
-        <span>Generando copia de seguridad...</span>
+        <span class="btn-slide-label" style="max-width:260px; opacity:1; margin-left:8px;">Generando copia de seguridad...</span>
       `;
     }
 
@@ -294,8 +312,8 @@ const AdminBackupsModule = (() => {
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:18px;height:18px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          <span>Hacer Copia de Seguridad Ahora</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span class="btn-slide-label">Hacer Copia de Seguridad Ahora</span>
         `;
       }
     }
@@ -554,16 +572,16 @@ const AdminBackupsModule = (() => {
             <h1 class="module-hero-title">Copias de Seguridad y Respaldo</h1>
             <p class="module-hero-desc">Genera volcados SQL integrales de toda la plataforma para guardar en tu PC o USB, y programa copias automáticas con rotación preventiva.</p>
           </div>
-          <div class="module-header-actions">
-            <!-- Botón estilo pill verde exacto a la plataforma -->
-            <button id="btn-admin-backup-now" class="btn-backup-pill-now" title="Generar un respaldo completo de la base de datos ahora mismo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:18px; height:18px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span>Hacer Copia de Seguridad Ahora</span>
+          <div class="module-header-actions" style="display:flex; align-items:center; gap:12px;">
+            <!-- Botón de acción deslizante estilo oficial -->
+            <button id="btn-admin-backup-now" class="btn-action-slide-admin btn-slide--green" title="Generar un respaldo completo de la base de datos ahora mismo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span class="btn-slide-label">Hacer Copia de Seguridad Ahora</span>
             </button>
           </div>
         </div>
 
-        <!-- 3 Tarjetas Métricas KPI Oficiales (stats-grid) -->
+        <!-- 5 Tarjetas Métricas KPI Oficiales (stats-grid de 5 Columnas Completas) -->
         <div class="stats-grid" style="margin-bottom: 20px;">
           <div class="stat-card">
             <div class="stat-icon stat-icon--green">
@@ -582,7 +600,7 @@ const AdminBackupsModule = (() => {
             </div>
             <div class="stat-info">
               <div class="stat-value" id="stat-backup-total-count">0</div>
-              <div class="stat-label">Archivos de Respaldo Guardados</div>
+              <div class="stat-label">Archivos de Respaldo</div>
               <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Disponibles para descarga</span>
             </div>
           </div>
@@ -593,8 +611,30 @@ const AdminBackupsModule = (() => {
             </div>
             <div class="stat-info">
               <div class="stat-value text-success" id="stat-backup-daily-status">Activo</div>
-              <div class="stat-label">Automatización de Respaldo</div>
+              <div class="stat-label">Automatización Dual</div>
               <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;" id="stat-backup-daily-hour">Cada 30 min | Diario 17:00</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-backup-disk-space">0 MB</div>
+              <div class="stat-label">Espacio Total en Disco</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Volumen de almacenamiento</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-backup-policy-copies">15 Copias</div>
+              <div class="stat-label">Política de Retención</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Rotación automática activa</span>
             </div>
           </div>
         </div>
@@ -760,7 +800,7 @@ const AdminBackupsModule = (() => {
                   <th scope="col" style="width: 140px; text-align: center;">Tipo</th>
                   <th scope="col" style="width: 120px; text-align: center;">Tamaño</th>
                   <th scope="col" style="width: 140px; text-align: center;">Fecha y Hora</th>
-                  <th scope="col" style="width: 150px; text-align: center;">Generado Por</th>
+                  <th scope="col" style="width: 150px; text-align: left; padding-left: 16px;">Generado Por</th>
                   <th scope="col" style="width: 120px; text-align: center;">Estado</th>
                   <th scope="col" style="width: 110px; text-align: center;">Acciones</th>
                 </tr>

@@ -125,16 +125,16 @@ const AdminErrorsModule = (() => {
     }
 
     return `
-      <div class="admin-error-detail-wrap">
-        <div class="admin-error-title-row">
-          ${errorType ? `<span class="admin-token-pill">${escHtml(errorType)}</span>` : ''}
-          <span class="admin-msg-text" title="${escHtml(msg)}">${escHtml(cleanMsg)}</span>
+      <div class="admin-error-detail-wrap" style="max-width:320px;">
+        <div class="admin-error-title-row" style="display:flex; align-items:center; gap:8px;">
+          ${errorType ? `<span class="admin-token-pill" style="font-size:0.72rem; font-weight:800; padding:2px 7px; border-radius:6px; background:rgba(220,38,38,0.1); color:#b91c1c; border:1px solid rgba(220,38,38,0.2);">${escHtml(errorType)}</span>` : ''}
+          <span class="admin-msg-text" style="font-size:0.83rem; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; display:inline-block;" title="${escHtml(msg)}">${escHtml(cleanMsg)}</span>
         </div>
         ${stack ? `
-          <div class="admin-stack-hint-row">
+          <div class="admin-stack-hint-row" style="margin-top:2px;">
             <button type="button" class="badge-stack-pill" onclick="AdminErrorsModule.openDetailModal(${id})" title="Ver la traza completa de llamadas">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              <span>Ver Traza de Pila</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span>Ver Traza Completa</span>
             </button>
           </div>
         ` : ''}
@@ -177,11 +177,19 @@ const AdminErrorsModule = (() => {
     const p404El = document.getElementById('stat-admin-err-404');
     const jsEl = document.getElementById('stat-admin-err-js');
     const userEl = document.getElementById('stat-admin-err-user');
+    const resEl = document.getElementById('stat-admin-err-resolved');
+    const rateEl = document.getElementById('stat-admin-err-rate');
 
     if (totalEl) totalEl.textContent = (s.total || 0).toLocaleString('es-CO');
     if (p404El) p404El.textContent = (s.errores404 || 0).toLocaleString('es-CO');
     if (jsEl) jsEl.textContent = ((s.erroresConsola || 0) + (s.erroresApi || 0)).toLocaleString('es-CO');
     if (userEl) userEl.textContent = (s.reportadosUsuario || 0).toLocaleString('es-CO');
+    if (resEl) resEl.textContent = (s.resueltos || 0).toLocaleString('es-CO');
+
+    if (rateEl && s.total > 0) {
+      const pct = Math.round(((s.resueltos || 0) / s.total) * 100);
+      rateEl.textContent = `${pct}% solucionadas con éxito`;
+    }
 
     const pendBadge = document.getElementById('stat-admin-err-pend-badge');
     if (pendBadge) {
@@ -200,25 +208,25 @@ const AdminErrorsModule = (() => {
     let badgeHtml = '';
 
     if (t === 'PAGE_404' || t === 'NOT_FOUND_404') {
-      badgeHtml = `<span class="badge badge-warning" title="Página o ruta 404 no encontrada"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Error 404</span>`;
+      badgeHtml = `<span class="badge badge-warning" style="font-size:0.80rem; font-weight:700; padding:5px 11px; border-radius:9999px; display:inline-flex; align-items:center; gap:5px;" title="Página o ruta 404 no encontrada"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><line x1="12" y1="7.5" x2="12" y2="12.5"/><circle cx="12" cy="16.5" r="0.8" fill="currentColor"/></svg>Error 404</span>`;
     } else if (t === 'CONSOLE_ERROR') {
-      badgeHtml = `<span class="badge badge-danger" title="Error de JavaScript en el navegador"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
+      badgeHtml = `<span class="badge badge-danger" style="font-size:0.80rem; font-weight:700; padding:5px 11px; border-radius:9999px; display:inline-flex; align-items:center; gap:5px;" title="Error de JavaScript en el navegador"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
     } else if (t === 'API_ERROR') {
-      badgeHtml = `<span class="badge badge-secondary" title="Fallo en llamada a microservicio o red"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Red</span>`;
+      badgeHtml = `<span class="badge badge-secondary" style="font-size:0.80rem; font-weight:700; padding:5px 11px; border-radius:9999px; display:inline-flex; align-items:center; gap:5px;" title="Fallo en microservicio o red"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Red</span>`;
     } else {
-      badgeHtml = `<span class="badge badge-info" title="Excepción del sistema">${escHtml(t)}</span>`;
+      badgeHtml = `<span class="badge badge-info" style="font-size:0.80rem; font-weight:700; padding:5px 11px; border-radius:9999px;" title="Excepción del sistema">${escHtml(t)}</span>`;
     }
 
     if (reportadoPorUsuario) {
       return `
-        <div class="admin-type-badge-wrap">
+        <div class="admin-type-badge-wrap" style="display:flex; flex-direction:column; align-items:center; gap:4px;">
           ${badgeHtml}
-          <span class="badge badge-user-report-inline" title="Reportado manualmente por el usuario mediante botón">🙋 Usuario</span>
+          <span class="badge badge-user-report-inline" style="font-size:0.71rem;" title="Reportado manualmente por el usuario mediante botón">🙋 Por Usuario</span>
         </div>
       `;
     }
 
-    return `<div class="admin-type-badge-wrap">${badgeHtml}</div>`;
+    return `<div class="admin-type-badge-wrap" style="display:flex; justify-content:center;">${badgeHtml}</div>`;
   }
 
   function renderEstadoSelect(item) {
@@ -303,7 +311,7 @@ const AdminErrorsModule = (() => {
             <span class="admin-url-text">${escHtml(cleanDisplayUrl(item.url))}</span>
           </div>
         </td>
-        <td style="text-align: center;">
+        <td class="td-user-col">
           ${renderUserCell(item.usuario)}
         </td>
         <td style="text-align: center;">
@@ -348,31 +356,62 @@ const AdminErrorsModule = (() => {
     const modalBody = `
       <div class="admin-error-modal-detail">
         <div class="admin-detail-header-badges">
-          ${renderEstadoSelect(item)}
-          ${getTipoBadge(item.tipo, item.reportado_por_usuario)}
+          <div class="admin-detail-badges-group">
+            ${renderEstadoSelect(item)}
+            ${getTipoBadge(item.tipo, item.reportado_por_usuario)}
+          </div>
+          <span style="font-size:0.80rem; font-weight:800; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase;">
+            Incidencia Técnica #${item.id}
+          </span>
         </div>
 
-        <div class="admin-detail-section">
-          <label class="admin-detail-label">Mensaje del Fallo:</label>
-          <div class="admin-detail-msg">${escHtml(item.mensaje)}</div>
+        <div class="admin-detail-msg-card">
+          <div class="admin-detail-msg-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Mensaje del Fallo Técnico</span>
+          </div>
+          <div class="admin-detail-msg-content">${escHtml(item.mensaje)}</div>
         </div>
 
         <div class="admin-detail-grid">
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Ruta / URL Completa:</span>
-            <span class="admin-detail-val" style="word-break: break-all;">${escHtml(item.url || 'No especificada')}</span>
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Ruta / URL Completa</span>
+              <span class="admin-detail-metric-val">${escHtml(item.url || 'No especificada')}</span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Usuario que experimentó la incidencia:</span>
-            <span class="admin-detail-val">${escHtml(item.usuario || 'Anónimo')}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(2,132,199,0.08); color:#0284c7;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Usuario</span>
+              <span class="admin-detail-metric-val">${renderUserCell(item.usuario)}</span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Fecha y Hora de Detección:</span>
-            <span class="admin-detail-val">${formatDate(item.creado_en)}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(217,119,6,0.08); color:#b45309;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Fecha y Hora de Detección</span>
+              <span class="admin-detail-metric-val">${formatDate(item.creado_en)}</span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Dirección IP de Origen:</span>
-            <span class="admin-detail-val font-mono">${escHtml(item.ip || 'No registrada')}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(147,51,234,0.08); color:#7e22ce;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Dirección IP de Origen</span>
+              <span class="admin-detail-metric-val font-mono">${escHtml(item.ip || 'No registrada')}</span>
+            </div>
           </div>
         </div>
 
@@ -384,12 +423,17 @@ const AdminErrorsModule = (() => {
         ` : ''}
 
         ${item.stack ? `
-          <div class="admin-detail-section">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <label class="admin-detail-label" style="margin:0;">Traza de Pila (Stack Trace):</label>
-              <button class="btn btn-secondary btn-sm" onclick="AdminErrorsModule.copyStackToClipboard(${item.id})">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Copiar Traza
+          <div class="admin-terminal-window">
+            <div class="admin-terminal-bar">
+              <div class="admin-terminal-dots">
+                <span class="admin-terminal-dot dot--red"></span>
+                <span class="admin-terminal-dot dot--yellow"></span>
+                <span class="admin-terminal-dot dot--green"></span>
+                <span class="admin-terminal-title" style="margin-left:8px;">Traza de Pila (Stack Trace)</span>
+              </div>
+              <button type="button" class="admin-terminal-copy-btn" onclick="AdminErrorsModule.copyStackToClipboard(${item.id})">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Copiar Traza</span>
               </button>
             </div>
             <pre id="stack-content-${item.id}" class="admin-detail-stack">${escHtml(item.stack)}</pre>
@@ -398,19 +442,32 @@ const AdminErrorsModule = (() => {
 
         ${item.estado === 'Resuelto' && item.resuelto_en ? `
           <div class="admin-detail-resolved-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             <span>Incidencia marcada como resuelta el <strong>${formatDate(item.resuelto_en)}</strong> por <strong>${escHtml(item.resuelto_por || 'admin')}</strong>.</span>
           </div>
         ` : ''}
       </div>
     `;
 
+    const modalActions = [
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+    ];
+
+    if (item.estado !== 'Resuelto') {
+      modalActions.unshift({
+        text: 'Marcar como Resuelto',
+        cls: 'btn-primary',
+        action: async () => {
+          await updateStatus(item.id, 'Resuelto');
+          App.closeModal();
+        }
+      });
+    }
+
     App.openModal(
       `Detalle de Incidencia Técnica #${item.id}`,
       modalBody,
-      [
-        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
-      ],
+      modalActions,
       'modal-lg'
     );
   }
@@ -642,23 +699,23 @@ const AdminErrorsModule = (() => {
             <h1 class="module-hero-title">Centro de Monitoreo de Errores</h1>
             <p class="module-hero-desc">Supervisión en tiempo real de fallos técnicos, excepciones de JavaScript, errores de microservicios y reportes de usuario en Talento 360.</p>
           </div>
-          <div class="module-header-actions" style="display:flex; align-items:center; gap:10px;">
-            <button id="btn-admin-err-refresh" class="btn-hdr-admin btn-hdr-refresh" title="Actualizar lista de incidencias">
+          <div class="module-header-actions" style="display:flex; align-items:center; gap:12px;">
+            <button id="btn-admin-err-refresh" class="btn-action-slide-admin btn-slide--green" title="Actualizar lista de incidencias">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              <span>Actualizar</span>
+              <span class="btn-slide-label">Actualizar</span>
             </button>
-            <button id="btn-admin-err-clear-resolved" class="btn-hdr-admin btn-hdr-depurar" title="Eliminar incidencias resueltas">
+            <button id="btn-admin-err-clear-resolved" class="btn-action-slide-admin btn-slide--blue" title="Eliminar incidencias resueltas">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              <span>Depurar Resueltos</span>
+              <span class="btn-slide-label">Depurar Resueltos</span>
             </button>
-            <button id="btn-admin-err-clear-all" class="btn-hdr-admin btn-hdr-clear-all" title="Vaciar todo el registro">
+            <button id="btn-admin-err-clear-all" class="btn-action-slide-admin btn-slide--red" title="Vaciar todo el registro">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-              <span>Limpiar Todo</span>
+              <span class="btn-slide-label">Limpiar Todo</span>
             </button>
           </div>
         </div>
 
-        <!-- 4 Tarjetas Métricas KPI Oficiales (stats-grid) -->
+        <!-- 5 Tarjetas Métricas KPI Oficiales (stats-grid de 5 Columnas Completas) -->
         <div class="stats-grid" style="margin-bottom: 20px;">
           <div class="stat-card">
             <div class="stat-icon stat-icon--green">
@@ -675,7 +732,11 @@ const AdminErrorsModule = (() => {
 
           <div class="stat-card">
             <div class="stat-icon stat-icon--gold">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9.5"/>
+                <line x1="12" y1="7.5" x2="12" y2="12.5"/>
+                <circle cx="12" cy="16.5" r="0.8" fill="currentColor"/>
+              </svg>
             </div>
             <div class="stat-info">
               <div class="stat-value" id="stat-admin-err-404">0</div>
@@ -703,6 +764,20 @@ const AdminErrorsModule = (() => {
               <div class="stat-value" id="stat-admin-err-user">0</div>
               <div class="stat-label">Reportes de Usuarios</div>
               <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Enviados mediante botón de reporte</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value text-success" id="stat-admin-err-resolved">0</div>
+              <div class="stat-label">Incidencias Resueltas</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;" id="stat-admin-err-rate">Eficacia técnica del sistema</span>
             </div>
           </div>
         </div>
@@ -771,7 +846,7 @@ const AdminErrorsModule = (() => {
                   <th scope="col" style="width: 155px; text-align: center;">Tipo</th>
                   <th scope="col">Detalle del Incidente</th>
                   <th scope="col" style="width: 220px;">Ruta / URL Afectada</th>
-                  <th scope="col" style="width: 155px; text-align: center;">Usuario</th>
+                  <th scope="col" style="width: 155px; text-align: left; padding-left: 16px;">Usuario</th>
                   <th scope="col" style="width: 140px; text-align: center;">Fecha y Hora</th>
                   <th scope="col" style="width: 90px; text-align: center;">Acciones</th>
                 </tr>

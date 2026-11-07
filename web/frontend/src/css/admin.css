@@ -3,107 +3,135 @@
    Gobernación de Boyacá · Diseño Institucional Oficial
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ─── Botones de Cabecera Específicos para Monitoreo de Errores ────────────── */
-.btn-hdr-admin {
-  height: 38px;
-  padding: 0 18px;
+/* ─── Botones de Acción Deslizantes Circulares (Estilo Crear Servidor Público) ── */
+.btn-action-slide-admin {
+  height: 44px;
+  min-width: 44px;
   border-radius: 9999px;
-  font-size: 0.83rem;
-  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
-  white-space: nowrap;
+  padding: 0 12px;
+  flex-shrink: 0;
   box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  border: 1px solid transparent;
+  outline: none;
+  /* Transición pausada y serena al replegarse */
+  transition: padding 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.32s ease,
+              border-color 0.32s ease,
+              transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.38s ease;
 }
 
-.btn-hdr-admin svg {
-  width: 15px;
-  height: 15px;
-  stroke-width: 2.3;
-  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-/* 1. Actualizar (Verde Boyacá Sólido Oficial Pill — Idéntico a Copia de Seguridad) */
-.btn-hdr-refresh {
-  background: #254d32 !important;
-  border: 1px solid #1a3827 !important;
-  color: #ffffff !important;
-  box-shadow: 0 3px 10px rgba(37, 77, 50, 0.32) !important;
-}
-
-.btn-hdr-refresh svg {
+.btn-action-slide-admin svg {
+  width: 19px;
+  height: 19px;
   stroke: #ffffff !important;
+  stroke-width: 2.3;
+  flex-shrink: 0;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.btn-hdr-refresh:hover {
+/* Etiqueta animada que se desliza elegantemente al hacer hover */
+.btn-action-slide-admin .btn-slide-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: #ffffff !important;
+  line-height: 1;
+  user-select: none;
+  will-change: max-width, opacity, transform;
+  transition: max-width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.35s ease 0.05s,
+              margin-left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-action-slide-admin:hover,
+.btn-action-slide-admin:focus-visible {
+  padding: 0 18px 0 14px;
+  transform: translateY(-2px);
+}
+
+.btn-action-slide-admin:hover .btn-slide-label,
+.btn-action-slide-admin:focus-visible .btn-slide-label {
+  max-width: 260px;
+  opacity: 1;
+  margin-left: 8px;
+  transform: translateX(0);
+}
+
+.btn-action-slide-admin:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
+/* 1. Verde Institucional Boyacá (Actualizar y Generar Copia) */
+.btn-slide--green {
+  background: #254d32 !important;
+  border-color: #1a3827 !important;
+  box-shadow: 0 4px 14px rgba(37, 77, 50, 0.35) !important;
+}
+
+.btn-slide--green:hover {
   background: #2e5d3c !important;
   border-color: #254d32 !important;
-  color: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 14px rgba(37, 77, 50, 0.45) !important;
+  box-shadow: 0 6px 20px rgba(37, 77, 50, 0.48) !important;
 }
 
-.btn-hdr-refresh:hover svg {
-  stroke: #ffffff !important;
+.btn-slide--green:hover svg {
   transform: rotate(180deg);
 }
 
-/* 2. Depurar Resueltos (Azul Petróleo / Índigo Suave con Microanimación) */
-.btn-hdr-depurar {
-  background: rgba(2, 132, 199, 0.08) !important;
-  border: 1.5px solid rgba(2, 132, 199, 0.28) !important;
-  color: #0369a1 !important;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08) !important;
+/* 2. Azul Oscuro / Petróleo (Depurar Resueltos) */
+.btn-slide--blue {
+  background: #0369a1 !important;
+  border-color: #075985 !important;
+  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.35) !important;
 }
 
-.btn-hdr-depurar svg {
-  stroke: #0284c7 !important;
-}
-
-.btn-hdr-depurar:hover {
+.btn-slide--blue:hover {
   background: #0284c7 !important;
   border-color: #0369a1 !important;
-  color: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.32) !important;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.48) !important;
 }
 
-.btn-hdr-depurar:hover svg {
-  stroke: #ffffff !important;
+.btn-slide--blue:hover svg {
   transform: rotate(-10deg) scale(1.1);
 }
 
-/* 3. Limpiar Todo (Rojo Carmesí Alerta Suave) */
-.btn-hdr-clear-all {
-  background: rgba(220, 38, 38, 0.08) !important;
-  border: 1.5px solid rgba(220, 38, 38, 0.28) !important;
-  color: #dc2626 !important;
-  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08) !important;
-}
-
-.btn-hdr-clear-all svg {
-  stroke: #dc2626 !important;
-}
-
-.btn-hdr-clear-all:hover {
+/* 3. Rojo Carmesí Alerta (Limpiar Todo) */
+.btn-slide--red {
   background: #dc2626 !important;
   border-color: #b91c1c !important;
-  color: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.38) !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35) !important;
 }
 
-.btn-hdr-clear-all:hover svg {
-  stroke: #ffffff !important;
-  transform: scale(1.14);
+.btn-slide--red:hover {
+  background: #ef4444 !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.48) !important;
 }
 
-.btn-hdr-admin:active {
-  transform: translateY(0) scale(0.97) !important;
+.btn-slide--red:hover svg {
+  transform: scale(1.12);
+}
+
+/* Clases de compatibilidad */
+.btn-hdr-admin {
+  composes: btn-action-slide-admin;
 }
 
 /* ─── Botón Principal Tipo Pill (media_1794013826912_b0be86de.png) ────────── */
@@ -320,35 +348,42 @@
   white-space: nowrap;
 }
 
-/* ─── Usuario con Avatar Circular ─────────────────────────────────────────── */
+/* ─── Usuario con Avatar Circular (Alineación Estricta a la Izquierda) ────── */
+.td-user-col {
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
 .admin-user-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  text-align: left !important;
 }
 
 .admin-user-avatar {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.68rem;
-  font-weight: 800;
-  flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 .admin-user-name {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary, #1e293b);
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.83rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary, #1e293b) !important;
+  max-width: 130px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 /* ─── Fecha y Hora en Dos Líneas (Sin Truncamiento) ───────────────────────── */
@@ -552,28 +587,48 @@
 }
 
 .config-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
+.config-icon-box svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+
 .config-icon--interval {
-  background: rgba(2, 132, 199, 0.12);
+  background: transparent !important;
   color: #0284c7;
 }
 
+.config-icon--interval svg {
+  stroke: #0284c7 !important;
+}
+
 .config-icon--daily {
-  background: rgba(21, 128, 61, 0.12);
+  background: transparent !important;
   color: #15803d;
 }
 
+.config-icon--daily svg {
+  stroke: #15803d !important;
+}
+
 .config-icon--retention {
-  background: rgba(147, 51, 234, 0.12);
+  background: transparent !important;
   color: #7e22ce;
+}
+
+.config-icon--retention svg {
+  stroke: #7e22ce !important;
 }
 
 .config-card-heading {
@@ -805,7 +860,7 @@
   transform: translateX(20px);
 }
 
-/* ─── Modal de Detalle de Incidencias ─────────────────────────────────────── */
+/* ─── Modal de Detalle de Incidencias (Consola de Diagnóstico de Alta Gama) ─ */
 .admin-error-modal-detail {
   display: flex;
   flex-direction: column;
@@ -815,81 +870,199 @@
 .admin-detail-header-badges {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
-}
-
-.admin-detail-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.admin-detail-label {
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-secondary, #64748b);
-  letter-spacing: 0.04em;
-}
-
-.admin-detail-msg {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
   background: var(--bg-tertiary, #f8fafc);
   border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 8px;
-  padding: 12px 14px;
-  font-size: 0.90rem;
-  font-weight: 600;
-  color: #b91c1c;
-  line-height: 1.45;
+  border-radius: 12px;
+}
+
+.admin-detail-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-detail-msg-card {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.admin-detail-msg-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #dc2626;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.admin-detail-msg-content {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.5;
+  word-break: break-word;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
 }
 
 .admin-detail-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
-  background: var(--bg-tertiary, #f8fafc);
-  padding: 14px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #e2e8f0);
 }
 
-.admin-detail-field {
+@media (max-width: 640px) {
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-detail-metric-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.admin-detail-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(37, 77, 50, 0.08);
+  color: #254d32;
+}
+
+.admin-detail-metric-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.admin-detail-metric-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
-.admin-detail-val {
-  font-size: 0.84rem;
+.admin-detail-metric-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.admin-detail-metric-val {
+  font-size: 0.85rem;
   color: var(--text-primary, #0f172a);
-  font-weight: 500;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* ─── Terminal de Traza de Pila (macOS Console Styling) ──────────────────── */
+.admin-terminal-window {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  background: #090d16;
+}
+
+.admin-terminal-bar {
+  background: #131a29;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1e293b;
+}
+
+.admin-terminal-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot--red { background: #ef4444; }
+.dot--yellow { background: #f59e0b; }
+.dot--green { background: #10b981; }
+
+.admin-terminal-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.admin-terminal-copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-terminal-copy-btn:hover {
+  background: #254d32;
+  border-color: #355833;
+  color: #ffffff;
 }
 
 .admin-detail-stack {
-  background: #0f172a;
-  color: #f1f5f9;
-  border-radius: 8px;
-  padding: 12px 14px;
+  background: transparent;
+  color: #e2e8f0;
+  padding: 14px 16px;
   font-family: 'DM Mono', monospace, Consolas, sans-serif;
   font-size: 0.78rem;
-  line-height: 1.5;
-  max-height: 260px;
+  line-height: 1.55;
+  max-height: 250px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0;
 }
 
 .admin-detail-json {
   background: var(--bg-tertiary, #f8fafc);
   border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 12px 14px;
   font-family: 'DM Mono', monospace, Consolas, sans-serif;
   font-size: 0.78rem;
-  max-height: 180px;
+  max-height: 160px;
   overflow-y: auto;
   color: var(--text-primary, #0f172a);
 }
@@ -897,53 +1070,51 @@
 .admin-detail-resolved-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.25);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.84rem;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
   color: #15803d;
 }
 
 /* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
-[data-theme="dark"] .btn-hdr-refresh {
-  background: rgba(74, 222, 128, 0.1) !important;
-  border-color: rgba(74, 222, 128, 0.25) !important;
-  color: #4ade80 !important;
+[data-theme="dark"] .btn-slide--green {
+  background: #1b3d26 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
 }
-[data-theme="dark"] .btn-hdr-refresh svg {
-  stroke: #4ade80 !important;
-}
-[data-theme="dark"] .btn-hdr-refresh:hover {
+[data-theme="dark"] .btn-slide--green:hover {
   background: #254d32 !important;
-  color: #ffffff !important;
 }
 
-[data-theme="dark"] .btn-hdr-depurar {
-  background: rgba(56, 189, 248, 0.1) !important;
-  border-color: rgba(56, 189, 248, 0.25) !important;
-  color: #38bdf8 !important;
+[data-theme="dark"] .btn-slide--blue {
+  background: #0c4a6e !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
 }
-[data-theme="dark"] .btn-hdr-depurar svg {
-  stroke: #38bdf8 !important;
-}
-[data-theme="dark"] .btn-hdr-depurar:hover {
-  background: #0284c7 !important;
-  color: #ffffff !important;
+[data-theme="dark"] .btn-slide--blue:hover {
+  background: #0369a1 !important;
 }
 
-[data-theme="dark"] .btn-hdr-clear-all {
-  background: rgba(248, 113, 113, 0.1) !important;
-  border-color: rgba(248, 113, 113, 0.25) !important;
-  color: #f87171 !important;
+[data-theme="dark"] .btn-slide--red {
+  background: #991b1b !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
 }
-[data-theme="dark"] .btn-hdr-clear-all svg {
-  stroke: #f87171 !important;
+[data-theme="dark"] .btn-slide--red:hover {
+  background: #b91c1c !important;
 }
-[data-theme="dark"] .btn-hdr-clear-all:hover {
-  background: #dc2626 !important;
-  color: #ffffff !important;
+
+[data-theme="dark"] .admin-detail-metric-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .admin-detail-header-badges {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .admin-detail-msg-card {
+  background: rgba(220, 38, 38, 0.1) !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
 }
 
 [data-theme="dark"] .btn-backup-pill-now,
