@@ -5,14 +5,14 @@
 
 /* ─── Botones de Acción Deslizantes Circulares (Estilo Crear Servidor Público) ── */
 .btn-action-slide-admin {
-  height: 44px;
-  min-width: 44px;
+  height: 52px;
+  min-width: 52px;
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 0 12px;
+  padding: 0 14px;
   flex-shrink: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -29,8 +29,8 @@
 }
 
 .btn-action-slide-admin svg {
-  width: 19px;
-  height: 19px;
+  width: 24px;
+  height: 24px;
   stroke: #ffffff !important;
   stroke-width: 2.3;
   flex-shrink: 0;
@@ -47,7 +47,7 @@
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 0.84rem;
+  font-size: 0.90rem;
   font-weight: 700;
   letter-spacing: 0.015em;
   color: #ffffff !important;
@@ -62,15 +62,15 @@
 
 .btn-action-slide-admin:hover,
 .btn-action-slide-admin:focus-visible {
-  padding: 0 18px 0 14px;
+  padding: 0 24px 0 16px;
   transform: translateY(-2px);
 }
 
 .btn-action-slide-admin:hover .btn-slide-label,
 .btn-action-slide-admin:focus-visible .btn-slide-label {
-  max-width: 260px;
+  max-width: 300px;
   opacity: 1;
-  margin-left: 8px;
+  margin-left: 10px;
   transform: translateX(0);
 }
 
