@@ -50,3 +50,4 @@ INSERT INTO system_settings (key, value) VALUES
   ('backup_daily_minute', '00'),
   ('backup_retention_days', '30')
 ON CONFLICT (key) DO NOTHING;
+
