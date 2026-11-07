@@ -12,19 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
-      - ../database/02_seed_data.sql:/docker-entrypoint-initdb.d/02_seed_data.sql
-      - ../database/03_new_modules.sql:/docker-entrypoint-initdb.d/03_new_modules.sql
-      - ../database/04_horarios.sql:/docker-entrypoint-initdb.d/04_horarios.sql
-      - ../database/05_divipola_and_hr_rules.sql:/docker-entrypoint-initdb.d/05_divipola_and_hr_rules.sql
-      - ../database/06_hr_updates_experiencia_multiple.sql:/docker-entrypoint-initdb.d/06_hr_updates_experiencia_multiple.sql
-      - ../database/07_add_tiempo_total_gobernacion.sql:/docker-entrypoint-initdb.d/07_add_tiempo_total_gobernacion.sql
-      - ../database/08_full_divipola_update.sql:/docker-entrypoint-initdb.d/08_full_divipola_update.sql
-      - ../database/09_cargos_nivel_update.sql:/docker-entrypoint-initdb.d/09_cargos_nivel_update.sql
-      - ../database/10_sst_module.sql:/docker-entrypoint-initdb.d/10_sst_module.sql
-      - ../database/12_performance_indexes.sql:/docker-entrypoint-initdb.d/12_performance_indexes.sql
-      - ../database/13_paquetes_viaticos.sql:/docker-entrypoint-initdb.d/13_paquetes_viaticos.sql
-      - ../database/18_system_errors_and_backups.sql:/docker-entrypoint-initdb.d/18_system_errors_and_backups.sql
+      - ../database:/docker-entrypoint-initdb.d:ro
     ports:
       - "${POSTGRES_PORT:-5432:5432}"
     networks:
@@ -43,6 +31,7 @@ services:
     container_name: talento360_auth
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
@@ -51,6 +40,9 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,6 +57,7 @@ services:
     container_name: talento360_employees
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3002
       DB_HOST: postgres
       DB_PORT: 5432
@@ -89,6 +82,7 @@ services:
     container_name: talento360_requests
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3003
       DB_HOST: postgres
       DB_PORT: 5432
@@ -110,6 +104,7 @@ services:
     container_name: talento360_admin_requests
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3004
       DB_HOST: postgres
       DB_PORT: 5432
@@ -131,6 +126,7 @@ services:
     container_name: talento360_viaticos
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3005
       DB_HOST: postgres
       DB_PORT: 5432
@@ -155,6 +151,7 @@ services:
     container_name: talento360_dashboard
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3006
       DB_HOST: postgres
       DB_PORT: 5432
@@ -176,6 +173,7 @@ services:
     container_name: talento360_horarios
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3007
       DB_HOST: postgres
       DB_PORT: 5432
@@ -183,6 +181,9 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - ./services/horarios-service:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -197,6 +198,7 @@ services:
     container_name: talento360_sst
     restart: unless-stopped
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3008
       DB_HOST: postgres
       DB_PORT: 5432

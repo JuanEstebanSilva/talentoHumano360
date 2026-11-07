@@ -106,7 +106,7 @@ const Error404Module = (() => {
       if (uStr) currentUser = JSON.parse(uStr);
     } catch (_) { }
 
-    const userName = currentUser ? (currentUser.nombre || currentUser.name || currentUser.username || 'Usuario') : 'Angela Ussa';
+    const userName = currentUser ? (currentUser.nombre || currentUser.name || currentUser.username || 'Usuario') : 'Usuario';
     const cleanRoute = String(requestedModule || '404').replace(/^#\/?/, '');
 
     return `

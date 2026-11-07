@@ -56,9 +56,53 @@ const API = (() => {
 
     if (!res.ok) {
       if (res.status === 401 && !url.includes('/auth/login')) {
-        Auth.clear();
-        App.showLogin();
-        throw new Error(data.error || 'Sesión expirada. Por favor inicia sesión de nuevo.');
+        // AUD-012 / AUD-013: Capturar borrador del formulario activo en sessionStorage
+        try {
+          if (typeof sessionStorage !== 'undefined') {
+            const activeContainer = document.querySelector('#modal-body, form, .form-container, #main-content');
+            if (activeContainer) {
+              const inputs = Array.from(activeContainer.querySelectorAll('input:not([type="password"]):not([type="file"]), textarea, select'));
+              const draft = {};
+              inputs.forEach(el => {
+                const k = el.name || el.id;
+                if (k && !k.toLowerCase().includes('password') && !k.toLowerCase().includes('token') && !k.toLowerCase().includes('secret')) {
+                  draft[k] = el.type === 'checkbox' ? el.checked : el.value;
+                }
+              });
+              sessionStorage.setItem('talento360_form_draft', JSON.stringify({ timestamp: Date.now(), draft }));
+            }
+          }
+        } catch (_) {}
+
+        // AUD-012: Capturar borrador enriquecido mediante App
+        if (typeof App !== 'undefined' && App.captureActiveFormDraft) {
+          App.captureActiveFormDraft();
+        }
+
+        // Si la aplicación soporta reautenticación en caliente (in-place modal), invocarla
+        if (typeof App !== 'undefined' && App.promptReauthentication) {
+          return new Promise((resolve, reject) => {
+            App.promptReauthentication({
+              onSuccess: async () => {
+                try {
+                  // Reintentar la petición original con el nuevo token renovado
+                  const retryRes = await request(url, options);
+                  resolve(retryRes);
+                } catch (retryErr) {
+                  reject(retryErr);
+                }
+              },
+              onCancel: () => {
+                reject(new Error('Sesión expirada. Por favor inicie sesión nuevamente.'));
+              }
+            });
+          });
+        }
+
+        // Fallback estándar en caso de que App no esté inicializada
+        if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
+        if (typeof App !== 'undefined' && App.showLogin) App.showLogin();
+        throw new Error(data.error || 'Sesión expirada. Se guardó un borrador de los datos ingresados para su recuperación.');
       }
 
       if (res.status >= 500 && !url.includes('/admin/errors')) {
@@ -189,6 +233,7 @@ const API = (() => {
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
+    getViaticosRankingFuncionarios: (params = {}) => request('/viaticos/ranking-funcionarios' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosDependencias: (params = {}) => request('/viaticos/dependencias' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosStats: (params = {}) => request('/viaticos/stats' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosAnios: () => request('/viaticos/anios'),
@@ -202,9 +247,15 @@ const API = (() => {
     bulkCreateViaticos: (payload) =>
       request('/viaticos/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
     updateViatico: (id, data) => request(`/viaticos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    updateViaticoStatus: (id, estado, observaciones = '') =>
-      request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
+    updateViaticoStatus: (id, estado, observaciones = '', extra = {}) =>
+      request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones, ...extra }) }),
+    getViaticoHistorial: (id) =>
+      request(`/viaticos/${id}/historial`),
     deleteViatico: (id) => request(`/viaticos/${id}`, { method: 'DELETE' }),
+    calculateViaticoLiquidacion: (data) =>
+      request('/viaticos/calcular-liquidacion', { method: 'POST', body: JSON.stringify(data) }),
+    getViaticoSupport: (id) =>
+      request(`/viaticos/${id}/soporte`),
 
     // Horarios y Modalidades de Trabajo
     getHorarios: (params = {}) => request('/horarios?' + new URLSearchParams(params)),
@@ -275,9 +326,8 @@ const API = (() => {
     updateAdminBackupConfig: (config) =>
       request('/admin/backups/config', { method: 'PUT', body: JSON.stringify(config) }),
     getAdminBackupDownloadUrl: (id) => {
-      const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
       const base = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
-      return `${base}/admin/backups/download/${id}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      return `${base}/admin/backups/download/${id}`;
     },
   };
 })();

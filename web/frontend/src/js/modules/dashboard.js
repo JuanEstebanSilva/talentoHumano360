@@ -116,23 +116,25 @@ const DashboardModule = (() => {
 
   function getUserDashboardType() {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const uname = (user.username || '').toLowerCase();
-    const name  = (user.name || '').toLowerCase();
-    const modules = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : [];
+    const modules = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : (Array.isArray(user.modules) ? user.modules : []);
+    const role = (user.role || '').toLowerCase();
 
-    // Angela Ussa & Blanca Soler -> Servidores Públicos
-    if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca') || (modules.includes('employees') && !modules.includes('*') && !modules.includes('viaticos') && !modules.includes('horarios'))) {
+    // Administrador General / Superusuario
+    if (role === 'administrador' || role === 'admin' || modules.includes('*') || modules.includes('all')) {
+      return 'admin';
+    }
+
+    // Dashboards basados estrictamente en módulo funcional asignado (CERO dependencia de nombres)
+    if (modules.includes('employees') && !modules.includes('viaticos') && !modules.includes('horarios')) {
       return 'employees';
     }
-    // Bergenet Gutierrez -> Viáticos
-    if (uname.includes('bergenet') || name.includes('bergenet') || (modules.includes('viaticos') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('horarios'))) {
+    if (modules.includes('viaticos') && !modules.includes('employees') && !modules.includes('horarios')) {
       return 'viaticos';
     }
-    // Doris Cañon -> Horarios y Modalidades
-    if (uname.includes('doris') || name.includes('doris') || (modules.includes('horarios') && !modules.includes('*') && !modules.includes('employees') && !modules.includes('viaticos'))) {
+    if (modules.includes('horarios') && !modules.includes('employees') && !modules.includes('viaticos')) {
       return 'horarios';
     }
-    // Administrador General
+
     return 'admin';
   }
 
@@ -141,7 +143,7 @@ const DashboardModule = (() => {
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderEmployeesDashboard(container) {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const displayName = user.name || 'Angela Ussa';
+    const displayName = user.name || 'Servidor Público';
 
     container.innerHTML = `
       <div class="module-enter">
@@ -610,7 +612,7 @@ const DashboardModule = (() => {
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderViaticosDashboard(container) {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const displayName = user.name || 'Bergenet Gutierrez';
+    const displayName = user.name || 'Servidor Público';
 
     container.innerHTML = `
       <div class="module-enter">
@@ -1204,7 +1206,7 @@ const DashboardModule = (() => {
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderHorariosDashboard(container) {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const displayName = user.name || 'Doris Cañon';
+    const displayName = user.name || 'Servidor Público';
 
     container.innerHTML = `
       <div class="module-enter">

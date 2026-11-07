@@ -26,7 +26,24 @@ const pool = new Pool(
       }
 );
 
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 // Iniciar programador automático de respaldos diarios
 backupEngine.initDailyBackupScheduler(pool);
@@ -34,20 +51,9 @@ backupEngine.initDailyBackupScheduler(pool);
 // Middleware de verificación de rol Administrador
 function requireAdmin(req, res, next) {
   let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (!token && req.query.token) {
-    token = req.query.token;
-  }
   if (!token && req.headers.cookie) {
     const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
     if (match) token = decodeURIComponent(match[1]);
-  }
-
-  // Sanitización de token por si vino duplicado en la query string (p.ej. token=XXX?token=YYY)
-  if (Array.isArray(token)) token = token[0];
-  if (typeof token === 'string') {
-    if (token.includes('?token=')) token = token.split('?token=')[0];
-    if (token.includes('&token=')) token = token.split('&token=')[0];
-    token = token.trim();
   }
 
   if (!token) {
@@ -57,9 +63,9 @@ function requireAdmin(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const role = String(decoded.role || decoded.rol || '').toLowerCase();
-    const username = String(decoded.username || '').toLowerCase();
+    const isAdminRole = (role === 'admin' || role === 'administrador');
 
-    if (!role.includes('admin') && username !== 'admin') {
+    if (!isAdminRole) {
       return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de Administrador del Sistema.' });
     }
 
@@ -73,6 +79,40 @@ function requireAdmin(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. REPORTE Y CAPTURA DE ERRORES (Endpoint Público para el Cliente / SPA)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Helper seguro para resolución de IP de origen contra suplantación (AUD-014)
+function resolveClientIp(req) {
+  if (req.ip) {
+    return req.ip.replace(/^::ffff:/, '').trim();
+  }
+  const realIp = req.headers['x-real-ip'];
+  if (realIp && typeof realIp === 'string') {
+    return realIp.replace(/^::ffff:/, '').trim();
+  }
+  const xff = req.headers['x-forwarded-for'];
+  if (xff && typeof xff === 'string') {
+    const parts = xff.split(',').map(s => s.trim().replace(/^::ffff:/, '')).filter(Boolean);
+    if (parts.length > 0) {
+      return parts[parts.length - 1];
+    }
+  }
+  return (req.socket && req.socket.remoteAddress ? req.socket.remoteAddress.replace(/^::ffff:/, '').trim() : '127.0.0.1');
+}
+
+function computeSeverity(tipo, mensaje) {
+  const t = String(tipo || '').toUpperCase();
+  const m = String(mensaje || '').toLowerCase();
+  if (t === 'CRITICAL' || t === 'FATAL' || t === 'UNHANDLED_REJECTION' || m.includes('fatal') || m.includes('error 500')) {
+    return 'CRITICA';
+  }
+  if (t === 'API_ERROR' || t === 'ERROR' || t === 'DB_ERROR') {
+    return 'ALTA';
+  }
+  if (t === 'CONSOLE_ERROR' || t === 'WARNING' || t === 'WARN') {
+    return 'MEDIA';
+  }
+  return 'BAJA';
+}
 
 // Cache en memoria para deduplicar ráfagas de errores idénticos en menos de 5 segundos
 const recentErrorDedupe = new Map();
@@ -90,7 +130,7 @@ router.post('/errors', async (req, res) => {
     const cleanUrl = String(url || req.headers.referer || '').slice(0, 1000);
     const cleanStack = stack ? String(stack).slice(0, 10000) : null;
     const cleanUser = String(usuario || 'Anónimo').slice(0, 150);
-    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const ipAddress = resolveClientIp(req);
     const userAgent = (req.headers['user-agent'] || '').slice(0, 500);
     const isUserReport = !!reportadoPorUsuario;
 
@@ -136,8 +176,12 @@ router.get('/errors', requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const tipoFilter = req.query.tipo;
+    const severidadFilter = req.query.severidad || req.query.severity;
     const estadoFilter = req.query.estado;
-    const search = req.query.search;
+    const search = req.query.search || req.query.q;
+    const servicioFilter = req.query.servicio || req.query.service;
+    const desde = req.query.desde || req.query.fecha_inicio;
+    const hasta = req.query.hasta || req.query.fecha_fin;
 
     const conditions = [];
     const params = [];
@@ -147,14 +191,42 @@ router.get('/errors', requireAdmin, async (req, res) => {
       conditions.push(`tipo = $${params.length}`);
     }
 
+    if (severidadFilter && severidadFilter !== 'TODAS' && severidadFilter !== 'TODOS') {
+      const sev = String(severidadFilter).toUpperCase().trim();
+      if (sev === 'CRITICA' || sev === 'CRITICAL') {
+        conditions.push(`(tipo IN ('CRITICAL', 'FATAL', 'UNHANDLED_REJECTION') OR mensaje ILIKE '%fatal%' OR mensaje ILIKE '%500%')`);
+      } else if (sev === 'ALTA' || sev === 'ERROR') {
+        conditions.push(`(tipo IN ('API_ERROR', 'ERROR', 'DB_ERROR') AND mensaje NOT ILIKE '%fatal%')`);
+      } else if (sev === 'MEDIA' || sev === 'WARNING') {
+        conditions.push(`(tipo IN ('CONSOLE_ERROR', 'WARNING', 'WARN'))`);
+      } else if (sev === 'BAJA' || sev === 'INFO') {
+        conditions.push(`(tipo IN ('PAGE_404', 'NOT_FOUND_404', 'INFO'))`);
+      }
+    }
+
     if (estadoFilter && estadoFilter !== 'TODOS') {
       params.push(estadoFilter);
       conditions.push(`estado = $${params.length}`);
     }
 
+    if (servicioFilter && servicioFilter !== 'TODOS') {
+      params.push(`%${servicioFilter.trim().toLowerCase()}%`);
+      conditions.push(`(LOWER(url) LIKE $${params.length} OR LOWER(mensaje) LIKE $${params.length})`);
+    }
+
+    if (desde) {
+      params.push(new Date(desde));
+      conditions.push(`creado_en >= $${params.length}`);
+    }
+
+    if (hasta) {
+      params.push(new Date(hasta));
+      conditions.push(`creado_en <= $${params.length}`);
+    }
+
     if (search && search.trim()) {
       params.push(`%${search.trim().toLowerCase()}%`);
-      conditions.push(`(LOWER(mensaje) LIKE $${params.length} OR LOWER(url) LIKE $${params.length} OR LOWER(usuario) LIKE $${params.length})`);
+      conditions.push(`(LOWER(mensaje) LIKE $${params.length} OR LOWER(url) LIKE $${params.length} OR LOWER(usuario) LIKE $${params.length} OR LOWER(ip_address) LIKE $${params.length})`);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -178,7 +250,8 @@ router.get('/errors', requireAdmin, async (req, res) => {
           COUNT(*) FILTER (WHERE tipo = 'PAGE_404') as errores_404,
           COUNT(*) FILTER (WHERE tipo = 'CONSOLE_ERROR') as errores_consola,
           COUNT(*) FILTER (WHERE tipo = 'API_ERROR') as errores_api,
-          COUNT(*) FILTER (WHERE reportado_por_usuario = true) as reportados_usuario
+          COUNT(*) FILTER (WHERE reportado_por_usuario = true) as reportados_usuario,
+          COUNT(*) FILTER (WHERE tipo IN ('CRITICAL', 'FATAL', 'UNHANDLED_REJECTION') OR mensaje ILIKE '%fatal%' OR mensaje ILIKE '%500%') as criticos
         FROM system_errors;
       `)
     ]);
@@ -186,8 +259,13 @@ router.get('/errors', requireAdmin, async (req, res) => {
     const total = parseInt(countRes.rows[0].total) || 0;
     const summary = summaryRes.rows[0] || {};
 
+    const enrichedErrors = listRes.rows.map(row => ({
+      ...row,
+      severidad: computeSeverity(row.tipo, row.mensaje)
+    }));
+
     return res.json({
-      errors: listRes.rows,
+      errors: enrichedErrors,
       pagination: {
         page,
         limit,
@@ -201,7 +279,8 @@ router.get('/errors', requireAdmin, async (req, res) => {
         errores404: parseInt(summary.errores_404) || 0,
         erroresConsola: parseInt(summary.errores_consola) || 0,
         erroresApi: parseInt(summary.errores_api) || 0,
-        reportadosUsuario: parseInt(summary.reportados_usuario) || 0
+        reportadosUsuario: parseInt(summary.reportados_usuario) || 0,
+        criticos: parseInt(summary.criticos) || 0
       }
     });
   } catch (err) {
@@ -313,14 +392,33 @@ router.get('/backups/download/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'El archivo de la copia de seguridad no existe en el almacenamiento.' });
     }
 
-    res.setHeader('Content-Type', 'application/sql; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${backup.filename}"`);
+    // AUD-014: Validar rigurosamente que el archivo esté contenido en el directorio seguro
+    const safeFilename = backupEngine.validateBackupFilename(backup.filename);
+    const safePath = backupEngine.ensureSafePath(backup.filepath);
 
-    const fileStream = fs.createReadStream(backup.filepath);
+    res.setHeader('Content-Type', 'application/sql; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+
+    const fileStream = fs.createReadStream(safePath);
     fileStream.pipe(res);
   } catch (err) {
     console.error('[Admin Backups API] Error al descargar:', err.message);
-    return res.status(500).json({ error: 'Error al descargar la copia de seguridad.' });
+    return res.status(500).json({ error: `Error al descargar la copia de seguridad: ${err.message}` });
+  }
+});
+
+router.post('/backups/:id/verify', requireAdmin, async (req, res) => {
+  try {
+    const backupId = parseInt(req.params.id);
+    const verification = await backupEngine.verifyBackupRestoration(pool, backupId);
+    return res.json({
+      success: true,
+      message: 'Copia de seguridad verificada con éxito en entorno aislado.',
+      verification
+    });
+  } catch (err) {
+    console.error('[Admin Backups API] Error al verificar backup:', err.message);
+    return res.status(400).json({ error: `Fallo de verificación: ${err.message}` });
   }
 });
 

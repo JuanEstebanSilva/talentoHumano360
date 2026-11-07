@@ -63,17 +63,9 @@ const Auth = (() => {
     if (Array.isArray(user.modules) && user.modules.length > 0) {
       return user.modules;
     }
-    const uname = (user.username || '').toLowerCase();
-    const name = (user.name || '').toLowerCase();
-    if (uname === 'admin' || (user.role && user.role.toLowerCase().includes('admin'))) {
+    const role = (user.role || '').toLowerCase();
+    if (role === 'administrador' || role === 'admin') {
       return ['*'];
-    }
-    // Todas las funcionarias tienen acceso de consulta a los 3 módulos misionales
-    if (uname.includes('angela') || name.includes('angela') ||
-        uname.includes('blanca') || name.includes('blanca') ||
-        uname.includes('bergenet') || name.includes('bergenet') ||
-        uname.includes('doris') || name.includes('doris')) {
-      return ['dashboard', 'employees', 'viaticos', 'horarios'];
     }
     return ['dashboard'];
   }
@@ -92,22 +84,20 @@ const Auth = (() => {
 
   /**
    * canEdit(moduleName):
-   * Verifica permisos de ESCRITURA (crear, editar, eliminar) según la Matriz Oficial:
-   * - Administrador / Coordinador: Escritura en todos los módulos
-   * - Angela Ussa: Escritura en Servidores Públicos ('employees'); Sólo Lectura en Viáticos y Horarios
-   * - Bergenet Gutiérrez: Escritura en Viáticos ('viaticos'); Sólo Lectura en Servidores Públicos y Horarios
-   * - Doris Canon: Escritura en Horarios ('horarios'); Sólo Lectura en Servidores Públicos y Viáticos
+   * Sistema RBAC basado exclusivamente en Roles y Permisos explícitos (AUD-007).
+   * Desacoplado 100% de nombres, usernames o identificadores textuales.
    */
   function canEdit(moduleName) {
     const user = getUser();
     if (!user) return false;
-    const uname = (user.username || '').toLowerCase();
-    const name  = (user.name || '').toLowerCase();
 
-    // 1. Superadministrador y Coordinadores del sistema
-    if (uname === 'admin') return true;
+    // 1. Superadministrador del sistema
     const r = (user.role || '').toLowerCase();
-    if (r.includes('administrador') || r.includes('coordinador')) return true;
+    const mods = Array.isArray(user.modules) ? user.modules : [];
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
+    if (r === 'administrador' || r === 'admin' || mods.includes('*') || perms.includes('*')) {
+      return true;
+    }
 
     // 2. Determinar módulo objetivo (explícito o inferido de la vista activa)
     let targetMod = (moduleName || '').toLowerCase().trim();
@@ -119,28 +109,13 @@ const Auth = (() => {
         targetMod = hash;
       }
     }
+    if (targetMod === 'servidores' || targetMod === 'servidores-publicos') targetMod = 'employees';
 
-    // 3. Matriz Estricta de Permisos por Funcionario
-    // 3.1 Angela Ussa y Blanca Soler -> Únicamente Servidores Públicos
-    if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca')) {
-      return targetMod === 'employees' || targetMod === 'servidores' || targetMod === 'servidores-publicos';
-    }
-
-    // 3.2 Bergenet Gutiérrez -> Únicamente Viáticos
-    if (uname.includes('bergenet') || name.includes('bergenet')) {
-      return targetMod === 'viaticos';
-    }
-
-    // 3.3 Doris Canon -> Únicamente Horarios
-    if (uname.includes('doris') || name.includes('doris')) {
-      return targetMod === 'horarios';
-    }
-
-    // 4. Permisos explícitos por lista de módulos si vinieran definidos
-    if (Array.isArray(user.modules)) {
-      if (user.modules.includes('*') || user.modules.includes('all')) return true;
-      if (targetMod && user.modules.includes(`${targetMod}_write`)) return true;
-    }
+    // 3. Verificación de permisos explícitos de mutación (write/delete/manage)
+    if (perms.includes(`${targetMod}:write`) || perms.includes(`${targetMod}:*`)) return true;
+    if (mods.includes(`${targetMod}_write`) || mods.includes(`${targetMod}:write`)) return true;
+    // Si no tiene permisos explícitos definidos en el payload, fallback a módulo asignado solo si perms está vacío
+    if (perms.length === 0 && mods.includes(targetMod)) return true;
 
     return false;
   }

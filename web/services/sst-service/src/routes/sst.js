@@ -18,7 +18,24 @@ const pool = new Pool(
       }
 );
 
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 // ─── Catálogos Oficiales SST — Gobernación de Boyacá ─────────────────────────
 const CATALOGO_EPP = [
@@ -364,10 +381,16 @@ function auth(req, res, next) {
   }
 }
 
-function canEdit(role) {
-  if (!role) return false;
-  const r = role.toLowerCase();
-  return r.includes('administrador') || r.includes('coordinador');
+function canEdit(roleOrUser) {
+  if (!roleOrUser) return false;
+  const role = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.role || roleOrUser.rol || '');
+  const r = role.toLowerCase().trim();
+  if (r === 'administrador' || r === 'admin' || r === 'coordinador' || r === 'coordinador sst') return true;
+  if (typeof roleOrUser === 'object') {
+    const perms = Array.isArray(roleOrUser.permissions) ? roleOrUser.permissions : [];
+    if (perms.includes('*') || perms.includes('sst:write') || perms.includes('sst:*')) return true;
+  }
+  return false;
 }
 
 function upper(v) {

@@ -34,7 +34,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Límite amplio para permitir importaciones masivas de Excel y adjuntos
@@ -137,23 +137,26 @@ app.get('/api/db-status', async (_, res) => {
 // ─── Endpoint Administrativo para forzar migraciones y sincronización ────────
 app.all('/api/admin/run-migrations', async (req, res) => {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  const adminSecret = req.headers['x-admin-secret'];
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '' || process.env.JWT_SECRET.includes('talento360_secret_2026');
+  if (isProd && isDefaultOrInsecure) {
+    console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+    process.exit(1);
+  }
   const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
   
   let authorized = false;
-  if (adminSecret && adminSecret === (process.env.ADMIN_SECRET || 'talento360_secret_2026')) {
-    authorized = true;
-  } else if (token) {
+  if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       const role = String(decoded.role || decoded.rol || '').toLowerCase();
-      const username = String(decoded.username || '').toLowerCase();
-      if (role.includes('admin') || username === 'admin') authorized = true;
+      const isAdminRole = (role === 'admin' || role === 'administrador');
+      if (isAdminRole) authorized = true;
     } catch (_) {}
   }
 
   if (!authorized) {
-    return res.status(403).json({ error: 'No autorizado. Se requiere token de Administrador o clave maestra institucional.' });
+    return res.status(401).json({ error: 'No autorizado. Se requiere token de sesión con rol de Administrador.' });
   }
 
   try {
@@ -186,6 +189,11 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/admin-requests', adminRequestsRoutes);
 app.use('/api/viaticos', viaticosRoutes);
+// Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
+app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {
+  req.url = '/destinos' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+  viaticosRoutes(req, res, next);
+});
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/horarios', horariosRoutes);

@@ -3,21 +3,36 @@ const XLSX = require('xlsx');
 const crypto = require('crypto');
 
 /**
- * Limpia y normaliza cadenas de texto:
- * - Elimina caracteres no imprimibles y espacios duros (\xa0, \u00A0).
+ * Limpieza agresiva y normalización de cadenas de texto:
+ * - Elimina caracteres no imprimibles, caracteres de control y espacios invisibles:
+ *   \u200B (zero-width space), \u200C (ZWNJ), \u200D (ZWJ), \uFEFF (BOM), \u00A0 (NBSP), \u00AD (soft hyphen), etc.
+ * - Elimina caracteres de control ASCII [\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F].
+ * - Colapsa espacios múltiples consecutivos en uno solo.
  * - Convierte 'NaN', 'null', 'undefined', 'N/A' o cadenas vacías a null.
- * - Aplica trim() cuidadoso.
+ * - Aplica trim() cuidadoso al inicio y al final.
  */
 function sanitizeString(val) {
   if (val === null || val === undefined) return null;
   const str = String(val)
-    .replace(/[\u00A0\u1680\u180e\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\xa0]/g, ' ')
+    .replace(/[\u00A0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff\u00ad\u200b-\u200d\xa0]/g, ' ')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
   if (!str) return null;
   const lower = str.toLowerCase();
   if (['nan', 'null', 'undefined', 'n/a', 'none', '-', '.'].includes(lower)) return null;
   return str;
+}
+
+/**
+ * Normaliza nombres y apellidos institucionales:
+ * Limpia invisibles, colapsa espacios y convierte a mayúsculas limpias sin alterar letras con tildes.
+ */
+function cleanNombreFuncionario(val) {
+  const clean = sanitizeString(val);
+  if (!clean) return '';
+  return clean.toUpperCase();
 }
 
 /**
@@ -45,7 +60,8 @@ function validarCedulaExcel(val) {
     return { esInvalida: true, cedulaLimpia: null, esProvisional: false, valorOriginal: '' };
   }
   const str = String(val)
-    .replace(/[\u00A0\u1680\u180e\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\xa0]/g, ' ')
+    .replace(/[\u00A0\u1680\u180e\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff\u00ad\u200b-\u200d\xa0]/g, ' ')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
     .trim()
     .toUpperCase();
 
@@ -286,7 +302,11 @@ function parseExcelDate(val) {
     const parsed = XLSX.SSF.parse_date_code(val);
     if (parsed) {
       const d = new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
-      return isNaN(d.getTime()) ? null : d;
+      if (isNaN(d.getTime())) return null;
+      if (d.getUTCFullYear() !== parsed.y || d.getUTCMonth() !== (parsed.m - 1) || d.getUTCDate() !== parsed.d) {
+        return null;
+      }
+      return d;
     }
   }
 
@@ -299,8 +319,11 @@ function parseExcelDate(val) {
     const day = parseInt(dmyMatch[1], 10);
     const month = parseInt(dmyMatch[2], 10) - 1;
     const year = parseInt(dmyMatch[3], 10);
+    if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) return null;
     const d = new Date(Date.UTC(year, month, day));
-    return isNaN(d.getTime()) ? null : d;
+    if (isNaN(d.getTime())) return null;
+    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month || d.getUTCDate() !== day) return null;
+    return d;
   }
 
   // 3. Formato YYYY/MM/DD o YYYY-MM-DD
@@ -309,8 +332,11 @@ function parseExcelDate(val) {
     const year = parseInt(ymdMatch[1], 10);
     const month = parseInt(ymdMatch[2], 10) - 1;
     const day = parseInt(ymdMatch[3], 10);
+    if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) return null;
     const d = new Date(Date.UTC(year, month, day));
-    return isNaN(d.getTime()) ? null : d;
+    if (isNaN(d.getTime())) return null;
+    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month || d.getUTCDate() !== day) return null;
+    return d;
   }
 
   const fallback = new Date(str);
@@ -359,6 +385,7 @@ function calcularDiferenciaFechas(fechaInicio, fechaFin = new Date()) {
 
 module.exports = {
   sanitizeString,
+  cleanNombreFuncionario,
   sanitizeCedula,
   evaluarCedula,
   validarCedulaExcel,

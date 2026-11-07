@@ -7,24 +7,30 @@ class EmployeeImportService {
   }
 
   /**
-   * Obtiene el número máximo actual de una tabla con prefijo alfanumérico (ej: PER0012 -> 12).
+   * Obtiene el valor secuencial actual o máximo utilizando secuencias nativas de PostgreSQL.
    */
   async getMaxId(client, table, col) {
-    const res = await client.query(`SELECT ${col} FROM ${table}`);
-    let max = 0;
-    for (const row of res.rows) {
-      const val = row[col.toLowerCase()] || '';
-      const digits = val.replace(/\D/g, '');
-      if (digits) {
-        const num = parseInt(digits, 10);
-        if (num > max) max = num;
-      }
+    const seqMap = {
+      personas: 'seq_personas_id',
+      contactos: 'seq_contactos_id',
+      educacion: 'seq_educacion_id',
+      estados: 'seq_estados_id',
+      rel_principal: 'seq_rel_principal_id',
+      dependencias: 'seq_dependencias_id',
+      cargos: 'seq_cargos_id'
+    };
+    if (seqMap[table]) {
+      const q = `SELECT last_value FROM ${seqMap[table]}`;
+      const res = await client.query(q).catch(() => null);
+      if (res && res.rows[0]) return Number(res.rows[0].last_value || 0);
     }
-    return max;
+    const q = `SELECT COALESCE(MAX(NULLIF(regexp_replace(${col}, '\\D', '', 'g'), '')::bigint), 0) AS max_val FROM ${table}`;
+    const res = await client.query(q);
+    return Number(res.rows[0]?.max_val || 0);
   }
 
   /**
-   * Busca o crea una dependencia evitando duplicados.
+   * Busca o crea una dependencia evitando duplicados de forma atómica.
    */
   async findOrCreateDependencia(client, depCache, idGenerators, nombre) {
     const cleanName = (nombre || 'DIRECCIÓN DE TALENTO HUMANO').trim().toUpperCase();
@@ -41,8 +47,8 @@ class EmployeeImportService {
       return id;
     }
 
-    idGenerators.dep++;
-    const newId = 'DEP' + String(idGenerators.dep).padStart(3, '0');
+    const idRes = await client.query("SELECT next_formatted_id('seq_dependencias_id', 'DEP', 3) AS id");
+    const newId = idRes.rows[0].id;
     await client.query(
       'INSERT INTO dependencias (id_dependencia, dependencia, responsable, cargo_directivo, correo_responsable, extension_telefonica, funciones) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [newId, cleanName, 'POR ASIGNAR', 'DIRECTOR', 'contacto@boyaca.gov.co', '100', 'Gestión institucional']
@@ -79,8 +85,8 @@ class EmployeeImportService {
       return id;
     }
 
-    idGenerators.cargo++;
-    const newId = 'CAR' + String(idGenerators.cargo).padStart(3, '0');
+    const idRes = await client.query("SELECT next_formatted_id('seq_cargos_id', 'CAR', 3) AS id");
+    const newId = idRes.rows[0].id;
     const nivelCalculado = inferirNivelCargo(denominacion, codigo);
     await client.query(
       'INSERT INTO cargos (id_cargo, tipo_cargo, cargo, codigo, grado, asignacion_sueldo, nivel) VALUES ($1, $2, $3, $4, $5, $6, $7)',
@@ -469,17 +475,19 @@ class EmployeeImportService {
             // ───────────────────────────────────────────────
             // CASO B: EL FUNCIONARIO NO EXISTE -> INSERTAR
             // ───────────────────────────────────────────────
-            idGenerators.per++;
-            idGenerators.con++;
-            idGenerators.edu++;
-            idGenerators.est++;
-            idGenerators.rel++;
+            const [pRes, cRes, eRes, sRes, rRes] = await Promise.all([
+              client.query("SELECT next_formatted_id('seq_personas_id', 'PER', 4) AS id"),
+              client.query("SELECT next_formatted_id('seq_contactos_id', 'CON', 4) AS id"),
+              client.query("SELECT next_formatted_id('seq_educacion_id', 'EDU', 4) AS id"),
+              client.query("SELECT next_formatted_id('seq_estados_id', 'EST', 4) AS id"),
+              client.query("SELECT next_formatted_id('seq_rel_principal_id', 'REL', 4) AS id")
+            ]);
 
-            const newPersonId = 'PER' + String(idGenerators.per).padStart(4, '0');
-            const newContactId = 'CON' + String(idGenerators.con).padStart(4, '0');
-            const newEduId = 'EDU' + String(idGenerators.edu).padStart(4, '0');
-            const newEstadoId = 'EST' + String(idGenerators.est).padStart(4, '0');
-            const newRecordId = 'REL' + String(idGenerators.rel).padStart(4, '0');
+            const newPersonId = pRes.rows[0].id;
+            const newContactId = cRes.rows[0].id;
+            const newEduId = eRes.rows[0].id;
+            const newEstadoId = sRes.rows[0].id;
+            const newRecordId = rRes.rows[0].id;
             usedPersonaIds.add(newPersonId);
 
             // 1. Insertar en personas

@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ViaticosModule = (() => {
-  const ESTADOS = ['Todos', 'Pendiente', 'En revisión', 'Aprobada', 'Finalizada', 'Rechazada'];
+  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'];
   const DEPENDENCIAS_LIST = [
     'Todas',
     'DESPACHO DEL GOBERNADOR',
@@ -61,7 +61,44 @@ const ViaticosModule = (() => {
     return String(str).trim();
   }
 
-  function switchFichaTab(tabId) {
+  async function loadFichaHistorial(id) {
+    const el = document.getElementById('ficha-historial-content');
+    if (!el) return;
+    try {
+      const items = await API.getViaticoHistorial(id);
+      if (!items || items.length === 0) {
+        el.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">No hay eventos registrados en el historial de este viático.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="viaticos-timeline" style="display:flex; flex-direction:column; gap:12px; padding:6px 0;">
+          ${items.map(it => {
+            const fecha = it.fecha_actualizacion ? new Date(it.fecha_actualizacion).toLocaleString('es-CO') : '—';
+            const badgePrev = it.estado_anterior ? `<span class="badge ${badgeClass(it.estado_anterior)}" style="margin-right:6px;">${escHtml(it.estado_anterior)}</span> → ` : '';
+            const badgeNext = `<span class="badge ${badgeClass(it.estado_nuevo)}">${escHtml(it.estado_nuevo)}</span>`;
+            return `
+              <div style="background:var(--bg-card, #fff); border:1px solid var(--color-border, #e2e8f0); border-radius:8px; padding:12px 14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                  <div>${badgePrev}${badgeNext}</div>
+                  <div style="font-size:0.8rem; color:var(--text-muted);">🕒 ${escHtml(fecha)}</div>
+                </div>
+                <div style="font-size:0.9rem; margin-bottom:4px; color:var(--text-primary); font-weight:500;">
+                  ${escHtml(it.nota || 'Sin observaciones registradas.')}
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">
+                  Registrado por: <strong>${escHtml(it.actualizado_por || 'SISTEMA')}</strong>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } catch (err) {
+      el.innerHTML = `<div style="padding:14px; color:var(--color-danger, #ef4444);">Error al cargar historial: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function switchFichaTab(tabId, viaticoId) {
     const container = document.querySelector('.ficha-wrapper');
     if (!container) return;
     container.querySelectorAll('.ficha-tab-btn').forEach(btn => {
@@ -70,6 +107,9 @@ const ViaticosModule = (() => {
     container.querySelectorAll('.ficha-tab-pane').forEach(pane => {
       pane.classList.toggle('active', pane.id === tabId);
     });
+    if (tabId === 'ficha-historial' && viaticoId) {
+      loadFichaHistorial(viaticoId);
+    }
     const modalBody = document.getElementById('modal-body');
     if (modalBody && modalBody.scrollTop > 100) {
       modalBody.scrollTo({ top: 90, behavior: 'smooth' });
@@ -98,14 +138,27 @@ const ViaticosModule = (() => {
     });
   }
 
-  // ─── Diccionario Geográfico de Colombia ──────────────────────────────────────
+  // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
   const COLOMBIA_GEO = {
     'Boyacá': [
-      'Tunja', 'Duitama', 'Sogamoso', 'Paipa', 'Chiquinquirá', 'Villa de Leyva',
-      'Moniquirá', 'Puerto Boyacá', 'Garagoa', 'Guateque', 'Soatá', 'Samacá',
-      'Nobsa', 'Tibasosa', 'Santa Rosa de Viterbo', 'Ventaquemada', 'Aquitania',
-      'Belén', 'Chita', 'Cómbita', 'Miraflores', 'Muzo', 'Ramiriquí', 'Saboyá',
-      'San Luis de Gaceno', 'Socha', 'Tenza', 'Toca', 'Turmequé', 'Umbita', 'Zetaquira', 'Otro municipio'
+      'Almeida', 'Aquitania', 'Arcabuco', 'Belén', 'Berbeo', 'Betéitiva', 'Boavita', 'Boyacá',
+      'Briceño', 'Buenavista', 'Busbanzá', 'Caldas', 'Campohermoso', 'Cerinza', 'Chinavita',
+      'Chiquinquirá', 'Chiscas', 'Chita', 'Chitaraque', 'Chivatá', 'Chivor', 'Chíquiza',
+      'Ciénega', 'Coper', 'Corrales', 'Covarachía', 'Cubará', 'Cucaita', 'Cuítiva', 'Cómbita',
+      'Duitama', 'El Cocuy', 'El Espino', 'Firavitoba', 'Floresta', 'Gachantivá', 'Garagoa',
+      'Guacamayas', 'Guateque', 'Guayatá', 'Guicán de la Sierra', 'Gámeza', 'Iza', 'Jenesano',
+      'Jericó', 'La Capilla', 'La Uvita', 'La Victoria', 'Labranzagrande', 'Macanal', 'Maripí',
+      'Miraflores', 'Mongua', 'Monguí', 'Moniquirá', 'Motavita', 'Muzo', 'Nobsa', 'Nuevo Colón',
+      'Oicatá', 'Otanche', 'Pachavita', 'Paipa', 'Pajarito', 'Panqueba', 'Pauna', 'Paya',
+      'Paz de Río', 'Pesca', 'Pisba', 'Puerto Boyacá', 'Páez', 'Quípama', 'Ramiriquí', 'Rondón',
+      'Ráquira', 'Saboyá', 'Samacá', 'San Eduardo', 'San José de Pare', 'San Luis de Gaceno',
+      'San Mateo', 'San Miguel de Sema', 'San Pablo de Borbur', 'Santa María',
+      'Santa Rosa de Viterbo', 'Santa Sofía', 'Santana', 'Siachoque', 'Soatá', 'Socha', 'Socotá',
+      'Sogamoso', 'Somondoco', 'Sora', 'Soracá', 'Sotaquirá', 'Susacón', 'Sutamarchán',
+      'Sutatenza', 'Sáchica', 'Sátivanorte', 'Sátivasur', 'Tasco', 'Tenza', 'Tibaná', 'Tibasosa',
+      'Tinjacá', 'Tipacoque', 'Toca', 'Togüí', 'Tota', 'Tunja', 'Tununguá', 'Turmequé', 'Tuta',
+      'Tutazá', 'Tópaga', 'Ventaquemada', 'Villa de Leyva', 'Viracachá', 'Zetaquira', 'Úmbita',
+      'Otro municipio'
     ],
     'Bogotá D.C.': ['Bogotá D.C.'],
     'Cundinamarca': [
@@ -163,10 +216,11 @@ const ViaticosModule = (() => {
 
   function badgeClass(estado) {
     const e = (estado || '').toLowerCase();
-    if (e.includes('aprobad'))  return 'badge--aprobada';
-    if (e.includes('finaliz'))  return 'badge--finalizada';
-    if (e.includes('rechazad')) return 'badge--rechazada';
-    if (e.includes('revis'))    return 'badge--revision';
+    if (e.includes('aprobad'))   return 'badge--aprobada';
+    if (e.includes('legaliz') || e.includes('finaliz')) return 'badge--finalizada';
+    if (e.includes('ejecuci') || e.includes('revis'))   return 'badge--revision';
+    if (e.includes('rechazad') || e.includes('anulad')) return 'badge--rechazada';
+    if (e.includes('radicad'))   return 'badge--pendiente';
     return 'badge--pendiente';
   }
 
@@ -534,7 +588,7 @@ const ViaticosModule = (() => {
             <button class="btn-action-view" onclick="ViaticosModule.openView(${r.id})" title="Ver Detalles del Viático">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            ${r.soporte ? `
+            ${(r.soporte || r.tieneSoporte) ? `
             <button class="btn-action-soporte" onclick="ViaticosModule.viewSoporte(${r.id})" title="Ver Factura / Soporte Adjunto">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>` : ''}
@@ -648,7 +702,7 @@ const ViaticosModule = (() => {
             </button>
             <button type="button" class="form-tab-btn" data-tab="tab-vit-liquidacion" onclick="ViaticosModule.switchFormTab('tab-vit-liquidacion')">
               <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Liquidación & Valores
+              Valores Registrados
             </button>
             <button type="button" class="form-tab-btn" data-tab="tab-vit-soporte" onclick="ViaticosModule.switchFormTab('tab-vit-soporte')">
               <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -716,6 +770,11 @@ const ViaticosModule = (() => {
                   <!-- Poblado dinámicamente -->
                 </select>
               </div>
+              <div class="form-group span-2" style="grid-column: 1 / -1;">
+                <label class="form-label">Detalle del Destino / Corregimiento / Vereda (Opcional)</label>
+                <input id="vf-detalle-destino" class="form-input" placeholder="Ej: Corregimiento Morcá, Vereda El Rosal..." oninput="ViaticosModule.updateDestinoFinal()" ${dis} />
+                <span class="form-hint" style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:2px;">Especifique el corregimiento o vereda sin alterar el municipio base para el cálculo de viáticos.</span>
+              </div>
             </div>
 
             <!-- Destino Internacional -->
@@ -753,7 +812,7 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- ─── PESTAÑA 3: LIQUIDACIÓN & VALORES ─── -->
+        <!-- ─── PESTAÑA 3: VALORES REGISTRADOS ─── -->
         <div id="tab-vit-liquidacion" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group">
@@ -767,18 +826,27 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label">Número de Días (calculado)</label>
-              <input id="vf-dias" class="form-input" type="number" min="1" inputmode="numeric" enterkeyhint="next" placeholder="Ej: 3" value="${escHtml(r.dias != null ? r.dias : '')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <label class="form-label">Modalidad de Comisión</label>
+              <select id="vf-pernocta" class="filter-select" ${dis}>
+                <option value="true" ${r.pernocta !== false ? 'selected' : ''}>Con Pernocta</option>
+                <option value="false" ${r.pernocta === false ? 'selected' : ''}>Sin Pernocta</option>
+              </select>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Valor Diario ($ COP)</label>
-              <input id="vf-vdiario" class="form-input" type="number" min="0" step="1000" placeholder="Ej: 150000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.valorDiario != null ? r.valorDiario : '')}" oninput="ViaticosModule.calcTotal()" ${dis} />
+              <label class="form-label">Número de Días</label>
+              <input id="vf-dias" class="form-input" type="number" min="1" inputmode="numeric" enterkeyhint="next" placeholder="Ej: 3" value="${escHtml(r.dias != null ? r.dias : '')}" oninput="ViaticosModule.calcTotal()" ${dis} />
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Valor Total del Viático (Cálculo automático)</label>
-              <input id="vf-vtotal" class="form-input" placeholder="Calculado automáticamente" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal ? formatCOP(r.valorTotal) : ''}" />
+              <label class="form-label">Valor Diario Registrado ($ COP)</label>
+              <input id="vf-vdiario" class="form-input" type="number" min="0" placeholder="Ej: 180000" oninput="ViaticosModule.calcTotal()" style="font-weight:600;" value="${escHtml(r.valorDiario != null ? r.valorDiario : '')}" ${dis} />
+              <div class="form-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Valor de viático diario registrado para la comisión oficial.</div>
+            </div>
+
+            <div class="form-group span-2">
+              <label class="form-label">Valor Total Registrado ($ COP)</label>
+              <input id="vf-vtotal" class="form-input" placeholder="Calculado a partir de días y valor diario" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal ? formatCOP(r.valorTotal) : ''}" />
             </div>
 
             <div class="form-group">
@@ -804,7 +872,7 @@ const ViaticosModule = (() => {
             <div class="form-group span-2">
               <label class="form-label">Estado de la Solicitud</label>
               <select id="vf-estado" class="filter-select" onchange="ViaticosModule.onEstadoChange()" ${dis}>
-                <option value="" ${!r.estado ? 'selected' : ''} disabled>Seleccione Estado...</option>${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${r.estado === s ? 'selected' : ''}>${s}</option>`).join('')}
+                ${ESTADOS.filter(s => s !== 'Todos').map(s => `<option ${(r.estado || 'Radicado') === s ? 'selected' : ''}>${s}</option>`).join('')}
               </select>
             </div>
 
@@ -839,20 +907,91 @@ const ViaticosModule = (() => {
   // ─── Inicialización de Campos de Destino y Autocompletado ──────────────────
   function initFormHelpers(r = {}) {
     const deptoSelect = document.getElementById('vf-depto');
+    const detalleInput = document.getElementById('vf-detalle-destino');
     if (deptoSelect) {
-      if (r.destino && r.destino.includes(',')) {
-        const parts = r.destino.split(',').map(p => p.trim());
+      const rawDest = (r.destino || '').trim();
+      const normDest = rawDest.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+      // Mapa de resolución de corregimientos y asentamientos especiales a municipios padres
+      const CORREGIMIENTOS_PADRES = {
+        'morca': { muni: 'Sogamoso', depto: 'Boyacá', detalle: 'Morcá' },
+        'venecia': { muni: 'Sogamoso', depto: 'Boyacá', detalle: 'Venecia' },
+        'paloblanco': { muni: 'Sogamoso', depto: 'Boyacá', detalle: 'Paloblanco' },
+        'el dos y medio': { muni: 'Puerto Boyacá', depto: 'Boyacá', detalle: 'El Dos y Medio' },
+        'puerto romero': { muni: 'Puerto Boyacá', depto: 'Boyacá', detalle: 'Puerto Romero' },
+        'puerto serviez': { muni: 'Puerto Boyacá', depto: 'Boyacá', detalle: 'Puerto Serviez' },
+        'la colorada': { muni: 'Villa de Leyva', depto: 'Boyacá', detalle: 'La Colorada' },
+        'belencito': { muni: 'Nobsa', depto: 'Boyacá', detalle: 'Belencito' },
+        'tobosia': { muni: 'Duitama', depto: 'Boyacá', detalle: 'Tobosía' },
+        'surba y bonza': { muni: 'Duitama', depto: 'Boyacá', detalle: 'Surba y Bonza' },
+        'pirgua': { muni: 'Tunja', depto: 'Boyacá', detalle: 'Pirgua' },
+        'la hoyada': { muni: 'Tunja', depto: 'Boyacá', detalle: 'La Hoyada' }
+      };
+
+      if (rawDest && CORREGIMIENTOS_PADRES[normDest]) {
+        const info = CORREGIMIENTOS_PADRES[normDest];
+        deptoSelect.value = info.depto;
+        onDeptoChange(info.muni);
+        if (detalleInput) detalleInput.value = info.detalle;
+        updateDestinoFinal();
+        calcTotal();
+        onEstadoChange();
+        return;
+      }
+
+      if (rawDest && rawDest.includes(',')) {
+        const parts = rawDest.split(',').map(p => p.trim());
         if (parts.length >= 2) {
-          const deptoFound = Object.keys(COLOMBIA_GEO).find(d => d.toLowerCase() === parts[1].toLowerCase());
+          const deptoFound = Object.keys(COLOMBIA_GEO).find(d => 
+            d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 
+            parts[parts.length - 1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          );
           if (deptoFound) {
             deptoSelect.value = deptoFound;
-            onDeptoChange(parts[0]);
+            let rawMuniPart = parts[0];
+            let det = '';
+            const parenMatch = rawMuniPart.match(/^(.*?)\s*\((.*?)\)$/);
+            if (parenMatch) {
+              rawMuniPart = parenMatch[1].trim();
+              det = parenMatch[2].trim();
+            }
+            if (detalleInput && det) detalleInput.value = det;
+
+            // Encontrar municipio coincidente insensible a acentos
+            const munis = COLOMBIA_GEO[deptoFound] || [];
+            const cleanTarget = rawMuniPart.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const muniFound = munis.find(m => {
+              const c = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+              return c === cleanTarget || (cleanTarget.startsWith('guican') && c.startsWith('guican')) ||
+                     (cleanTarget.includes('santa rosa') && c.includes('santa rosa'));
+            });
+
+            onDeptoChange(muniFound || rawMuniPart);
             calcTotal();
             onEstadoChange();
             return;
           }
         }
       }
+
+      // Si no tiene coma, intentar resolver contra municipios de Boyacá directamente
+      if (rawDest) {
+        const boyacaMunis = COLOMBIA_GEO['Boyacá'] || [];
+        const cleanTarget = normDest;
+        const muniFound = boyacaMunis.find(m => {
+          const c = m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          return c === cleanTarget || (cleanTarget.startsWith('guican') && c.startsWith('guican')) ||
+                 (cleanTarget.includes('santa rosa') && c.includes('santa rosa'));
+        });
+        if (muniFound) {
+          deptoSelect.value = 'Boyacá';
+          onDeptoChange(muniFound);
+          calcTotal();
+          onEstadoChange();
+          return;
+        }
+      }
+
       if (deptoSelect.value) {
         onDeptoChange();
       }
@@ -921,6 +1060,7 @@ const ViaticosModule = (() => {
     if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
 
     App.showToast(`Datos completados para ${emp.nombre_completo}.`, 'info');
+    onDatesChange();
   }
 
   function unlockServidor() {
@@ -978,10 +1118,11 @@ const ViaticosModule = (() => {
     if (tipo === 'Nacional') {
       const depto = document.getElementById('vf-depto')?.value || '';
       const muni = document.getElementById('vf-muni')?.value || '';
+      const detalle = document.getElementById('vf-detalle-destino')?.value.trim() || '';
       if (muni && depto) {
-        destText = `${muni}, ${depto}`;
+        destText = detalle ? `${muni} (${detalle}), ${depto}` : `${muni}, ${depto}`;
       } else if (depto) {
-        destText = depto;
+        destText = detalle ? `${detalle}, ${depto}` : depto;
       }
     } else {
       const pais = document.getElementById('vf-pais')?.value || '';
@@ -1037,6 +1178,11 @@ const ViaticosModule = (() => {
     calcTotal();
   }
 
+  async function recalcularLiquidacionNormativa() {
+    // Delimitación de alcance institucional: Talento 360 no liquida tarifas ni escalas salariales
+    calcTotal();
+  }
+
   function calcTotal() {
     const dias = parseFloat(document.getElementById('vf-dias')?.value) || 0;
     const daily = parseFloat(document.getElementById('vf-vdiario')?.value) || 0;
@@ -1052,10 +1198,10 @@ const ViaticosModule = (() => {
     const est = document.getElementById('vf-estado')?.value;
     const aprInput = document.getElementById('vf-aprobado');
     if (!aprInput) return;
-    if (est === 'Aprobada') {
+    if (est === 'Aprobada' || est === 'Aprobado') {
       const user = Auth.getUser();
       const adminName = user?.fullName || (user?.username === 'admin' ? 'Ángela Usán (Administrador)' : (user?.username || 'Administrador'));
-      if (!aprInput.value || aprInput.value === '—' || aprInput.value.toLowerCase().includes('pendiente')) {
+      if (!aprInput.value || aprInput.value === '—' || aprInput.value.toLowerCase().includes('pendiente') || aprInput.value.toLowerCase().includes('radicado')) {
         aprInput.value = adminName;
       }
     }
@@ -1097,8 +1243,22 @@ const ViaticosModule = (() => {
     App.showToast('Soporte removido.', 'info');
   }
 
-  function viewSoporte(id) {
-    const r = state.data.find(x => x.id === id);
+  async function viewSoporte(id) {
+    let r = state.data.find(x => x.id === id);
+    if (!r) return;
+
+    if (!r.soporte && (r.tieneSoporte || r.tiene_soporte)) {
+      try {
+        if (typeof App !== 'undefined' && App.showToast) App.showToast('Recuperando soporte documental...', 'info');
+        const res = await API.getViaticoSupport(id);
+        if (res && res.soporte) {
+          r.soporte = res.soporte;
+        }
+      } catch (err) {
+        console.error('Error al recuperar soporte:', err);
+      }
+    }
+
     if (!r || !r.soporte) {
       App.showToast('Este registro no tiene soporte adjunto.', 'info');
       return;
@@ -1146,11 +1306,20 @@ const ViaticosModule = (() => {
     if (!r) return;
 
     const initials = getInitials(r.persona);
-    const estadoNorm = (r.estado || 'Pendiente').toLowerCase();
-    const isAprobada = estadoNorm.includes('aprobad') || estadoNorm.includes('finaliz');
+    const estadoNorm = (r.estado || 'Radicado').toLowerCase();
+    const isAprobada = estadoNorm.includes('aprobad');
+    const isEjecucion = estadoNorm.includes('ejecuci');
+    const isLegalizada = estadoNorm.includes('legaliz') || estadoNorm.includes('finaliz');
     const isRechazada = estadoNorm.includes('rechazad');
-    const badgeStateClass = isAprobada ? 'pill--emerald' : (isRechazada ? 'pill--danger' : 'pill--gold');
-    const statusIcon = isAprobada ? '🟢' : (isRechazada ? '🔴' : '🟡');
+    const isAnulada = estadoNorm.includes('anulad');
+
+    let badgeStateClass = 'pill--gold';
+    let statusIcon = '📝';
+    if (isAprobada) { badgeStateClass = 'pill--emerald'; statusIcon = '✅'; }
+    else if (isEjecucion) { badgeStateClass = 'pill--sky'; statusIcon = '🚗'; }
+    else if (isLegalizada) { badgeStateClass = 'pill--emerald'; statusIcon = '🏛️'; }
+    else if (isRechazada) { badgeStateClass = 'pill--danger'; statusIcon = '❌'; }
+    else if (isAnulada) { badgeStateClass = 'pill--danger'; statusIcon = '🚫'; }
 
     const cleanPersona = sanitizeText(r.persona || 'Servidor Público');
     const cleanCargo = sanitizeText(r.cargo || 'Funcionario');
@@ -1214,11 +1383,15 @@ const ViaticosModule = (() => {
           </button>
           <button class="ficha-tab-btn" data-tab="ficha-liquidacion" onclick="ViaticosModule.switchFichaTab('ficha-liquidacion')">
             <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            Liquidación & Presupuesto
+            Valores Registrados
           </button>
           <button class="ficha-tab-btn" data-tab="ficha-soporte" onclick="ViaticosModule.switchFichaTab('ficha-soporte')">
             <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
             Fechas & Soportes
+          </button>
+          <button class="ficha-tab-btn" data-tab="ficha-historial" onclick="ViaticosModule.switchFichaTab('ficha-historial', ${r.id})">
+            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Ciclo de Vida & Historial
           </button>
         </div>
 
@@ -1293,42 +1466,42 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- ─── Tab 2: Liquidación & Presupuesto ─── -->
+        <!-- ─── Tab 2: Valores Registrados ─── -->
         <div class="ficha-tab-pane" id="ficha-liquidacion">
           <div class="ficha-grid">
             <div class="ficha-card ficha-card--featured ficha-grid--full" style="padding:18px 20px;">
               <div class="ficha-card-top">
                 <div class="ficha-card-icon" style="background:rgba(0,123,199,0.15); color:var(--color-info); font-size:18px;">💰</div>
-                <span class="ficha-card-label" style="font-size:0.8rem;">Valor Total Liquidado</span>
+                <span class="ficha-card-label" style="font-size:0.8rem;">Valor Total Registrado</span>
               </div>
               <div class="ficha-card-val" style="font-size:1.6rem; font-weight:800; margin:6px 0; color:var(--color-primary-400);">
                 ${formatCOP(r.valorTotal)}
               </div>
               <div class="ficha-card-sub" style="font-size:0.85rem;">
-                Devengo económico total liquidado para la comisión oficial
+                Valor económico total registrado para la comisión oficial
               </div>
             </div>
 
             <div class="ficha-card ficha-card--emerald">
               <div class="ficha-card-top">
                 <div class="ficha-card-icon">💵</div>
-                <span class="ficha-card-label">Tarifa Diaria Asignada</span>
+                <span class="ficha-card-label">Valor Diario Registrado</span>
               </div>
               <div class="ficha-card-val font-mono" style="font-size:1.2rem; font-weight:700;">
                 ${formatCOP(r.valorDiario)}
               </div>
-              <div class="ficha-card-sub">Tarifa fija por día de comisión</div>
+              <div class="ficha-card-sub">Valor unitario reportado por día de comisión</div>
             </div>
 
             <div class="ficha-card">
               <div class="ficha-card-top">
                 <div class="ficha-card-icon">⏱️</div>
-                <span class="ficha-card-label">Días Reconocidos</span>
+                <span class="ficha-card-label">Días Registrados</span>
               </div>
               <div class="ficha-card-val font-mono" style="font-size:1.25rem; font-weight:800;">
                 ${escHtml(r.dias ?? '1')} ${r.dias === 1 ? 'día' : 'días'}
               </div>
-              <div class="ficha-card-sub">Tiempo efectivo liquidado</div>
+              <div class="ficha-card-sub">Duración reportada de la comisión</div>
             </div>
 
             <div class="ficha-card">
@@ -1350,7 +1523,7 @@ const ViaticosModule = (() => {
               <div class="ficha-card-val" style="font-size:0.95rem; font-weight:600;">
                 ${r.aprobadoPor ? escHtml(r.aprobadoPor) : '<span style="color:var(--text-muted);">En trámite de aprobación</span>'}
               </div>
-              <div class="ficha-card-sub">Ordenador del gasto o supervisor</div>
+              <div class="ficha-card-sub">Autoridad o funcionario que aprobó el trámite</div>
             </div>
           </div>
         </div>
@@ -1386,7 +1559,7 @@ const ViaticosModule = (() => {
                 <span class="ficha-card-label">Soporte Adjunto / Comprobante de Desplazamiento</span>
               </div>
               <div style="margin-top:8px;">
-                ${r.soporte ? `
+                ${(r.soporte || r.tieneSoporte) ? `
                   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; background:var(--color-bg-secondary, rgba(0,0,0,0.04)); border:1px solid var(--color-border); border-radius:10px; flex-wrap:wrap;">
                     <div style="display:flex; align-items:center; gap:10px;">
                       <div style="width:36px; height:36px; border-radius:8px; background:rgba(2,132,199,0.15); color:var(--color-info); display:flex; align-items:center; justify-content:center; font-size:18px;">
@@ -1413,18 +1586,38 @@ const ViaticosModule = (() => {
             </div>
           </div>
         </div>
+
+        <!-- ─── Tab 4: Ciclo de Vida & Historial ─── -->
+        <div class="ficha-tab-pane" id="ficha-historial">
+          <div id="ficha-historial-content" style="padding: 10px 4px;">
+            <div style="text-align:center; padding:20px; color:var(--text-muted);">
+              Cargando historial del ciclo de vida...
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
+    const isTerminal = ['Legalizado', 'Rechazado', 'Anulado'].includes(r.estado);
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
     if (Auth.canEdit('viaticos')) {
-      actions.push({
-        text: 'Editar Viático',
-        cls: 'btn-gold',
-        action: () => openEdit(id)
-      });
+      if (!isTerminal) {
+        actions.push({
+          text: 'Cambiar Estado',
+          cls: 'btn-primary',
+          action: () => {
+            App.closeModal();
+            openStatusPicker(id);
+          }
+        });
+        actions.push({
+          text: 'Editar Viático',
+          cls: 'btn-gold',
+          action: () => openEdit(id)
+        });
+      }
     }
 
     App.openModal(`Ficha Integral del Viático · ${escHtml(radicadoRaw)}`, content, actions, 'modal-ficha modal-lg');
@@ -1473,13 +1666,26 @@ const ViaticosModule = (() => {
     }, 50);
   }
 
-  function openEdit(id) {
+  async function openEdit(id) {
     if (!Auth.canEdit('viaticos')) {
       App.showToast('No tienes permisos para editar viáticos.', 'warning');
       return;
     }
     const r = state.data.find(x => x.id === id);
     if (!r) return;
+
+    if (['Legalizado', 'Rechazado', 'Anulado'].includes(r.estado)) {
+      App.showToast(`No se puede modificar una comisión en estado "${r.estado}". El proceso administrativo está cerrado.`, 'warning');
+      return;
+    }
+
+    if (!r.soporte && (r.tieneSoporte || r.tiene_soporte)) {
+      try {
+        const sup = await API.getViaticoSupport(id);
+        if (sup && sup.soporte) r.soporte = sup.soporte;
+      } catch (_) {}
+    }
+
     currentFormIsEdit = true;
     currentFormEditId = id;
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
@@ -1562,14 +1768,12 @@ const ViaticosModule = (() => {
 
   function readForm() {
     const nombre = document.getElementById('vf-nombre')?.value.trim();
-    const destino = document.getElementById('vf-destino')?.value.trim();
+    const rawDestino = document.getElementById('vf-destino')?.value?.trim();
+    const destino = rawDestino || 'TUNJA, BOYACÁ';
     const fi = document.getElementById('vf-fi')?.value;
     const ff = document.getElementById('vf-ff')?.value;
 
     if (!nombre) { App.showToast('El nombre del funcionario es requerido.', 'warning'); return null; }
-    if (!destino) {
-      destino = 'TUNJA, BOYACÁ';
-    }
 
     const tipoDestino = document.querySelector('input[name="vf-tipo-dest"]:checked')?.value || 'Nacional';
 
@@ -1585,7 +1789,8 @@ const ViaticosModule = (() => {
       fechaFin: ff || '',
       dias: parseInt(document.getElementById('vf-dias')?.value) || 1,
       valorDiario: parseFloat(document.getElementById('vf-vdiario')?.value) || 0,
-      estado: document.getElementById('vf-estado')?.value || 'Pendiente',
+      pernocta: document.getElementById('vf-pernocta')?.value !== 'false',
+      estado: document.getElementById('vf-estado')?.value || 'Radicado',
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',
       aprobadoPor: document.getElementById('vf-aprobado')?.value.trim() || '',
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
@@ -1598,39 +1803,46 @@ const ViaticosModule = (() => {
   // ─── Modal de Cambio Rápido de Estado (1 Clic) ──────────────────────────────
   const STATUS_CONFIG = [
     {
-      id: 'aprobada',
-      name: 'Aprobada',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
-      desc: 'Aprobar viático para trámite y desembolso',
-      cls: 'status-card-opt--aprobada',
-    },
-    {
-      id: 'rechazada',
-      name: 'Rechazada',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      desc: 'Denegar o no autorizar la comisión de servicios',
-      cls: 'status-card-opt--rechazada',
-    },
-    {
-      id: 'revision',
-      name: 'En revisión',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-      desc: 'En verificación de soportes y disponibilidad presupuestal',
-      cls: 'status-card-opt--revision',
-    },
-    {
-      id: 'pendiente',
-      name: 'Pendiente',
+      id: 'radicado',
+      name: 'Radicado',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-      desc: 'Registrado en espera de gestión o turno',
+      desc: 'Comisión radicada formalmente en espera de autorización',
       cls: 'status-card-opt--pendiente',
     },
     {
-      id: 'finalizada',
-      name: 'Finalizada',
+      id: 'aprobado',
+      name: 'Aprobado',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+      desc: 'Viático autorizado y aprobado para desembolso presupuestal',
+      cls: 'status-card-opt--aprobada',
+    },
+    {
+      id: 'en_ejecucion',
+      name: 'En Ejecución',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+      desc: 'Comisión en curso o desplazamiento activo del servidor público',
+      cls: 'status-card-opt--revision',
+    },
+    {
+      id: 'legalizado',
+      name: 'Legalizado',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-      desc: 'Comisión cumplida y legalizada formalmente',
+      desc: 'Comisión cumplida, informe radicado y soportes legalizados',
       cls: 'status-card-opt--finalizada',
+    },
+    {
+      id: 'rechazado',
+      name: 'Rechazado',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      desc: 'Solicitud denegada o no autorizada por la autoridad',
+      cls: 'status-card-opt--rechazada',
+    },
+    {
+      id: 'anulado',
+      name: 'Anulado',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+      desc: 'Acto de comisión cancelado o sin efectos jurídicos',
+      cls: 'status-card-opt--rechazada',
     },
   ];
 
@@ -1643,15 +1855,52 @@ const ViaticosModule = (() => {
     if (!r) return;
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
+    const ALLOWED_MAP = {
+      'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
+      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+      'En Ejecución': ['Legalizado', 'Anulado'],
+      'Legalizado': [],
+      'Rechazado': [],
+      'Anulado': []
+    };
+    const currentStatus = r.estado || 'Radicado';
+    const allowedNext = ALLOWED_MAP[currentStatus] || [];
+    const isTerminal = ['Legalizado', 'Rechazado', 'Anulado'].includes(currentStatus);
+
     const cardsHtml = STATUS_CONFIG.map(opt => {
-      const isCurrent = r.estado === opt.name;
+      const isCurrent = currentStatus === opt.name;
+      const isAllowed = allowedNext.includes(opt.name);
+      let btnCls = `status-card-opt ${opt.cls}`;
+      let clickAttr = `onclick="ViaticosModule.selectQuickStatus(${r.id}, '${opt.name}')"`;
+      let styleExtra = '';
+
+      if (isCurrent) {
+        btnCls += ' is-current';
+        clickAttr = `onclick="App.showToast('La comisión ya se encuentra en estado ${opt.name}.', 'info')"`;
+      } else if (!isAllowed) {
+        btnCls += ' is-disabled';
+        styleExtra = 'opacity:0.38; cursor:not-allowed; filter:grayscale(0.65);';
+        let reason = `No se permite saltar de ${currentStatus} a ${opt.name}.`;
+        if (currentStatus === 'Radicado' && opt.name === 'Legalizado') {
+          reason = 'Una comisión radicada debe ser Aprobada y puesta En Ejecución antes de Legalizarse.';
+        } else if (currentStatus === 'Radicado' && opt.name === 'En Ejecución') {
+          reason = 'Una comisión debe ser Aprobada antes de iniciar En Ejecución.';
+        } else if (currentStatus === 'Aprobado' && opt.name === 'Legalizado') {
+          reason = 'Una comisión aprobada debe iniciar En Ejecución antes de proceder a la legalización.';
+        } else if (isTerminal) {
+          reason = `El proceso administrativo está cerrado (${currentStatus}).`;
+        }
+        clickAttr = `onclick="App.showToast('${reason}', 'warning')"`;
+      }
+
       return `
-        <button type="button" class="status-card-opt ${opt.cls} ${isCurrent ? 'is-current' : ''}" onclick="ViaticosModule.selectQuickStatus(${r.id}, '${opt.name}')" title="Marcar como ${opt.name}">
+        <button type="button" class="${btnCls}" style="${styleExtra}" ${clickAttr} title="Marcar como ${opt.name}">
           <div class="status-opt-icon">${opt.icon}</div>
           <div class="status-opt-info">
             <div class="status-opt-title-row">
               <span class="status-opt-name">${opt.name}</span>
               ${isCurrent ? '<span class="status-current-badge">Estado actual</span>' : ''}
+              ${!isCurrent && isAllowed ? '<span class="status-current-badge" style="background:#047857; color:#fff;">Permitido</span>' : ''}
             </div>
             <span class="status-opt-desc">${opt.desc}</span>
           </div>
@@ -1674,23 +1923,31 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
+        ${isTerminal ? `
+          <div style="background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.3); border-radius:8px; padding:12px; margin-bottom:12px; color:#b91c1c; font-size:0.875rem;">
+            🔒 <strong>Proceso Cerrado:</strong> Esta comisión se encuentra en estado terminal <strong>${escHtml(currentStatus)}</strong>. No se admiten cambios de estado ni doble legalización.
+          </div>
+        ` : ''}
+
         <div class="status-picker-section-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          <span>Selecciona el nuevo estado para esta solicitud:</span>
+          <span>${isTerminal ? 'Ciclo de vida completado:' : 'Transiciones normativas permitidas para esta solicitud:'}</span>
         </div>
 
         <div class="status-cards-grid">
           ${cardsHtml}
         </div>
 
-        <div class="form-group floating-group ${r.observaciones ? 'is-floated' : ''}" style="margin-top:var(--space-2);">
-          <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder=" " value="${escHtml(r.observaciones || '')}" />
-          <label class="form-label" for="quick-status-obs">Observación / Justificación (Opcional)</label>
-        </div>
+        ${!isTerminal ? `
+          <div class="form-group floating-group ${r.observaciones ? 'is-floated' : ''}" style="margin-top:var(--space-2);">
+            <input id="quick-status-obs" class="form-input form-input--no-icon" placeholder=" " value="${escHtml(r.observaciones || '')}" />
+            <label class="form-label" for="quick-status-obs">Observación / Justificación de la Transición (Obligatoria para Rechazo o Anulación)</label>
+          </div>
+        ` : ''}
       </div>`;
 
     App.openModal('Gestión Rápida de Estado', bodyHtml, [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ]);
     if (typeof App !== 'undefined') {
       const modalBody = document.getElementById('modal-body');
@@ -1704,7 +1961,21 @@ const ViaticosModule = (() => {
       App.showToast('No tienes permisos para modificar el estado de viáticos.', 'warning');
       return;
     }
+    const r = state.data.find(x => x.id === id);
+    if (!r) return;
+
+    if (['Legalizado', 'Rechazado', 'Anulado'].includes(r.estado)) {
+      App.showToast(`No se puede modificar una comisión en estado "${r.estado}". El proceso administrativo está cerrado.`, 'warning');
+      return;
+    }
+
     const obs = document.getElementById('quick-status-obs')?.value.trim();
+    if ((newStatus === 'Rechazado' || newStatus === 'Anulado') && !obs) {
+      App.showToast(`Para marcar como "${newStatus}" es obligatorio suministrar una justificación u observación.`, 'warning');
+      document.getElementById('quick-status-obs')?.focus();
+      return;
+    }
+
     try {
       await API.updateViaticoStatus(id, newStatus, obs);
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
@@ -1789,7 +2060,7 @@ const ViaticosModule = (() => {
         </div>
         <div class="stat-info">
           <span class="stat-value">${valorAprobado.toLocaleString('es-CO')}</span>
-          <span class="stat-label">PRESUPUESTO APROBADO</span>
+          <span class="stat-label">VALOR TOTAL REGISTRADO</span>
         </div>
       </div>
 
@@ -1805,12 +2076,459 @@ const ViaticosModule = (() => {
     `;
   }
 
+  // ─── Ranking y Consolidado Interactivo de Servidores (Global y Anual) ─────────
+  const rankingState = {
+    global: {
+      page: 1,
+      limit: 10,
+      q: '',
+      dependencia: '',
+      orden: 'viajes_desc',
+      total: 0,
+      totalPages: 1,
+      data: [],
+      searchTimer: null
+    },
+    year: {
+      year: null,
+      page: 1,
+      limit: 10,
+      q: '',
+      dependencia: '',
+      orden: 'viajes_desc',
+      total: 0,
+      totalPages: 1,
+      data: [],
+      searchTimer: null
+    }
+  };
+
+  function renderRankingSkeletonRows(count = 5) {
+    return Array.from({ length: count }, () => `
+      <tr>
+        <td style="text-align:center;"><div class="skeleton" style="width:24px;height:16px;margin:auto;border-radius:4px;"></div></td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="skeleton" style="width:65%;height:14px;border-radius:4px;"></div>
+            <div class="skeleton" style="width:35%;height:11px;border-radius:4px;"></div>
+          </div>
+        </td>
+        <td><div class="skeleton" style="width:50%;height:14px;border-radius:4px;"></div></td>
+        <td style="text-align:center;"><div class="skeleton" style="width:70px;height:22px;margin:auto;border-radius:12px;"></div></td>
+        <td style="text-align:right;"><div class="skeleton" style="width:80px;height:14px;margin-left:auto;border-radius:4px;"></div></td>
+        <td style="text-align:right;"><div class="skeleton" style="width:95px;height:16px;margin-left:auto;border-radius:4px;"></div></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderRankingRows(scope) {
+    const st = rankingState[scope];
+    if (!st || !st.data || !st.data.length) {
+      return `
+        <tr>
+          <td colspan="6">
+            <div class="empty-state" style="padding:var(--space-8) var(--space-4); text-align:center;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:40px;height:40px;color:var(--text-muted);margin:0 auto var(--space-2);display:block;">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span class="empty-state-title" style="font-weight:600;font-size:1rem;color:var(--text-primary);display:block;">No se encontraron servidores públicos</span>
+              <span class="empty-state-desc" style="font-size:0.875rem;color:var(--text-muted);display:block;margin-top:4px;">No hay registros de comisiones o viáticos que coincidan con los filtros aplicados.</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    return st.data.map(row => `
+      <tr>
+        <td style="font-weight:700; color:var(--text-muted); text-align:center;">${row.ranking}</td>
+        <td>
+          <div class="user-table-cell">
+            <span class="td-primary" title="${escHtml(row.funcionario)}">${escHtml(row.funcionario)}</span>
+            <span class="user-table-cc font-mono">${row.documento && row.documento !== '—' ? `C.C. ${escHtml(row.documento)}` : '—'}</span>
+          </div>
+        </td>
+        <td title="${escHtml(row.dependencia)}">
+          <span style="font-size:0.875rem; color:var(--text-secondary); font-weight:500;">
+            ${escHtml(row.dependencia || 'GOBERNACIÓN DE BOYACÁ')}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <span class="badge badge-primary font-mono" style="font-weight:700; font-size:0.85rem; padding:4px 10px;">
+            ${parseInt(row.total_viajes, 10).toLocaleString('es-CO')} ${parseInt(row.total_viajes, 10) === 1 ? 'viaje' : 'viajes'}
+          </span>
+        </td>
+        <td style="text-align:right; font-family:var(--font-mono); font-size:0.875rem; color:var(--text-secondary);">
+          ${row.promedio_por_viaje_formatted || (typeof formatCOP === 'function' ? formatCOP(row.promedio_por_viaje) : '$ ' + (row.promedio_por_viaje || 0).toLocaleString('es-CO'))}
+        </td>
+        <td class="td-currency" style="text-align:right; font-family:var(--font-mono); font-weight:700; font-size:0.95rem; color:var(--color-green-dark, #15803d);">
+          ${row.total_valor_registrado_formatted || (typeof formatCOP === 'function' ? formatCOP(row.total_valor_registrado) : '$ ' + (row.total_valor_registrado || 0).toLocaleString('es-CO'))}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderRankingPagination(scope) {
+    const el = document.getElementById(`vit-${scope}-ranking-pagination`);
+    if (!el) return;
+    const st = rankingState[scope];
+    if (!st) return;
+
+    el.innerHTML = `
+      <span class="pagination-info">Mostrando ${st.data.length} de ${st.total.toLocaleString('es-CO')}</span>
+      <div class="pagination-btns">
+        <button 
+          type="button" 
+          class="page-btn" 
+          onclick="ViaticosModule.loadRanking('${scope}', ${st.page - 1})" 
+          ${st.page <= 1 ? 'disabled' : ''} 
+          title="Página anterior" 
+          aria-label="Página anterior"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="page-btn active">${st.page}</span>
+        <span style="color:var(--text-muted);font-size:var(--text-sm)">/ ${st.totalPages}</span>
+        <button 
+          type="button" 
+          class="page-btn" 
+          onclick="ViaticosModule.loadRanking('${scope}', ${st.page + 1})" 
+          ${st.page >= st.totalPages ? 'disabled' : ''} 
+          title="Página siguiente" 
+          aria-label="Página siguiente"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  async function loadRanking(scope = 'global', targetPage = null, yearOverride = null) {
+    const st = rankingState[scope];
+    if (!st) return;
+
+    if (targetPage !== null) st.page = Math.max(1, parseInt(targetPage, 10));
+    if (scope === 'year' && yearOverride) st.year = yearOverride;
+
+    const tbody = document.getElementById(`vit-${scope}-ranking-tbody`);
+    if (tbody) {
+      tbody.innerHTML = renderRankingSkeletonRows(st.limit || 10);
+    }
+
+    try {
+      const params = {
+        page: st.page,
+        limit: st.limit,
+        orden: st.orden || 'viajes_desc'
+      };
+      if (st.q && st.q.trim()) params.q = st.q.trim();
+      if (st.dependencia && st.dependencia.trim()) params.dependencia = st.dependencia.trim();
+      if (scope === 'year' && st.year) params.anio = st.year;
+
+      const res = await API.getViaticosRankingFuncionarios(params);
+      st.data = res.data || [];
+      st.total = res.total || 0;
+      st.totalPages = res.totalPages || 1;
+      st.page = res.page || 1;
+
+      if (tbody) {
+        tbody.removeAttribute('role');
+        tbody.removeAttribute('aria-busy');
+        tbody.innerHTML = renderRankingRows(scope);
+      }
+      renderRankingPagination(scope);
+
+      const countEl = document.getElementById(`vit-${scope}-ranking-count`);
+      if (countEl) {
+        countEl.textContent = `${st.total.toLocaleString('es-CO')} servidores`;
+      }
+    } catch (err) {
+      console.error(`[ViaticosModule] Error al cargar ranking (${scope}):`, err);
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--color-danger, #ef4444);padding:var(--space-4);">Error al consultar datos del consolidado.</td></tr>`;
+      }
+    }
+  }
+
+  async function loadRankingDependencias(scope = 'global', year = null) {
+    const sel = document.getElementById(`vit-${scope}-ranking-dep`);
+    if (!sel) return;
+    try {
+      const params = {};
+      if (scope === 'year' && year) params.anio = year;
+      const res = await API.getViaticosDependencias(params);
+      const deps = res?.data || [];
+      const currentVal = rankingState[scope].dependencia || '';
+      const totalViajes = deps.reduce((sum, d) => sum + (d.total || 0), 0);
+
+      sel.innerHTML = `
+        <option value="">TODAS LAS DEPENDENCIAS (${totalViajes.toLocaleString('es-CO')})</option>
+        ${deps.map(d => {
+          const isSelected = currentVal === d.dependencia || (currentVal && d.dependencia.toLowerCase().trim() === currentVal.toLowerCase().trim());
+          return `<option value="${escHtml(d.dependencia)}" ${isSelected ? 'selected' : ''}>${escHtml(d.dependencia)} (${d.total.toLocaleString('es-CO')})</option>`;
+        }).join('')}
+      `;
+    } catch (err) {
+      console.warn(`[ViaticosModule] Error al cargar dependencias para ranking (${scope}):`, err);
+      sel.innerHTML = '<option value="">TODAS LAS DEPENDENCIAS</option>';
+    }
+  }
+
+  function onRankingSearchInput(scope, value) {
+    const st = rankingState[scope];
+    if (!st) return;
+    st.q = value || '';
+    if (st.searchTimer) clearTimeout(st.searchTimer);
+    st.searchTimer = setTimeout(() => {
+      loadRanking(scope, 1);
+    }, 300);
+  }
+
+  function onRankingFilterChange(scope, field, value) {
+    const st = rankingState[scope];
+    if (!st) return;
+    st[field] = value || '';
+    loadRanking(scope, 1);
+  }
+
+  function clearRankingFilters(scope) {
+    const st = rankingState[scope];
+    if (!st) return;
+    st.q = '';
+    st.dependencia = '';
+    st.orden = 'viajes_desc';
+    st.page = 1;
+
+    const qInput = document.getElementById(`vit-${scope}-ranking-q`);
+    if (qInput) qInput.value = '';
+    const depSel = document.getElementById(`vit-${scope}-ranking-dep`);
+    if (depSel) depSel.value = '';
+    const ordenSel = document.getElementById(`vit-${scope}-ranking-orden`);
+    if (ordenSel) ordenSel.value = 'viajes_desc';
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById(`vit-${scope}-ranking-container`));
+    }
+
+    loadRanking(scope, 1);
+  }
+
+  function changeRankingLimit(scope, newLimit) {
+    const st = rankingState[scope];
+    if (!st) return;
+    st.limit = parseInt(newLimit, 10) || 10;
+    loadRanking(scope, 1);
+  }
+
+  async function exportRankingExcel(scope = 'global') {
+    const st = rankingState[scope];
+    if (!st) return;
+    try {
+      App.showToast('Generando reporte Excel del consolidado...', 'info');
+      const params = {
+        page: 1,
+        limit: 2000,
+        orden: st.orden || 'viajes_desc'
+      };
+      if (st.q && st.q.trim()) params.q = st.q.trim();
+      if (st.dependencia && st.dependencia.trim()) params.dependencia = st.dependencia.trim();
+      if (scope === 'year' && st.year) params.anio = st.year;
+
+      const res = await API.getViaticosRankingFuncionarios(params);
+      const list = res.data || [];
+
+      if (!list.length) {
+        App.showToast('No hay datos para exportar con los filtros seleccionados.', 'warning');
+        return;
+      }
+
+      if (typeof XLSX === 'undefined') {
+        App.showToast('Librería Excel no disponible en esta sesión.', 'error');
+        return;
+      }
+
+      const rows = list.map(item => ({
+        '#': item.ranking,
+        'Servidor Público': item.funcionario,
+        'Cédula': item.documento,
+        'Dependencia': item.dependencia,
+        'Viajes Registrados': item.total_viajes,
+        'Promedio por Viaje (COP)': item.promedio_por_viaje,
+        'Total Viáticos Registrados (COP)': item.total_valor_registrado
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      const sheetName = scope === 'year' ? `Consolidado ${st.year}` : 'Consolidado General';
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      const filename = scope === 'year'
+        ? `Consolidado_Viaticos_Servidores_${st.year}.xlsx`
+        : `Consolidado_General_Viaticos_Servidores.xlsx`;
+      XLSX.writeFile(wb, filename);
+      App.showToast('Consolidado descargado exitosamente en Excel.', 'success');
+    } catch (err) {
+      console.error('[ViaticosModule] Error al exportar consolidado:', err);
+      App.showToast('Error al exportar consolidado: ' + err.message, 'error');
+    }
+  }
+
+  async function initRankingSection(containerId, options = {}) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const scope = options.scope || 'global';
+    const st = rankingState[scope];
+    if (scope === 'year' && options.year) {
+      st.year = options.year;
+    }
+
+    const title = options.title || (scope === 'year'
+      ? `Consolidado de Comisiones y Viáticos — Vigencia Fiscal ${options.year}`
+      : 'Consolidado de Comisiones y Viáticos Registrados por Servidor');
+    const subtitle = options.subtitle || (scope === 'year'
+      ? `Estadísticas descriptivas de frecuencia de viajes y valores acumulados para el año ${options.year}`
+      : 'Estadísticas descriptivas de frecuencia de viajes y valores acumulados de viáticos reportados');
+    const placeholder = scope === 'year'
+      ? `Buscar en Año ${options.year} por funcionario o cédula...`
+      : 'Buscar funcionario, cédula...';
+
+    container.innerHTML = `
+      <div id="vit-${scope}-ranking-container" style="margin-top:var(--space-6);">
+        <!-- Filtros del Consolidado (Estilo Registro de Viáticos) -->
+        <div class="filters-card" style="margin-bottom:var(--space-4);">
+          <div class="filters-row">
+            <div class="filter-group" style="flex:2; min-width:220px;">
+              <label class="filter-label" for="vit-${scope}-ranking-q">${escHtml(placeholder)}</label>
+              <input 
+                id="vit-${scope}-ranking-q" 
+                class="filter-input" 
+                value="${escHtml(st.q || '')}"
+                placeholder="${escHtml(placeholder)}" 
+                oninput="ViaticosModule.onRankingSearchInput('${scope}', this.value)" 
+                onkeypress="if(event.key==='Enter')ViaticosModule.loadRanking('${scope}', 1)" 
+              />
+            </div>
+            <div class="filter-group" style="flex:1.5; min-width:200px;">
+              <label class="filter-label" for="vit-${scope}-ranking-dep">Dependencia</label>
+              <select 
+                id="vit-${scope}-ranking-dep" 
+                class="filter-select" 
+                onchange="ViaticosModule.onRankingFilterChange('${scope}', 'dependencia', this.value)" 
+                title="Filtrar por dependencia institucional"
+              >
+                <option value="">Cargando dependencias...</option>
+              </select>
+            </div>
+            <div class="filter-group" style="flex:1.2; min-width:180px;">
+              <label class="filter-label" for="vit-${scope}-ranking-orden">Ordenar por</label>
+              <select 
+                id="vit-${scope}-ranking-orden" 
+                class="filter-select" 
+                onchange="ViaticosModule.onRankingFilterChange('${scope}', 'orden', this.value)" 
+                title="Criterio de ordenamiento"
+              >
+                <option value="viajes_desc" ${st.orden === 'viajes_desc' ? 'selected' : ''}>Mayor frecuencia de viajes</option>
+                <option value="viajes_asc" ${st.orden === 'viajes_asc' ? 'selected' : ''}>Menor frecuencia de viajes</option>
+                <option value="valor_desc" ${st.orden === 'valor_desc' ? 'selected' : ''}>Mayor valor total viáticos</option>
+                <option value="valor_asc" ${st.orden === 'valor_asc' ? 'selected' : ''}>Menor valor total viáticos</option>
+                <option value="nombre_asc" ${st.orden === 'nombre_asc' ? 'selected' : ''}>Nombre (A - Z)</option>
+                <option value="nombre_desc" ${st.orden === 'nombre_desc' ? 'selected' : ''}>Nombre (Z - A)</option>
+              </select>
+            </div>
+            <div class="filters-actions-wrap" style="display:flex; gap:8px; align-items:flex-end;">
+              <button 
+                type="button" 
+                class="btn-filter-clear" 
+                onclick="ViaticosModule.clearRankingFilters('${scope}')" 
+                title="Restablecer filtros del consolidado" 
+                aria-label="Limpiar filtros"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Limpiar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla del Consolidado (Estilo Registro de Viáticos) -->
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <span class="table-title" style="display:flex; align-items:center; gap:8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-primary-400);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                ${escHtml(title)}
+              </span>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                ${escHtml(subtitle)}
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <button 
+                type="button" 
+                class="btn-action-icon-download" 
+                onclick="ViaticosModule.exportRankingExcel('${scope}')" 
+                title="Descargar este consolidado en formato Excel (.xlsx)" 
+                aria-label="Descargar consolidado en Excel"
+                style="width:34px; height:34px;"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </button>
+              <span class="table-count" id="vit-${scope}-ranking-count">
+                <span class="skeleton" style="width:100px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span>
+              </span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:52px; text-align:center;">#</th>
+                  <th>Servidor Público</th>
+                  <th>Dependencia</th>
+                  <th style="text-align:center;">Viajes Registrados</th>
+                  <th style="text-align:right;">Promedio / Viaje</th>
+                  <th style="text-align:right;">Total Viáticos Registrados</th>
+                </tr>
+              </thead>
+              <tbody id="vit-${scope}-ranking-tbody" role="progressbar" aria-busy="true">
+                ${renderRankingSkeletonRows(st.limit || 10)}
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="vit-${scope}-ranking-pagination"></div>
+        </div>
+      </div>
+    `;
+
+    if (typeof App !== 'undefined') {
+      App.initFormUX(container);
+      App.refreshFloatingLabels(container);
+    }
+
+    loadRankingDependencias(scope, options.year || null);
+    await loadRanking(scope, st.page || 1, options.year || null);
+  }
+
   function loadStatsGlobal() {
     API.getViaticosStats().then(s => {
       const strip = document.getElementById('vit-stats-strip');
-      if (!strip) return;
-      strip.innerHTML = renderStatCards5(s);
+      if (strip) strip.innerHTML = renderStatCards5(s);
     }).catch(() => {});
+
+    initRankingSection('vit-travelers-ranking-section', {
+      scope: 'global',
+      title: 'Consolidado General de Comisiones y Viáticos por Servidor',
+      subtitle: 'Estadísticas descriptivas de frecuencia de viajes y valores acumulados de viáticos reportados en toda la institución'
+    });
   }
 
   function loadStatsYear(year) {
@@ -1838,6 +2556,13 @@ const ViaticosModule = (() => {
     API.getViaticosStats({ anio: year }).then(s => {
       render(s);
     }).catch(() => {});
+
+    initRankingSection('vit-year-travelers-ranking', {
+      scope: 'year',
+      year: year,
+      title: `Consolidado de Comisiones y Viáticos — Vigencia Fiscal ${year}`,
+      subtitle: `Estadísticas descriptivas de frecuencia de viajes y valores acumulados de viáticos reportados para el año fiscal ${year}`
+    });
   }
 
   function loadStatsPackage(id_paquete) {
@@ -2491,6 +3216,9 @@ const ViaticosModule = (() => {
 
           <!-- Contenedor del Histórico Anual -->
           <div id="vit-years-container"></div>
+
+          <!-- Ranking y Estadísticas de Comisiones por Funcionario -->
+          <div id="vit-travelers-ranking-section"></div>
         </div>
       `;
 
@@ -2514,7 +3242,7 @@ const ViaticosModule = (() => {
               </button>
               <h1 class="module-hero-title">Año ${year}</h1>
               <p class="module-hero-desc">
-                Gestión de carpetas, liquidaciones presupuestales y comisiones de servicio para el año fiscal ${year} de la Gobernación de Boyacá.
+                Gestión de carpetas, ejecuciones presupuestales y comisiones de servicio para el año fiscal ${year} de la Gobernación de Boyacá.
               </p>
             </div>
 
@@ -2627,6 +3355,9 @@ const ViaticosModule = (() => {
 
           <!-- Contenedor de Carpetas del Año -->
           <div id="vit-year-packages-container"></div>
+
+          <!-- Consolidado de Comisiones del Año por Funcionario -->
+          <div id="vit-year-travelers-ranking"></div>
         </div>
       `;
 
@@ -2794,7 +3525,7 @@ const ViaticosModule = (() => {
         </div>
         <div class="form-group floating-group">
           <label class="form-label" for="vyear-desc">Descripción o Notas (Opcional)</label>
-          <textarea id="vyear-desc" class="form-input" rows="3" placeholder="Ej: Histórico anual para liquidaciones presupuestales de comisiones y viáticos" autocomplete="off"></textarea>
+          <textarea id="vyear-desc" class="form-input" rows="3" placeholder="Ej: Histórico anual para ejecuciones presupuestales de comisiones y viáticos" autocomplete="off"></textarea>
         </div>
       </form>
     `;
@@ -4300,6 +5031,12 @@ const ViaticosModule = (() => {
     copyFichaText,
     saveCreate,
     saveEdit,
+    onRankingSearchInput,
+    onRankingFilterChange,
+    clearRankingFilters,
+    loadRanking,
+    changeRankingLimit,
+    exportRankingExcel,
   };
 })();
 window.ViaticosModule = ViaticosModule;

@@ -5,11 +5,14 @@ const { mapRowToFuncionarioDTO } = require('../dto/funcionarioExcelDTO');
 const { evaluarCedula, esFilaFantasma, detectarVacante, extraerCargoExcel } = require('../utils/excelHelper');
 const EmployeeImportService = require('../services/employeeImportService');
 
-// Configuración de Multer para carga en memoria (hasta 35MB)
+// Configuración de Multer para carga en memoria (límite razonable: 15 MB)
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
+const MAX_EXCEL_ROWS = 5000;
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 35 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (file.originalname.startsWith('~$')) {
       return cb(new Error('El archivo enviado (~$) es un archivo temporal de bloqueo de Excel. Debes seleccionar y subir el archivo original de datos.'), false);
@@ -124,7 +127,15 @@ function detectarMapeoCargos(worksheet) {
 }
 const uploadMiddleware = (req, res, next) => {
   uploadAny(req, res, (err) => {
-    if (err) return next(err);
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          error: 'El archivo supera el tamaño máximo permitido de 15 MB. Por favor divida el archivo o reduzca elementos pesados.'
+        });
+      }
+      return res.status(400).json({ success: false, error: err.message });
+    }
     if (!req.file) {
       if (req.files && req.files['archivo'] && req.files['archivo'][0]) {
         req.file = req.files['archivo'][0];
@@ -135,6 +146,44 @@ const uploadMiddleware = (req, res, next) => {
     next();
   });
 };
+
+/**
+ * Valida la estructura mínima requerida de columnas en la primera fila de la hoja de cálculo.
+ */
+function validarEstructuraHoja(worksheet, sheetName) {
+  if (!worksheet || !worksheet['!ref']) {
+    return { valida: false, motivo: `La hoja "${sheetName}" está completamente vacía.` };
+  }
+  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  const headers = [];
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+    if (cell && cell.v !== undefined && cell.v !== null) {
+      const hStr = String(cell.v).replace(/[\u200B-\u200D\uFEFF\u00A0\u00AD]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+      if (hStr) headers.push(hStr);
+    }
+  }
+  if (headers.length === 0) {
+    return { valida: false, motivo: `La hoja "${sheetName}" no contiene encabezados en la primera fila.` };
+  }
+
+  const tieneIdentidad = headers.some(h =>
+    h.includes('CEDULA') || h.includes('CÉDULA') || h.includes('DOCUMENTO') || h.includes('CC') ||
+    h.includes('NOMBRE') || h.includes('APELLIDO') || h.includes('FUNCIONARIO')
+  );
+  const tieneOrganizacional = headers.some(h =>
+    h.includes('CARGO') || h.includes('DENOMINAC') || h.includes('DEPEN') || h.includes('AREA') || h.includes('ÁREA')
+  );
+
+  if (!tieneIdentidad && !tieneOrganizacional) {
+    return {
+      valida: false,
+      motivo: `La hoja "${sheetName}" no contiene las columnas requeridas para servidores públicos (requiere columnas de identidad como CÉDULA/NOMBRES y de cargo/dependencia). Columnas detectadas: ${headers.slice(0, 8).join(', ')}`
+    };
+  }
+
+  return { valida: true, headers };
+}
 
 /**
  * Controlador Senior para procesamiento e importación masiva de Excel con filtrado
@@ -164,6 +213,49 @@ async function importarExcel(req, res, pool) {
       return res.status(400).json({
         success: false,
         error: 'El archivo Excel no contiene ninguna hoja de cálculo disponible para lectura.'
+      });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Pre-validaciones globales del libro: tamaño en filas y estructura de cabeceras
+    // ──────────────────────────────────────────────────────────────────────────
+    let totalFilasEstimadas = 0;
+    let algunaHojaConCabeceraValida = false;
+    let primerErrorEstructura = '';
+
+    for (const sName of workbook.SheetNames) {
+      const ws = workbook.Sheets[sName];
+      if (!ws || !ws['!ref']) continue;
+      const rng = XLSX.utils.decode_range(ws['!ref']);
+      const rowCount = Math.max(0, rng.e.r - rng.s.r);
+      totalFilasEstimadas += rowCount;
+
+      const validacion = validarEstructuraHoja(ws, sName);
+      if (validacion.valida) {
+        algunaHojaConCabeceraValida = true;
+      } else if (!primerErrorEstructura) {
+        primerErrorEstructura = validacion.motivo;
+      }
+    }
+
+    if (totalFilasEstimadas === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El archivo Excel está completamente vacío o no contiene filas de datos.'
+      });
+    }
+
+    if (totalFilasEstimadas > MAX_EXCEL_ROWS) {
+      return res.status(400).json({
+        success: false,
+        error: `El archivo supera el límite máximo permitido de ${MAX_EXCEL_ROWS} filas (se detectaron aproximadamente ${totalFilasEstimadas} filas). Por favor divida el archivo o reduzca el tamaño del lote.`
+      });
+    }
+
+    if (!algunaHojaConCabeceraValida) {
+      return res.status(400).json({
+        success: false,
+        error: primerErrorEstructura || 'El archivo Excel no contiene las columnas requeridas para servidores públicos.'
       });
     }
 
@@ -219,6 +311,19 @@ async function importarExcel(req, res, pool) {
     for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
       if (!worksheet) continue;
+
+      const validacionHoja = validarEstructuraHoja(worksheet, sheetName);
+      if (!validacionHoja.valida) {
+        desglosePorHoja[sheetName] = {
+          totalFilas: 0,
+          registrosValidos: 0,
+          provisionales: 0,
+          filasConErrores: 0,
+          filasFantasmaOmitidas: 0,
+          estado: `Omitida: ${validacionHoja.motivo}`
+        };
+        continue;
+      }
 
       const colMap = detectarMapeoCargos(worksheet);
       const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { s: { r: 0, c: 0 } };
@@ -348,13 +453,17 @@ async function importarExcel(req, res, pool) {
           validasEnHoja++;
         } catch (validationErr) {
           erroresEnHoja++;
+          const mensajeError = validationErr.message || 'Error de validación en columnas de datos';
           filasConErrores.push({
             hoja: sheetName,
             fila: rowNumber,
-            cedula: cedulaFinal,
+            cedula: cedulaFinal || 'NO ASIGNADA',
             nombre: nombreFinal || 'NO REPORTADO',
-            error: 'Error de validación en columnas de datos',
-            detalle: validationErr.message
+            campo: validationErr.campo || 'DATOS_FILA',
+            valor: validationErr.valor !== undefined ? validationErr.valor : (valorCedulaCrudo || 'N/A'),
+            motivo: mensajeError,
+            error: mensajeError,
+            detalle: mensajeError
           });
         }
       });
@@ -392,9 +501,12 @@ async function importarExcel(req, res, pool) {
           filasConErrores.push({
             hoja: errBD.hoja || 'Principal',
             fila: errBD.fila,
-            cedula: errBD.cedula,
+            cedula: errBD.cedula || 'NO ASIGNADA',
             nombre: errBD.nombre || 'N/A',
-            error: 'Error en base de datos al guardar registro',
+            campo: errBD.campo || 'BASE_DE_DATOS',
+            valor: errBD.valor || errBD.cedula || 'N/A',
+            motivo: errBD.error,
+            error: errBD.error,
             detalle: errBD.error
           });
         }
@@ -414,6 +526,10 @@ async function importarExcel(req, res, pool) {
       success: totalProcesadosExitosos > 0 || (registrosValidos.length === 0 && filasConErrores.length === 0),
       mensaje: `Procesamiento completado: ${resultadoBD.insertados} nuevos (Insert), ${resultadoBD.actualizados} actualizados (Update)${msgVacantes || msgProvisionales}, ${filasConErrores.length} fila(s) descartadas.`,
       archivo: req.file.originalname,
+      estrategiaTransaccional: 'SAVEPOINT_POR_FILA_TOLERANTE_A_FALLOS',
+      filasInsertadas: resultadoBD.insertados,
+      filasActualizadas: resultadoBD.actualizados,
+      filasRechazadas: filasConErrores,
       metadata: {
         totalHojas: hojasProcesadas.length,
         totalFilasLeidas,

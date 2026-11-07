@@ -4,6 +4,10 @@ const routes      = require('./routes/dashboard');
 const adminRoutes = require('./routes/admin');
 const app         = express();
 const PORT        = process.env.PORT || 3006;
+
+// AUD-014: Configuración estricta de proxies confiables (evita suplantación de IP)
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
+
 app.use(cors()); 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

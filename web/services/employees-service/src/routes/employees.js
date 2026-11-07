@@ -50,7 +50,24 @@ const pool = new Pool(
         ssl:      process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       }
 );
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 function auth(req, res, next) {
   let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
@@ -62,16 +79,50 @@ function auth(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Token inválido o sesión expirada.' }); }
 }
-function canEdit(user) {
+function hasPermission(user, requiredPerm) {
   if (!user) return false;
   const role = String(typeof user === 'string' ? user : (user.role || user.rol || '')).toLowerCase();
-  const uname = String(typeof user === 'object' ? (user.username || '') : '').toLowerCase();
-  const name  = String(typeof user === 'object' ? (user.name || user.nombre || '') : '').toLowerCase();
-  const mods  = (typeof user === 'object' && Array.isArray(user.modules)) ? user.modules : [];
-  if (role.includes('administrador') || role.includes('coordinador') || uname === 'admin') return true;
-  if (mods.includes('*') || mods.includes('all') || mods.includes('employees_write')) return true;
-  if (uname.includes('angela') || name.includes('angela') || uname.includes('blanca') || name.includes('blanca')) return true;
+  const mods = (typeof user === 'object' && Array.isArray(user.modules))
+    ? user.modules
+    : (typeof user === 'object' && typeof user.modules === 'string' ? user.modules.split(',').map(m => m.trim().toLowerCase()) : []);
+  const perms = (typeof user === 'object' && Array.isArray(user.permissions)) ? user.permissions : [];
+
+  // 1. Acceso de Administrador General / Superusuario
+  if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all') || perms.includes('*')) {
+    return true;
+  }
+
+  // 2. Verificación estricta de permiso granular
+  if (requiredPerm) {
+    if (perms.includes(requiredPerm)) return true;
+    const [mod, action] = requiredPerm.split(':');
+    if (perms.includes(`${mod}:*`)) return true;
+    // Si la acción es lectura (read) y el módulo está asignado (sin restricción de solo escritura)
+    if (action === 'read' && mods.includes(mod)) return true;
+    // Para escritura (write/delete/import/export), NO basta tener el nombre del módulo en mods si perms existe
+    if (perms.length === 0 && mods.includes(mod)) return true;
+    if (action === 'write' && (mods.includes(`${mod}_write`) || mods.includes(`${mod}:write`))) return true;
+  }
+
   return false;
+}
+
+function canEdit(user) {
+  return hasPermission(user, 'employees:write');
+}
+
+function canRead(user) {
+  return hasPermission(user, 'employees:read');
+}
+
+function canLookup(user) {
+  return canRead(user) ||
+    hasPermission(user, 'horarios:read') ||
+    hasPermission(user, 'horarios:write') ||
+    hasPermission(user, 'viaticos:read') ||
+    hasPermission(user, 'viaticos:write') ||
+    hasPermission(user, 'requests:read') ||
+    hasPermission(user, 'requests:write');
 }
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
 
@@ -99,6 +150,10 @@ router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, r
 // - Dependencia
 // - Secretaría
 router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) => {
+  if (!canLookup(req.user)) {
+    return res.status(403).json({ success: false, error: 'Acceso denegado. Permisos insuficientes para consultar el censo de funcionarios.' });
+  }
+
   const { q = '', cedula = '', limit = 8 } = req.query;
   const searchLimit = Math.min(Math.max(1, parseInt(limit, 10) || 8), 25);
 
@@ -137,6 +192,11 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
     whereQuery += `)`;
 
+    params.push(rawTerm);
+    const rawTermParam = `$${params.length}`;
+    params.push(cleanCedula);
+    const cleanCedulaParam = `$${params.length}`;
+
     params.push(searchLimit);
     const limitParam = `$${params.length}`;
 
@@ -158,7 +218,7 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
       ORDER BY 
         CASE WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo' THEN 1 ELSE 2 END,
         CASE 
-          WHEN p.cedula = '${rawTerm.replace(/'/g, "''")}' OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = '${cleanCedula.replace(/'/g, "''")}' THEN 1 
+          WHEN p.cedula = ${rawTermParam} OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = ${cleanCedulaParam} THEN 1 
           ELSE 2 
         END,
         p.nombre_completo ASC
@@ -211,6 +271,9 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de servidores públicos.' });
+  }
   const {
     q = '',
     dependencia = '',
@@ -880,6 +943,49 @@ router.get('/catalogs', auth, async (_, res) => {
   }
 });
 
+// ─── GET /api/employees/municipios & /divipola (AUD-005 / AUD-006) ───────────
+router.get(['/municipios', '/divipola'], auth, async (req, res) => {
+  try {
+    const { q = '', depto = '15' } = req.query;
+    const cleanQ = (q || '').trim();
+    const cleanDepto = (depto || '').trim();
+
+    let sql = `
+      SELECT codigo_mpio AS codigo, municipio, departamento
+      FROM divipola
+      WHERE 1=1
+    `;
+    const params = [];
+    let idx = 1;
+
+    if (cleanDepto && cleanDepto !== 'todos') {
+      sql += ` AND (codigo_depto = $${idx} OR TRANSLATE(LOWER(departamento), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') = TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn'))`;
+      params.push(cleanDepto);
+      idx++;
+    }
+
+    if (cleanQ) {
+      sql += ` AND (
+        codigo_mpio LIKE $${idx}
+        OR TRANSLATE(LOWER(municipio), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`;
+      params.push(`%${cleanQ}%`);
+      idx++;
+    }
+
+    sql += ` ORDER BY municipio ASC LIMIT 250`;
+    const r = await pool.query(sql, params);
+    res.json({
+      total: r.rowCount,
+      departamento: cleanDepto || 'BOYACÁ',
+      municipios: r.rows
+    });
+  } catch (err) {
+    console.error('[employees] municipios error:', err);
+    res.status(500).json({ error: 'Error al consultar municipios.' });
+  }
+});
+
 // ─── POST /api/employees/dependencias (Registro Directo de Nueva Dependencia) ─
 router.post('/dependencias', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
@@ -1043,13 +1149,18 @@ router.post('/', auth, async (req, res) => {
     }
 
     const nextId = async (table, col, prefix, width) => {
-      const r = await client.query(`SELECT ${col} FROM ${table}`);
-      let max = 0;
-      r.rows.forEach(row => {
-        const digits = (row[col.toLowerCase()] || '').replace(/\D/g, '');
-        if (digits) max = Math.max(max, parseInt(digits));
-      });
-      return prefix + String(max + 1).padStart(width, '0');
+      const seqMap = {
+        personas: 'seq_personas_id',
+        contactos: 'seq_contactos_id',
+        educacion: 'seq_educacion_id',
+        estados: 'seq_estados_id',
+        rel_principal: 'seq_rel_principal_id',
+        dependencias: 'seq_dependencias_id',
+        cargos: 'seq_cargos_id'
+      };
+      const seqName = seqMap[table] || `seq_${table}_id`;
+      const r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+      return r.rows[0].id;
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
@@ -1236,6 +1347,9 @@ router.post('/', auth, async (req, res) => {
 
 // ─── GET /api/employees/:cedula ───────────────────────────────────────────────
 router.get('/:cedula', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de servidores públicos.' });
+  }
   const { cedula } = req.params;
   try {
     const sql = `
@@ -1695,13 +1809,13 @@ router.put('/:cedula', auth, async (req, res) => {
 
     // Actualizar o crear cargos
     const nextId = async (table, col, prefix, width) => {
-      const qr = await client.query(`SELECT ${col} FROM ${table}`);
-      let max = 0;
-      qr.rows.forEach(row => {
-        const digits = (row[col.toLowerCase()] || '').replace(/\D/g, '');
-        if (digits) max = Math.max(max, parseInt(digits));
-      });
-      return prefix + String(max + 1).padStart(width, '0');
+      const seqMap = {
+        dependencias: 'seq_dependencias_id',
+        cargos: 'seq_cargos_id'
+      };
+      const seqName = seqMap[table] || `seq_${table}_id`;
+      const qr = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+      return qr.rows[0].id;
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
@@ -2100,6 +2214,12 @@ router.delete('/:cedula', auth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[employees] delete error:', err.message);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(409).json({
+        success: false,
+        error: 'No es posible eliminar el servidor público porque cuenta con registros históricos asociados (acuerdos de horarios, comisiones de viáticos o antecedentes). Para desvincular al servidor sin perder la trazabilidad institucional, utilice la opción de Retiro / Cambio de Estado.'
+      });
+    }
     res.status(500).json({ error: 'Error al eliminar el servidor: ' + err.message });
   } finally {
     client.release();

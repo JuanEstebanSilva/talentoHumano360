@@ -671,12 +671,7 @@ const App = (() => {
     const isAdmin = isUserAdmin(user);
 
     if (isAdmin) {
-      // Para Administrador técnico (admin): panel tranquilo centrado en errores, copias de seguridad y ajustes
-      const adminAllowed = ['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
-      if (!adminAllowed.includes(rawModule)) {
-        navigate('admin-errors');
-        return;
-      }
+      // El Administrador General dispone de visibilidad global y supervisión sobre todos los módulos del sistema (TSK-010 / AUD-010).
     } else {
       // Para usuarios regulares: bloquear módulos de administración técnica
       if (rawModule === 'admin-errors' || rawModule === 'admin-backups') {
@@ -890,6 +885,323 @@ const App = (() => {
       toggle.setAttribute('aria-expanded', 'true');
       menu.setAttribute('aria-hidden', 'false');
     }
+  }
+
+  // ─── AUD-012: Form Draft Preservation & In-Place Re-authentication ──────────
+  let inMemoryDraft = null;
+  let isReauthenticating = false;
+
+  function captureActiveFormDraft() {
+    try {
+      const modalBody = document.getElementById('modal-body');
+      const modalOverlay = document.getElementById('modal-overlay');
+      const modalTitle = document.getElementById('modal-title');
+      const isModalOpen = modalOverlay && (modalOverlay.style.display === 'flex' || (typeof window !== 'undefined' && window.getComputedStyle && window.getComputedStyle(modalOverlay).display === 'flex'));
+
+      const container = (isModalOpen && modalBody) ? modalBody : document.getElementById('main-content');
+      if (!container) return null;
+
+      const fields = container.querySelectorAll('input, textarea, select');
+      if (!fields || fields.length === 0) return null;
+
+      const draftValues = {};
+      let hasData = false;
+
+      fields.forEach((field, index) => {
+        const type = (field.type || '').toLowerCase();
+        const name = field.name || field.id || `field_${index}`;
+
+        // Strictly exclude passwords, hidden tokens, file inputs
+        if (type === 'password' || type === 'file') return;
+        if (name.toLowerCase().includes('password') || name.toLowerCase().includes('token') || name.toLowerCase().includes('secret') || name.toLowerCase().includes('csrf')) return;
+
+        let val = null;
+        if (type === 'checkbox') {
+          val = field.checked;
+          hasData = true;
+        } else if (type === 'radio') {
+          if (field.checked) {
+            val = field.value;
+            hasData = true;
+          }
+        } else {
+          val = field.value;
+          if (val && typeof val === 'string' && val.trim().length > 0) hasData = true;
+        }
+
+        if (val !== null && val !== undefined) {
+          draftValues[name] = {
+            value: val,
+            id: field.id || null,
+            name: field.name || null,
+            tagName: field.tagName.toLowerCase(),
+            type: type
+          };
+        }
+      });
+
+      if (!hasData) return null;
+
+      const draft = {
+        timestamp: Date.now(),
+        module: activeModule,
+        isModal: !!isModalOpen,
+        modalTitle: isModalOpen && modalTitle ? modalTitle.textContent : null,
+        values: draftValues
+      };
+
+      inMemoryDraft = draft;
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('t360_form_draft', JSON.stringify(draft));
+        }
+      } catch (_) {}
+
+      return draft;
+    } catch (err) {
+      console.warn('[Draft] Error capturando borrador:', err);
+      return null;
+    }
+  }
+
+  function restoreFormDraft(targetDraft) {
+    try {
+      let draft = targetDraft || inMemoryDraft;
+      if (!draft && typeof sessionStorage !== 'undefined') {
+        try {
+          const raw = sessionStorage.getItem('t360_form_draft');
+          if (raw) draft = JSON.parse(raw);
+        } catch (_) {}
+      }
+
+      if (!draft || !draft.values || Object.keys(draft.values).length === 0) return false;
+
+      const modalBody = document.getElementById('modal-body');
+      const modalOverlay = document.getElementById('modal-overlay');
+      const isModalOpen = modalOverlay && (modalOverlay.style.display === 'flex' || (typeof window !== 'undefined' && window.getComputedStyle && window.getComputedStyle(modalOverlay).display === 'flex'));
+      const container = (isModalOpen && modalBody) ? modalBody : document.getElementById('main-content');
+      if (!container) return false;
+
+      let restoredCount = 0;
+      Object.keys(draft.values).forEach(key => {
+        const item = draft.values[key];
+        let field = null;
+        if (item.id) {
+          const safeId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(item.id) : item.id.replace(/["'\\]/g, '\\$&');
+          field = container.querySelector(`#${safeId}`);
+        }
+        if (!field && item.name) {
+          const safeName = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(item.name) : item.name.replace(/["'\\]/g, '\\$&');
+          field = container.querySelector(`[name="${safeName}"]`);
+        }
+
+        if (field) {
+          if (item.type === 'checkbox') {
+            field.checked = !!item.value;
+          } else if (item.type === 'radio') {
+            if (field.value === item.value) field.checked = true;
+          } else {
+            field.value = item.value;
+          }
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          field.dispatchEvent(new Event('change', { bubbles: true }));
+          restoredCount++;
+        }
+      });
+
+      if (restoredCount > 0) {
+        try { refreshFloatingLabels(container); } catch (_) {}
+        showToast(`Se restauraron ${restoredCount} campo(s) del borrador previo.`, 'info');
+        clearFormDraft();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('[Draft] Error restaurando borrador:', err);
+      return false;
+    }
+  }
+
+  function clearFormDraft() {
+    inMemoryDraft = null;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('t360_form_draft');
+        sessionStorage.removeItem('talento360_form_draft');
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('t360_form_draft');
+        localStorage.removeItem('talento360_form_draft');
+      }
+    } catch (_) {}
+  }
+
+  function checkAndRestoreDraft() {
+    try {
+      let draft = inMemoryDraft;
+      if (!draft && typeof sessionStorage !== 'undefined') {
+        const raw = sessionStorage.getItem('t360_form_draft');
+        if (raw) draft = JSON.parse(raw);
+      }
+      if (draft && draft.values && Object.keys(draft.values).length > 0) {
+        if (draft.module === activeModule) {
+          restoreFormDraft(draft);
+        }
+      }
+    } catch (_) {}
+  }
+
+  function promptReauthentication(options = {}) {
+    if (isReauthenticating) {
+      const existing = document.getElementById('reauth-dialog-overlay');
+      if (existing) {
+        const pwd = existing.querySelector('#reauth-password');
+        if (pwd) pwd.focus();
+        return;
+      }
+    }
+    isReauthenticating = true;
+
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const currentUsername = user.username || '';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'reauth-dialog-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Reautenticación requerida');
+    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px;';
+
+    overlay.innerHTML = `
+      <div style="background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); max-width: 440px; width: 100%; overflow: hidden; border: 1px solid var(--border-color, #e2e8f0);">
+        <div style="background: linear-gradient(135deg, #005387 0%, #003659 100%); padding: 22px 24px; color: #fff; text-align: center;">
+          <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">Sesión Expirada</h3>
+          <p style="margin: 6px 0 0; font-size: 0.875rem; color: rgba(255,255,255,0.85);">
+            Tus datos ingresados se encuentran protegidos. Ingresa tu contraseña para continuar sin perder tu trabajo.
+          </p>
+        </div>
+
+        <form id="reauth-form" style="padding: 24px;" novalidate>
+          <div id="reauth-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500;"></div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Institucional
+            </label>
+            <input type="text" id="reauth-username" readonly style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f1f5f9); color: var(--text-primary, #334155); font-weight: 600; cursor: not-allowed; box-sizing: border-box;" />
+          </div>
+
+          <div style="margin-bottom: 22px;">
+            <label for="reauth-password" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Contraseña
+            </label>
+            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem;" />
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" id="reauth-btn-cancel" class="btn btn-secondary" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              Cerrar Sesión
+            </button>
+            <button type="submit" id="reauth-btn-submit" class="btn btn-primary" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; background: #005387; color: #fff; border: none; display: flex; align-items: center; gap: 8px;">
+              <span>Reanudar Sesión</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const userInput = overlay.querySelector('#reauth-username');
+    if (userInput) userInput.value = currentUsername;
+
+    const pwdInput = overlay.querySelector('#reauth-password');
+    const errEl = overlay.querySelector('#reauth-error');
+    const form = overlay.querySelector('#reauth-form');
+    const cancelBtn = overlay.querySelector('#reauth-btn-cancel');
+    const submitBtn = overlay.querySelector('#reauth-btn-submit');
+
+    if (pwdInput) {
+      setTimeout(() => pwdInput.focus(), 80);
+    }
+
+    function cleanupOverlay() {
+      isReauthenticating = false;
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }
+
+    cancelBtn.addEventListener('click', () => {
+      cleanupOverlay();
+      if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
+      showLogin();
+      showToast('Sesión finalizada. Inicie sesión nuevamente.', 'info');
+      if (options && typeof options.onCancel === 'function') {
+        options.onCancel();
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pwd = pwdInput ? pwdInput.value : '';
+      if (!pwd) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingresa tu contraseña institucional.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Verificando...</span>';
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await API.login(currentUsername, pwd);
+        if (res && res.token && res.user) {
+          if (res.user) {
+            res.user.role = sanitizeRole(res.user.role);
+            if (!res.user.jobTitle) {
+              res.user.jobTitle = resolveJobTitle(res.user);
+            }
+          }
+          Auth.save(res.token, res.user);
+          cleanupOverlay();
+          showToast('Sesión reanudada con éxito.', 'success');
+
+          // Restaurar borrador de formulario si está presente
+          restoreFormDraft();
+
+          if (options && typeof options.onSuccess === 'function') {
+            options.onSuccess(res);
+          }
+        } else {
+          throw new Error('Respuesta de autenticación inválida.');
+        }
+      } catch (authErr) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Reanudar Sesión</span>';
+        }
+        if (errEl) {
+          errEl.textContent = authErr.message || 'Contraseña incorrecta. Por favor intenta de nuevo.';
+          errEl.style.display = 'block';
+        }
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
+      }
+    });
   }
 
   // ─── Login & App Views ──────────────────────────────────────────────────────
@@ -1197,8 +1509,9 @@ const App = (() => {
   }
 
   function isUserAdmin(user = {}) {
-    const username = (user.username || '').toLowerCase();
-    return username === 'admin' || (user.role && user.role.toLowerCase() === 'administrador' && !username.includes('angela') && !username.includes('blanca') && !username.includes('bergenet') && !username.includes('doris'));
+    const role = (user.role || '').toLowerCase();
+    const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
+    return role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all');
   }
 
   function applyNavigationPermissions(user = {}) {
@@ -1222,14 +1535,14 @@ const App = (() => {
       setVisibility('nav-admin-backups', true);
       setVisibility('nav-settings', true);
 
-      // Ocultar módulos funcionales departamentales
-      setVisibility('nav-dashboard', false);
-      setVisibility('nav-employees', false);
-      setVisibility('nav-requests', false);
-      setVisibility('nav-admin-group', false);
-      setVisibility('nav-viaticos', false);
-      setVisibility('nav-horarios', false);
-      setVisibility('nav-sst-group', false);
+      // Supervisión global sobre módulos funcionales para el Administrador General (TSK-010 / AUD-010)
+      setVisibility('nav-dashboard', true);
+      setVisibility('nav-employees', true);
+      setVisibility('nav-requests', true);
+      setVisibility('nav-admin-group', true);
+      setVisibility('nav-viaticos', true);
+      setVisibility('nav-horarios', true);
+      setVisibility('nav-sst-group', true);
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
       // Ocultar las herramientas de administración técnica
@@ -1254,12 +1567,15 @@ const App = (() => {
     if (user.jobTitle && String(user.jobTitle).trim()) {
       return String(user.jobTitle).trim();
     }
-    const username = String(user.username || '').toLowerCase();
-    if (username.includes('angela') || username.includes('blanca')) return 'Gestión de Servidores Públicos';
-    if (username.includes('bergenet')) return 'Gestión de Viáticos';
-    if (username.includes('doris')) return 'Gestión de Horarios y Modalidades';
-    if (username === 'admin') return 'Administrador del Sistema';
-    return '';
+    const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
+    const role = (user.role || '').toLowerCase();
+    if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all')) {
+      return 'Administrador del Sistema';
+    }
+    if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
+    if (mods.includes('viaticos')) return 'Gestión de Viáticos';
+    if (mods.includes('horarios')) return 'Gestión de Horarios y Modalidades';
+    return 'Servidor Público';
   }
 
   function showApp() {
@@ -1627,6 +1943,7 @@ const App = (() => {
           closeModal();
           // FX: logout sound
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.logout();
+          clearFormDraft();
           Auth.clear();
           if (typeof Settings !== 'undefined') {
             Settings.resetToDefaults();
@@ -1797,6 +2114,7 @@ const App = (() => {
               const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
               showApp();
               navigate(defaultMod);
+              try { checkAndRestoreDraft(); } catch (_) {}
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
                 LegalModule.requireConsentModal();
               }
@@ -1808,6 +2126,7 @@ const App = (() => {
               if (app) app.style.setProperty('display', 'grid', 'important');
               const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
               try { navigate(defaultMod); } catch (_) {}
+              try { checkAndRestoreDraft(); } catch (_) {}
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
                 LegalModule.requireConsentModal();
               }
@@ -1960,14 +2279,7 @@ const App = (() => {
     if (Auth.isLoggedIn()) {
       const storedUser = Auth.getUser();
       if (storedUser && typeof storedUser === 'object') {
-        const u = (storedUser.username || '').toLowerCase();
         let changed = false;
-        if (u.includes('angela') || u.includes('blanca') || u.includes('bergenet') || u.includes('doris')) {
-          if (storedUser.role === 'Administrador' || storedUser.role === 'Administradora') {
-            storedUser.role = 'Usuario';
-            changed = true;
-          }
-        }
         if (!storedUser.modules || !Array.isArray(storedUser.modules)) {
           storedUser.modules = Auth.getUserModules(storedUser);
           changed = true;
@@ -2077,7 +2389,35 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, getCurrentModule, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers, initFormUX, refreshFloatingLabels, applyAvatarTheming, getAccessibleTextColor, getAvatarColor, getAvatarTextColor, getRoleTextColor, enhanceAddButtons, isUserAdmin };
+  return {
+    init,
+    navigate,
+    getCurrentModule,
+    showLogin,
+    showApp,
+    showToast,
+    openModal,
+    closeModal,
+    openProfileModal,
+    confirmLogout,
+    updateTopbarQuickControls,
+    updateTopbarDateTime,
+    initDatePickers,
+    initFormUX,
+    refreshFloatingLabels,
+    applyAvatarTheming,
+    getAccessibleTextColor,
+    getAvatarColor,
+    getAvatarTextColor,
+    getRoleTextColor,
+    enhanceAddButtons,
+    isUserAdmin,
+    captureActiveFormDraft,
+    restoreFormDraft,
+    clearFormDraft,
+    promptReauthentication,
+    checkAndRestoreDraft
+  };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)

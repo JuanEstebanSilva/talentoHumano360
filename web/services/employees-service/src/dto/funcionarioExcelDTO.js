@@ -62,10 +62,42 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     esDocumentoPendiente = evaluacion.esProvisional || !cedula;
   }
 
-  // 2. Parseo estricto de fechas
-  const fechaNacimiento = parseExcelDate(row['FECHA DE NACIMIENTO'] || row['FECHA NACIMIENTO'] || row['NACIMIENTO']);
-  const fechaIngreso = parseExcelDate(row['INGRESO'] || row['FECHA DE INGRESO'] || row['FECHA INGRESO']);
-  const fechaEncargo = parseExcelDate(rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO']);
+  // 2. Parseo estricto de fechas con captura de errores
+  const rawNac = row['FECHA DE NACIMIENTO'] || row['FECHA NACIMIENTO'] || row['NACIMIENTO'];
+  let fechaNacimiento = null;
+  if (rawNac !== undefined && rawNac !== null && String(rawNac).trim() !== '') {
+    fechaNacimiento = parseExcelDate(rawNac);
+    if (!fechaNacimiento) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Nacimiento: "${rawNac}"`);
+      err.campo = 'FECHA DE NACIMIENTO';
+      err.valor = String(rawNac);
+      throw err;
+    }
+  }
+
+  const rawIng = row['INGRESO'] || row['FECHA DE INGRESO'] || row['FECHA INGRESO'];
+  let fechaIngreso = null;
+  if (rawIng !== undefined && rawIng !== null && String(rawIng).trim() !== '') {
+    fechaIngreso = parseExcelDate(rawIng);
+    if (!fechaIngreso) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Ingreso: "${rawIng}"`);
+      err.campo = 'FECHA DE INGRESO';
+      err.valor = String(rawIng);
+      throw err;
+    }
+  }
+
+  const rawEnc = rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO'];
+  let fechaEncargo = null;
+  if (rawEnc !== undefined && rawEnc !== null && String(rawEnc).trim() !== '') {
+    fechaEncargo = parseExcelDate(rawEnc);
+    if (!fechaEncargo) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Encargo: "${rawEnc}"`);
+      err.campo = 'FECHA DE ENCARGO';
+      err.valor = String(rawEnc);
+      throw err;
+    }
+  }
 
   // 3. Cálculo dinámico de Edad y Tiempo de Servicio (Reglas 13 y 14: "X años, Y meses, Z días")
   const edadObj = fechaNacimiento ? calcularDiferenciaFechasExacta(fechaNacimiento) : null;
@@ -138,6 +170,27 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     segundoApellido = cargoPrincipal;
   } else if (!nombreCompleto) {
     nombreCompleto = sanitizeString(row['NOMBRE COMPLETO'] || row['FUNCIONARIO']) || `SERVIDOR SIN CÉDULA #${rowNumber}`;
+  } else {
+    // Validación estricta de formato: nombres y apellidos solo admiten letras, acentos y espacios
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'-]+$/;
+    if (primerApellido && !nameRegex.test(primerApellido)) {
+      const err = new Error(`El Primer Apellido "${primerApellido}" contiene caracteres o números no permitidos.`);
+      err.campo = 'PRIMER APELLIDO';
+      err.valor = primerApellido;
+      throw err;
+    }
+    if (segundoApellido && !nameRegex.test(segundoApellido)) {
+      const err = new Error(`El Segundo Apellido "${segundoApellido}" contiene caracteres o números no permitidos.`);
+      err.campo = 'SEGUNDO APELLIDO';
+      err.valor = segundoApellido;
+      throw err;
+    }
+    if (nombres && !nameRegex.test(nombres)) {
+      const err = new Error(`El campo Nombres "${nombres}" contiene caracteres o números no permitidos.`);
+      err.campo = 'NOMBRES';
+      err.valor = nombres;
+      throw err;
+    }
   }
 
   // 6. Parsing de Celulares (Regla 21: busca números separados por / y los convierte a arreglo)

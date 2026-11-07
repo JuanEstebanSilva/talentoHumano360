@@ -20,17 +20,33 @@ const pool = new Pool(
       }
 );
 
-const JWT_SECRET     = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo. En producción el servicio fallará explícitamente.');
+    return secret || 'talento360_secret_2026';
+  }
+
+  return secret;
+}
+
+const JWT_SECRET     = resolveJwtSecret();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
 const BCRYPT_SALT_ROUNDS = 12;
 
 // Hash precomputado para mitigar ataques de temporización (timing attacks) cuando el usuario no existe
 const DUMMY_HASH = '$2a$12$V/AEZH3sAI.ZPJZdnCj3Ue8TU5P/6ekQdo9whQRwfR9H9RyLSjXDm';
-
-// Advertencia de seguridad en arranque si la clave es la por defecto
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.includes('talento360_secret_2026'))) {
-  console.warn('[ALERTA DE CIBERSEGURIDAD] JWT_SECRET utiliza el valor por defecto o inseguro en producción. Configure un secreto de al menos 64 caracteres.');
-}
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 // Máximo 1000 intentos de login cada 15 minutos por IP (con omisión de peticiones exitosas)
@@ -97,19 +113,20 @@ router.post('/login', loginLimiter, async (req, res) => {
     let userResult;
     try {
       userResult = await pool.query(
-        `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
+        `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos
          FROM usuarios
          WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
          LIMIT 1`,
         [normalizedUser]
       );
     } catch (colErr) {
-      if (colErr.message && colErr.message.includes('modulos')) {
-        console.warn('[auth] Columna modulos no presente en tabla usuarios, migrando al vuelo...');
+      if (colErr.message && (colErr.message.includes('modulos') || colErr.message.includes('permisos'))) {
+        console.warn('[auth] Columna modulos o permisos no presente en tabla usuarios, migrando al vuelo...');
         try {
           await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos VARCHAR(255) DEFAULT '*'`);
+          await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT`);
           userResult = await pool.query(
-            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos
+            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos
              FROM usuarios
              WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
              LIMIT 1`,
@@ -169,16 +186,15 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    let allowedModules = ['*'];
-    if (user.modulos) {
-      allowedModules = user.modulos.split(',').map(m => m.trim().toLowerCase());
-    } else {
-      const uname = (user.username || '').toLowerCase();
-      if (uname.includes('angela') || uname.includes('blanca')) allowedModules = ['dashboard', 'employees'];
-      else if (uname.includes('bergenet')) allowedModules = ['dashboard', 'viaticos'];
-      else if (uname.includes('doris')) allowedModules = ['dashboard', 'horarios'];
-      else if (uname === 'admin' || (user.rol && user.rol.toLowerCase().includes('admin'))) allowedModules = ['*'];
+    let allowedModules = ['dashboard'];
+    const rLower = (user.rol || '').toLowerCase();
+    if (rLower === 'administrador' || rLower === 'admin') {
+      allowedModules = ['*'];
+    } else if (user.modulos) {
+      allowedModules = user.modulos.split(',').map(m => m.trim().toLowerCase()).filter(Boolean);
     }
+
+    const permissions = resolvePermissions(user.rol, allowedModules, user.permisos);
 
     const payload = {
       username: user.username,
@@ -187,6 +203,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       jobTitle: user.cargo_laboral || resolveJobTitle(user.rol),
       department: resolveDepartment(user.rol),
       modules:  allowedModules,
+      permissions: permissions,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -287,19 +304,29 @@ router.put('/profile', authMiddleware, profileLimiter, async (req, res) => {
       finalPassword = await bcrypt.hash(newPassword.trim(), BCRYPT_SALT_ROUNDS);
     }
 
-    // Actualizar en base de datos
+    // Actualizar en base de datos únicamente campos autorizados (nombre, password)
     const updateQ = await pool.query(
-      'UPDATE usuarios SET nombre = $1, password = $2 WHERE LOWER(username) = LOWER($3) RETURNING username, nombre, rol, cargo_laboral',
+      'UPDATE usuarios SET nombre = $1, password = $2 WHERE LOWER(username) = LOWER($3) RETURNING username, nombre, rol, cargo_laboral, modulos, permisos',
       [cleanNombre, finalPassword, username]
     );
 
     const updatedUser = updateQ.rows[0];
+    let userMods = ['dashboard'];
+    if ((updatedUser.rol || '').toLowerCase() === 'administrador') {
+      userMods = ['*'];
+    } else if (updatedUser.modulos) {
+      userMods = updatedUser.modulos.split(',').map(m => m.trim().toLowerCase()).filter(Boolean);
+    }
+    const userPerms = resolvePermissions(updatedUser.rol, userMods, updatedUser.permisos);
+
     const payload = {
       username: updatedUser.username,
       name:     updatedUser.nombre,
       role:     updatedUser.rol,
       jobTitle: updatedUser.cargo_laboral || resolveJobTitle(updatedUser.rol),
       department: resolveDepartment(updatedUser.rol),
+      modules:  userMods,
+      permissions: userPerms,
     };
 
     const newToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -315,6 +342,39 @@ router.put('/profile', authMiddleware, profileLimiter, async (req, res) => {
     return res.status(500).json({ error: 'Error al actualizar el perfil.' });
   }
 });
+
+function resolvePermissions(role, modules, explicitPerms = null) {
+  const r = (role || '').toLowerCase();
+  const mods = Array.isArray(modules) ? modules : [];
+  if (r === 'administrador' || r === 'admin' || mods.includes('*')) {
+    return ['*'];
+  }
+
+  // Si el usuario tiene permisos granulares explícitos configurados en la base de datos
+  if (explicitPerms && typeof explicitPerms === 'string' && explicitPerms.trim() !== '') {
+    const list = explicitPerms.split(',').map(p => p.trim().toLowerCase()).filter(Boolean);
+    if (list.length > 0) return list;
+  }
+
+  const perms = [];
+  if (mods.includes('dashboard')) perms.push('dashboard:read');
+  if (mods.includes('employees')) {
+    perms.push('employees:read', 'employees:write', 'employees:delete', 'employees:import', 'employees:export');
+  }
+  if (mods.includes('horarios')) {
+    perms.push('horarios:read', 'horarios:write', 'horarios:delete');
+  }
+  if (mods.includes('viaticos')) {
+    perms.push('viaticos:read', 'viaticos:write', 'viaticos:status', 'viaticos:import', 'viaticos:delete');
+  }
+  if (mods.includes('requests') || mods.includes('admin-requests')) {
+    perms.push('requests:read', 'requests:write');
+  }
+  if (mods.includes('sst')) {
+    perms.push('sst:read', 'sst:write');
+  }
+  return perms;
+}
 
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';

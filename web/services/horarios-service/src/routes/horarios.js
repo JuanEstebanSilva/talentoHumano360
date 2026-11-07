@@ -18,7 +18,24 @@ const pool = new Pool(
       }
 );
 
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 const VALID_MODALIDADES = ['Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
 const VALID_ESTADOS     = ['Activa', 'Pendiente', 'En revisión', 'Finalizada', 'Rechazada', 'Caducada'];
@@ -56,16 +73,42 @@ function auth(req, res, next) {
   }
 }
 
-function canEdit(roleOrUser) {
-  if (!roleOrUser) return false;
-  const role = String(typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.role || roleOrUser.rol || '')).toLowerCase();
-  const uname = String(typeof roleOrUser === 'object' ? (roleOrUser.username || '') : '').toLowerCase();
-  const name  = String(typeof roleOrUser === 'object' ? (roleOrUser.name || roleOrUser.nombre || '') : '').toLowerCase();
-  const mods  = (typeof roleOrUser === 'object' && Array.isArray(roleOrUser.modules)) ? roleOrUser.modules : [];
-  if (role.includes('administrador') || role.includes('coordinador') || role.includes('admin') || uname === 'admin') return true;
-  if (mods.includes('*') || mods.includes('all') || mods.includes('horarios_write')) return true;
-  if (uname.includes('doris') || name.includes('doris')) return true;
+function hasPermission(user, requiredPerm) {
+  if (!user) return false;
+  const role = String(typeof user === 'string' ? user : (user.role || user.rol || '')).toLowerCase();
+  const mods = (typeof user === 'object' && Array.isArray(user.modules))
+    ? user.modules
+    : (typeof user === 'object' && typeof user.modules === 'string' ? user.modules.split(',').map(m => m.trim().toLowerCase()) : []);
+  const perms = (typeof user === 'object' && Array.isArray(user.permissions)) ? user.permissions : [];
+
+  // 1. Acceso de Administrador General / Superusuario
+  if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all') || perms.includes('*')) {
+    return true;
+  }
+
+  // 2. Verificación estricta de permiso granular
+  if (requiredPerm) {
+    if (perms.includes(requiredPerm)) return true;
+    const [mod, action] = requiredPerm.split(':');
+    if (perms.includes(`${mod}:*`)) return true;
+    // Si la acción es lectura (read) y el módulo está asignado (sin restricción de solo escritura)
+    if (action === 'read' && mods.includes(mod)) return true;
+    // Para escritura (write/delete/import/export), NO basta tener el nombre del módulo en mods si perms existe
+    if (perms.length === 0 && mods.includes(mod)) return true;
+    if (action === 'write' && (mods.includes(`${mod}_write`) || mods.includes(`${mod}:write`))) return true;
+  }
+
   return false;
+}
+
+function canEdit(roleOrUser) {
+  const user = typeof roleOrUser === 'object' ? roleOrUser : { role: roleOrUser };
+  return hasPermission(user, 'horarios:write');
+}
+
+function canRead(roleOrUser) {
+  const user = typeof roleOrUser === 'object' ? roleOrUser : { role: roleOrUser };
+  return hasPermission(user, 'horarios:read');
 }
 
 function excelSerialToIsoDate(serial) {
@@ -369,45 +412,8 @@ async function checkAndProcessExpirations() {
         ]
       );
 
-      // 3. Crear o asegurar un esquema Presencial activo para este funcionario
-      const presencialCheck = await pool.query(
-        `SELECT id_horario FROM horarios
-         WHERE documento = $1 AND modalidad = 'Presencial' AND estado = 'Activa'
-         LIMIT 1`,
-        [h.documento]
-      );
-
-      if (presencialCheck.rows.length === 0) {
-        const newPres = await pool.query(
-          `INSERT INTO horarios (
-             documento, apellidos_nombres, dependencia, cargo, modalidad, estado,
-             fecha_inicio, duracion_texto, duracion_dias, tipo_calculo,
-             numero_resolucion, aprobado_por, observaciones
-           ) VALUES (
-             $1, $2, $3, $4, 'Presencial', 'Activa',
-             CURRENT_DATE, 'Permanente', 365, 'Hábiles',
-             $5, 'Sistema Talento 360',
-             $6
-           ) RETURNING id_horario`,
-          [
-            h.documento,
-            h.apellidos_nombres,
-            h.dependencia,
-            h.cargo,
-            h.numero_resolucion ? `RET-${h.numero_resolucion}` : 'AUTO-RETORNO',
-            `Retorno automático a modalidad Presencial tras caducidad de ${h.modalidad} anterior (vigente hasta ${h.fecha_fin}).`,
-          ]
-        );
-
-        if (newPres.rows.length > 0) {
-          await pool.query(
-            `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-             VALUES ($1, 'Activación Presencial Automática', 'Activa',
-                     'Esquema presencial generado automáticamente por caducidad de modalidad especial anterior.', 'Sistema - Retorno Automático')`,
-            [newPres.rows[0].id_horario]
-          );
-        }
-      }
+      // 3. Regla institucional: Al caducar el acuerdo especial, el funcionario retorna a la presencialidad
+      // ordinaria legal por defecto. No se inserta tupla artificial en la tabla horarios (TSK-003 / AUD-003).
 
       // 4. Si la modalidad vencida era "Trabajo en casa", reanudar cualquier vacación que hubiera estado pausada
       if (h.modalidad === 'Trabajo en casa') {
@@ -485,6 +491,9 @@ async function handleVacationPauseForHomeOffice(documento, funcionarioNombre, re
 
 // ─── GET /api/horarios ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
   const {
     q = '',
     modalidad = '',
@@ -714,6 +723,9 @@ router.get('/', auth, async (req, res) => {
 
 // ─── GET /api/horarios/next-consecutivo ───────────────────────────────────────
 router.get('/next-consecutivo', auth, async (req, res) => {
+  if (!canRead(req.user) && !canEdit(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos sobre el módulo de horarios.' });
+  }
   try {
     const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
     const maxVal = parseInt(maxQ.rows[0].max_val, 10) || 0;
@@ -726,6 +738,9 @@ router.get('/next-consecutivo', auth, async (req, res) => {
 
 // ─── GET /api/horarios/stats ─────────────────────────────────────────────────
 router.get('/stats', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
   try {
     await checkAndProcessExpirations();
 
@@ -815,6 +830,9 @@ router.post('/calculate-dates', auth, (req, res) => {
 
 // ─── GET /api/horarios/:id ───────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
   const id = parseInt(req.params.id, 10);
   if (!id || isNaN(id) || id <= 0) {
     return res.status(400).json({ error: 'ID inválido.' });
@@ -981,6 +999,12 @@ router.post('/bulk', auth, async (req, res) => {
         modalidad = VALID_MODALIDADES.find(m => m.toLowerCase() === rawSituacion.toLowerCase());
       } else {
         modalidad = 'Teletrabajo';
+      }
+
+      if (modalidad === 'Presencial') {
+        presencialCount++;
+        skipped++;
+        continue;
       }
 
       // Días / Horario específico
@@ -1441,6 +1465,12 @@ router.post('/', auth, async (req, res) => {
     });
   }
 
+  if (modalidad === 'Presencial') {
+    return res.status(400).json({
+      error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial. Este módulo administra exclusivamente Teletrabajo, Trabajo en casa y Horario flexible.',
+    });
+  }
+
   if (!VALID_MODALIDADES.includes(modalidad)) {
     return res.status(400).json({
       error: `Modalidad inválida. Debe ser una de: ${VALID_MODALIDADES.join(', ')}`,
@@ -1480,7 +1510,70 @@ router.post('/', auth, async (req, res) => {
     }
   }
 
+  // Validación de orden de fechas de vigencia
+  if (fecha_inicio && finalFechaFin) {
+    if (new Date(finalFechaFin) < new Date(fecha_inicio)) {
+      return res.status(400).json({
+        error: 'La fecha de finalización no puede ser anterior a la fecha de inicio del acuerdo.'
+      });
+    }
+  }
+
+  // Validación de franjas horarias
+  if (franja_ingreso && franja_salida) {
+    const parseTime = (t) => {
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    };
+    const tIngreso = parseTime(franja_ingreso);
+    const tSalida = parseTime(franja_salida);
+    if (tIngreso !== null && tSalida !== null && tSalida <= tIngreso) {
+      return res.status(400).json({
+        error: `La franja de salida (${franja_salida}) debe ser posterior a la franja de ingreso (${franja_ingreso}).`
+      });
+    }
+  }
+
   try {
+    // Validación de estado del funcionario: no permitir acuerdos a servidores inactivos o retirados
+    const empStatusQ = await pool.query(`
+      SELECT e.estado_servidor
+      FROM rel_principal r
+      JOIN personas p ON p.id_persona = r.id_persona
+      JOIN estados e ON e.id_estado = r.id_estado
+      WHERE p.cedula = $1
+      LIMIT 1
+    `, [upper(documento)]);
+    if (empStatusQ.rows.length > 0) {
+      const estadoServ = (empStatusQ.rows[0].estado_servidor || '').trim().toLowerCase();
+      if (estadoServ === 'inactivo' || estadoServ === 'retirado') {
+        return res.status(400).json({
+          error: 'No se puede registrar un acuerdo para un servidor público inactivo o retirado. Debe realizar primero la revinculación del funcionario.'
+        });
+      }
+    }
+
+    // Validación de traslapes: un servidor público no puede tener dos acuerdos activos simultáneos
+    if (['activa', 'pendiente', 'en revisión', 'aprobada'].includes((estado || 'Activa').toLowerCase()) && fecha_inicio) {
+      const overlapQ = await pool.query(`
+        SELECT id_horario, numero_consecutivo, modalidad, fecha_inicio, fecha_fin, estado
+        FROM horarios
+        WHERE documento = $1
+          AND estado IN ('Activa', 'Pendiente', 'En revisión', 'Aprobada')
+          AND ($2::date <= COALESCE(fecha_fin, '9999-12-31'::date))
+          AND (COALESCE($3::date, '9999-12-31'::date) >= fecha_inicio)
+        LIMIT 1
+      `, [upper(documento), fecha_inicio, finalFechaFin || null]);
+
+      if (overlapQ.rows.length > 0) {
+        const ov = overlapQ.rows[0];
+        const fechaFinText = ov.fecha_fin ? `al ${ov.fecha_fin}` : 'indefinida';
+        return res.status(400).json({
+          error: `El servidor público ya cuenta con un acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
+        });
+      }
+    }
     const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
     const maxConsecutivo = parseInt(maxQ.rows[0]?.max_val || 0, 10);
     const minPermitido = maxConsecutivo + 1;
@@ -1589,6 +1682,9 @@ router.post('/', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('[horarios-service] Error creando horario:', err);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
     res.status(500).json({ error: 'Error al registrar horario: ' + err.message });
   }
 });
@@ -1653,6 +1749,12 @@ router.put('/:id', auth, async (req, res) => {
     observaciones = current.observaciones,
   } = req.body;
 
+  if (modalidad === 'Presencial') {
+    return res.status(400).json({
+      error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial.',
+    });
+  }
+
   try {
     const isBusiness = checkIsBusiness(tipo_calculo);
     let finalDuracionTexto = duracion_texto;
@@ -1670,6 +1772,55 @@ router.put('/:id', auth, async (req, res) => {
         finalFechaFin = computeEndDate(fecha_inicio, finalDuracionDias, isBusiness);
       } else if (parseRes.isPermanent) {
         finalFechaFin = null;
+      }
+    }
+
+    const effectiveFechaInicio = fecha_inicio || current.fecha_inicio;
+    if (effectiveFechaInicio && finalFechaFin) {
+      if (new Date(finalFechaFin) < new Date(effectiveFechaInicio)) {
+        return res.status(400).json({
+          error: 'La fecha de finalización no puede ser anterior a la fecha de inicio del acuerdo.'
+        });
+      }
+    }
+
+    const effectiveFranjaIngreso = franja_ingreso !== undefined ? franja_ingreso : current.franja_ingreso;
+    const effectiveFranjaSalida = franja_salida !== undefined ? franja_salida : current.franja_salida;
+    if (effectiveFranjaIngreso && effectiveFranjaSalida) {
+      const parseTime = (t) => {
+        const m = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return null;
+        return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      };
+      const tIngreso = parseTime(effectiveFranjaIngreso);
+      const tSalida = parseTime(effectiveFranjaSalida);
+      if (tIngreso !== null && tSalida !== null && tSalida <= tIngreso) {
+        return res.status(400).json({
+          error: `La franja de salida (${effectiveFranjaSalida}) debe ser posterior a la franja de ingreso (${effectiveFranjaIngreso}).`
+        });
+      }
+    }
+
+    const targetDoc = documento !== undefined ? upper(documento) : current.documento;
+    const targetEstado = estado !== undefined ? estado : current.estado;
+    if (['activa', 'pendiente', 'en revisión', 'aprobada'].includes((targetEstado || 'Activa').toLowerCase()) && effectiveFechaInicio) {
+      const overlapQ = await pool.query(`
+        SELECT id_horario, numero_consecutivo, modalidad, fecha_inicio, fecha_fin, estado
+        FROM horarios
+        WHERE documento = $1
+          AND estado IN ('Activa', 'Pendiente', 'En revisión', 'Aprobada')
+          AND ($2::date <= COALESCE(fecha_fin, '9999-12-31'::date))
+          AND (COALESCE($3::date, '9999-12-31'::date) >= fecha_inicio)
+          AND id_horario <> $4
+        LIMIT 1
+      `, [targetDoc, effectiveFechaInicio, finalFechaFin || null, id]);
+
+      if (overlapQ.rows.length > 0) {
+        const ov = overlapQ.rows[0];
+        const fechaFinText = ov.fecha_fin ? `al ${ov.fecha_fin}` : 'indefinida';
+        return res.status(400).json({
+          error: `El servidor público ya cuenta con otro acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
+        });
       }
     }
 
@@ -1751,6 +1902,9 @@ router.put('/:id', auth, async (req, res) => {
     res.json({ message: 'Horario actualizado correctamente.', data: updated });
   } catch (err) {
     console.error('[horarios-service] Error actualizando horario:', err);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
     res.status(500).json({ error: 'Error al actualizar horario: ' + err.message });
   }
 });
