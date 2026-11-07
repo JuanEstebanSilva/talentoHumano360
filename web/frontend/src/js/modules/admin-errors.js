@@ -643,16 +643,16 @@ const AdminErrorsModule = (() => {
             <p class="module-hero-desc">Supervisión en tiempo real de fallos técnicos, excepciones de JavaScript, errores de microservicios y reportes de usuario en Talento 360.</p>
           </div>
           <div class="module-header-actions" style="display:flex; align-items:center; gap:10px;">
-            <button id="btn-admin-err-refresh" class="btn btn-outline" title="Actualizar lista de incidencias" style="display:inline-flex; align-items:center; gap:8px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <button id="btn-admin-err-refresh" class="btn-hdr-admin btn-hdr-refresh" title="Actualizar lista de incidencias">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               <span>Actualizar</span>
             </button>
-            <button id="btn-admin-err-clear-resolved" class="btn btn-secondary" title="Eliminar incidencias resueltas" style="display:inline-flex; align-items:center; gap:8px;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <button id="btn-admin-err-clear-resolved" class="btn-hdr-admin btn-hdr-depurar" title="Eliminar incidencias resueltas">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               <span>Depurar Resueltos</span>
             </button>
-            <button id="btn-admin-err-clear-all" class="btn btn-outline" style="color:var(--color-danger, #c42b1c); border-color:rgba(196,43,28,0.35);" title="Vaciar todo el registro">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            <button id="btn-admin-err-clear-all" class="btn-hdr-admin btn-hdr-clear-all" title="Vaciar todo el registro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
               <span>Limpiar Todo</span>
             </button>
           </div>

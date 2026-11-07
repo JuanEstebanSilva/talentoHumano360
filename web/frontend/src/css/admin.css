@@ -3,6 +3,109 @@
    Gobernación de Boyacá · Diseño Institucional Oficial
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ─── Botones de Cabecera Específicos para Monitoreo de Errores ────────────── */
+.btn-hdr-admin {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 9999px;
+  font-size: 0.83rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.btn-hdr-admin svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.3;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 1. Actualizar (Verde Boyacá Sólido Oficial Pill — Idéntico a Copia de Seguridad) */
+.btn-hdr-refresh {
+  background: #254d32 !important;
+  border: 1px solid #1a3827 !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(37, 77, 50, 0.32) !important;
+}
+
+.btn-hdr-refresh svg {
+  stroke: #ffffff !important;
+}
+
+.btn-hdr-refresh:hover {
+  background: #2e5d3c !important;
+  border-color: #254d32 !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(37, 77, 50, 0.45) !important;
+}
+
+.btn-hdr-refresh:hover svg {
+  stroke: #ffffff !important;
+  transform: rotate(180deg);
+}
+
+/* 2. Depurar Resueltos (Azul Petróleo / Índigo Suave con Microanimación) */
+.btn-hdr-depurar {
+  background: rgba(2, 132, 199, 0.08) !important;
+  border: 1.5px solid rgba(2, 132, 199, 0.28) !important;
+  color: #0369a1 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.08) !important;
+}
+
+.btn-hdr-depurar svg {
+  stroke: #0284c7 !important;
+}
+
+.btn-hdr-depurar:hover {
+  background: #0284c7 !important;
+  border-color: #0369a1 !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.32) !important;
+}
+
+.btn-hdr-depurar:hover svg {
+  stroke: #ffffff !important;
+  transform: rotate(-10deg) scale(1.1);
+}
+
+/* 3. Limpiar Todo (Rojo Carmesí Alerta Suave) */
+.btn-hdr-clear-all {
+  background: rgba(220, 38, 38, 0.08) !important;
+  border: 1.5px solid rgba(220, 38, 38, 0.28) !important;
+  color: #dc2626 !important;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08) !important;
+}
+
+.btn-hdr-clear-all svg {
+  stroke: #dc2626 !important;
+}
+
+.btn-hdr-clear-all:hover {
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.38) !important;
+}
+
+.btn-hdr-clear-all:hover svg {
+  stroke: #ffffff !important;
+  transform: scale(1.14);
+}
+
+.btn-hdr-admin:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
 /* ─── Botón Principal Tipo Pill (media_1794013826912_b0be86de.png) ────────── */
 .btn-backup-pill-now {
   background: #254d32 !important;
@@ -804,6 +907,45 @@
 }
 
 /* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
+[data-theme="dark"] .btn-hdr-refresh {
+  background: rgba(74, 222, 128, 0.1) !important;
+  border-color: rgba(74, 222, 128, 0.25) !important;
+  color: #4ade80 !important;
+}
+[data-theme="dark"] .btn-hdr-refresh svg {
+  stroke: #4ade80 !important;
+}
+[data-theme="dark"] .btn-hdr-refresh:hover {
+  background: #254d32 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-hdr-depurar {
+  background: rgba(56, 189, 248, 0.1) !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
+  color: #38bdf8 !important;
+}
+[data-theme="dark"] .btn-hdr-depurar svg {
+  stroke: #38bdf8 !important;
+}
+[data-theme="dark"] .btn-hdr-depurar:hover {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-hdr-clear-all {
+  background: rgba(248, 113, 113, 0.1) !important;
+  border-color: rgba(248, 113, 113, 0.25) !important;
+  color: #f87171 !important;
+}
+[data-theme="dark"] .btn-hdr-clear-all svg {
+  stroke: #f87171 !important;
+}
+[data-theme="dark"] .btn-hdr-clear-all:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
 [data-theme="dark"] .btn-backup-pill-now,
 [data-theme="dark"] .btn-save-schedule {
   background: #1b3d26 !important;
