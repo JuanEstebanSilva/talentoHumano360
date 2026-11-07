@@ -2,6 +2,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * Talento 360 — Módulo de Monitoreo de Errores y Registro de Incidentes
  * Gobernación de Boyacá · Panel de Control Exclusivo para Administrador
+ * Diseño Institucional Estandarizado acorde al Sistema de Gestión
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -40,6 +41,105 @@ const AdminErrorsModule = (() => {
     } catch (_) {
       return dStr;
     }
+  }
+
+  function formatDateTwoLines(dStr) {
+    if (!dStr) return '<span class="text-muted">N/A</span>';
+    try {
+      const d = new Date(dStr);
+      const day = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+      const time = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      return `
+        <div class="admin-date-wrap">
+          <span class="admin-date-day">${escHtml(day)}</span>
+          <span class="admin-date-time">${escHtml(time)}</span>
+        </div>
+      `;
+    } catch (_) {
+      return escHtml(dStr);
+    }
+  }
+
+  function cleanDisplayUrl(url) {
+    if (!url) return 'N/A';
+    try {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const u = new URL(url);
+        return (u.pathname + u.search + u.hash) || '/';
+      }
+      return url;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  function renderUserCell(usuario) {
+    const raw = (usuario || 'Anónimo').trim();
+    const cleanUser = raw.split('@')[0];
+    const isAnon = cleanUser.toLowerCase() === 'anónimo' || cleanUser.toLowerCase() === 'anonimo';
+
+    let initials = '?';
+    let bg = 'rgba(100, 116, 139, 0.12)';
+    let color = '#64748b';
+
+    if (!isAnon) {
+      const tokens = cleanUser.split(/[\._\-]/).filter(Boolean);
+      if (tokens.length >= 2) {
+        initials = (tokens[0][0] + tokens[1][0]).toUpperCase();
+      } else if (tokens.length === 1) {
+        initials = tokens[0].slice(0, 2).toUpperCase();
+      }
+      const hash = cleanUser.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const palettes = [
+        { bg: 'rgba(2, 132, 199, 0.14)', color: '#0284c7' }, // azul
+        { bg: 'rgba(21, 128, 61, 0.14)', color: '#15803d' }, // verde boyacá
+        { bg: 'rgba(217, 119, 6, 0.14)', color: '#b45309' }, // ámbar
+        { bg: 'rgba(147, 51, 234, 0.14)', color: '#7e22ce' }, // púrpura
+        { bg: 'rgba(13, 148, 136, 0.14)', color: '#0f766e' }  // teal
+      ];
+      const pal = palettes[hash % palettes.length];
+      bg = pal.bg;
+      color = pal.color;
+    }
+
+    return `
+      <div class="admin-user-cell" title="Usuario: ${escHtml(raw)}">
+        <span class="admin-user-avatar" style="background:${bg}; color:${color};" aria-hidden="true">${escHtml(initials)}</span>
+        <span class="admin-user-name">${escHtml(cleanUser)}</span>
+      </div>
+    `;
+  }
+
+  function parseErrorDetail(mensaje, stack, id) {
+    const msg = mensaje || 'Sin mensaje de error disponible';
+    let errorType = null;
+    let cleanMsg = msg;
+
+    const colonIdx = msg.indexOf(':');
+    if (colonIdx > 0 && colonIdx < 35) {
+      const prefix = msg.slice(0, colonIdx).trim();
+      if (/^[A-Za-z0-9_]+Error$|^Error\s*\d*$/.test(prefix)) {
+        errorType = prefix;
+        cleanMsg = msg.slice(colonIdx + 1).trim();
+      }
+    }
+
+    return `
+      <div class="admin-error-detail-wrap">
+        <div class="admin-error-title-row">
+          ${errorType ? `<span class="admin-token-pill">${escHtml(errorType)}</span>` : ''}
+          <span class="admin-msg-text" title="${escHtml(msg)}">${escHtml(cleanMsg)}</span>
+        </div>
+        ${stack ? `
+          <div class="admin-stack-hint-row">
+            <button type="button" class="badge-stack-pill" onclick="AdminErrorsModule.openDetailModal(${id})" title="Ver la traza completa de llamadas">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span>Ver Traza de Pila</span>
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
   async function loadData(page = 1) {
@@ -85,22 +185,40 @@ const AdminErrorsModule = (() => {
 
     const pendBadge = document.getElementById('stat-admin-err-pend-badge');
     if (pendBadge) {
-      pendBadge.textContent = `${s.pendientes || 0} pendientes`;
+      const pend = s.pendientes || 0;
+      pendBadge.textContent = `${pend} pendiente${pend === 1 ? '' : 's'}`;
+    }
+
+    const countBadge = document.getElementById('admin-errors-count-badge');
+    if (countBadge) {
+      countBadge.textContent = `${(s.total || 0).toLocaleString('es-CO')} incidencias`;
     }
   }
 
-  function getTipoBadge(tipo) {
+  function getTipoBadge(tipo, reportadoPorUsuario = false) {
     const t = String(tipo || '').toUpperCase();
+    let badgeHtml = '';
+
     if (t === 'PAGE_404' || t === 'NOT_FOUND_404') {
-      return `<span class="badge badge-warning" title="Página o ruta 404 no encontrada"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Error 404</span>`;
+      badgeHtml = `<span class="badge badge-warning" title="Página o ruta 404 no encontrada"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Error 404</span>`;
+    } else if (t === 'CONSOLE_ERROR') {
+      badgeHtml = `<span class="badge badge-danger" title="Error de JavaScript en el navegador"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
+    } else if (t === 'API_ERROR') {
+      badgeHtml = `<span class="badge badge-secondary" title="Fallo en llamada a microservicio o red"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Red</span>`;
+    } else {
+      badgeHtml = `<span class="badge badge-info" title="Excepción del sistema">${escHtml(t)}</span>`;
     }
-    if (t === 'CONSOLE_ERROR') {
-      return `<span class="badge badge-danger" title="Error de JavaScript en el navegador"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Consola JS</span>`;
+
+    if (reportadoPorUsuario) {
+      return `
+        <div class="admin-type-badge-wrap">
+          ${badgeHtml}
+          <span class="badge badge-user-report-inline" title="Reportado manualmente por el usuario mediante botón">🙋 Usuario</span>
+        </div>
+      `;
     }
-    if (t === 'API_ERROR') {
-      return `<span class="badge badge-secondary" title="Fallo en llamada a microservicio o red"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>API / Red</span>`;
-    }
-    return `<span class="badge badge-info" title="Excepción del sistema">${escHtml(t)}</span>`;
+
+    return `<div class="admin-type-badge-wrap">${badgeHtml}</div>`;
   }
 
   function renderEstadoSelect(item) {
@@ -125,7 +243,6 @@ const AdminErrorsModule = (() => {
 
   async function updateStatus(id, nuevoEstado) {
     try {
-      // Actualización optimista inmediata
       const item = currentErrors.find(e => e.id === id);
       if (item) item.estado = nuevoEstado;
       renderTable();
@@ -148,7 +265,7 @@ const AdminErrorsModule = (() => {
     const tbody = document.getElementById('admin-errors-tbody');
     const emptyBox = document.getElementById('admin-errors-empty');
     const countInfo = document.getElementById('admin-errors-count-info');
-    const paginationControls = document.getElementById('admin-errors-pagination');
+    const paginationControls = document.getElementById('admin-errors-pagination-bar');
 
     if (!tbody) return;
 
@@ -175,24 +292,22 @@ const AdminErrorsModule = (() => {
           ${renderEstadoSelect(item)}
         </td>
         <td style="text-align: center;">
-          ${getTipoBadge(item.tipo)}
-          ${item.reportado_por_usuario ? '<div style="margin-top:4px;"><span class="badge badge-user-report" title="Reportado manualmente por el usuario mediante botón">🙋 Por Usuario</span></div>' : ''}
+          ${getTipoBadge(item.tipo, item.reportado_por_usuario)}
         </td>
         <td class="col-error-msg">
-          <div class="error-msg-main" title="${escHtml(item.mensaje)}">${escHtml(item.mensaje)}</div>
-          ${item.stack ? `<div class="error-has-stack-hint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Traza de pila disponible</div>` : ''}
+          ${parseErrorDetail(item.mensaje, item.stack, item.id)}
         </td>
-        <td class="col-error-url" title="${escHtml(item.url || 'No especificada')}">
-          <span class="admin-url-text">${escHtml(truncateUrl(item.url || 'N/A', 40))}</span>
+        <td class="col-error-url">
+          <div class="admin-url-box" title="${escHtml(item.url || 'No especificada')}">
+            <svg class="admin-url-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span class="admin-url-text">${escHtml(cleanDisplayUrl(item.url))}</span>
+          </div>
         </td>
         <td style="text-align: center;">
-          <span class="admin-user-text" title="Usuario que experimentó la incidencia">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>${escHtml(item.usuario || 'Anónimo')}</span>
-          </span>
+          ${renderUserCell(item.usuario)}
         </td>
-        <td style="text-align: center; font-size: 0.82rem; color: var(--text-secondary); white-space: nowrap;">
-          ${formatDate(item.creado_en)}
+        <td style="text-align: center;">
+          ${formatDateTwoLines(item.creado_en)}
         </td>
         <td class="td-actions" style="text-align: center;">
           <div class="td-actions-wrap" style="justify-content: center; gap: 8px;">
@@ -208,18 +323,6 @@ const AdminErrorsModule = (() => {
     `).join('');
 
     renderPaginationButtons();
-  }
-
-  function truncateUrl(url, max = 40) {
-    if (!url) return '';
-    if (url.length <= max) return url;
-    try {
-      const u = new URL(url);
-      const short = u.pathname + u.search + u.hash;
-      return short.length > max ? short.slice(0, max) + '…' : short;
-    } catch (_) {
-      return url.slice(0, max) + '…';
-    }
   }
 
   function renderPaginationButtons() {
@@ -246,37 +349,43 @@ const AdminErrorsModule = (() => {
       <div class="admin-error-modal-detail">
         <div class="admin-detail-header-badges">
           ${renderEstadoSelect(item)}
-          ${getTipoBadge(item.tipo)}
-          ${item.reportado_por_usuario ? '<span class="badge badge-user-report">🙋 Reporte Voluntario de Usuario</span>' : '<span class="badge badge-auto">🤖 Detección Automática de Sistema</span>'}
+          ${getTipoBadge(item.tipo, item.reportado_por_usuario)}
         </div>
 
-        <div class="admin-detail-group">
-          <label class="admin-detail-label">Mensaje de Error / Excepción:</label>
-          <div class="admin-detail-box-message">${escHtml(item.mensaje)}</div>
+        <div class="admin-detail-section">
+          <label class="admin-detail-label">Mensaje del Fallo:</label>
+          <div class="admin-detail-msg">${escHtml(item.mensaje)}</div>
         </div>
 
         <div class="admin-detail-grid">
-          <div>
-            <label class="admin-detail-label">Ruta / URL afectada:</label>
-            <div class="admin-detail-box-meta"><span class="admin-url-text" style="font-weight:600;">${escHtml(item.url || 'No especificada')}</span></div>
+          <div class="admin-detail-field">
+            <span class="admin-detail-label">Ruta / URL Completa:</span>
+            <span class="admin-detail-val" style="word-break: break-all;">${escHtml(item.url || 'No especificada')}</span>
           </div>
-          <div>
-            <label class="admin-detail-label">Usuario registrado:</label>
-            <div class="admin-detail-box-meta"><strong>${escHtml(item.usuario || 'Anónimo')}</strong></div>
+          <div class="admin-detail-field">
+            <span class="admin-detail-label">Usuario que experimentó la incidencia:</span>
+            <span class="admin-detail-val">${escHtml(item.usuario || 'Anónimo')}</span>
           </div>
-          <div>
-            <label class="admin-detail-label">Fecha y Hora:</label>
-            <div class="admin-detail-box-meta">${formatDate(item.creado_en)}</div>
+          <div class="admin-detail-field">
+            <span class="admin-detail-label">Fecha y Hora de Detección:</span>
+            <span class="admin-detail-val">${formatDate(item.creado_en)}</span>
           </div>
-          <div>
-            <label class="admin-detail-label">Dirección IP:</label>
-            <div class="admin-detail-box-meta">${escHtml(item.ip_address || '127.0.0.1')}</div>
+          <div class="admin-detail-field">
+            <span class="admin-detail-label">Dirección IP de Origen:</span>
+            <span class="admin-detail-val font-mono">${escHtml(item.ip || 'No registrada')}</span>
           </div>
         </div>
 
+        ${item.detalles && Object.keys(item.detalles).length > 0 ? `
+          <div class="admin-detail-section">
+            <label class="admin-detail-label">Contexto del Entorno y Navegador:</label>
+            <pre class="admin-detail-json">${escHtml(JSON.stringify(item.detalles, null, 2))}</pre>
+          </div>
+        ` : ''}
+
         ${item.stack ? `
-          <div class="admin-detail-group">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div class="admin-detail-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <label class="admin-detail-label" style="margin:0;">Traza de Pila (Stack Trace):</label>
               <button class="btn btn-secondary btn-sm" onclick="AdminErrorsModule.copyStackToClipboard(${item.id})">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -317,9 +426,6 @@ const AdminErrorsModule = (() => {
     }
   }
 
-  /**
-   * Eliminación con doble confirmación tipada (como en Viáticos)
-   */
   function confirmDelete(id) {
     const requiredConfirmation = 'ELIMINAR';
     const html = `
@@ -523,15 +629,20 @@ const AdminErrorsModule = (() => {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="admin-panel-container">
+      <div class="module-enter">
         
-        <!-- Cabecera del Módulo -->
-        <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-          <div class="page-header-info">
-            <h1 class="page-title" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); margin:0 0 6px;">Centro de Monitoreo de Errores e Incidentes</h1>
-            <p class="page-subtitle" style="font-size:0.88rem; color:var(--text-secondary); margin:0;">Supervisión técnica de fallos, excepciones de JavaScript, errores de servidor y páginas 404 reportadas en Talento 360.</p>
+        <!-- Encabezado Institucional Estandarizado Gobernación de Boyacá -->
+        <div class="module-header-card">
+          <div class="module-header-info">
+            <div class="module-header-brand">
+              <img src="imgs/logoCondor.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-dark-theme" />
+              <span class="module-header-brand-text">Gobernación de Boyacá · Administración del Sistema</span>
+            </div>
+            <h1 class="module-hero-title">Centro de Monitoreo de Errores</h1>
+            <p class="module-hero-desc">Supervisión en tiempo real de fallos técnicos, excepciones de JavaScript, errores de microservicios y reportes de usuario en Talento 360.</p>
           </div>
-          <div class="page-actions" style="display:flex; align-items:center; gap:10px;">
+          <div class="module-header-actions" style="display:flex; align-items:center; gap:10px;">
             <button id="btn-admin-err-refresh" class="btn btn-outline" title="Actualizar lista de incidencias" style="display:inline-flex; align-items:center; gap:8px;">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               <span>Actualizar</span>
@@ -541,103 +652,128 @@ const AdminErrorsModule = (() => {
               <span>Depurar Resueltos</span>
             </button>
             <button id="btn-admin-err-clear-all" class="btn btn-outline" style="color:var(--color-danger, #c42b1c); border-color:rgba(196,43,28,0.35);" title="Vaciar todo el registro">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
               <span>Limpiar Todo</span>
             </button>
           </div>
         </div>
 
-        <!-- 4 Tarjetas Métricas KPI -->
-        <div class="admin-kpi-grid">
-          <div class="admin-kpi-card">
-            <div class="kpi-icon-wrap icon-total">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <!-- 4 Tarjetas Métricas KPI Oficiales (stats-grid) -->
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
-            <div class="kpi-content">
-              <div class="kpi-value" id="stat-admin-err-total">0</div>
-              <div class="kpi-label">Total Incidencias Registradas</div>
-              <div class="kpi-sub" id="stat-admin-err-pend-badge">0 pendientes</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-admin-err-total">0</div>
+              <div class="stat-label">Total Incidencias Registradas</div>
+              <div style="margin-top:4px;">
+                <span class="badge badge-warning" id="stat-admin-err-pend-badge" style="font-size:0.72rem;">0 pendientes</span>
+              </div>
             </div>
           </div>
 
-          <div class="admin-kpi-card">
-            <div class="kpi-icon-wrap icon-404">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--gold">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
-            <div class="kpi-content">
-              <div class="kpi-value" id="stat-admin-err-404">0</div>
-              <div class="kpi-label">Páginas 404 Detectadas</div>
-              <div class="kpi-sub">Enlaces rotos o rutas no encontradas</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-admin-err-404">0</div>
+              <div class="stat-label">Páginas 404 Detectadas</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Enlaces rotos o no encontrados</span>
             </div>
           </div>
 
-          <div class="admin-kpi-card">
-            <div class="kpi-icon-wrap icon-js">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--red">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             </div>
-            <div class="kpi-content">
-              <div class="kpi-value" id="stat-admin-err-js">0</div>
-              <div class="kpi-label">Excepciones de Consola y API</div>
-              <div class="kpi-sub">Fallos de JavaScript y microservicios</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-admin-err-js">0</div>
+              <div class="stat-label">Excepciones de Consola y API</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Fallos JS y microservicios</span>
             </div>
           </div>
 
-          <div class="admin-kpi-card">
-            <div class="kpi-icon-wrap icon-user">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--blue">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
             </div>
-            <div class="kpi-content">
-              <div class="kpi-value" id="stat-admin-err-user">0</div>
-              <div class="kpi-label">Reportes de Usuarios</div>
-              <div class="kpi-sub">Enviados mediante botón de reporte</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-admin-err-user">0</div>
+              <div class="stat-label">Reportes de Usuarios</div>
+              <span style="font-size:0.75rem; color:var(--text-secondary); margin-top:3px; display:block;">Enviados mediante botón de reporte</span>
             </div>
           </div>
         </div>
 
-        <!-- Filtros y Búsqueda -->
-        <div class="admin-filter-bar">
-          <div class="filter-group">
-            <label for="admin-filter-tipo">Tipo de Fallo:</label>
-            <select id="admin-filter-tipo" class="admin-select">
-              <option value="TODOS">Todos los Tipos</option>
-              <option value="PAGE_404">Páginas 404 No Encontradas</option>
-              <option value="CONSOLE_ERROR">Errores de Consola / JavaScript</option>
-              <option value="API_ERROR">Errores de API / Backend</option>
-              <option value="UNHANDLED_REJECTION">Promesas No Controladas</option>
-            </select>
-          </div>
+        <!-- Filtros y Búsqueda Estandarizados (filters-card) -->
+        <div class="filters-card">
+          <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <div class="filter-group" style="flex:2.2; min-width:240px;">
+              <label class="filter-label" for="admin-filter-search">Buscar Incidencia</label>
+              <input type="text" id="admin-filter-search" class="filter-input" placeholder="Buscar por mensaje, URL o usuario..." aria-label="Buscar incidencia" />
+            </div>
 
-          <div class="filter-group">
-            <label for="admin-filter-estado">Estado:</label>
-            <select id="admin-filter-estado" class="admin-select">
-              <option value="TODOS">Todos los Estados</option>
-              <option value="Pendiente" selected>Solo Pendientes</option>
-              <option value="En Revisión">En Revisión</option>
-              <option value="Resuelto">Resueltos</option>
-            </select>
-          </div>
+            <div class="filter-group" style="flex:1.4; min-width:190px;">
+              <label class="filter-label" for="admin-filter-tipo">Tipo de Fallo</label>
+              <select id="admin-filter-tipo" class="filter-select" aria-label="Filtrar por tipo de fallo">
+                <option value="TODOS">TODOS LOS TIPOS</option>
+                <option value="PAGE_404">Páginas 404 No Encontradas</option>
+                <option value="CONSOLE_ERROR">Errores de Consola / JS</option>
+                <option value="API_ERROR">Errores de API / Backend</option>
+                <option value="UNHANDLED_REJECTION">Promesas No Controladas</option>
+              </select>
+            </div>
 
-          <div class="filter-search-group">
-            <label for="admin-filter-search">Buscar Incidencia:</label>
-            <div class="search-input-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="admin-filter-search" class="admin-search-input" placeholder="Buscar por mensaje, URL o usuario..." />
+            <div class="filter-group" style="flex:1.2; min-width:170px;">
+              <label class="filter-label" for="admin-filter-estado">Estado</label>
+              <select id="admin-filter-estado" class="filter-select" aria-label="Filtrar por estado">
+                <option value="TODOS">TODOS LOS ESTADOS</option>
+                <option value="Pendiente" selected>Solo Pendientes</option>
+                <option value="En Revisión">En Revisión</option>
+                <option value="Resuelto">Resueltos</option>
+              </select>
+            </div>
+
+            <div class="filters-actions-wrap" style="display:flex; gap:8px; align-items:flex-end;">
+              <button type="button" class="btn-filter-clear" id="btn-admin-filter-clear" title="Restablecer filtros de búsqueda" aria-label="Limpiar filtros">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;flex-shrink:0;">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Limpiar</span>
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Tabla de Resultados -->
-        <div class="admin-card-table-wrap">
-          <div class="table-responsive">
-            <table class="admin-table">
+        <!-- Tabla de Resultados en Table Card Oficial -->
+        <div class="table-card">
+          <div class="table-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="table-title">Incidencias y Fallos Técnicos Registrados</span>
+              <span class="table-count" id="admin-errors-count-badge">
+                <span class="skeleton" style="width:80px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+              </span>
+            </div>
+            <div style="font-size:0.82rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+              <span class="status-indicator-live" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></span>
+              <span>Monitoreo Activo</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="admin-table-styled" aria-label="Listado de incidencias técnicas">
               <thead>
                 <tr>
-                  <th style="width: 140px; text-align: center;">Estado</th>
-                  <th style="width: 140px; text-align: center;">Tipo</th>
-                  <th>Detalle del Incidente</th>
-                  <th style="width: 220px;">Ruta / URL Afectada</th>
-                  <th style="width: 130px; text-align: center;">Usuario</th>
-                  <th style="width: 160px; text-align: center;">Fecha y Hora</th>
-                  <th style="width: 110px; text-align: center;">Acciones</th>
+                  <th scope="col" style="width: 140px; text-align: center;">Estado</th>
+                  <th scope="col" style="width: 155px; text-align: center;">Tipo</th>
+                  <th scope="col">Detalle del Incidente</th>
+                  <th scope="col" style="width: 220px;">Ruta / URL Afectada</th>
+                  <th scope="col" style="width: 155px; text-align: center;">Usuario</th>
+                  <th scope="col" style="width: 140px; text-align: center;">Fecha y Hora</th>
+                  <th scope="col" style="width: 90px; text-align: center;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="admin-errors-tbody">
@@ -649,22 +785,22 @@ const AdminErrorsModule = (() => {
           <!-- Empty State si no hay errores -->
           <div id="admin-errors-empty" class="admin-empty-state" style="display:none;">
             <div class="empty-icon-shield">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#355833" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             </div>
             <h3 class="empty-title">Plataforma Operando con Normalidad</h3>
             <p class="empty-desc">No se registran fallos técnicos ni incidencias pendientes con los filtros seleccionados.</p>
           </div>
 
           <!-- Footer y Paginador -->
-          <div class="admin-table-footer">
-            <div id="admin-errors-count-info" class="count-info">Cargando incidencias...</div>
-            <div id="admin-errors-pagination" class="pagination-buttons">
-              <button id="admin-errors-btn-prev" class="btn-page">
+          <div class="pagination" id="admin-errors-pagination-bar" style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px; border-top:1px solid var(--color-border, #e2e8f0);">
+            <span class="pagination-info" id="admin-errors-count-info" style="font-size:0.83rem; color:var(--text-secondary);">Mostrando 0 incidencias</span>
+            <div class="pagination-btns" style="display:flex; gap:8px; align-items:center;">
+              <button id="admin-errors-btn-prev" class="btn btn-sm btn-outline" style="border-radius:8px; padding:4px 12px; display:inline-flex; align-items:center; gap:6px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                 <span>Anterior</span>
               </button>
-              <span id="admin-errors-page-indicator" style="font-size:0.83rem; font-weight:700; color:var(--text-primary);">Página 1</span>
-              <button id="admin-errors-btn-next" class="btn-page">
+              <span id="admin-errors-page-indicator" style="font-size:0.82rem; font-weight:700; color:var(--text-primary); padding:0 8px;">Página 1</span>
+              <button id="admin-errors-btn-next" class="btn btn-sm btn-outline" style="border-radius:8px; padding:4px 12px; display:inline-flex; align-items:center; gap:6px;">
                 <span>Siguiente</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
@@ -728,6 +864,19 @@ const AdminErrorsModule = (() => {
           currentSearch = e.target.value.trim();
           loadData(1);
         }, 320);
+      };
+    }
+
+    const btnClearFilters = document.getElementById('btn-admin-filter-clear');
+    if (btnClearFilters) {
+      btnClearFilters.onclick = () => {
+        currentSearch = '';
+        currentFilterTipo = 'TODOS';
+        currentFilterEstado = 'TODOS';
+        if (filterSearch) filterSearch.value = '';
+        if (filterTipo) filterTipo.value = 'TODOS';
+        if (filterEstado) filterEstado.value = 'TODOS';
+        loadData(1);
       };
     }
 
