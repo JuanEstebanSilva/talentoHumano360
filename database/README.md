@@ -67,3 +67,4 @@ Cuando el contenedor `talento360_db` arranca por primera vez con un volumen vac√
 - `viaticos` (Comisiones de Servicios)
 - `horarios` (Acuerdos y Esquemas Laborales)
 - `contactos`, `educacion`, `vacaciones`, `historial_solicitudes`
+

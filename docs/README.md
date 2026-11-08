@@ -18,3 +18,4 @@ Este directorio contiene recursos complementarios de diseño, lineamientos de se
 
 - 🚀 **Servidor Local Institucional:** Para el despliegue físico definitivo en la Gobernación con Linux y Docker, consulta la **[Guía de Despliegue en Servidor Local Linux](../GUIA_DESPLIEGUE_SERVIDOR_LINUX.md)** ubicada en la raíz.
 - 📁 **Auditorías y Certificaciones:** Para consultar los informes técnicos y matrices de seguridad de todas las auditorías, consulta el directorio **[`AUDITORIAS/`](../AUDITORIAS/)**.
+

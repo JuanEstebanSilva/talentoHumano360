@@ -26,3 +26,4 @@ Este directorio contiene los **8 microservicios desacoplados** desarrollados en 
 2. **Control de Acceso Basado en Roles (RBAC):** Middleware compartido que valida permisos granulares (`employees:write`, `viaticos:write`, etc.) desacoplados del nombre de usuario.
 3. **Manejo Centralizado de Excepciones:** Errores no controlados se registran de forma estructurada en la base de datos para seguimiento en la consola de auditoría.
 4. **Protección Formula Injection (CWE-1236):** Toda exportación de datos a Excel/CSV se sanitiza anteponiendo comilla simple a caracteres disparadores (`=`, `+`, `-`, `@`).
+

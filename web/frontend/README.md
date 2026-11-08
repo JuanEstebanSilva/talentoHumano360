@@ -32,3 +32,4 @@ frontend/
 - **Protección contra Fuerza Bruta:** Rate Limiting estricto en `/api/auth/login` (máximo 120 peticiones por minuto por IP con ráfaga nodelay).
 - **Protección DoS:** Rate Limiting general para la API institucional (60 peticiones por segundo).
 - **Hardening:** `server_tokens off` para no revelar la versión de Nginx.
+
