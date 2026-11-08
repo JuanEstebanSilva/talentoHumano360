@@ -5,12 +5,21 @@
 [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2%2B-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639?logo=nginx&logoColor=white)](https://nginx.org/)
 [![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-005A9C)](https://www.w3.org/WAI/standards-guidelines/wcag/)
-[![Security Hardened](https://img.shields.io/badge/Security-Hardened%20(AUD--001--014)-brightgreen)](docs/auditoria/)
+[![Security Hardened](https://img.shields.io/badge/Security-Hardened%20(AUD--001--014)-brightgreen)](AUDITORIAS/)
 [![License](https://img.shields.io/badge/License-Gobernaci%C3%B3n%20de%20Boyac%C3%A1-355833)](LICENSE)
 
 Plataforma web institucional de alta disponibilidad y seguridad para la administración integral del talento humano de la **Gobernación de Boyacá**. Diseñada para centralizar y automatizar la gestión de la planta de servidores públicos, modalidades laborales concertadas, comisiones de viáticos con motor normativo, trámites administrativos, vacaciones y **Seguridad y Salud en el Trabajo (SST)**.
 
 Construida con una arquitectura de microservicios desacoplados en **Node.js / Express**, base de datos relacional **PostgreSQL 16**, frontend SPA de alto rendimiento con interfaz reactiva, diseño accesible (WCAG 2.1 AA), generación de reportes ejecutivos en PDF de alta fidelidad y un blindaje exhaustivo de ciberseguridad y no-regresión operativa (**CWE-1236, OWASP Top 10, RBAC estricto**).
+
+---
+
+## 📚 Documentación Clave
+
+- 🚀 **[Guía de Despliegue en Servidor Local Linux (On-Premise)](./GUIA_DESPLIEGUE_SERVIDOR_LINUX.md):** Manual paso a paso, amigable y detallado para instalar Ubuntu Server y correr los 10 contenedores en el servidor de la entidad.
+- 📁 **[Archivo Central de Auditorías y Certificaciones](./AUDITORIAS/):** Directorio consolidado con las auditorías técnicas, matrices de permisos y el informe consolidado maestro ([`AUDITORIA_FINAL_TALENTO_360.md`](./AUDITORIAS/AUDITORIA_FINAL_TALENTO_360.md)).
+- ☁️ **[Despliegue Alternativo en la Nube (Netlify + Render)](./docs/DEPLOY_NETLIFY_RENDER.md):** Guía de arquitectura para despliegue en entornos cloud.
+- 🎨 **[Manual de Marca y Colorimetría Institucional](./docs/branding/colorimetria.md):** Paleta visual y directrices de diseño oficial de la Gobernación de Boyacá.
 
 ---
 

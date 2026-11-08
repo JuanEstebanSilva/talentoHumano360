@@ -41,6 +41,15 @@ const SQL_FILES = [
   '16_encargo_columns.sql',
   '17_add_fecha_retiro.sql',
   '18_system_errors_and_backups.sql',
+  '19_add_safe_parse_date_and_fixes.sql',
+  '20_viaticos_escalas_decretos.sql',
+  '21_fix_divipola_boyaca.sql',
+  '22_sequences_and_concurrency_employees.sql',
+  '23_foreign_keys_and_referential_integrity.sql',
+  '24_divipola_boyaca_asentamientos_y_normalizacion.sql',
+  '25_viaticos_ciclo_de_vida_y_estados.sql',
+  '26_rbac_cross_module_read_and_permissions.sql',
+  '27_clean_transactional_inserts.sql',
 ];
 
 function findDatabaseDir() {
