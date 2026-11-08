@@ -713,29 +713,33 @@ const ViaticosModule = (() => {
 
         <!-- ─── PESTAÑA 1: SERVIDOR PÚBLICO ─── -->
         <div id="tab-vit-servidor" class="form-tab-pane active" style="padding-top: 6px;">
+          <!-- Tarjeta de Servidor Oficial Vinculado -->
+          <div id="vf-servidor-card" class="servidor-loaded-card" style="${r.persona ? 'display:block;' : 'display:none;'} margin-bottom: 14px;">
+            ${r.persona ? renderViaticoServidorCardHtml(r) : ''}
+          </div>
+
           <div class="form-grid">
             <div class="form-group span-2 autocomplete-wrapper">
               <label class="form-label" for="vf-nombre">Nombre Completo del Servidor</label>
-              <input id="vf-nombre" class="form-input" placeholder=" " enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${dis} required />
+              <input id="vf-nombre" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Escriba nombre o cédula para buscar..." enterkeyhint="next" value="${escHtml(r.persona||'')}" oninput="ViaticosModule.onNombreInput(this.value)" autocomplete="off" ${r.persona ? 'readonly' : ''} ${dis} required />
               <div id="vf-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Documento de Identidad (C.C.)</label>
-              <input id="vf-doc" class="form-input font-mono" placeholder="Número de cédula" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.documento||'')}" ${dis} />
+            <div class="form-group autocomplete-wrapper">
+              <label class="form-label" for="vf-doc">Documento de Identidad (C.C.)</label>
+              <input id="vf-doc" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Escriba número de cédula..." inputmode="numeric" enterkeyhint="next" value="${escHtml(r.documento||'')}" oninput="ViaticosModule.onDocInput(this.value)" autocomplete="off" ${r.persona ? 'readonly' : ''} ${dis} />
+              <div id="vf-doc-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Cargo Actual</label>
-              <input id="vf-cargo" class="form-input" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${dis} />
+              <label class="form-label" for="vf-cargo">Cargo Actual</label>
+              <input id="vf-cargo" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Dependencia / Secretaría</label>
-              <input id="vf-dep" class="form-input" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${dis} />
+              <label class="form-label" for="vf-dep">Dependencia / Secretaría</label>
+              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
-
-            
           </div>
         </div>
 
@@ -1000,7 +1004,46 @@ const ViaticosModule = (() => {
     onEstadoChange();
   }
 
-  // ─── Autocompletado de Servidores ──────────────────────────────────────────
+  // ─── Tarjeta Informativa de Servidor Vinculado (Lectura & Integridad) ────
+  function renderViaticoServidorCardHtml(emp) {
+    if (!emp || (!emp.nombre_completo && !emp.persona)) return '';
+    const name = emp.nombre_completo || emp.persona || '';
+    const doc = emp.cedula || emp.documento || '';
+    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+    const dep = emp.dependencia || 'Sin dependencia';
+    const initial = name.trim().charAt(0).toUpperCase() || 'S';
+    const situacion = emp.situacion || emp.situacion_laboral || emp.estado || 'Activo';
+
+    return `
+      <div class="servidor-loaded-header">
+        <div class="servidor-loaded-avatar">${initial}</div>
+        <div class="servidor-loaded-main">
+          <div class="servidor-loaded-tag">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Servidor Institucional de Planta Vinculado</span>
+          </div>
+          <h4 class="servidor-loaded-name">${escHtml(name)}</h4>
+          <div class="servidor-loaded-doc">Cédula: <strong>${escHtml(doc)}</strong> · Estado: <strong style="color:var(--color-primary,#1d6113);">${escHtml(situacion)}</strong></div>
+        </div>
+        <button type="button" class="btn-servidor-cambiar" onclick="ViaticosModule.clearSelectedEmployee()" title="Desvincular y seleccionar otro servidor de planta">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Cambiar Servidor
+        </button>
+      </div>
+      <div class="servidor-loaded-details">
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Cargo:</span>
+          <span class="pill-val">${escHtml(cargo)}</span>
+        </div>
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Dependencia:</span>
+          <span class="pill-val">${escHtml(dep)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── Autocompletado de Servidores (Por Nombre y Por Cédula) ─────────────────
   function onNombreInput(val) {
     clearTimeout(employeeSearchTimeout);
     const drop = document.getElementById('vf-autocomplete-list');
@@ -1013,7 +1056,50 @@ const ViaticosModule = (() => {
     }
     employeeSearchTimeout = setTimeout(async () => {
       try {
-        const res = await API.getEmployees({ q: query, limit: 6 });
+        const res = await (API.buscarServidor ? API.buscarServidor(query, 6) : API.getEmployees({ q: query, limit: 6 }));
+        const list = res.data || [];
+        if (!list.length) {
+          drop.style.display = 'none';
+          drop.innerHTML = '';
+          return;
+        }
+        drop.innerHTML = list.map(emp => {
+          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          return `
+            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="autocomplete-item-avatar">${initial}</div>
+              <div class="autocomplete-item-body">
+                <div class="autocomplete-item-header">
+                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
+                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+                </div>
+                <div class="autocomplete-item-meta">
+                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        drop.style.display = 'block';
+      } catch {
+        drop.style.display = 'none';
+      }
+    }, 200);
+  }
+
+  function onDocInput(val) {
+    clearTimeout(employeeSearchTimeout);
+    const drop = document.getElementById('vf-doc-autocomplete-list');
+    if (!drop) return;
+    const clean = val.trim().replace(/[.,\s]/g, '');
+    if (clean.length < 2) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+      return;
+    }
+    employeeSearchTimeout = setTimeout(async () => {
+      try {
+        const res = await (API.buscarServidor ? API.buscarServidor(clean, 6) : API.getEmployees({ q: clean, limit: 6 }));
         const list = res.data || [];
         if (!list.length) {
           drop.style.display = 'none';
@@ -1050,37 +1136,118 @@ const ViaticosModule = (() => {
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
     const depInput = document.getElementById('vf-dep');
-    const drop = document.getElementById('vf-autocomplete-list');
-    const lockedBox = document.getElementById('vf-locked-box');
+    const dropNombre = document.getElementById('vf-autocomplete-list');
+    const dropDoc = document.getElementById('vf-doc-autocomplete-list');
+    const cardEl = document.getElementById('vf-servidor-card');
 
-    if (nombreInput) nombreInput.value = emp.nombre_completo || '';
-    if (docInput) docInput.value = emp.cedula || '';
-    if (cargoInput) cargoInput.value = emp.cargo_actual || emp.cargo_base || '';
-    if (depInput) depInput.value = emp.dependencia || '';
-    if (drop) { drop.style.display = 'none'; drop.innerHTML = ''; }
+    const name = emp.nombre_completo || emp.persona || '';
+    const doc = emp.cedula || emp.documento || '';
+    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || '';
+    const dep = emp.dependencia || '';
 
-    App.showToast(`Datos completados para ${emp.nombre_completo}.`, 'info');
+    if (nombreInput) {
+      nombreInput.value = name;
+      nombreInput.readOnly = true;
+      nombreInput.setAttribute('readonly', 'readonly');
+      nombreInput.classList.add('field-locked-readonly', 'input-locked-servidor');
+      nombreInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
+    }
+    if (docInput) {
+      docInput.value = doc;
+      docInput.readOnly = true;
+      docInput.setAttribute('readonly', 'readonly');
+      docInput.classList.add('field-locked-readonly', 'input-locked-servidor');
+      docInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
+    }
+    if (cargoInput) {
+      cargoInput.value = cargo;
+      cargoInput.readOnly = true;
+      cargoInput.setAttribute('readonly', 'readonly');
+      cargoInput.classList.add('field-locked-readonly', 'input-locked-servidor');
+      cargoInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
+    }
+    if (depInput) {
+      depInput.value = dep;
+      depInput.readOnly = true;
+      depInput.setAttribute('readonly', 'readonly');
+      depInput.classList.add('field-locked-readonly', 'input-locked-servidor');
+      depInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
+    }
+
+    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
+    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
+
+    if (cardEl) {
+      cardEl.innerHTML = renderViaticoServidorCardHtml(emp);
+      cardEl.style.display = 'block';
+    }
+
+    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+      if (el) {
+        el.classList.add('input-flash-sync');
+        setTimeout(() => el.classList.remove('input-flash-sync'), 1800);
+      }
+    });
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
+    App.showToast(`Servidor oficial vinculado: ${name}`, 'success');
     onDatesChange();
   }
 
-  function unlockServidor() {
+  function clearSelectedEmployee() {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
     const depInput = document.getElementById('vf-dep');
-    const lockedBox = document.getElementById('vf-locked-box');
+    const cardEl = document.getElementById('vf-servidor-card');
+    const dropNombre = document.getElementById('vf-autocomplete-list');
+    const dropDoc = document.getElementById('vf-doc-autocomplete-list');
 
-    const fields = [nombreInput, docInput, cargoInput, depInput];
-    fields.forEach(el => {
+    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
       if (el) {
+        el.value = '';
         el.readOnly = false;
-        el.classList.remove('field-locked-readonly');
-        el.classList.remove('input-flash-sync');
+        el.removeAttribute('readonly');
+        el.classList.remove('field-locked-readonly', 'input-locked-servidor');
+        el.removeAttribute('title');
       }
     });
 
-    if (lockedBox) lockedBox.style.display = 'none';
-    App.showToast('Campos de servidor desbloqueados para edición manual.', 'info');
+    if (cardEl) {
+      cardEl.innerHTML = '';
+      cardEl.style.display = 'none';
+    }
+    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
+    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
+    if (nombreInput) {
+      nombreInput.focus();
+    }
+    App.showToast('Selección de servidor limpiada. Escriba nombre o cédula para buscar otro servidor.', 'info');
+  }
+
+  function bindServidorLockGuards() {
+    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-dep'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('keydown', (e) => {
+        if (el.readOnly) {
+          if (['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || (e.ctrlKey && ['c', 'C', 'a', 'A'].includes(e.key))) {
+            return;
+          }
+          e.preventDefault();
+          App.showToast('Los datos del servidor oficial están protegidos contra edición manual. Para asociar otro servidor, use el botón "Cambiar Servidor".', 'warning');
+        }
+      });
+    });
   }
 
   // ─── Gestión de Destinos ──────────────────────────────────────────────────
@@ -1656,6 +1823,7 @@ const ViaticosModule = (() => {
     App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => {
       initFormHelpers();
+      bindServidorLockGuards();
       if (typeof App !== 'undefined') {
         const modalBody = document.getElementById('modal-body');
         if (modalBody) {
@@ -1704,6 +1872,7 @@ const ViaticosModule = (() => {
     App.initDatePickers(document.getElementById('modal-body') || document);
     setTimeout(() => {
       initFormHelpers(r);
+      bindServidorLockGuards();
       if (typeof App !== 'undefined') {
         const modalBody = document.getElementById('modal-body');
         if (modalBody) {
@@ -1726,7 +1895,8 @@ const ViaticosModule = (() => {
     try {
       const res = await API.createViatico(body);
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       App.showToast(`Viático creado exitosamente. Radicado: ${res.radicado || ''}`, 'success');
       if (state.activeView === 'years') {
         await loadPackages();
@@ -1758,7 +1928,8 @@ const ViaticosModule = (() => {
     try {
       await API.updateViatico(id, body);
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       App.showToast('Viático actualizado exitosamente.', 'success');
       await load();
       loadStats();
@@ -3975,7 +4146,8 @@ const ViaticosModule = (() => {
         try {
           await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
           App.showToast('Carpeta de viáticos actualizada correctamente.', 'success');
           await loadPackages();
           if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
@@ -5009,8 +5181,9 @@ const ViaticosModule = (() => {
     goPage,
     calcTotal,
     onNombreInput,
+    onDocInput,
     selectEmployee,
-    unlockServidor,
+    clearSelectedEmployee,
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,

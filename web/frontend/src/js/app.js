@@ -41,8 +41,94 @@ const App = (() => {
     }, 4000);
   }
 
-  // ─── Modal System ──────────────────────────────────────────────────────────
+  // ─── Modal System & Dirty Form Tracking ─────────────────────────────────────
   let modalCloseSeq = 0;
+  let modalIsEditForm = false;
+  let modalInitialSnapshot = null;
+
+  function captureModalFormSnapshot() {
+    const body = document.getElementById('modal-body');
+    if (!body) return '';
+    const controls = body.querySelectorAll('input:not([type="button"]):not([type="submit"]):not([type="hidden"]), select, textarea');
+    const values = [];
+    controls.forEach(ctrl => {
+      if (ctrl.id === 'modal-search') return;
+      if (ctrl.type === 'checkbox' || ctrl.type === 'radio') {
+        values.push(`${ctrl.name || ctrl.id}:${ctrl.checked}`);
+      } else {
+        values.push(`${ctrl.name || ctrl.id}:${ctrl.value}`);
+      }
+    });
+    return values.join('|:::|');
+  }
+
+  function isModalDirty() {
+    if (!modalIsEditForm || modalInitialSnapshot === null) return false;
+    const current = captureModalFormSnapshot();
+    return current !== modalInitialSnapshot;
+  }
+
+  function markFormClean() {
+    modalIsEditForm = false;
+    modalInitialSnapshot = null;
+    removeUnsavedChangesPrompt();
+  }
+
+  function removeUnsavedChangesPrompt() {
+    document.getElementById('modal-unsaved-confirm')?.remove();
+  }
+
+  function showUnsavedChangesPrompt() {
+    const box = document.querySelector('.modal-box');
+    if (!box) return;
+    if (document.getElementById('modal-unsaved-confirm')) return;
+
+    if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.warning) {
+      FX.Sound.warning();
+    }
+
+    const promptEl = document.createElement('div');
+    promptEl.id = 'modal-unsaved-confirm';
+    promptEl.className = 'modal-unsaved-backdrop';
+    promptEl.innerHTML = `
+      <div class="modal-unsaved-card">
+        <div class="modal-unsaved-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="modal-unsaved-title">¿Descartar cambios sin guardar?</h3>
+        <p class="modal-unsaved-desc">
+          Has realizado modificaciones en este formulario. Si decides salir ahora, <strong>se perderán todos los cambios no guardados</strong>.
+        </p>
+        <div class="modal-unsaved-actions">
+          <button type="button" class="btn btn-secondary" id="btn-unsaved-stay">
+            Continuar Editando
+          </button>
+          <button type="button" class="btn btn-danger" id="btn-unsaved-discard">
+            Salir sin Guardar
+          </button>
+        </div>
+      </div>
+    `;
+
+    box.appendChild(promptEl);
+
+    document.getElementById('btn-unsaved-stay')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeUnsavedChangesPrompt();
+    });
+
+    document.getElementById('btn-unsaved-discard')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      markFormClean();
+      closeModal(true);
+    });
+  }
 
   function openModal(title, bodyHtml, footerButtons = [], customClass = '') {
     const overlay = document.getElementById('modal-overlay');
@@ -51,6 +137,17 @@ const App = (() => {
     const footerEl = document.getElementById('modal-footer');
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
+
+    removeUnsavedChangesPrompt();
+
+    // Detectar si el modal corresponde a un formulario de edición
+    const lowerTitle = String(title || '').toLowerCase();
+    const hasEditAction = Array.isArray(footerButtons) && footerButtons.some(b =>
+      (b.cls && b.cls.includes('btn-gold')) ||
+      (b.text && (b.text.toLowerCase().includes('guardar cambios') || b.text.toLowerCase().includes('actualizar')))
+    );
+    modalIsEditForm = lowerTitle.includes('editar') || hasEditAction;
+    modalInitialSnapshot = null;
 
     modalCloseSeq++; // Invalidate any running closeModal animation callbacks
 
@@ -93,7 +190,10 @@ const App = (() => {
     setTimeout(() => {
       initDatePickers(bodyEl);
       initFormUX(bodyEl);
-    }, 30);
+      if (modalIsEditForm) {
+        modalInitialSnapshot = captureModalFormSnapshot();
+      }
+    }, 140);
 
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
@@ -573,7 +673,14 @@ const App = (() => {
     } catch (_) {}
   }
 
-  function closeModal() {
+  function closeModal(force = false) {
+    if (force !== true && modalIsEditForm && isModalDirty()) {
+      showUnsavedChangesPrompt();
+      return;
+    }
+
+    markFormClean();
+
     const currentSeq = ++modalCloseSeq;
     const overlay = document.getElementById('modal-overlay');
     const box = document.querySelector('.modal-box');
@@ -2231,8 +2338,25 @@ const App = (() => {
     document.getElementById('sidebar-toggle')?.addEventListener('click', toggleSidebar);
     document.getElementById('topbar-sidebar-toggle')?.addEventListener('click', toggleSidebar);
 
-    // Modal close - Únicamente mediante los botones del modal/formulario (sin parpadeos al hacer clic afuera)
-    document.getElementById('modal-close')?.addEventListener('click', closeModal);
+    // Modal close - Únicamente mediante los botones del modal/formulario (con confirmación si hay cambios)
+    document.getElementById('modal-close')?.addEventListener('click', () => closeModal(false));
+
+    // Tecla Escape para modales y confirmación de descarte de cambios
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const unsavedPrompt = document.getElementById('modal-unsaved-confirm');
+        if (unsavedPrompt) {
+          e.preventDefault();
+          removeUnsavedChangesPrompt();
+          return;
+        }
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay && overlay.style.display !== 'none' && window.getComputedStyle(overlay).opacity > 0.1) {
+          e.preventDefault();
+          closeModal(false);
+        }
+      }
+    });
 
     // Nav items
     document.querySelectorAll('.nav-item[data-module]:not(.nav-group-toggle), .sidebar-settings-btn[data-module]').forEach(btn => {
@@ -2398,6 +2522,8 @@ const App = (() => {
     showToast,
     openModal,
     closeModal,
+    markFormClean,
+    isModalDirty,
     openProfileModal,
     confirmLogout,
     updateTopbarQuickControls,

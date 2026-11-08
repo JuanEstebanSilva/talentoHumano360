@@ -2658,7 +2658,19 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-sexo">Sexo <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
               <select id="ef-sexo" class="filter-select">
                 <option value="">(Sin especificar / Vacío)</option>
-                ${cats.sexos.map(s => `<option value="${escHtml(s)}" ${emp.sexo && emp.sexo.toUpperCase().includes(s.substring(0, 3).toUpperCase()) ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+                ${cats.sexos.map(s => {
+                  const empVal = String(emp.sexo || '').trim().toUpperCase();
+                  const optVal = String(s || '').trim().toUpperCase();
+                  const isSelected = empVal && (
+                    empVal === optVal ||
+                    (empVal === 'F' && optVal.startsWith('FEM')) ||
+                    (empVal === 'M' && optVal.startsWith('MAS')) ||
+                    (empVal.startsWith('FEM') && optVal.startsWith('FEM')) ||
+                    (empVal.startsWith('MAS') && optVal.startsWith('MAS')) ||
+                    (empVal.includes('PREFIER') && optVal.includes('PREFIER'))
+                  );
+                  return `<option value="${escHtml(s)}" ${isSelected ? 'selected' : ''}>${escHtml(s)}</option>`;
+                }).join('')}
               </select>
             </div>
 
@@ -3970,7 +3982,8 @@ const EmployeesModule = (() => {
     if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
     try {
       const res = await API.createEmployee(body);
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       const msgCc = res.documento_pendiente ? ` (Se asignó ID Temporal ${res.cedula})` : '';
       App.showToast(`Servidor registrado exitosamente.${msgCc}`, 'success');
       await load();
@@ -3997,7 +4010,8 @@ const EmployeesModule = (() => {
     if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
     try {
       await API.updateEmployee(idOrCedula, body);
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       App.showToast('Servidor actualizado exitosamente.', 'success');
       await load();
       loadCatalogs().catch(() => {});

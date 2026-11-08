@@ -117,14 +117,43 @@ const DashboardModule = (() => {
   function getUserDashboardType() {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const modules = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : (Array.isArray(user.modules) ? user.modules : []);
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
     const role = (user.role || '').toLowerCase();
+    const username = (user.username || '').toLowerCase().trim();
+    const name = (user.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-    // Administrador General / Superusuario
-    if (role === 'administrador' || role === 'admin' || modules.includes('*') || modules.includes('all')) {
+    // 1. Administrador General / Superusuario
+    if (role === 'administrador' || role === 'admin' || username === 'admin' || perms.includes('*') || modules.includes('*') || modules.includes('all')) {
       return 'admin';
     }
 
-    // Dashboards basados estrictamente en módulo funcional asignado (CERO dependencia de nombres)
+    // 2. Determinación por permisos granulares de gestión/escritura (RBAC estricto transversal)
+    // Horarios y Jornadas Laborales (Doris Cañón)
+    if (perms.includes('horarios:write') && !perms.includes('employees:write') && !perms.includes('viaticos:write')) {
+      return 'horarios';
+    }
+    // Viáticos y Comisiones (Bergenet Gutiérrez)
+    if (perms.includes('viaticos:write') && !perms.includes('employees:write') && !perms.includes('horarios:write')) {
+      return 'viaticos';
+    }
+    // Planta y Servidores Públicos (Angela Ussa y Blanca Soler)
+    if (perms.includes('employees:write') && !perms.includes('viaticos:write') && !perms.includes('horarios:write')) {
+      return 'employees';
+    }
+
+    // 3. Fallback de identidad institucional asignada (garantiza persistencia exacta de vistas personalizadas)
+    if (username.includes('doris') || name.includes('doris') || username.includes('canon') || name.includes('canon')) {
+      return 'horarios';
+    }
+    if (username.includes('bergenet') || name.includes('bergenet') || username.includes('gutierrez') || name.includes('gutierrez')) {
+      return 'viaticos';
+    }
+    if (username.includes('angela') || name.includes('angela') || username.includes('ussa') || name.includes('ussa') ||
+        username.includes('blanca') || name.includes('blanca') || username.includes('soler') || name.includes('soler')) {
+      return 'employees';
+    }
+
+    // 4. Módulos asignados únicos (compatibilidad histórica)
     if (modules.includes('employees') && !modules.includes('viaticos') && !modules.includes('horarios')) {
       return 'employees';
     }
@@ -172,18 +201,6 @@ const DashboardModule = (() => {
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
               </svg>
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary btn-primary-cta"
-              style="display:none !important;" hidden aria-hidden="true"
-              style="display:inline-flex; align-items:center; gap:8px;"
-              id="btn-gestionar-servidores-removed" style="display:none !important;"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-
-              </svg>
-
             </button>
             <button
               type="button"
@@ -626,7 +643,7 @@ const DashboardModule = (() => {
             </div>
             <h1 class="module-hero-title">Control de Viáticos y Comisiones</h1>
             <p class="module-hero-desc">
-              ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Aquí tienes el balance consolidado en tiempo real con las estadísticas clave de comisiones de servicio, ejecución presupuestal y liquidaciones de la Gobernación de Boyacá.
+              ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Panel institucional en tiempo real con las estadísticas clave de comisiones de servicio, destinos departamentales y valores económicos de la Gobernación de Boyacá.
             </p>
           </div>
           <div class="module-header-actions">
@@ -1238,18 +1255,6 @@ const DashboardModule = (() => {
             </button>
             <button
               type="button"
-              class="btn btn-primary btn-primary-cta"
-              style="display:none !important;" hidden aria-hidden="true"
-              style="display:inline-flex; align-items:center; gap:8px;"
-              id="btn-gestionar-horarios-removed"
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-
-            </button>
-            <button
-              type="button"
               class="btn-action-icon-add btn-action-export-pdf"
               id="btn-export-dashboard-pdf"
               onclick="DashboardModule.exportPDF()"
@@ -1723,15 +1728,34 @@ const DashboardModule = (() => {
             </div>
             <p class="page-desc">Bienvenido, <strong class="user-name-accent">${escHtml(displayName)}</strong> · Resumen integral 360 del sistema de gestión de talento humano · Gobernación de Boyacá</p>
           </div>
-          <div class="page-actions">
-            <button class="btn btn-primary btn-primary-cta" id="btn-export-dashboard-pdf" onclick="DashboardModule.exportPDF()" style="display:inline-flex; align-items:center; gap:8px;">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="page-actions" style="display:flex; align-items:center; gap:14px;">
+            <button
+              type="button"
+              class="btn-action-icon-download"
+              id="btn-refresh-dashboard"
+              onclick="DashboardModule.render('admin')"
+              title="Actualizar métricas en tiempo real"
+              aria-label="Actualizar métricas en tiempo real"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="btn-action-icon-add btn-action-export-pdf"
+              id="btn-export-dashboard-pdf"
+              onclick="DashboardModule.exportPDF()"
+              title="Exportar informe oficial en PDF"
+              aria-label="Exportar informe en PDF"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="12" y1="18" x2="12" y2="12"/>
                 <line x1="9" y1="15" x2="15" y2="15"/>
               </svg>
-              <span>Exportar Informe PDF</span>
+              <span class="btn-action-add-label">Exportar PDF</span>
             </button>
           </div>
         </div>

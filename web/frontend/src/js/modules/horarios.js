@@ -1157,25 +1157,21 @@ const HorariosModule = (() => {
         <form id="form-horario" onsubmit="return false;">
           <!-- ─── PESTAÑA 1: SERVIDOR & UBICACIÓN ─── -->
           <div id="tab-hor-servidor" class="form-tab-pane active">
-            <div id="servidor-locked-indicator" class="badge-servidor-vinculado" style="display:none; margin-bottom:12px;" title="Información protegida procedente de la base de datos de servidores públicos">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <span>Datos Institucionales Vinculados (Protegidos)</span>
+            <!-- Tarjeta de Servidor Oficial Vinculado -->
+            <div id="horario-servidor-loaded-card" class="servidor-loaded-card" style="${(item?.apellidos_nombres || item?.persona) ? 'display:block;' : 'display:none;'} margin-bottom:14px;">
+              ${(item?.apellidos_nombres || item?.persona) ? renderHorarioServidorCardHtml(item) : ''}
             </div>
 
-            ${!isEdit ? `
-            <div class="form-group span-2 autocomplete-wrapper" style="margin-bottom:14px;">
+            <div class="form-group span-2 autocomplete-wrapper" id="horario-search-wrapper" style="margin-bottom:14px; ${(item?.apellidos_nombres || item?.persona) ? 'display:none;' : ''}">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <label for="horario-search-emp" class="form-label" style="font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin:0;">BUSCAR SERVIDOR EN NÓMINA (NOMBRE O CÉDULA)</label>
-                <button type="button" id="btn-unlock-servidor" class="btn btn-secondary btn-sm" style="display:none; font-size:11px; padding:2px 8px; height:auto; cursor:pointer;" title="Desvincular servidor institucional y habilitar ingreso manual">
-                  ✕ Desvincular / Ingreso manual
-                </button>
               </div>
               <div class="form-group floating-group">
                 <input type="text" id="horario-search-emp" class="form-input" placeholder=" " autocomplete="off" enterkeyhint="search" />
                 <label for="horario-search-emp" class="form-label">Escriba nombre o cédula para autocompletar...</label>
               </div>
               <div id="horario-emp-results" class="autocomplete-dropdown" style="display:none;"></div>
-            </div>` : ''}
+            </div>
 
             <div class="form-grid">
               <div class="form-group floating-group ${item?.apellidos_nombres ? 'is-floated' : ''}">
@@ -1361,20 +1357,35 @@ const HorariosModule = (() => {
 
           <!-- ─── PESTAÑA 3: ACTO & VIGENCIA ─── -->
           <div id="tab-hor-acto" class="form-tab-pane">
-            <!-- Bloque Limpio de Consecutivo Oficial -->
-            <div class="form-group span-2 consecutivo-box" style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; background:var(--color-bg-secondary, rgba(0,0,0,0.02)); border:1px solid var(--color-border); margin-bottom:14px; gap:12px; flex-wrap:wrap;">
-              <div>
-                <div style="font-weight:700; font-size:13px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
-                  <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
-                  Número Consecutivo Oficial
-                </div>
-                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
-                  ${!isEdit ? `Consecutivo correlativo institucional en la relación administrativa (Mín. #${currentMinConsecutivo})` : 'Consecutivo correlativo institucional asignado a este esquema'}
+            <!-- Tarjeta Ejecutiva de Consecutivo Oficial -->
+            <div class="consecutivo-card">
+              <div class="consecutivo-card-left">
+                <div class="consecutivo-card-icon">#</div>
+                <div class="consecutivo-card-info">
+                  <div class="consecutivo-card-title-row">
+                    <h4 class="consecutivo-card-title">Número Consecutivo Oficial</h4>
+                    <span class="consecutivo-card-badge">Correlativo Oficial</span>
+                  </div>
+                  <p class="consecutivo-card-desc" id="lbl-min-consecutivo">
+                    ${!isEdit ? `Consecutivo correlativo institucional en la relación administrativa (Mínimo requerido: #${currentMinConsecutivo})` : 'Consecutivo oficial asignado a este esquema laboral'}
+                  </p>
                 </div>
               </div>
-              <div class="form-group floating-group is-floated" style="margin:0; width:140px;">
-                <input type="number" id="horario-consecutivo" class="form-input font-mono font-bold" min="${!isEdit ? currentMinConsecutivo : 1}" value="${consecutivoVal}" style="font-size:1.15rem; text-align:center; color:var(--color-primary, #0284c7);" />
-                <label for="horario-consecutivo" class="form-label">No. Consecutivo</label>
+
+              <div class="consecutivo-stepper-wrap">
+                <div class="consecutivo-stepper">
+                  <button type="button" class="consecutivo-step-btn" id="btn-consecutivo-minus" title="Disminuir consecutivo" aria-label="Disminuir consecutivo" ${!isEdit && (parseInt(consecutivoVal, 10) <= currentMinConsecutivo) ? 'disabled' : ''}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                  <div class="consecutivo-input-wrap">
+                    <span class="consecutivo-hash-label">#</span>
+                    <input type="number" id="horario-consecutivo" class="consecutivo-num-input" min="${!isEdit ? currentMinConsecutivo : 1}" value="${consecutivoVal}" autocomplete="off" />
+                  </div>
+                  <button type="button" class="consecutivo-step-btn" id="btn-consecutivo-plus" title="Incrementar consecutivo" aria-label="Incrementar consecutivo">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                </div>
+                <span class="consecutivo-min-tag" id="tag-min-consecutivo">Mín. oficial: #${!isEdit ? currentMinConsecutivo : 1}</span>
               </div>
             </div>
 
@@ -1489,6 +1500,18 @@ const HorariosModule = (() => {
                 }
                 inp.setAttribute('title', `El consecutivo oficial no puede ser menor a ${currentMinConsecutivo}`);
               }
+              const lbl = document.getElementById('lbl-min-consecutivo');
+              if (lbl) {
+                lbl.textContent = `Consecutivo correlativo institucional en la relación administrativa (Mínimo requerido: #${currentMinConsecutivo})`;
+              }
+              const tag = document.getElementById('tag-min-consecutivo');
+              if (tag) {
+                tag.textContent = `Mín. oficial: #${currentMinConsecutivo}`;
+              }
+              const minusBtn = document.getElementById('btn-consecutivo-minus');
+              if (minusBtn && inp) {
+                minusBtn.disabled = (parseInt(inp.value, 10) <= currentMinConsecutivo);
+              }
             }
           }
         })
@@ -1504,6 +1527,63 @@ const HorariosModule = (() => {
         setTimeout(() => App.refreshFloatingLabels(modalBody), 50);
       }
     }
+  }
+
+  // ─── Tarjeta Informativa de Servidor Vinculado en Horarios (Lectura & Integridad) ────
+  function renderHorarioServidorCardHtml(emp) {
+    if (!emp) return '';
+    const name = emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '';
+    const doc = emp.cedula || emp.documento || '';
+    const cargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo no asignado';
+    const codigo = emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '';
+    const grado = emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '';
+    const dept = emp.dependencia || 'Sin dependencia';
+    const sec = emp.secretaria || '';
+    const tel = emp.celular || emp.telefono_fijo || emp.telefono || '';
+    const initial = name.trim().charAt(0).toUpperCase() || 'S';
+
+    return `
+      <div class="servidor-loaded-header">
+        <div class="servidor-loaded-avatar">${initial}</div>
+        <div class="servidor-loaded-main">
+          <div class="servidor-loaded-tag">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Servidor Institucional de Planta Vinculado</span>
+          </div>
+          <h4 class="servidor-loaded-name">${escHtml(name)}</h4>
+          <div class="servidor-loaded-doc">Cédula: <strong>${escHtml(doc)}</strong></div>
+        </div>
+        <button type="button" class="btn-servidor-cambiar" id="btn-hor-cambiar-servidor" title="Buscar y vincular otro servidor de planta">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          Cambiar Servidor
+        </button>
+      </div>
+      <div class="servidor-loaded-details">
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Cargo:</span>
+          <span class="pill-val">${escHtml(cargo)}</span>
+        </div>
+        ${codigo || grado ? `
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Nivel:</span>
+          <span class="pill-val">Cód. ${escHtml(codigo || '—')} · Grado ${escHtml(grado || '—')}</span>
+        </div>` : ''}
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Dependencia:</span>
+          <span class="pill-val">${escHtml(dept)}</span>
+        </div>
+        ${sec ? `
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Secretaría:</span>
+          <span class="pill-val">${escHtml(sec)}</span>
+        </div>` : ''}
+        ${tel ? `
+        <div class="servidor-detail-pill">
+          <span class="pill-label">Teléfono:</span>
+          <span class="pill-val">${escHtml(tel)}</span>
+        </div>` : ''}
+      </div>
+    `;
   }
 
   // ─── Lógica Dinámica del Formulario (Autocomplete y Días) ─────────────────
@@ -1615,14 +1695,15 @@ const HorariosModule = (() => {
     });
 
     // 4. Autocomplete y carga de datos de servidores públicos institucional
-    // Trae apenas la información estrictamente necesaria de la BD:
-    // Cédula, Nombres y Apellidos, Código, Grado, Dependencia, Secretaría y Cargo
+    // Trae la información oficial de la BD y la bloquea contra edición:
+    // Cédula, Nombres y Apellidos, Código, Grado, Dependencia, Secretaría, Cargo y Teléfono
     const empSearchInput = document.getElementById('horario-search-emp');
     const empResultsDiv = document.getElementById('horario-emp-results');
     const docInputEl = document.getElementById('horario-documento');
-    const btnUnlockServidor = document.getElementById('btn-unlock-servidor');
+    const nameInputEl = document.getElementById('horario-nombre');
+    const cardEl = document.getElementById('horario-servidor-loaded-card');
+    const searchWrapper = document.getElementById('horario-search-wrapper');
     let docLookupTimeout = null;
-    let isManualServidorMode = false;
 
     const serverFieldIds = [
       'horario-nombre',
@@ -1636,9 +1717,6 @@ const HorariosModule = (() => {
     ];
 
     const setServerFieldsLock = (locked) => {
-      // En modo edición no se bloquea, se dejan editables como solicitó el usuario
-      if (isEdit) return;
-
       serverFieldIds.forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -1646,17 +1724,13 @@ const HorariosModule = (() => {
         if (locked) {
           el.setAttribute('readonly', 'readonly');
           el.classList.add('input-locked-servidor', 'field-locked-readonly');
-          el.setAttribute('title', 'Dato institucional vinculado desde la base de datos (bloqueado contra modificación o borrado)');
+          el.setAttribute('title', 'Dato institucional protegido procedente de la base de datos de planta (bloqueado contra modificación o alteración manual)');
         } else {
           el.removeAttribute('readonly');
           el.classList.remove('input-locked-servidor', 'field-locked-readonly');
           el.removeAttribute('title');
         }
       });
-
-      const indicator = document.getElementById('servidor-locked-indicator');
-      if (indicator) indicator.style.display = locked ? 'inline-flex' : 'none';
-      if (btnUnlockServidor) btnUnlockServidor.style.display = locked ? 'inline-flex' : 'none';
     };
 
     // Bloqueo estricto por teclado en los campos de servidor cuando están protegidos
@@ -1664,40 +1738,61 @@ const HorariosModule = (() => {
       const el = document.getElementById(id);
       if (el) {
         el.addEventListener('keydown', (e) => {
-          if (!isEdit && el.readOnly) {
-            // Permitir navegación y copiado
+          if (el.readOnly) {
+            // Permitir navegación y copiado únicamente
             if (['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) || (e.ctrlKey && ['c', 'C', 'a', 'A'].includes(e.key))) {
               return;
             }
             e.preventDefault();
-            App.showToast('Este campo está protegido por provenir de la base de datos institucional. Si requiere modificarlo, use el botón "✕ Desvincular / Ingreso manual".', 'warning');
+            App.showToast('Los datos del servidor oficial están protegidos contra modificación. Para asociar otro servidor, use el botón "Cambiar Servidor".', 'warning');
           }
         });
       }
     });
 
-    btnUnlockServidor?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      isManualServidorMode = true;
+    const clearServidorSelection = () => {
+      serverFieldIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
       setServerFieldsLock(false);
-      if (empSearchInput) empSearchInput.value = '';
+      if (cardEl) {
+        cardEl.innerHTML = '';
+        cardEl.style.display = 'none';
+      }
+      if (searchWrapper) {
+        searchWrapper.style.display = 'block';
+      }
+      if (empSearchInput) {
+        empSearchInput.value = '';
+        empSearchInput.focus();
+      }
       if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
         App.refreshFloatingLabels(document.getElementById('modal-body'));
       }
-      App.showToast('Campos habilitados para ingreso manual.', 'info');
-    });
+      App.showToast('Selección de servidor limpiada. Busque por nombre o cédula para asociar otro funcionario.', 'info');
+    };
+
+    const wireCardChangeButton = () => {
+      if (!cardEl) return;
+      const btnCambiar = cardEl.querySelector('#btn-hor-cambiar-servidor');
+      btnCambiar?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clearServidorSelection();
+      });
+    };
 
     const populateServidorFields = (emp, notify = true) => {
       if (!emp) return;
-      isManualServidorMode = false;
       const doc = (emp.cedula || emp.documento || '').toString().trim();
-      const name = (emp.nombre_completo || emp.nombreCompleto || emp.persona || '').toString().trim();
+      const name = (emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '').toString().trim();
       const cargo = (emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || '').toString().trim();
       const codigo = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
       const grado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
       const dept = (emp.dependencia || '').toString().trim();
       const sec = (emp.secretaria || '').toString().trim();
+      const tel = (emp.celular || emp.telefono_fijo || emp.telefono || '').toString().trim();
 
       const docEl = document.getElementById('horario-documento');
       const nameEl = document.getElementById('horario-nombre');
@@ -1706,6 +1801,7 @@ const HorariosModule = (() => {
       const cargoEl = document.getElementById('horario-cargo');
       const deptEl = document.getElementById('horario-dependencia');
       const secEl = document.getElementById('horario-secretaria');
+      const telEl = document.getElementById('horario-telefono');
 
       if (docEl && doc) docEl.value = doc;
       if (nameEl && name) nameEl.value = name;
@@ -1714,24 +1810,40 @@ const HorariosModule = (() => {
       if (cargoEl) cargoEl.value = cargo || '';
       if (deptEl) deptEl.value = dept || '';
       if (secEl) secEl.value = sec || '';
-      const tel = (emp.celular || emp.telefono_fijo || emp.telefono || '').toString().trim();
-      const telEl = document.getElementById('horario-telefono');
       if (telEl) telEl.value = tel || '';
 
       if (empSearchInput && name && doc) {
         empSearchInput.value = `${name} (C.C. ${doc})`;
       }
 
-      // Bloquear los 7 campos para evitar eliminación o alteración de datos institucionales
+      // Renderizar y mostrar tarjeta de datos cargados oficiales
+      if (cardEl) {
+        cardEl.innerHTML = renderHorarioServidorCardHtml({
+          nombre_completo: name,
+          cedula: doc,
+          cargo,
+          codigo,
+          grado,
+          dependencia: dept,
+          secretaria: sec,
+          telefono: tel
+        });
+        cardEl.style.display = 'block';
+        wireCardChangeButton();
+      }
+
+      if (searchWrapper) {
+        searchWrapper.style.display = 'none';
+      }
+
+      // Bloquear los 8 campos para evitar alteración o edición de datos oficiales
       setServerFieldsLock(true);
 
-      // Animación azul visible y estilizada en los campos autocompletados
+      // Animación de sincronización visible en los campos
       [docEl, nameEl, codigoEl, gradoEl, cargoEl, deptEl, secEl, telEl].forEach((el) => {
         if (el) {
           el.classList.add('input-flash-blue');
-          setTimeout(() => {
-            el.classList.remove('input-flash-blue');
-          }, 1500);
+          setTimeout(() => el.classList.remove('input-flash-blue'), 1500);
         }
       });
 
@@ -1744,21 +1856,20 @@ const HorariosModule = (() => {
       }
     };
 
-    // Búsqueda en tiempo real desde el campo "Buscar Servidor en Nómina (Nombre o Cédula)"
-    empSearchInput?.addEventListener('input', (e) => {
-      const q = e.target.value.trim();
+    // Si ya tiene servidor asignado (ej. en modo edición), bloquear los campos y cablear botón
+    if (item?.apellidos_nombres || item?.persona) {
+      setServerFieldsLock(true);
+      wireCardChangeButton();
+    }
+
+    // Búsqueda en tiempo real desde el campo de búsqueda principal o cédula o nombre
+    const performLiveSearch = (q, targetEl) => {
       clearTimeout(employeeSearchTimeout);
+      if (!empResultsDiv) return;
 
-      if (!q) {
-        // Si el usuario vació el buscador, desbloquear los campos para ingreso manual
-        isManualServidorMode = true;
-        setServerFieldsLock(false);
-        if (empResultsDiv) empResultsDiv.style.display = 'none';
-        return;
-      }
-
-      if (q.length < 2) {
-        if (empResultsDiv) empResultsDiv.style.display = 'none';
+      if (!q || q.length < 2) {
+        empResultsDiv.style.display = 'none';
+        empResultsDiv.innerHTML = '';
         return;
       }
 
@@ -1781,8 +1892,8 @@ const HorariosModule = (() => {
                 return `
                   <div class="autocomplete-item" data-idx="${idx}" style="padding:10px 14px; border-bottom:1px solid rgba(0,0,0,0.05); cursor:pointer;">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                      <strong style="color:var(--color-primary, #2563eb); font-size:13px;">${escHtml(empName)}</strong>
-                      <span class="badge" style="font-size:11px; font-family:monospace; background:rgba(37,99,235,0.1); color:#2563eb; padding:2px 6px; border-radius:4px;">C.C. ${escHtml(empDoc)}</span>
+                      <strong style="color:var(--color-primary, #28871b); font-size:13px;">${escHtml(empName)}</strong>
+                      <span class="badge" style="font-size:11px; font-family:monospace; background:rgba(40,135,27,0.1); color:#1d6113; padding:2px 6px; border-radius:4px;">C.C. ${escHtml(empDoc)}</span>
                     </div>
                     <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;">
                       <span><strong>Cargo:</strong> ${escHtml(empCargo)}</span>
@@ -1812,37 +1923,34 @@ const HorariosModule = (() => {
         } catch (err) {
           console.error('Error autocomplete:', err);
         }
-      }, 250);
-    });
-
-    // Búsqueda directa al escribir la Cédula en "Documento de Identidad (C.C.)" (si está en modo manual)
-    const lookupServidorByCedula = async (rawDoc) => {
-      if (isManualServidorMode || isEdit) return;
-      if (!rawDoc) return;
-      const cleanDoc = rawDoc.trim().replace(/[.,\s]/g, '');
-      if (cleanDoc.length < 4) return;
-
-      try {
-        const res = await (API.buscarServidor ? API.buscarServidor(cleanDoc, 1) : API.getEmployees({ q: cleanDoc, limit: 1 }));
-        const match = res?.data?.[0];
-        if (match) {
-          const matchDoc = (match.cedula || match.documento || '').toString().replace(/[.,\s]/g, '');
-          if (matchDoc === cleanDoc) {
-            populateServidorFields(match, true);
-          }
-        }
-      } catch (err) {
-        console.warn('Error consulta servidor por cédula:', err);
-      }
+      }, 200);
     };
 
-    docInputEl?.addEventListener('change', (e) => lookupServidorByCedula(e.target.value));
-    docInputEl?.addEventListener('blur', (e) => lookupServidorByCedula(e.target.value));
+    empSearchInput?.addEventListener('input', (e) => {
+      performLiveSearch(e.target.value.trim(), empSearchInput);
+    });
+
+    // Búsqueda directa al escribir cédula en "Documento de Identidad (C.C.)" si está desbloqueado
     docInputEl?.addEventListener('input', (e) => {
-      clearTimeout(docLookupTimeout);
-      const val = e.target.value.trim().replace(/[.,\s]/g, '');
-      if (val.length >= 6) {
-        docLookupTimeout = setTimeout(() => lookupServidorByCedula(val), 600);
+      if (docInputEl.readOnly) return;
+      const cleanVal = e.target.value.trim().replace(/[.,\s]/g, '');
+      if (cleanVal.length >= 2) {
+        performLiveSearch(cleanVal, docInputEl);
+      }
+    });
+
+    // Búsqueda directa al escribir nombre en "Nombres y Apellidos" si está desbloqueado
+    nameInputEl?.addEventListener('input', (e) => {
+      if (nameInputEl.readOnly) return;
+      const val = e.target.value.trim();
+      if (val.length >= 2) {
+        performLiveSearch(val, nameInputEl);
+      }
+    });
+
+    document.addEventListener('click', (ev) => {
+      if (!empSearchInput?.contains(ev.target) && !docInputEl?.contains(ev.target) && !nameInputEl?.contains(ev.target) && !empResultsDiv?.contains(ev.target)) {
+        if (empResultsDiv) empResultsDiv.style.display = 'none';
       }
     });
 
@@ -1905,6 +2013,46 @@ const HorariosModule = (() => {
 
     // 6. Restricción estricta de Consecutivo Oficial al crear: no dejar disminuir del último que está
     const consecutivoInput = document.getElementById('horario-consecutivo');
+    const btnConsecutivoMinus = document.getElementById('btn-consecutivo-minus');
+    const btnConsecutivoPlus = document.getElementById('btn-consecutivo-plus');
+
+    const updateConsecutivoButtons = () => {
+      if (!consecutivoInput) return;
+      const effectiveMin = !isEdit ? currentMinConsecutivo : 1;
+      const v = parseInt(consecutivoInput.value, 10);
+      if (btnConsecutivoMinus) {
+        btnConsecutivoMinus.disabled = isNaN(v) || v <= effectiveMin;
+      }
+    };
+
+    if (btnConsecutivoMinus && consecutivoInput) {
+      btnConsecutivoMinus.addEventListener('click', (e) => {
+        e.preventDefault();
+        const effectiveMin = !isEdit ? currentMinConsecutivo : 1;
+        let v = parseInt(consecutivoInput.value, 10);
+        if (isNaN(v)) v = effectiveMin;
+        if (v > effectiveMin) {
+          consecutivoInput.value = v - 1;
+          consecutivoInput.dispatchEvent(new Event('input', { bubbles: true }));
+          consecutivoInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        updateConsecutivoButtons();
+      });
+    }
+
+    if (btnConsecutivoPlus && consecutivoInput) {
+      btnConsecutivoPlus.addEventListener('click', (e) => {
+        e.preventDefault();
+        const effectiveMin = !isEdit ? currentMinConsecutivo : 1;
+        let v = parseInt(consecutivoInput.value, 10);
+        if (isNaN(v)) v = effectiveMin - 1;
+        consecutivoInput.value = v + 1;
+        consecutivoInput.dispatchEvent(new Event('input', { bubbles: true }));
+        consecutivoInput.dispatchEvent(new Event('change', { bubbles: true }));
+        updateConsecutivoButtons();
+      });
+    }
+
     if (consecutivoInput && !isEdit) {
       consecutivoInput.min = currentMinConsecutivo;
 
@@ -1922,6 +2070,7 @@ const HorariosModule = (() => {
           lblMin.style.color = 'var(--text-muted)';
           lblMin.style.fontWeight = 'normal';
         }
+        updateConsecutivoButtons();
       };
 
       consecutivoInput.addEventListener('keydown', (e) => {
@@ -1932,6 +2081,7 @@ const HorariosModule = (() => {
             e.preventDefault();
             consecutivoInput.value = currentMinConsecutivo;
             App.showToast(`El consecutivo oficial no puede ser menor a #${currentMinConsecutivo}.`, 'warning');
+            updateConsecutivoButtons();
           }
         }
       });
@@ -1939,7 +2089,10 @@ const HorariosModule = (() => {
       consecutivoInput.addEventListener('input', () => {
         if (isEdit) return;
         const raw = consecutivoInput.value.trim();
-        if (!raw) return;
+        if (!raw) {
+          updateConsecutivoButtons();
+          return;
+        }
         const v = parseInt(raw, 10);
         const lblMin = document.getElementById('lbl-min-consecutivo');
         if (!isNaN(v) && v < currentMinConsecutivo) {
@@ -1967,10 +2120,12 @@ const HorariosModule = (() => {
             lblMin.style.fontWeight = 'normal';
           }
         }
+        updateConsecutivoButtons();
       });
 
       consecutivoInput.addEventListener('change', enforceConsecutivo);
       consecutivoInput.addEventListener('blur', enforceConsecutivo);
+      updateConsecutivoButtons();
     }
   }
 
@@ -2071,7 +2226,8 @@ const HorariosModule = (() => {
 
       document.querySelector('.modal-header-consecutivo')?.remove();
       document.querySelector('.modal-box')?.classList.remove('modal-schedule');
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       await loadData();
       await loadStats();
     } catch (err) {
