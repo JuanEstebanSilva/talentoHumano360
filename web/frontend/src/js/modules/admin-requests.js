@@ -548,9 +548,9 @@ const AdminRequestsModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Correo Institucional del Servidor *</label>
-              <input id="af-perm-email" type="email" class="form-input" placeholder="ejemplo@boyaca.gov.co" value="${escHtml(r.correoSolicitante || '')}" required />
-              <span class="form-help-text" style="font-size:0.75rem;color:var(--text-muted);">Debe ser el correo institucional del servidor (@boyaca.gov.co) para recibir confirmación.</span>
+              <label class="form-label">Correo Electrónico del Servidor *</label>
+              <input id="af-perm-email" type="email" class="form-input" placeholder="ejemplo@correo.com" value="${escHtml(r.correoSolicitante || '')}" required />
+              <span class="form-help-text" style="font-size:0.75rem;color:var(--text-muted);">A este correo se enviará la constancia y confirmación de la solicitud.</span>
             </div>
           </div>
         </div>
@@ -632,8 +632,8 @@ const AdminRequestsModule = (() => {
               <div class="form-group">
                 <label class="form-label">Jornada Laboral *</label>
                 <select id="af-perm-horas-jornada" class="filter-select" onchange="AdminRequestsModule.calcHorasPermiso()">
-                  <option value="Mañana" ${(r.jornada || '').includes('Mañana') ? 'selected' : ''}>Mañana (08:00 a 12:00)</option>
-                  <option value="Tarde" ${(r.jornada || '').includes('Tarde') ? 'selected' : ''}>Tarde (14:00 a 18:00)</option>
+                  <option value="MANANA" ${(r.jornada || '').toUpperCase().includes('MANANA') || (r.jornada || '').includes('Mañana') ? 'selected' : ''}>Mañana (08:00 a 12:00)</option>
+                  <option value="TARDE" ${(r.jornada || '').toUpperCase().includes('TARDE') || (r.jornada || '').includes('Tarde') ? 'selected' : ''}>Tarde (14:00 a 18:00)</option>
                 </select>
               </div>
 
@@ -667,9 +667,9 @@ const AdminRequestsModule = (() => {
               <div class="form-group">
                 <label class="form-label">Jornada Solicitada *</label>
                 <select id="af-perm-dia-jornada" class="filter-select">
-                  <option value="Todo el día" ${curJornada === 'Todo el día' ? 'selected' : ''}>Todo el día</option>
-                  <option value="Toda la mañana" ${curJornada === 'Toda la mañana' ? 'selected' : ''}>Toda la mañana (08:00 a 12:00)</option>
-                  <option value="Toda la tarde" ${curJornada === 'Toda la tarde' ? 'selected' : ''}>Toda la tarde (14:00 a 18:00)</option>
+                  <option value="TODO_EL_DIA" ${curJornada === 'TODO_EL_DIA' || curJornada === 'Todo el día' ? 'selected' : ''}>Todo el día</option>
+                  <option value="TODA_LA_MANANA" ${curJornada === 'TODA_LA_MANANA' || curJornada === 'Toda la mañana' ? 'selected' : ''}>Toda la mañana (08:00 a 12:00)</option>
+                  <option value="TODA_LA_TARDE" ${curJornada === 'TODA_LA_TARDE' || curJornada === 'Toda la tarde' ? 'selected' : ''}>Toda la tarde (14:00 a 18:00)</option>
                 </select>
               </div>
             </div>
@@ -739,19 +739,28 @@ const AdminRequestsModule = (() => {
         <div class="permiso-section">
           <div class="permiso-section-header">
             <span class="permiso-section-title">Notificación al Jefe Inmediato</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">(Autocompletado sugerido o búsqueda interactiva)</span>
           </div>
 
           <div class="form-grid">
+            <div class="form-group span-2" style="position:relative;">
+              <label class="form-label">Buscar Jefe Inmediato (Cédula o Apellidos)</label>
+              <div class="autocomplete-wrapper" style="position:relative;">
+                <input id="af-perm-jefe-search" class="form-input" placeholder="Escriba apellido o cédula para buscar y seleccionar jefe..." autocomplete="off" />
+                <div id="af-perm-jefe-autocomplete" class="autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;"></div>
+              </div>
+            </div>
+
             <div class="form-group">
               <label class="form-label">Nombre del Jefe Inmediato *</label>
               <input id="af-perm-jefe-nombre" class="form-input" placeholder="Nombre completo del jefe..." value="${escHtml(r.jefeNombre || '')}" required />
             </div>
 
             <div class="form-group">
-              <label class="form-label">Correo Institucional del Jefe Inmediato *</label>
-              <input id="af-perm-jefe-correo" type="email" class="form-input" placeholder="jefe@boyaca.gov.co" value="${escHtml(r.jefeCorreo || '')}" oninput="AdminRequestsModule.validateJefeEmailLive()" required />
+              <label class="form-label">Correo Electrónico del Jefe Inmediato *</label>
+              <input id="af-perm-jefe-correo" type="email" class="form-input" placeholder="jefe@correo.com" value="${escHtml(r.jefeCorreo || '')}" oninput="AdminRequestsModule.validateJefeEmailLive()" required />
               <div id="af-perm-jefe-correo-feedback" style="font-size:0.75rem;margin-top:3px;color:var(--text-muted);">
-                Debe pertenecer al dominio institucional (@boyaca.gov.co).
+                A esta dirección se enviará la notificación automática para revisión y autorización.
               </div>
             </div>
           </div>
@@ -810,6 +819,7 @@ const AdminRequestsModule = (() => {
 
     renderSoportesList();
     bindAutocomplete();
+    bindJefeAutocomplete();
     bindDropzoneEvents();
 
     if (currentModalidad === 'horas') calcHorasPermiso();
@@ -957,7 +967,7 @@ const AdminRequestsModule = (() => {
   }
 
   function calcHorasPermiso() {
-    const jornada = document.getElementById('af-perm-horas-jornada')?.value || 'Mañana';
+    const jornada = document.getElementById('af-perm-horas-jornada')?.value || 'MANANA';
     const salida = document.getElementById('af-perm-horas-salida')?.value || '';
     const entrada = document.getElementById('af-perm-horas-entrada')?.value || '';
     const valEl = document.getElementById('af-perm-horas-val');
@@ -985,13 +995,13 @@ const AdminRequestsModule = (() => {
     }
 
     // Validación de ventana horaria según jornada
-    const isManana = jornada.includes('Mañana');
+    const isManana = jornada.toUpperCase().includes('MANANA') || jornada.includes('Mañana');
     const wMin = isManana ? 8 * 60 : 14 * 60;
     const wMax = isManana ? 12 * 60 : 18 * 60;
     const windowName = isManana ? '08:00 a 12:00' : '14:00 a 18:00';
 
     if (sMin < wMin || eMin > wMax) {
-      valEl.textContent = `Fuera de la ventana de ${jornada} (${windowName})`;
+      valEl.textContent = `Fuera de la ventana de ${isManana ? 'Mañana' : 'Tarde'} (${windowName})`;
       badgeEl.className = 'badge badge--rechazada';
       badgeEl.textContent = 'Fuera de jornada';
       return;
@@ -1041,17 +1051,18 @@ const AdminRequestsModule = (() => {
     const feed = document.getElementById('af-perm-jefe-correo-feedback');
     if (!input || !feed) return;
     const val = input.value.trim().toLowerCase();
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!val) {
       feed.style.color = 'var(--text-muted)';
-      feed.textContent = 'Debe pertenecer al dominio institucional (@boyaca.gov.co).';
+      feed.textContent = 'A esta dirección se enviará la notificación automática para revisión y autorización.';
       return;
     }
-    if (!val.endsWith('@boyaca.gov.co')) {
+    if (!emailRe.test(val)) {
       feed.style.color = '#ef4444';
-      feed.textContent = '⚠ Atención: El correo debe terminar en @boyaca.gov.co para el envío institucional.';
+      feed.textContent = '⚠ Ingrese un correo electrónico válido (ej: jefe@correo.com).';
     } else {
       feed.style.color = '#10b981';
-      feed.textContent = '✓ Dominio institucional correcto (@boyaca.gov.co).';
+      feed.textContent = '✓ Correo válido. La notificación será enviada a esta dirección.';
     }
   }
 
@@ -1109,6 +1120,94 @@ const AdminRequestsModule = (() => {
     });
   }
 
+  const JEFES_DIRECTIVOS = [
+    { key: 'GOBERNADOR', nombre: 'ANDRÉS FELIPE ROJAS HERRERA', correo: 'despacho.gobernador@boyaca.gov.co' },
+    { key: 'PLANEACION', nombre: 'LAURA CAMILA MÉNDEZ ROJAS', correo: 'planeacion@boyaca.gov.co' },
+    { key: 'HACIENDA', nombre: 'CARLOS EDUARDO AGUILAR MORENO', correo: 'hacienda@boyaca.gov.co' },
+    { key: 'EDUCACION', nombre: 'MIGUEL ÁNGEL CASTRO DÍAZ', correo: 'educacion@boyaca.gov.co' },
+    { key: 'SALUD', nombre: 'PAULA ANDREA GÓMEZ RUIZ', correo: 'salud@boyaca.gov.co' },
+    { key: 'INFRAESTRUCTURA', nombre: 'JORGE IVÁN CÁRDENAS LÓPEZ', correo: 'infraestructura@boyaca.gov.co' },
+    { key: 'GENERAL', nombre: 'JUAN PABLO MORALES NIÑO', correo: 'secretaria.general@boyaca.gov.co' },
+    { key: 'TALENTO HUMANO', nombre: 'LUZ ANGELA USSA ÁLVAREZ', correo: 'talento.humano@boyaca.gov.co' },
+    { key: 'SST', nombre: 'LUZ ANGELA USSA ÁLVAREZ', correo: 'sst@boyaca.gov.co' },
+    { key: 'SEGURIDAD Y SALUD', nombre: 'LUZ ANGELA USSA ÁLVAREZ', correo: 'sst@boyaca.gov.co' },
+    { key: 'GOBIERNO', nombre: 'DIANA MARCELA TORRES RIVERA', correo: 'gobierno@boyaca.gov.co' },
+    { key: 'CULTURA', nombre: 'VALENTINA PARDO RUIZ', correo: 'cultura@boyaca.gov.co' },
+    { key: 'JURIDICA', nombre: 'MÓNICA ALEJANDRA PRIETO GARCÍA', correo: 'juridica@boyaca.gov.co' },
+    { key: 'DESARROLLO EMPRESARIAL', nombre: 'DANIEL ESTEBAN SUÁREZ MEJÍA', correo: 'desarrolloempresarial@boyaca.gov.co' },
+    { key: 'AGRICULTURA', nombre: 'MARÍA CAMILA RODRÍGUEZ NIÑO', correo: 'agricultura@boyaca.gov.co' },
+    { key: 'AMBIENTE', nombre: 'SANTIAGO HERRERA LÓPEZ', correo: 'ambiente@boyaca.gov.co' },
+    { key: 'TURISMO', nombre: 'CAROLINA RINCÓN DUARTE', correo: 'turismo@boyaca.gov.co' },
+    { key: 'CONTRATACION', nombre: 'CARLOS ANDRÉS TORRES RIVERA', correo: 'contratacion@boyaca.gov.co' },
+  ];
+
+  function bindJefeAutocomplete() {
+    const searchInput = document.getElementById('af-perm-jefe-search');
+    const dropdown = document.getElementById('af-perm-jefe-autocomplete');
+    if (!searchInput || !dropdown) return;
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.trim();
+      clearTimeout(searchDebounceTimer);
+      if (q.length < 2) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      searchDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await API.buscarServidor(q, 7);
+          const emps = res.data || [];
+          if (!emps.length) {
+            dropdown.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:0.85rem;">No se encontraron servidores coincidentes.</div>';
+            dropdown.style.display = 'block';
+            return;
+          }
+          dropdown.innerHTML = emps.map(emp => {
+            const nom = emp.apellidos_nombres || emp.persona || emp.nombreCompleto || `${emp.primer_apellido || ''} ${emp.primer_nombre || ''}`.trim();
+            const doc = emp.documento || emp.cedula || '';
+            const dep = cleanName(emp.dependencia || '');
+            const car = emp.cargo || '';
+            const email = emp.email || emp.correo || emp.correoInstitucional || `${emp.documento || 'jefe'}@boyaca.gov.co`;
+            const jefeJson = escHtml(JSON.stringify({ nom, doc, dep, car, email }));
+            return `
+              <div class="autocomplete-item" onclick="AdminRequestsModule.selectJefeInmediato(${jefeJson})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--color-border,#e2e8f0);">
+                <div class="autocomplete-item-name" style="font-weight:700;font-size:0.88rem;color:var(--text-primary);">${escHtml(nom)}</div>
+                <div class="autocomplete-item-meta" style="font-size:0.75rem;color:var(--text-muted);">
+                  C.C. ${escHtml(doc)} · ${escHtml(car || 'Servidor')} · ${escHtml(email)}
+                </div>
+              </div>
+            `;
+          }).join('');
+          dropdown.style.display = 'block';
+        } catch (err) {
+          console.warn('[AdminRequests] Error en autocomplete jefe:', err);
+        }
+      }, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+  }
+
+  function selectJefeInmediato(jefe) {
+    const searchInput = document.getElementById('af-perm-jefe-search');
+    const nomInput = document.getElementById('af-perm-jefe-nombre');
+    const emailInput = document.getElementById('af-perm-jefe-correo');
+    const dropdown = document.getElementById('af-perm-jefe-autocomplete');
+
+    if (dropdown) dropdown.style.display = 'none';
+    if (searchInput) searchInput.value = jefe.nom || '';
+    if (nomInput) nomInput.value = jefe.nom || '';
+    if (emailInput) {
+      emailInput.value = jefe.email || '';
+      validateJefeEmailLive();
+    }
+    App.showToast(`Jefe Inmediato ${jefe.nom} seleccionado.`, 'info');
+  }
+
   function selectEmployee(emp) {
     const searchInput = document.getElementById('af-perm-search');
     const docInput = document.getElementById('af-perm-doc');
@@ -1128,10 +1227,10 @@ const AdminRequestsModule = (() => {
 
     // Auto-detección de Sectorial y Dependencia
     const cat = permisosCatalogs;
+    let matchedSec = null;
+    let matchedDep = null;
     if (cat && cat.sectoriales && emp.dep) {
       const depUpper = cleanName(emp.dep).toUpperCase();
-      let matchedSec = null;
-      let matchedDep = null;
 
       for (const s of cat.sectoriales) {
         if (depUpper.includes(s.nombre.toUpperCase()) || s.nombre.toUpperCase().includes(depUpper)) {
@@ -1181,6 +1280,22 @@ const AdminRequestsModule = (() => {
           populateCargos(matchedNiv, matchedCar);
         }
       }
+    }
+
+    // Auto-sugerencia inteligente de Jefe Inmediato por Dependencia o Sectorial
+    const depSearch = (emp.dep || '') + ' ' + (matchedSec || '');
+    const depNorm = depSearch.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const jefeMatch = JEFES_DIRECTIVOS.find(j => depNorm.includes(j.key));
+    if (jefeMatch) {
+      const jefeNomEl = document.getElementById('af-perm-jefe-nombre');
+      const jefeMailEl = document.getElementById('af-perm-jefe-correo');
+      const jefeSearchEl = document.getElementById('af-perm-jefe-search');
+      if (jefeNomEl && !jefeNomEl.value) jefeNomEl.value = jefeMatch.nombre;
+      if (jefeMailEl && !jefeMailEl.value) {
+        jefeMailEl.value = jefeMatch.correo;
+        validateJefeEmailLive();
+      }
+      if (jefeSearchEl && !jefeSearchEl.value) jefeSearchEl.value = jefeMatch.nombre;
     }
 
     App.showToast(`Servidor ${emp.nom} seleccionado.`, 'info');
@@ -1337,7 +1452,7 @@ const AdminRequestsModule = (() => {
 
     if (!documento) { App.showToast('El número de cédula es obligatorio.', 'warning'); return null; }
     if (!persona) { App.showToast('El nombre del servidor público es obligatorio.', 'warning'); return null; }
-    if (!correoSolicitante || !correoSolicitante.includes('@')) { App.showToast('El correo institucional del servidor es inválido.', 'warning'); return null; }
+    if (!correoSolicitante || !correoSolicitante.includes('@')) { App.showToast('El correo electrónico del servidor es inválido.', 'warning'); return null; }
     if (!sectorial) { App.showToast('Debe seleccionar la sectorial correspondiente.', 'warning'); return null; }
     if (!dependencia) { App.showToast('Debe seleccionar la dependencia correspondiente.', 'warning'); return null; }
     if (!nivel) { App.showToast('Debe seleccionar el nivel jerárquico.', 'warning'); return null; }
@@ -1352,7 +1467,7 @@ const AdminRequestsModule = (() => {
       if (!f) { App.showToast('Indique la fecha para el permiso por horas.', 'warning'); return null; }
       fechaInicio = isoToDMY(f);
       fechaFin = fechaInicio;
-      jornada = document.getElementById('af-perm-horas-jornada')?.value || 'Mañana';
+      jornada = document.getElementById('af-perm-horas-jornada')?.value || 'MANANA';
       horaSalida = document.getElementById('af-perm-horas-salida')?.value || '';
       horaEntrada = document.getElementById('af-perm-horas-entrada')?.value || '';
       if (!horaSalida || !horaEntrada) { App.showToast('Indique la hora de salida y hora de entrada.', 'warning'); return null; }
@@ -1361,14 +1476,14 @@ const AdminRequestsModule = (() => {
       if (!f) { App.showToast('Indique la fecha para el permiso de un día.', 'warning'); return null; }
       fechaInicio = isoToDMY(f);
       fechaFin = fechaInicio;
-      jornada = document.getElementById('af-perm-dia-jornada')?.value || 'Todo el día';
+      jornada = document.getElementById('af-perm-dia-jornada')?.value || 'TODO_EL_DIA';
     } else if (currentModalidad === 'varios_dias') {
       const fi = document.getElementById('af-perm-varios-fi')?.value;
       const ff = document.getElementById('af-perm-varios-ff')?.value;
       if (!fi || !ff) { App.showToast('Indique las fechas de inicio y fin.', 'warning'); return null; }
       fechaInicio = isoToDMY(fi);
       fechaFin = isoToDMY(ff);
-      jornada = 'Todo el día';
+      jornada = 'TODO_EL_DIA';
     }
 
     const payload = {
@@ -1425,11 +1540,17 @@ const AdminRequestsModule = (() => {
       let notiMsg = 'Solicitud de permiso radicada correctamente.';
       if (res.radicado) notiMsg += ` Radicado: ${res.radicado}.`;
       if (res.notificacion && res.notificacion.estado === 'enviada') {
-        notiMsg += ' Se envió correo de notificación al jefe inmediato.';
+        notiMsg += ' Se envió correo de notificación.';
+        App.showToast(notiMsg, 'success');
       } else if (res.notificacion && res.notificacion.estado === 'simulada') {
         notiMsg += ' (Notificación simulada en entorno de pruebas).';
+        App.showToast(notiMsg, 'warning');
+      } else if (res.notificacion && res.notificacion.estado === 'fallida') {
+        notiMsg += ` Advertencia: ${res.notificacion.detalle || 'Error al enviar correo.'}`;
+        App.showToast(notiMsg, 'warning');
+      } else {
+        App.showToast(notiMsg, 'success');
       }
-      App.showToast(notiMsg, 'success');
       await load();
     } catch (err) {
       App.showToast(err.message || 'Error al radicar el permiso.', 'error');
@@ -1522,6 +1643,7 @@ const AdminRequestsModule = (() => {
 
     const notiBadge = (r.notificacionEstado === 'enviada') ? '<span class="badge badge--aprobada">Notificado por correo</span>' :
       (r.notificacionEstado === 'simulada') ? '<span class="badge badge--revision">Simulado (Pruebas)</span>' :
+      (r.notificacionEstado === 'fallida') ? '<span class="badge badge--rechazada">Fallo de envío</span>' :
       '<span class="badge badge--pendiente">Pendiente de envío</span>';
 
     const content = `
@@ -1559,7 +1681,7 @@ const AdminRequestsModule = (() => {
           </div>
 
           <div class="detail-item">
-            <span class="detail-label">Correo Institucional</span>
+            <span class="detail-label">Correo Electrónico</span>
             <span class="detail-value">${escHtml(r.correoSolicitante || '—')}</span>
           </div>
 
@@ -1627,6 +1749,7 @@ const AdminRequestsModule = (() => {
               ${notiBadge}
             </div>
             <div style="font-size:0.86rem;color:var(--text-primary);">${escHtml(r.jefeNombre || 'No registrado')} &lt;${escHtml(r.jefeCorreo || 'Sin correo')}&gt;</div>
+            ${r.notificacionDetalle ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;word-break:break-word;"><strong>Estado del envío:</strong> ${escHtml(r.notificacionDetalle)}</div>` : ''}
             <div style="margin-top:8px;">
               <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:4px 10px;" onclick="AdminRequestsModule.reenviarNotificacion(${r.id})">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -1651,10 +1774,7 @@ const AdminRequestsModule = (() => {
       actions.push({
         text: 'Editar Permiso',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(r.id);
-        }
+        action: () => openEdit(r.id)
       });
     }
 
@@ -1663,10 +1783,19 @@ const AdminRequestsModule = (() => {
 
   async function reenviarNotificacion(id) {
     try {
-      App.showToast('Reenviando notificación al jefe inmediato...', 'info');
+      App.showToast('Reenviando notificación por correo...', 'info');
       const res = await API.reenviarNotificacionAdminRequest(id);
-      App.showToast(res.message || 'Notificación reenviada con éxito.', 'success');
+      if (res.notificacion && res.notificacion.estado === 'enviada') {
+        App.showToast('Notificación enviada exitosamente.', 'success');
+      } else if (res.notificacion && res.notificacion.estado === 'simulada') {
+        App.showToast(`Modo simulado: ${res.notificacion.detalle || ''}`, 'warning');
+      } else if (res.notificacion && res.notificacion.estado === 'fallida') {
+        App.showToast(`Error de envío: ${res.notificacion.detalle || ''}`, 'error');
+      } else {
+        App.showToast(res.message || 'Notificación procesada.', 'info');
+      }
       await load();
+      App.closeModal();
     } catch (err) {
       App.showToast(err.message || 'Error al reenviar notificación.', 'error');
     }
@@ -1678,8 +1807,9 @@ const AdminRequestsModule = (() => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   function getLicenciaDef(typeId) {
+    if (!typeId) return null;
     const list = (licenciasCatalogs && Array.isArray(licenciasCatalogs) && licenciasCatalogs.length) ? licenciasCatalogs : DEFAULT_LICENCIAS;
-    return list.find(l => l.id === typeId) || list[0] || DEFAULT_LICENCIAS[0];
+    return list.find(l => l.id === typeId) || null;
   }
 
   function renderLicenciaLegalBanner(lic) {
@@ -1708,13 +1838,14 @@ const AdminRequestsModule = (() => {
 
   function buildLicenciaFormHtml(r = {}, isEdit = false) {
     const list = (licenciasCatalogs && Array.isArray(licenciasCatalogs) && licenciasCatalogs.length) ? licenciasCatalogs : DEFAULT_LICENCIAS;
-    const defaultLic = list[0] || DEFAULT_LICENCIAS[0];
-    const curTipoId = r.motivoCategoria || (list.find(l => (r.motivo || '').toLowerCase().includes((l.nombre || '').toLowerCase())) || defaultLic).id || 'LUTO';
-    const curLic = getLicenciaDef(curTipoId);
+    const curTipoId = isEdit
+      ? (r.motivoCategoria || (list.find(l => (r.motivo || '').toLowerCase().includes((l.nombre || '').toLowerCase())) || {}).id || '')
+      : (r.motivoCategoria || '');
+    const curLic = curTipoId ? getLicenciaDef(curTipoId) : null;
 
     const fiIso = dmyToISO(r.fechaInicio) || new Date().toISOString().slice(0, 10);
     const ffIso = dmyToISO(r.fechaFin) || fiIso;
-    const curDias = r.diasSolicitados || curLic.diasPorLey || 1;
+    const curDias = r.diasSolicitados || (curLic ? curLic.diasPorLey : 1);
 
     return `
       <div class="permiso-form-wrap">
@@ -1772,8 +1903,8 @@ const AdminRequestsModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label">Correo Institucional</label>
-              <input id="lic-f-correo" type="email" class="form-input font-mono" placeholder="servidor@boyaca.gov.co" value="${escHtml(r.correoSolicitante || '')}" />
+              <label class="form-label">Correo Electrónico</label>
+              <input id="lic-f-correo" type="email" class="form-input font-mono" placeholder="servidor@correo.com" value="${escHtml(r.correoSolicitante || '')}" />
             </div>
           </div>
         </div>
@@ -1788,13 +1919,14 @@ const AdminRequestsModule = (() => {
             <div class="form-group span-2">
               <label class="form-label">Tipo de Licencia *</label>
               <select id="lic-f-tipo" class="filter-select" onchange="AdminRequestsModule.onLicenciaTypeChange()" required>
+                <option value="">-- Seleccione el Tipo de Licencia --</option>
                 ${list.map(l => `<option value="${escHtml(l.id)}" ${l.id === curTipoId ? 'selected' : ''}>${escHtml(l.nombre)} (${escHtml(l.tipoDias)})</option>`).join('')}
               </select>
             </div>
 
             <div class="form-group span-2">
-              <div id="lic-legal-banner" class="permiso-alert-banner permiso-alert-banner--info" style="margin:0;">
-                ${renderLicenciaLegalBanner(curLic)}
+              <div id="lic-legal-banner" class="permiso-alert-banner permiso-alert-banner--info" style="margin:0; ${curLic ? '' : 'display:none;'}">
+                ${curLic ? renderLicenciaLegalBanner(curLic) : ''}
               </div>
             </div>
           </div>
@@ -1911,14 +2043,21 @@ const AdminRequestsModule = (() => {
     if (!sel) return;
     const lic = getLicenciaDef(sel.value);
     const bannerEl = document.getElementById('lic-legal-banner');
-    if (bannerEl) bannerEl.innerHTML = renderLicenciaLegalBanner(lic);
+    if (bannerEl) {
+      if (lic) {
+        bannerEl.style.display = '';
+        bannerEl.innerHTML = renderLicenciaLegalBanner(lic);
+      } else {
+        bannerEl.style.display = 'none';
+        bannerEl.innerHTML = '';
+      }
+    }
 
     const diasInput = document.getElementById('lic-f-dias');
     const fiInput = document.getElementById('lic-f-fi');
     const ffInput = document.getElementById('lic-f-ff');
-    const motivoInput = document.getElementById('lic-f-motivo');
 
-    if (lic.diasPorLey && diasInput) {
+    if (lic && lic.diasPorLey && diasInput) {
       diasInput.value = lic.diasPorLey;
       if (fiInput && fiInput.value && ffInput) {
         const dStart = parseInputDate(fiInput.value);
@@ -1932,10 +2071,6 @@ const AdminRequestsModule = (() => {
           }
         }
       }
-    }
-
-    if (motivoInput && !motivoInput.value.trim()) {
-      motivoInput.value = `Solicitud de ${lic.nombre} según ${lic.norma}`;
     }
   }
 
@@ -2068,7 +2203,7 @@ const AdminRequestsModule = (() => {
     const fi = document.getElementById('lic-f-fi')?.value;
     const ff = document.getElementById('lic-f-ff')?.value;
     const dias = parseInt(document.getElementById('lic-f-dias')?.value) || 1;
-    const tipoLicId = document.getElementById('lic-f-tipo')?.value || 'LUTO';
+    const tipoLicId = document.getElementById('lic-f-tipo')?.value;
     const motivo = document.getElementById('lic-f-motivo')?.value.trim();
     const obs = document.getElementById('lic-f-obs')?.value.trim();
     const estado = document.getElementById('lic-f-estado')?.value || 'Pendiente';
@@ -2076,6 +2211,10 @@ const AdminRequestsModule = (() => {
     const grado = document.getElementById('lic-f-grado')?.value.trim();
     const correo = document.getElementById('lic-f-correo')?.value.trim();
 
+    if (!tipoLicId) {
+      App.showToast('Debe seleccionar el Tipo de Licencia.', 'warning');
+      return null;
+    }
     if (!doc || !nom) {
       App.showToast('Cédula y Nombres del servidor son obligatorios.', 'warning');
       return null;
@@ -2265,10 +2404,7 @@ const AdminRequestsModule = (() => {
       actions.push({
         text: 'Editar Licencia',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(r.id);
-        }
+        action: () => openEdit(r.id)
       });
     }
 
@@ -2571,6 +2707,7 @@ const AdminRequestsModule = (() => {
                 aria-labelledby="adm-dropdown-toggle"
                 hidden
               >
+                <!-- 1. Exportar a Excel -->
                 <button
                   type="button"
                   role="menuitem"
@@ -2584,6 +2721,24 @@ const AdminRequestsModule = (() => {
                     <small>Descarga el listado filtrado actual en formato .xlsx</small>
                   </div>
                 </button>
+
+                <!-- 2. Descargar Plantilla Oficial en Blanco -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="AdminRequestsModule.closeActionsDropdown(); AdminRequestsModule.downloadTemplate();"
+                  title="Descargar archivo Excel oficial en blanco para diligenciar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial (.xlsx)</strong>
+                    <small>Archivo Excel vacío con encabezados requeridos y listas oficiales</small>
+                  </div>
+                </button>
+
+                <!-- 3. Carga Masiva Excel -->
                 ${Auth.canEdit() ? `
                 <button
                   type="button"
@@ -2805,6 +2960,37 @@ const AdminRequestsModule = (() => {
     }
   }
 
+  function downloadTemplate() {
+    try {
+      ExcelService.downloadTemplate({
+        filename: `Plantilla_Oficial_${(state.tipo || 'Solicitudes_Admin').replace(/\s+/g, '_')}`,
+        sheetName: tipoPlural(state.tipo).substring(0, 30),
+        columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
+        sampleRows: [
+          {
+            'Tipo': state.tipo || 'Permiso Laboral',
+            'Cédula': '1049601234',
+            'Servidor Público': 'GARCIA MARTINEZ LUIS FERNANDO',
+            'Código': '219',
+            'Grado': '01',
+            'Sectorial': 'SECRETARIA GENERAL',
+            'Dependencia': 'SGEN - SECRETARIA GENERAL (Despacho)',
+            'Cargo': 'PROFESIONAL UNIVERSITARIO',
+            'Fecha Inicio': '15/05/2026',
+            'Fecha Fin': '15/05/2026',
+            'Duración': '1 día',
+            'Motivo o Diagnóstico': 'Diligencia personal urgente',
+            'Estado': 'Pendiente',
+            'Observaciones': 'Solicitud radicada con visto bueno'
+          }
+        ]
+      });
+      App.showToast(`Plantilla oficial en blanco de ${tipoPlural(state.tipo)} descargada exitosamente.`, 'success');
+    } catch (err) {
+      App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+    }
+  }
+
   function openImportModal() {
     ExcelService.openImportModal({
       title: `Carga Masiva de Solicitudes Administrativas (${tipoPlural(state.tipo)})`,
@@ -2862,12 +3048,16 @@ const AdminRequestsModule = (() => {
 
   return {
     render, openCreate, openView, openEdit, openStatusPicker, selectQuickStatus, confirmDelete,
-    applyFilters, clearFilters, goPage, setTipo, exportExcel, openImportModal,
+    applyFilters, clearFilters, goPage, setTipo, exportExcel, openImportModal, downloadTemplate,
     toggleActionsDropdown, closeActionsDropdown, handleDropdownKeydown,
     // Métodos del formulario de Permisos
     setModalidad, onSectorialChange, onNivelChange, onMotivoCatChange, onMotivoIncChange,
     calcHorasPermiso, calcDiasHabiles, validateJefeEmailLive,
     selectEmployee, handleFileSelect, removeNewSoporte, removeExistingSoporte, restoreExistingSoporte,
-    reenviarNotificacion
+    reenviarNotificacion,
+    // Métodos del formulario de Licencias
+    selectLicEmployee, onLicenciaTypeChange, onLicenciaDatesChange, handleLicFileSelect,
+    // Búsqueda interactiva de Jefe Inmediato
+    selectJefeInmediato
   };
 })();

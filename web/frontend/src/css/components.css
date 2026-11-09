@@ -6529,6 +6529,13 @@ body.error-404-active #login-screen {
   gap: 1.15rem;
   width: 100%;
 }
+.permiso-form-wrap textarea,
+.modal-box textarea {
+  resize: vertical !important;
+  min-height: 75px !important;
+  max-height: 180px !important;
+  box-sizing: border-box !important;
+}
 .permiso-section {
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);

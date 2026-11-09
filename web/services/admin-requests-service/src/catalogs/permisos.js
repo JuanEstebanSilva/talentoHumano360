@@ -5,11 +5,10 @@
    conservan tal cual aparecen en el formulario oficial.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// Dominio institucional permitido para los correos (configurable por entorno).
-// Si ALLOWED_EMAIL_DOMAIN se define vacío, se desactiva la restricción.
+// Dominio institucional permitido para los correos (vacío para permitir cualquier dominio de correo general).
 const EMAIL_DOMAIN = process.env.ALLOWED_EMAIL_DOMAIN !== undefined
   ? process.env.ALLOWED_EMAIL_DOMAIN.trim().toLowerCase()
-  : 'boyaca.gov.co';
+  : '';
 
 // ─── Sectoriales → Dependencias ───────────────────────────────────────────────
 // Las sectoriales que en el formulario no listan dependencias (Educación, Cultura,

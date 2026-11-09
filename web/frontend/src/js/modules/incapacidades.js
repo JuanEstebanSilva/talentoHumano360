@@ -398,6 +398,20 @@ const IncapacidadesModule = (() => {
                     <small>Descarga el listado de incapacidades en formato .xlsx</small>
                   </div>
                 </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="IncapacidadesModule.closeActionsDropdown(); IncapacidadesModule.downloadTemplate();"
+                  title="Descargar archivo Excel oficial en blanco para diligenciar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                  <div>
+                    <strong>Descargar Plantilla Oficial (.xlsx)</strong>
+                    <small>Archivo Excel vacío oficial con formato y columnas de la Matriz SST</small>
+                  </div>
+                </button>
                 ${Auth.canEdit() ? `
                 <button
                   type="button"
@@ -423,7 +437,7 @@ const IncapacidadesModule = (() => {
         </div>
 
         <!-- Tarjetas de Resumen / KPIs -->
-        <div class="stats-row" id="inc-stats-row" style="margin-bottom:18px;"></div>
+        <div class="stats-grid" id="inc-stats-row" style="grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: var(--space-5);"></div>
 
         <!-- Filtros -->
         <div class="filters-card">
@@ -708,10 +722,10 @@ const IncapacidadesModule = (() => {
     const fiIso = dmyToISO(r.fechaInicio) || todayISO;
     const ffIso = dmyToISO(r.fechaFin) || fiIso;
     const curDep = cleanName(r.dependencia || '');
-    const curSede = r.sede || 'EDIFICIO LOTERÍA DE BOYACÁ';
-    const curEps = r.eps || 'SANITAS';
+    const curSede = r.sede || '';
+    const curEps = r.eps || '';
     const curProrroga = r.prorroga || 'NO';
-    const curCausa = r.causaMotivo || 'Enfermedad general';
+    const curCausa = r.causaMotivo || '';
     const curDias = r.diasSolicitados || 1;
     const curSalario = Number(r.salario) || 0;
     const curDescuento = Number(r.descuento) || 0;
@@ -1039,7 +1053,8 @@ const IncapacidadesModule = (() => {
             const car = emp.cargo || '';
             const sal = Number(emp.salario || emp.sueldoBasico || emp.asignacionBasica || 0) || 0;
             const eps = emp.eps || '';
-            const empJson = escHtml(JSON.stringify({ nom, doc, dep, car, sal, eps }));
+            const sede = emp.sede || emp.ubicacion || emp.municipio || '';
+            const empJson = escHtml(JSON.stringify({ nom, doc, dep, car, sal, eps, sede }));
             return `
               <div class="autocomplete-item" onclick="IncapacidadesModule.selectEmployee(${empJson})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--color-border,#e2e8f0);">
                 <div class="autocomplete-item-name" style="font-weight:700;font-size:0.88rem;color:var(--text-primary);">${escHtml(nom)}</div>
@@ -1063,6 +1078,53 @@ const IncapacidadesModule = (() => {
     });
   }
 
+  function normalizeStr(str) {
+    return String(str || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function findBestSelectOption(selectEl, rawTarget) {
+    if (!selectEl || !rawTarget) return null;
+    const targetNorm = normalizeStr(rawTarget);
+    if (!targetNorm) return null;
+    const targetWords = targetNorm.split(' ').filter(w => w.length > 3);
+
+    // 1. Exact or substring match
+    for (const opt of Array.from(selectEl.options)) {
+      if (!opt.value) continue;
+      const optNorm = normalizeStr(opt.value);
+      if (optNorm === targetNorm || optNorm.includes(targetNorm) || targetNorm.includes(optNorm)) {
+        return opt;
+      }
+    }
+
+    // 2. Token overlap match (at least 50% of significant words match)
+    if (targetWords.length > 0) {
+      let bestOpt = null;
+      let maxMatched = 0;
+      for (const opt of Array.from(selectEl.options)) {
+        if (!opt.value) continue;
+        const optNorm = normalizeStr(opt.value);
+        let matched = 0;
+        for (const w of targetWords) {
+          if (optNorm.includes(w)) matched++;
+        }
+        if (matched > maxMatched && (matched / targetWords.length) >= 0.5) {
+          maxMatched = matched;
+          bestOpt = opt;
+        }
+      }
+      if (bestOpt) return bestOpt;
+    }
+
+    return null;
+  }
+
   function selectEmployee(emp) {
     const searchInput = document.getElementById('inc-f-search');
     const docInput = document.getElementById('inc-f-doc');
@@ -1071,6 +1133,7 @@ const IncapacidadesModule = (() => {
     const salInput = document.getElementById('inc-f-salario');
     const depSelect = document.getElementById('inc-f-dep');
     const epsSelect = document.getElementById('inc-f-eps');
+    const sedeSelect = document.getElementById('inc-f-sede');
     const dropdown = document.getElementById('inc-f-autocomplete');
 
     if (dropdown) dropdown.style.display = 'none';
@@ -1081,18 +1144,36 @@ const IncapacidadesModule = (() => {
     if (salInput && emp.sal > 0) salInput.value = Math.round(emp.sal);
 
     if (depSelect && emp.dep) {
-      const targetDep = cleanName(emp.dep).toUpperCase();
-      const match = Array.from(depSelect.options).find(opt => {
-        const val = opt.value.toUpperCase();
-        return val && (val === targetDep || val.includes(targetDep) || targetDep.includes(val));
-      });
-      if (match) depSelect.value = match.value;
+      const match = findBestSelectOption(depSelect, emp.dep);
+      if (match) {
+        depSelect.value = match.value;
+      } else {
+        const newOpt = new Option(emp.dep, emp.dep, true, true);
+        depSelect.add(newOpt);
+        depSelect.value = emp.dep;
+      }
     }
 
     if (epsSelect && emp.eps) {
-      const targetEps = String(emp.eps).trim().toUpperCase();
-      const matchEps = Array.from(epsSelect.options).find(opt => opt.value.toUpperCase() === targetEps);
-      if (matchEps) epsSelect.value = matchEps.value;
+      const matchEps = findBestSelectOption(epsSelect, emp.eps);
+      if (matchEps) {
+        epsSelect.value = matchEps.value;
+      } else {
+        const newOpt = new Option(emp.eps, emp.eps, true, true);
+        epsSelect.add(newOpt);
+        epsSelect.value = emp.eps;
+      }
+    }
+
+    if (sedeSelect && emp.sede) {
+      const matchSede = findBestSelectOption(sedeSelect, emp.sede);
+      if (matchSede) {
+        sedeSelect.value = matchSede.value;
+      } else {
+        const newOpt = new Option(emp.sede, emp.sede, true, true);
+        sedeSelect.add(newOpt);
+        sedeSelect.value = emp.sede;
+      }
     }
 
     discountManuallyEdited = false;
@@ -1478,10 +1559,7 @@ const IncapacidadesModule = (() => {
       actions.push({
         text: 'Editar Incapacidad',
         cls: 'btn-gold',
-        action: () => {
-          App.closeModal();
-          openEdit(r.id);
-        },
+        action: () => openEdit(r.id),
       });
     }
 
@@ -1747,6 +1825,42 @@ const IncapacidadesModule = (() => {
     }
   }
 
+  function downloadTemplate() {
+    try {
+      ExcelService.downloadTemplate({
+        filename: 'Plantilla_Oficial_9_INCAPACIDADES_SST',
+        sheetName: 'Incapacidades SST',
+        columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
+        sampleRows: [
+          {
+            'FECHA DE RADICACIÓN': '01/09/2026',
+            'NOMBRES Y APELLIDOS': 'YANIRA GUARNIZO MANRIQUE',
+            'CÉDULA': '65776381',
+            'DEPENDENCIA EN LA QUE TRABAJA': 'SPLA - Dirección de Seguimiento y Planeación Territorial',
+            'SEDE EN LA QUE TRABAJA': 'EDIFICIO INTELIGENTE - BICENTENARIO',
+            'CARGO': 'PROFESIONAL UNIVERSITARIO (E)',
+            'EPS': 'SANITAS',
+            'FECHA INICIAL DE LA INCAPACIDAD': '18/08/2026',
+            'FECHA FINAL DE LA INCAPACIDAD': '31/08/2026',
+            'PRORROGA': 'NO',
+            'CAUSA O MOTIVO': 'Enfermedad general',
+            'CÓDIGO CIE 10 (Código del diagnóstico)': 'M797',
+            'DÍAS': 14,
+            'SALARIO': 7258783,
+            'DESCUENTO': 967838,
+            'ACTO ADMINISTRATIVO SI APLICA': '1107',
+            'MOTIVO': 'INCAPACIDAD MÉDICA POR ENFERMEDAD GENERAL (CIE-10: M797)',
+            'OBSERVACIONES': 'CERTIFICADO RADICADO EN SST',
+            'ESTADO': 'Aprobada',
+          }
+        ]
+      });
+      App.showToast('Plantilla oficial en blanco de Incapacidades SST descargada exitosamente.', 'success');
+    } catch (err) {
+      App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+    }
+  }
+
   function openImportModal() {
     ExcelService.openImportModal({
       title: 'Carga Masiva de Incapacidades',
@@ -1836,6 +1950,7 @@ const IncapacidadesModule = (() => {
     handleDropdownKeydown,
     exportExcel,
     openImportModal,
+    downloadTemplate,
     onDatesOrCalcChange,
     onProrrogaOrCausaChange,
     onDiasOrSalarioChange,

@@ -604,10 +604,16 @@ router.get('/catalogs', auth, async (_, res) => {
       `SELECT DISTINCT TRIM(dependencia) AS dep FROM dependencias WHERE dependencia IS NOT NULL AND TRIM(dependencia) <> '' ORDER BY dep`
     ).catch(() => ({ rows: [] }));
 
+    const divRes = await pool.query(
+      `SELECT DISTINCT TRIM(municipio) AS mpio FROM divipola WHERE municipio IS NOT NULL AND TRIM(municipio) <> '' ORDER BY mpio`
+    ).catch(() => ({ rows: [] }));
+
     const mergedDeps = Array.from(new Set([
       ...DEPENDENCIAS_OFICIALES,
       ...dbDeps.rows.map(r => r.dep)
     ]));
+
+    const divipolaMpios = divRes.rows.map(r => r.mpio);
 
     res.json({
       eppCatalogo: CATALOGO_EPP,
@@ -621,6 +627,7 @@ router.get('/catalogs', auth, async (_, res) => {
       tiposEmo: TIPOS_EMO,
       estadosCaso: ESTADOS_CASO,
       programasPve: PROGRAMAS_PVE,
+      municipiosDivipola: divipolaMpios,
       tiposIdentificacion: ['Cédula de Ciudadanía', 'Cédula de Extranjería', 'Pasaporte', 'Tarjeta de Identidad'],
       razas: ['Blanco/Mestizo', 'Afrodescendiente', 'Indígena', 'Raizal', 'Palenquero', 'Gitano', 'OTRA'],
       estadosCiviles: ['Soltero (a)', 'Casado(a)', 'Unión Libre', 'Divorciado(a)', 'Viudo(a)'],
@@ -1405,9 +1412,9 @@ router.put('/epp/:id', auth, async (req, res) => {
         upper(b.nombreCompleto),
         b.telefono || '',
         upper(b.secretaria || 'SECRETARIA GENERAL'),
-        b.dependencia || '',
+        b.dependencia || 'SGEN - SECRETARIA GENERAL (Despacho)',
         b.sedeTrabajo || 'CASA DE LA TORRE',
-        upper(b.cargo || ''),
+        upper(b.cargo || 'PROFESIONAL UNIVERSITARIO'),
         upper(b.tipoVinculacion || 'CARRERA ADMINISTRATIVA'),
         b.restriccionesRecomendaciones || 'NINGUNA',
         resolved.codigo,
@@ -1424,10 +1431,10 @@ router.put('/epp/:id', auth, async (req, res) => {
       ]
     );
     if (r.rowCount === 0) return res.status(404).json({ error: 'Entrega de EPP no encontrada.' });
-    res.json({ message: 'Entrega de EPP actualizada.' });
+    res.json({ message: 'Entrega de EPP actualizada exitosamente.' });
   } catch (err) {
     console.error('[sst-service] update epp error:', err.message);
-    res.status(500).json({ error: 'Error al actualizar entrega de EPP.' });
+    res.status(500).json({ error: 'Error al actualizar entrega de EPP: ' + err.message });
   }
 });
 
@@ -1498,15 +1505,15 @@ router.get('/sociodemografico', auth, async (req, res) => {
     const params = [];
     let idx = 1;
 
-    if (escolaridad && escolaridad !== 'Todas') {
+    if (escolaridad && escolaridad !== 'Todas' && escolaridad !== 'Todos') {
       conditions.push(`LOWER(escolaridad) = LOWER($${idx++})`);
       params.push(escolaridad.trim());
     }
-    if (tipoVinculacion && tipoVinculacion !== 'Todos') {
+    if (tipoVinculacion && tipoVinculacion !== 'Todos' && tipoVinculacion !== 'Todas') {
       conditions.push(`LOWER(tipo_vinculacion) = LOWER($${idx++})`);
       params.push(tipoVinculacion.trim());
     }
-    if (dependencia && dependencia !== 'Todas') {
+    if (dependencia && dependencia !== 'Todas' && dependencia !== 'Todos') {
       conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
       params.push(`%${dependencia.trim()}%`);
     }

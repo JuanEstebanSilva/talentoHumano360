@@ -17,31 +17,38 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 let transporter = null;
-let transporterTried = false;
 
 function mailConfigured() {
   return process.env.MAIL_ENABLED !== 'false' && !!process.env.SMTP_HOST;
 }
 
 function getTransporter() {
-  if (transporterTried) return transporter;
-  transporterTried = true;
+  if (transporter) return transporter;
   if (!mailConfigured()) return null;
   try {
-    // Carga perezosa: si nodemailer no está instalado, el sistema sigue funcionando (modo simulado)
     const nodemailer = require('nodemailer');
     const port = parseInt(process.env.SMTP_PORT) || 587;
+    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+    const user = (process.env.SMTP_USER || '').trim();
+    // Las contraseñas de aplicación de Google vienen con espacios (ej. abcd efgh ijkl mnop), los eliminamos automáticamente
+    const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+    const auth = (user && pass) ? { user, pass } : undefined;
+
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST.trim(),
       port,
-      secure: process.env.SMTP_SECURE === 'true' || port === 465,
-      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || '' } : undefined,
+      secure,
+      auth,
+      tls: {
+        rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
+      },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
     });
+    console.log(`[mailer] Transporter SMTP inicializado correctamente para ${process.env.SMTP_HOST}:${port}`);
   } catch (err) {
-    console.warn('[mailer] nodemailer no disponible, se usará modo simulado:', err.message);
+    console.warn('[mailer] Error inicializando nodemailer (se usará modo simulado):', err.message);
     transporter = null;
   }
   return transporter;
@@ -58,6 +65,10 @@ function esc(v) {
  * estado: 'enviada' | 'simulada' | 'fallida'
  */
 async function sendMail({ to, subject, html, text }) {
+  if (!to || !to.trim()) {
+    return { estado: 'fallida', detalle: 'Dirección de correo destino vacía.' };
+  }
+  to = to.trim();
   const original = to;
   if (process.env.MAIL_REDIRECT_TO) {
     to = process.env.MAIL_REDIRECT_TO;
@@ -65,17 +76,22 @@ async function sendMail({ to, subject, html, text }) {
   }
   const tx = getTransporter();
   if (!tx) {
-    console.log(`[mailer][SIMULADO] Para: ${to} | Asunto: ${subject}\n${text || ''}`);
-    return { estado: 'simulada', detalle: `Correo simulado para ${to} (SMTP sin configurar).` };
+    console.log(`[mailer][MODO SIMULADO] Para: ${to} | Asunto: ${subject}`);
+    console.log(`[mailer][NOTA] No hay servidor SMTP configurado (SMTP_HOST no definido en .env). El correo no se envió a la red.`);
+    return { estado: 'simulada', detalle: `Correo simulado para ${to} (SMTP sin configurar en .env).` };
   }
   try {
-    await tx.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    const user = (process.env.SMTP_USER || '').trim();
+    const rawFrom = (process.env.MAIL_FROM || '').trim();
+    const fromAddress = rawFrom || (user ? `"Talento Humano 360" <${user}>` : 'no-reply@boyaca.gov.co');
+    const info = await tx.sendMail({
+      from: fromAddress,
       to, subject, html, text,
     });
-    return { estado: 'enviada', detalle: `Enviado a ${to}.` };
+    console.log(`[mailer] Correo enviado exitosamente a ${to}. MessageId: ${info.messageId}`);
+    return { estado: 'enviada', detalle: `Enviado exitosamente a ${to}.` };
   } catch (err) {
-    console.error('[mailer] error enviando a', to, '-', err.message);
+    console.error('[mailer] Error enviando correo a', to, ':', err.message);
     return { estado: 'fallida', detalle: `No se pudo enviar a ${to}: ${err.message}`.slice(0, 480) };
   }
 }

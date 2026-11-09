@@ -70,8 +70,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
     volumes:
-      - ./services/employees-service:/app
-      - /app/node_modules
+      - ./services/employees-service/src:/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,6 +113,18 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-}
+      SMTP_TLS_REJECT_UNAUTHORIZED: ${SMTP_TLS_REJECT_UNAUTHORIZED:-true}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost}
+    volumes:
+      - ./services/admin-requests-service/src:/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -198,6 +209,8 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - ./services/sst-service/src:/app/src
     depends_on:
       postgres:
         condition: service_healthy

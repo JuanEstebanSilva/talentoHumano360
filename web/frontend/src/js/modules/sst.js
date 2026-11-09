@@ -823,25 +823,27 @@ const SstModule = (() => {
         }
         dropdown.innerHTML = list.map(emp => `
           <div class="autocomplete-item" onclick='SstModule.selectEmployee(${JSON.stringify({
-            cedula: emp.cedula || '',
-            nombreCompleto: emp.nombreCompleto || '',
+            cedula: emp.cedula || emp.documento || '',
+            nombreCompleto: emp.nombreCompleto || emp.persona || '',
             apellidos: `${emp.primerApellido || ''} ${emp.segundoApellido || ''}`.trim(),
             nombres: emp.nombres || '',
             dependencia: emp.dependencia || '',
-            cargo: emp.cargoActual || emp.cargoBase || '',
+            sede: emp.sede || emp.ubicacion || 'CASA DE LA TORRE',
+            cargo: emp.cargoActual || emp.cargoBase || emp.cargo || '',
             edad: emp.edad || '',
+            fechaNacimiento: emp.fechaNacimiento || emp.fecha_nacimiento || '',
             sexo: emp.sexo || '',
-            telefono: emp.celular || emp.telefonoFijo || '',
-            fechaIngreso: emp.fechaIngreso || '',
-            ciudad: emp.ciudad || 'Tunja',
-            estudios: emp.estudios || '',
-            clasificacion: emp.clasificacionEmpleo || 'Carrera Administrativa'
+            telefono: emp.celular || emp.telefonoFijo || emp.telefono || '',
+            fechaIngreso: emp.fechaIngreso || emp.fecha_ingreso || '',
+            ciudad: emp.ciudad || emp.municipio || 'Tunja',
+            estudios: emp.estudios || emp.nivelEstudios || emp.escolaridad || '',
+            clasificacion: emp.clasificacionEmpleo || emp.tipoVinculacion || 'Carrera Administrativa'
           }).replace(/'/g, '&#39;')})'>
             <div class="autocomplete-item-main">
               <strong>${escHtml(emp.nombreCompleto)}</strong>
-              <span class="badge badge--pendiente" style="font-size:10px">C.C. ${escHtml(emp.cedula)}</span>
+              <span class="badge badge--pendiente" style="font-size:10px">C.C. ${escHtml(emp.cedula || emp.documento)}</span>
             </div>
-            <div class="autocomplete-item-sub">${escHtml(emp.cargoActual || emp.cargoBase || '')} · ${escHtml(emp.dependencia || '')}</div>
+            <div class="autocomplete-item-sub">${escHtml(emp.cargoActual || emp.cargoBase || emp.cargo || '')} · ${escHtml(emp.dependencia || '')}</div>
           </div>
         `).join('');
         dropdown.style.display = 'block';
@@ -954,13 +956,31 @@ const SstModule = (() => {
     };
 
     setVal('sst-nombre', emp.nombreCompleto);
+    setVal('sst-search', emp.nombreCompleto);
     setVal('sst-doc', emp.cedula);
     setVal('sst-apellidos', emp.apellidos || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(0, 2).join(' ') : ''));
     setVal('sst-nombres', emp.nombres || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(2).join(' ') : ''));
     setVal('sst-dep', emp.dependencia);
     setVal('sst-cargo', emp.cargo);
+    setVal('sst-sede', emp.sede || 'CASA DE LA TORRE');
     setVal('sst-tel', emp.telefono);
-    setVal('sst-edad', emp.edad);
+
+    // Año de Nacimiento y Edad
+    let age = parseInt(emp.edad) || 0;
+    let bYear = 0;
+    if (emp.fechaNacimiento) {
+      const d = new Date(emp.fechaNacimiento);
+      if (!isNaN(d.getFullYear())) {
+        bYear = d.getFullYear();
+        if (!age) age = new Date().getFullYear() - bYear;
+      }
+    }
+    if (!bYear && age > 0) {
+      bYear = new Date().getFullYear() - age;
+    }
+    if (age > 0) setVal('sst-edad', age);
+    if (bYear > 0) setVal('sst-anio-nac', bYear);
+
     if (emp.dependencia || emp.secretaria) {
       const depUpper = String(emp.secretaria || emp.dependencia || '').toUpperCase();
       const secEl = document.getElementById('sst-secretaria');
@@ -978,19 +998,31 @@ const SstModule = (() => {
     if (emp.fechaIngreso) {
       const fIng = String(emp.fechaIngreso).split('T')[0];
       setVal('sst-ingreso', fIng);
+
+      // Calcular Antigüedad en Años
+      const dIng = new Date(fIng);
+      if (!isNaN(dIng.getTime())) {
+        const diffYears = Math.max(0, Math.floor((new Date() - dIng) / (365.25 * 24 * 3600 * 1000)));
+        let rango = 'Menos de 1 año.';
+        if (diffYears >= 1 && diffYears < 4) rango = 'Entre 1 y 4 años';
+        else if (diffYears >= 4 && diffYears < 10) rango = 'Entre 4 y 10 años';
+        else if (diffYears >= 10 && diffYears < 20) rango = 'Entre 10 y 20 años';
+        else if (diffYears >= 20 && diffYears < 30) rango = 'Entre 20 y 30 años';
+        else if (diffYears >= 30) rango = 'Mas de 30 años';
+        setVal('sst-ant-entidad', rango);
+        setVal('sst-ant-cargo', rango);
+      }
     }
     setVal('sst-profesion', emp.estudios);
     setVal('sst-mpio-res', emp.ciudad);
+    setVal('sst-mpio-trab', emp.ciudad || 'Tunja');
     if (emp.sexo) {
       const s = emp.sexo.toUpperCase().startsWith('F') ? 'Femenino' : 'Masculino';
       setVal('sst-sexo', s);
     }
-    if (emp.edad) {
-      const yNac = new Date().getFullYear() - parseInt(emp.edad);
-      setVal('sst-anio-nac', yNac);
-    }
     if (emp.clasificacion) {
       setVal('sst-vinculacion', emp.clasificacion);
+      if (emp.clasificacion.toLowerCase().includes('carrera')) setVal('sst-tipo-cargo', 'Carrera Administrativa');
     }
   }
 
@@ -1064,6 +1096,12 @@ const SstModule = (() => {
         menu.setAttribute('hidden', '');
         const toggleBtn = document.getElementById('sst-dropdown-toggle');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+
+      const acList = document.getElementById('sst-autocomplete-list');
+      const acWrap = document.querySelector('.autocomplete-wrapper');
+      if (acList && acList.style.display !== 'none' && acWrap && !acWrap.contains(e.target)) {
+        acList.style.display = 'none';
       }
     });
 
@@ -1373,7 +1411,7 @@ const SstModule = (() => {
     if (!TABS[tabKey]) return;
     state.tab = tabKey;
     state.page = 1;
-    state.filters = { q: '', subFilter1: 'Todos', subFilter2: 'Todos' };
+    state.filters = { q: '', subFilter1: tabKey === 'sociodemografico' ? 'Todas' : 'Todos', subFilter2: 'Todos' };
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
@@ -1588,12 +1626,14 @@ const SstModule = (() => {
           estado: state.filters.subFilter2 || 'Todos'
         });
       } else {
+        const escVal = state.filters.subFilter1 || 'Todas';
+        const vincVal = state.filters.subFilter2 || 'Todos';
         res = await API.getSstSociodemografico({
           page: state.page,
           limit: 20,
           q: state.filters.q || '',
-          escolaridad: state.filters.subFilter1 || 'Todas',
-          tipoVinculacion: state.filters.subFilter2 || 'Todos'
+          escolaridad: (escVal === 'Todas' || escVal === 'Todos') ? '' : escVal,
+          tipoVinculacion: (vincVal === 'Todos' || vincVal === 'Todas') ? '' : vincVal
         });
       }
 
@@ -1884,22 +1924,23 @@ const SstModule = (() => {
 
           <div class="form-group span-2">
             <label class="form-label">Dependencia donde Trabaja *</label>
-            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Haga clic para desplegar lista o escriba para filtrar..." value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" required />
+            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Seleccione o escriba la dependencia..." value="${escHtml(r.dependencia || '')}" required />
             <datalist id="sst-deps-list">
               ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
             </datalist>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Sede de Trabajo</label>
+            <label class="form-label">Sede de Trabajo *</label>
             <select id="sst-sede" class="filter-select">
-              ${cats.sedes.map(s => `<option ${r.sedeTrabajo === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+              <option value="">-- Seleccione la Sede --</option>
+              ${cats.sedes.map(s => `<option value="${escHtml(s)}" ${(r.sedeTrabajo || '') === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
             </select>
           </div>
 
           <div class="form-group">
-            <label class="form-label">Cargo</label>
-            <input id="sst-cargo" class="form-input" placeholder="Denominación del cargo" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
+            <label class="form-label">Cargo *</label>
+            <input id="sst-cargo" class="form-input" placeholder="Denominación del cargo" value="${escHtml(r.cargo || '')}" />
           </div>
 
           <!-- SECCIÓN 2: EXAMEN MÉDICO OCUPACIONAL (EMO) Y PVE -->
@@ -1913,7 +1954,8 @@ const SstModule = (() => {
           <div class="form-group">
             <label class="form-label">Tipo de EMO *</label>
             <select id="sst-tipo-emo" class="filter-select" onchange="SstModule.onTipoEmoChange(this.value)">
-              ${cats.tiposEmo.map(t => `<option ${r.tipoEmo === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+              <option value="">-- Seleccione Tipo de EMO --</option>
+              ${cats.tiposEmo.map(t => `<option value="${escHtml(t)}" ${r.tipoEmo === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
             </select>
           </div>
 
@@ -1930,13 +1972,14 @@ const SstModule = (() => {
           <div class="form-group">
             <label class="form-label">Direccionado a PVE</label>
             <select id="sst-pve" class="filter-select">
-              ${cats.programasPve.map(p => `<option ${r.direccionadoPve === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
+              <option value="">-- Seleccione PVE (o No aplica) --</option>
+              ${cats.programasPve.map(p => `<option value="${escHtml(p)}" ${r.direccionadoPve === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
             </select>
           </div>
 
           <div class="form-group span-2">
             <label class="form-label">Direccionado a EPS / IPS</label>
-            <input id="sst-eps" list="sst-eps-list" class="form-input" placeholder="Seleccione o escriba entidad de salud (Ej: Nueva EPS / No aplica)" value="${escHtml(r.direccionadoEps || 'No aplica')}" />
+            <input id="sst-eps" list="sst-eps-list" class="form-input" placeholder="Seleccione o escriba entidad de salud (Ej: Nueva EPS / No aplica)" value="${escHtml(r.direccionadoEps || '')}" />
             <datalist id="sst-eps-list">
               ${(cats.epsSugerencias || []).map(eps => `<option value="${escHtml(eps)}"></option>`).join('')}
             </datalist>
@@ -1944,7 +1987,7 @@ const SstModule = (() => {
 
           <div class="form-group span-2">
             <label class="form-label">Restricciones Médicas Laborales</label>
-            <input id="sst-restricciones" list="sst-restricciones-list" class="form-input" placeholder="Haga clic para opciones frecuentes o escriba la restricción médica..." value="${escHtml(r.restricciones || 'NINGUNA')}" />
+            <input id="sst-restricciones" list="sst-restricciones-list" class="form-input" placeholder="Haga clic para opciones frecuentes o escriba la restricción médica..." value="${escHtml(r.restricciones || '')}" />
             <datalist id="sst-restricciones-list">
               ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
             </datalist>
@@ -1952,7 +1995,7 @@ const SstModule = (() => {
 
           <div class="form-group span-2">
             <label class="form-label">Recomendaciones Médicas Ocupacionales</label>
-            <input id="sst-recomendaciones" list="sst-recomendaciones-list" class="form-input" placeholder="Haga clic para recomendaciones frecuentes o escriba..." value="${escHtml(r.recomendaciones || 'Pausas activas e higiene postural')}" />
+            <input id="sst-recomendaciones" list="sst-recomendaciones-list" class="form-input" placeholder="Haga clic para recomendaciones frecuentes o escriba..." value="${escHtml(r.recomendaciones || '')}" />
             <datalist id="sst-recomendaciones-list">
               ${(cats.recomendacionesFrecuentes || []).map(rc => `<option value="${escHtml(rc)}"></option>`).join('')}
             </datalist>
@@ -2062,27 +2105,33 @@ const SstModule = (() => {
             </h4>
           </div>
 
-          <div class="form-group span-2 autocomplete-wrapper">
-            <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
-            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
-            <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
+          <div class="form-group span-2 autocomplete-wrapper" style="position:relative;">
+            <label class="form-label">Buscar Servidor en Planta <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(Opcional para autocompletar desde base institucional)</span></label>
+            <input id="sst-search" class="form-input" placeholder="Escriba el nombre o cédula para buscar y autollenar los campos..." oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
+            <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;"></div>
           </div>
 
           <div class="form-group">
             <label class="form-label">No. De Identificación (C.C.) *</label>
-            <input id="sst-doc" class="form-input" placeholder="Número de identificación" value="${escHtml(r.documento || '')}" required />
+            <input id="sst-doc" class="form-input font-mono" placeholder="Número de cédula o documento" value="${escHtml(r.documento || '')}" required />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Teléfono</label>
+            <label class="form-label">Nombre Completo del Servidor / Receptor *</label>
+            <input id="sst-nombre" class="form-input" placeholder="APELLIDOS Y NOMBRES COMPLETOS" value="${escHtml(r.nombreCompleto || '')}" required />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Teléfono / Celular</label>
             <input id="sst-tel" class="form-input" placeholder="Número telefónico o celular" value="${escHtml(r.telefono || '')}" />
           </div>
 
           <div class="form-group span-2">
             <label class="form-label">Secretaría *</label>
             <select id="sst-secretaria" class="filter-select" required>
+              <option value="">-- Seleccione Secretaría --</option>
               ${secList.map(s => {
-                const isSel = (r.secretaria || '').toUpperCase().includes(s.toUpperCase()) || ((!r.secretaria || r.secretaria === 'SECRETARIA GENERAL') && s === 'SECRETARIA GENERAL');
+                const isSel = (r.secretaria || '').toUpperCase().includes(s.toUpperCase());
                 return `<option value="${escHtml(s)}" ${isSel ? 'selected' : ''}>${escHtml(s)}</option>`;
               }).join('')}
             </select>
@@ -2091,6 +2140,7 @@ const SstModule = (() => {
           <div class="form-group span-2">
             <label class="form-label">Dirección / Subdirección *</label>
             <select id="sst-dep" class="filter-select" required>
+              <option value="">-- Seleccione Dirección / Subdirección --</option>
               ${dirList.map(d => {
                 const isSel = (r.dependencia || '').toUpperCase().includes(d.toUpperCase());
                 return `<option value="${escHtml(d)}" ${isSel ? 'selected' : ''}>${escHtml(d)}</option>`;
@@ -2099,10 +2149,19 @@ const SstModule = (() => {
           </div>
 
           <div class="form-group">
+            <label class="form-label">Sede de Trabajo *</label>
+            <select id="sst-sede" class="filter-select" required>
+              <option value="">-- Seleccione la Sede --</option>
+              ${cats.sedes.map(s => `<option value="${escHtml(s)}" ${(r.sedeTrabajo || '') === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Cargo *</label>
             <select id="sst-cargo" class="filter-select" required>
+              <option value="">-- Seleccione Cargo --</option>
               ${cargoList.map(c => {
-                const isSel = (r.cargo || '').toUpperCase() === c.toUpperCase() || ((!r.cargo || r.cargo === 'PROFESIONAL UNIVERSITARIO') && c === 'PROFESIONAL UNIVERSITARIO');
+                const isSel = (r.cargo || '').toUpperCase() === c.toUpperCase();
                 return `<option value="${escHtml(c)}" ${isSel ? 'selected' : ''}>${escHtml(c)}</option>`;
               }).join('')}
             </select>
@@ -2111,8 +2170,9 @@ const SstModule = (() => {
           <div class="form-group">
             <label class="form-label">Tipo de Vinculación *</label>
             <select id="sst-vinculacion" class="filter-select" required>
+              <option value="">-- Seleccione Tipo de Vinculación --</option>
               ${vincList.map(v => {
-                const isSel = (r.tipoVinculacion || '').toUpperCase() === v.toUpperCase() || ((!r.tipoVinculacion || r.tipoVinculacion === 'CARRERA ADMINISTRATIVA') && v === 'CARRERA ADMINISTRATIVA');
+                const isSel = (r.tipoVinculacion || '').toUpperCase() === v.toUpperCase();
                 return `<option value="${escHtml(v)}" ${isSel ? 'selected' : ''}>${escHtml(v)}</option>`;
               }).join('')}
             </select>
@@ -2120,7 +2180,7 @@ const SstModule = (() => {
 
           <div class="form-group span-2">
             <label class="form-label">Restricciones y/o Recomendaciones</label>
-            <input id="sst-restricciones" list="sst-epp-restricciones-list" class="form-input" placeholder="Restricciones médicas o recomendaciones de uso..." value="${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}" />
+            <input id="sst-restricciones" list="sst-epp-restricciones-list" class="form-input" placeholder="Restricciones médicas o recomendaciones de uso..." value="${escHtml(r.restriccionesRecomendaciones || '')}" />
             <datalist id="sst-epp-restricciones-list">
               ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
             </datalist>
@@ -2137,6 +2197,7 @@ const SstModule = (() => {
           <div class="form-group span-2">
             <label class="form-label">Elemento *</label>
             <select id="sst-elemento-epp" class="filter-select" required>
+              <option value="">-- Seleccione Elemento EPP --</option>
               ${eppList.map(e => {
                 const isSel = (cleanCurrentElemento.toUpperCase() === e.toUpperCase() || currentElemento.toUpperCase() === e.toUpperCase());
                 return `<option value="${escHtml(e)}" ${isSel ? 'selected' : ''}>${escHtml(e)}</option>`;
@@ -2247,6 +2308,7 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Sexo *</label>
           <select id="sst-sexo" class="filter-select">
+            <option value="">-- Seleccione Sexo --</option>
             <option value="Masculino" ${r.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
             <option value="Femenino" ${r.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
           </select>
@@ -2263,6 +2325,7 @@ const SstModule = (() => {
         <div class="form-group span-2">
           <label class="form-label">Raza / Etnia *</label>
           <select id="sst-raza" class="filter-select">
+            <option value="">-- Seleccione Raza / Etnia --</option>
             ${(cats.razas || []).map(rz => `<option ${r.razaEtnia === rz ? 'selected' : ''}>${escHtml(rz)}</option>`).join('')}
           </select>
         </div>
@@ -2278,6 +2341,7 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Estado Civil *</label>
           <select id="sst-estado-civil" class="filter-select">
+            <option value="">-- Seleccione Estado Civil --</option>
             ${(cats.estadosCiviles || []).map(ec => `<option ${r.estadoCivil === ec ? 'selected' : ''}>${escHtml(ec)}</option>`).join('')}
           </select>
         </div>
@@ -2285,6 +2349,7 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Composición Familiar (Convive con) *</label>
           <select id="sst-familia" class="filter-select">
+            <option value="">-- Seleccione Composición Familiar --</option>
             ${(cats.composicionesFamiliares || []).map(cf => `<option ${r.composicionFamiliar === cf ? 'selected' : ''}>${escHtml(cf)}</option>`).join('')}
           </select>
         </div>
@@ -2292,6 +2357,7 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Tipo de Vivienda *</label>
           <select id="sst-vivienda" class="filter-select">
+            <option value="">-- Seleccione Tipo de Vivienda --</option>
             ${(cats.tiposVivienda || []).map(tv => `<option ${r.tipoVivienda === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
           </select>
         </div>
@@ -2299,7 +2365,8 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Estrato Servicios Públicos *</label>
           <select id="sst-estrato" class="filter-select">
-            ${(cats.estratos || []).map(es => `<option ${String(r.estrato || '3') === es ? 'selected' : ''}>Estrato ${es}</option>`).join('')}
+            <option value="">-- Seleccione Estrato --</option>
+            ${(cats.estratos || []).map(es => `<option value="${es}" ${String(r.estrato || '') === es ? 'selected' : ''}>Estrato ${es}</option>`).join('')}
           </select>
         </div>
 
@@ -2307,10 +2374,10 @@ const SstModule = (() => {
           <label class="form-label">Ciudad / Municipio de Residencia *</label>
           <select id="sst-mpio-res" class="filter-select">
             ${(() => {
-              const current = r.municipioResidencia || 'Tunja';
-              const list = cats.municipiosResidenciaSugeridos || ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Moniquirá', 'Puerto Boyacá', 'Villa de Leyva', 'Garagoa', 'Guateque', 'Miraflores', 'Nobsa', 'Santa Rosa de Viterbo', 'Soatá', 'Cómbita', 'Samacá', 'Ventaquemada', 'Tuta', 'Oicatá', 'Soracá', 'Siachoque', 'Chivatá', 'Toca', 'Pesca', 'Tibasosa', 'Bogotá D.C.', 'Otro Municipio'];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(m => `<option value="${escHtml(m)}" ${current === m ? 'selected' : ''}>${escHtml(m)}</option>`).join('');
+              const current = r.municipioResidencia || '';
+              const list = (cats.municipiosDivipola && cats.municipiosDivipola.length) ? cats.municipiosDivipola : (cats.municipiosResidenciaSugeridos || ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Moniquirá', 'Puerto Boyacá', 'Villa de Leyva', 'Garagoa', 'Guateque', 'Miraflores', 'Nobsa', 'Santa Rosa de Viterbo', 'Soatá', 'Cómbita', 'Samacá', 'Ventaquemada', 'Tuta', 'Oicatá', 'Soracá', 'Siachoque', 'Chivatá', 'Toca', 'Pesca', 'Tibasosa', 'Bogotá D.C.', 'Otro Municipio']);
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Municipio de Residencia --</option>` + all.map(m => `<option value="${escHtml(m)}" ${current === m ? 'selected' : ''}>${escHtml(m)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2327,10 +2394,10 @@ const SstModule = (() => {
           <label class="form-label">Escolaridad (Último nivel) *</label>
           <select id="sst-escolaridad" class="filter-select">
             ${(() => {
-              const current = r.escolaridad || 'Profesional';
+              const current = r.escolaridad || '';
               const list = cats.escolaridades || ['Ninguna', 'Primaria', 'Bachillerato', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado', 'Posdoctorado'];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(sc => `<option value="${escHtml(sc)}" ${current === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('');
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Nivel de Escolaridad --</option>` + all.map(sc => `<option value="${escHtml(sc)}" ${current === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2351,10 +2418,10 @@ const SstModule = (() => {
           <label class="form-label">Ciudad / Municipio donde Trabaja *</label>
           <select id="sst-mpio-trab" class="filter-select">
             ${(() => {
-              const current = r.municipioTrabajo || 'Tunja';
-              const list = ['Tunja', 'Bogotá'];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(mt => `<option value="${escHtml(mt)}" ${current === mt ? 'selected' : ''}>${escHtml(mt)}</option>`).join('');
+              const current = r.municipioTrabajo || '';
+              const list = (cats.municipiosDivipola && cats.municipiosDivipola.length) ? cats.municipiosDivipola : (cats.municipiosTrabajoSugeridos || ['Tunja', 'Bogotá', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Puerto Boyacá', 'OTRO']);
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Municipio de Trabajo --</option>` + all.map(mt => `<option value="${escHtml(mt)}" ${current === mt ? 'selected' : ''}>${escHtml(mt)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2363,10 +2430,10 @@ const SstModule = (() => {
           <label class="form-label">Sede de Trabajo *</label>
           <select id="sst-sede" class="filter-select">
             ${(() => {
-              const current = r.sedeTrabajo || 'CASA DE LA TORRE';
+              const current = r.sedeTrabajo || '';
               const list = cats.sedes || [];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(s => `<option value="${escHtml(s)}" ${current === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Sede de Trabajo --</option>` + all.map(s => `<option value="${escHtml(s)}" ${current === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2375,10 +2442,10 @@ const SstModule = (() => {
           <label class="form-label">Dependencia donde Trabaja *</label>
           <select id="sst-dep" class="filter-select">
             ${(() => {
-              const current = r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo';
+              const current = r.dependencia || '';
               const list = cats.dependencias || [];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(d => `<option value="${escHtml(d)}" ${current === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Dependencia --</option>` + all.map(d => `<option value="${escHtml(d)}" ${current === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2395,10 +2462,10 @@ const SstModule = (() => {
           <label class="form-label">Denominación del Cargo *</label>
           <select id="sst-cargo" class="filter-select">
             ${(() => {
-              const current = r.denominacionCargo || 'Profesional Universitario';
+              const current = r.denominacionCargo || '';
               const list = cats.cargosOficialesSocio || [];
-              const all = list.includes(current) ? list : [current, ...list];
-              return all.map(cg => `<option value="${escHtml(cg)}" ${current === cg ? 'selected' : ''}>${escHtml(cg)}</option>`).join('');
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Cargo --</option>` + all.map(cg => `<option value="${escHtml(cg)}" ${current === cg ? 'selected' : ''}>${escHtml(cg)}</option>`).join('');
             })()}
           </select>
         </div>
@@ -2406,35 +2473,40 @@ const SstModule = (() => {
         <div class="form-group">
           <label class="form-label">Tipo de Cargo *</label>
           <select id="sst-tipo-cargo" class="filter-select">
-            ${(cats.tiposCargo || []).map(tc => `<option value="${escHtml(tc)}" ${(r.tipoCargo || 'Profesional') === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
+            <option value="">-- Seleccione Tipo de Cargo --</option>
+            ${(cats.tiposCargo || []).map(tc => `<option value="${escHtml(tc)}" ${(r.tipoCargo || '') === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
           </select>
         </div>
 
         <div class="form-group">
           <label class="form-label">Tipo de Vinculación *</label>
           <select id="sst-vinculacion" class="filter-select">
-            ${(cats.tiposVinculacion || []).map(tv => `<option value="${escHtml(tv)}" ${(r.tipoVinculacion || 'Carrera Administrativa') === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+            <option value="">-- Seleccione Tipo de Vinculación --</option>
+            ${(cats.tiposVinculacion || []).map(tv => `<option value="${escHtml(tv)}" ${(r.tipoVinculacion || '') === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
           </select>
         </div>
 
         <div class="form-group">
           <label class="form-label">Rango de Ingresos (SMMLV) *</label>
           <select id="sst-ingresos" class="filter-select">
-            ${(cats.rangosIngresos || []).map(ri => `<option value="${escHtml(ri)}" ${(r.rangoIngresos || 'Entre 3 y 6 SMMLV') === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
+            <option value="">-- Seleccione Rango de Ingresos --</option>
+            ${(cats.rangosIngresos || []).map(ri => `<option value="${escHtml(ri)}" ${(r.rangoIngresos || '') === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
           </select>
         </div>
 
         <div class="form-group">
           <label class="form-label">Antigüedad en el Cargo Actual *</label>
           <select id="sst-ant-cargo" class="filter-select">
-            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadCargo || 'Entre 1 y 4 años') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
+            <option value="">-- Seleccione Antigüedad en Cargo --</option>
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadCargo || '') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
           </select>
         </div>
 
         <div class="form-group span-2">
           <label class="form-label">Antigüedad en la Entidad (años) *</label>
           <select id="sst-ant-entidad" class="filter-select">
-            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadEntidad || 'Entre 1 y 4 años') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
+            <option value="">-- Seleccione Antigüedad en Entidad --</option>
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadEntidad || '') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
           </select>
         </div>
       </div>`;
@@ -2449,6 +2521,22 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epidemiologico') {
+      const dep = document.getElementById('sst-dep')?.value.trim();
+      if (!dep) {
+        App.showToast('La dependencia es requerida.', 'warning');
+        return null;
+      }
+      const fechaEmo = document.getElementById('sst-fecha-emo')?.value;
+      if (!fechaEmo) {
+        App.showToast('La fecha del EMO es obligatoria.', 'warning');
+        return null;
+      }
+      const tipoEmo = document.getElementById('sst-tipo-emo')?.value;
+      if (!tipoEmo) {
+        App.showToast('El tipo de evaluación médica ocupacional es obligatorio.', 'warning');
+        return null;
+      }
+
       const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
       const nombres = document.getElementById('sst-nombres')?.value.trim() || '';
       let nomComp = nombreCompleto;
@@ -2465,17 +2553,17 @@ const SstModule = (() => {
         telefono: document.getElementById('sst-tel')?.value.trim() || '',
         edad: document.getElementById('sst-edad')?.value || null,
         fechaIngreso: document.getElementById('sst-ingreso')?.value || '',
-        dependencia: document.getElementById('sst-dep')?.value.trim() || 'SGEN - SECRETARIA GENERAL (Despacho)',
-        sedeTrabajo: document.getElementById('sst-sede')?.value || 'CASA DE LA TORRE',
-        cargo: document.getElementById('sst-cargo')?.value.trim() || 'PROFESIONAL UNIVERSITARIO',
-        tipoEmo: document.getElementById('sst-tipo-emo')?.value || 'Periódico',
-        fechaEmo: document.getElementById('sst-fecha-emo')?.value || new Date().toISOString().split('T')[0],
+        dependencia: dep,
+        sedeTrabajo: document.getElementById('sst-sede')?.value || '',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || '',
+        tipoEmo: tipoEmo,
+        fechaEmo: fechaEmo,
         fechaProximoEmo: document.getElementById('sst-prox-emo')?.value || '',
         estadoFinalCaso: document.getElementById('sst-estado-caso')?.value || 'Vigente',
         direccionadoPve: document.getElementById('sst-pve')?.value || 'No aplica',
         direccionadoEps: document.getElementById('sst-eps')?.value.trim() || 'No aplica',
         restricciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
-        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim() || 'Pausas activas e higiene postural',
+        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim() || '',
         accidenteTrabajo: document.getElementById('sst-at')?.value || 'NO',
         fechaAccidente: document.getElementById('sst-fecha-at')?.value || '',
         estadoActualAccidente: document.getElementById('sst-estado-at')?.value.trim() || 'No aplica',
@@ -2488,23 +2576,46 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epp') {
+      const dep = document.getElementById('sst-dep')?.value.trim();
+      if (!dep) {
+        App.showToast('La dependencia es obligatoria.', 'warning');
+        return null;
+      }
+      const elementoEpp = document.getElementById('sst-elemento-epp')?.value;
+      if (!elementoEpp) {
+        App.showToast('Debe seleccionar el elemento EPP a entregar.', 'warning');
+        return null;
+      }
+      const firmaDigital = document.getElementById('sst-firma-digital')?.value || null;
+      if (!firmaDigital) {
+        App.showToast('La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.', 'warning');
+        return null;
+      }
+
       return {
         nombreCompleto,
         documento,
         telefono: document.getElementById('sst-tel')?.value.trim() || '',
         secretaria: document.getElementById('sst-secretaria')?.value.trim() || 'SECRETARIA GENERAL',
-        dependencia: document.getElementById('sst-dep')?.value.trim() || '',
-        cargo: document.getElementById('sst-cargo')?.value.trim() || 'PROFESIONAL UNIVERSITARIO',
+        dependencia: dep,
+        sedeTrabajo: document.getElementById('sst-sede')?.value || '',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || '',
         tipoVinculacion: document.getElementById('sst-vinculacion')?.value || 'CARRERA ADMINISTRATIVA',
-        elementoEpp: document.getElementById('sst-elemento-epp')?.value || 'Casco de seguridad',
+        elementoEpp: elementoEpp,
         talla: document.getElementById('sst-talla')?.value.trim() || 'N/A',
         cantidad: document.getElementById('sst-cantidad')?.value.trim() || '1 UNIDAD',
         fechaEntrega: document.getElementById('sst-fecha-entrega')?.value || new Date().toISOString().split('T')[0],
         estadoEntrega: document.getElementById('sst-estado-entrega')?.value || 'Entregado',
         restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
         observaciones: document.getElementById('sst-obs')?.value.trim() || '',
-        firmaDigital: document.getElementById('sst-firma-digital')?.value || null
+        firmaDigital: firmaDigital
       };
+    }
+
+    const dep = document.getElementById('sst-dep')?.value.trim();
+    if (!dep) {
+      App.showToast('La dependencia es requerida.', 'warning');
+      return null;
     }
 
     const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
@@ -2516,8 +2627,8 @@ const SstModule = (() => {
 
     const anioNac = parseInt(document.getElementById('sst-anio-nac')?.value) || null;
     const edad = parseInt(document.getElementById('sst-edad')?.value) || null;
-    const estratoVal = String(document.getElementById('sst-estrato')?.value || '3');
-    const estratoClean = estratoVal.replace(/[^0-9]/g, '') || '3';
+    const estratoVal = String(document.getElementById('sst-estrato')?.value || '');
+    const estratoClean = estratoVal.replace(/[^0-9]/g, '') || '';
 
     return {
       nombreCompleto: nomComp,
@@ -2525,26 +2636,26 @@ const SstModule = (() => {
       nombres: nombres || (nomComp ? nomComp.split(' ').slice(2).join(' ') : ''),
       documento,
       tipoIdentificacion: document.getElementById('sst-tipo-id')?.value || 'Cédula de Ciudadanía',
-      sexo: document.getElementById('sst-sexo')?.value || 'Masculino',
+      sexo: document.getElementById('sst-sexo')?.value || '',
       anioNacimiento: anioNac,
       edad: edad,
-      razaEtnia: document.getElementById('sst-raza')?.value || 'Blanco/Mestizo',
-      estadoCivil: document.getElementById('sst-estado-civil')?.value || 'Soltero (a)',
-      composicionFamiliar: document.getElementById('sst-familia')?.value || 'Conyuge Permanente, Hijos',
-      tipoVivienda: document.getElementById('sst-vivienda')?.value || 'Propia',
+      razaEtnia: document.getElementById('sst-raza')?.value || '',
+      estadoCivil: document.getElementById('sst-estado-civil')?.value || '',
+      composicionFamiliar: document.getElementById('sst-familia')?.value || '',
+      tipoVivienda: document.getElementById('sst-vivienda')?.value || '',
       estrato: estratoClean,
-      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim() || 'Tunja',
-      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim() || 'Tunja',
-      escolaridad: document.getElementById('sst-escolaridad')?.value || 'Profesional',
+      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim() || '',
+      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim() || '',
+      escolaridad: document.getElementById('sst-escolaridad')?.value || '',
       ocupacionProfesion: document.getElementById('sst-profesion')?.value.trim() || '',
-      rangoIngresos: document.getElementById('sst-ingresos')?.value || 'Entre 3 y 6 SMMLV',
-      denominacionCargo: document.getElementById('sst-cargo')?.value.trim() || 'Profesional Universitario',
-      tipoCargo: document.getElementById('sst-tipo-cargo')?.value || 'Profesional',
-      tipoVinculacion: document.getElementById('sst-vinculacion')?.value || 'Carrera Administrativa',
-      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value || 'Entre 1 y 4 años',
-      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value || 'Entre 1 y 4 años',
-      dependencia: document.getElementById('sst-dep')?.value.trim() || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
-      sedeTrabajo: document.getElementById('sst-sede')?.value || 'CASA DE LA TORRE'
+      rangoIngresos: document.getElementById('sst-ingresos')?.value || '',
+      denominacionCargo: document.getElementById('sst-cargo')?.value.trim() || '',
+      tipoCargo: document.getElementById('sst-tipo-cargo')?.value || '',
+      tipoVinculacion: document.getElementById('sst-vinculacion')?.value || '',
+      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value || '',
+      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value || '',
+      dependencia: dep,
+      sedeTrabajo: document.getElementById('sst-sede')?.value || ''
     };
   }
 
@@ -3011,6 +3122,28 @@ const SstModule = (() => {
         headStyles: { fillColor: [40, 117, 34] },
         styles: { fontSize: 9.5, cellPadding: 3.5 }
       });
+    }
+
+    if (state.tab === 'epp' && r.firmaDigital && String(r.firmaDigital).startsWith('data:image')) {
+      const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 180) + 8;
+      const sigY = (finalY + 45 > 280) ? 20 : finalY;
+      if (finalY + 45 > 280) doc.addPage();
+
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text('FIRMA DIGITAL DEL FUNCIONARIO RECEPTOR:', 14, sigY);
+      try {
+        doc.addImage(r.firmaDigital, 'PNG', 14, sigY + 3, 60, 20);
+      } catch (e) {
+        console.warn('Error embedding signature in PDF:', e);
+      }
+      doc.setDrawColor(180, 180, 180);
+      doc.line(14, sigY + 25, 110, sigY + 25);
+      doc.setFontSize(8.5);
+      doc.setTextColor(50, 50, 50);
+      doc.text(`${r.nombreCompleto} — C.C. ${r.documento}`, 14, sigY + 30);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Constancia Digital de Entrega de EPP · ${formatDate(r.fechaEntrega)}`, 14, sigY + 34);
     }
 
     doc.save(`${r.radicado}_${r.documento}.pdf`);

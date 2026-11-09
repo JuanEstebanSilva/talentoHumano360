@@ -19,9 +19,7 @@ function toMin(hhmm) { const [h, m] = hhmm.split(':').map(Number); return h * 60
 function emailError(value, etiqueta) {
   const v = clean(value).toLowerCase();
   if (!v) return `El ${etiqueta} es requerido.`;
-  if (!EMAIL_RE.test(v)) return `El ${etiqueta} no tiene un formato válido.`;
-  if (cat.EMAIL_DOMAIN && !v.endsWith('@' + cat.EMAIL_DOMAIN))
-    return `El ${etiqueta} debe ser un correo institucional @${cat.EMAIL_DOMAIN}.`;
+  if (!EMAIL_RE.test(v)) return `El ${etiqueta} no tiene un formato válido (ejemplo: usuario@correo.com).`;
   return null;
 }
 
@@ -124,8 +122,21 @@ async function validatePermiso(body, { pool, excludeId = 0, keptSoportes = 0 }) 
     jornadaTexto = 'Todo el día (varios días)';
   } else {
     if (!cal.isBusinessDay(fi)) return fail('fechaInicio', 'La fecha seleccionada no es un día hábil (fin de semana o festivo).');
-    const jornadaId = clean(body.jornada);
-    jornada = cat.JORNADAS.find(j => j.id === jornadaId && j.modalidad === modalidad);
+    const jornadaRaw = clean(body.jornada);
+    const jornadaNorm = jornadaRaw.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_');
+    jornada = cat.JORNADAS.find(j =>
+      j.modalidad === modalidad && (
+        j.id === jornadaRaw ||
+        j.id === jornadaNorm ||
+        j.label.toLowerCase() === jornadaRaw.toLowerCase() ||
+        jornadaRaw.toLowerCase().includes(j.label.toLowerCase()) ||
+        (modalidad === 'horas' && (jornadaRaw.toLowerCase().includes('mañana') || jornadaRaw.toLowerCase().includes('manana')) && j.id === 'MANANA') ||
+        (modalidad === 'horas' && jornadaRaw.toLowerCase().includes('tarde') && j.id === 'TARDE') ||
+        (modalidad === 'dia' && (jornadaRaw.toLowerCase().includes('todo') || jornadaRaw.toLowerCase().includes('completa')) && j.id === 'TODO_EL_DIA') ||
+        (modalidad === 'dia' && jornadaRaw.toLowerCase().includes('mañana') && j.id === 'TODA_LA_MANANA') ||
+        (modalidad === 'dia' && jornadaRaw.toLowerCase().includes('tarde') && j.id === 'TODA_LA_TARDE')
+      )
+    );
     if (!jornada) return fail('jornada', 'Seleccione una jornada válida.');
 
     if (modalidad === 'horas') {
