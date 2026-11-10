@@ -28,7 +28,8 @@ const DocumentsModule = (() => {
   };
 
   // ─── Utilidades ────────────────────────────────────────────────────────────
-  const canWrite = () => Auth.canEdit('documents');
+  // Todo usuario registrado usa Gestión Documental (decisión de la entidad).
+  const canWrite = () => Auth.isLoggedIn();
 
   function canManageTypes() {
     const user = Auth.getUser();

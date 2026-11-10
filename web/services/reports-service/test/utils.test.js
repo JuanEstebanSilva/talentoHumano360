@@ -101,8 +101,11 @@ test('permisos: una fuente exige todos sus módulos y nunca depende del nombre',
   assert.strictEqual(canAccessSource(usuario, getSource('sst_emo')), false);
   assert.strictEqual(canAccessSource(usuario, novedades), false);
   assert.strictEqual(canAccessSource({ role: 'Coordinador', modules: [] }, novedades), true);
+  // Informes y automatización: todo usuario registrado; sin sesión no.
+  assert.strictEqual(canAutomate({ ...usuario, username: 'angela.falsa' }), true);
+  assert.strictEqual(canAutomate({ username: 'x', role: 'Usuario', modules: [] }), true);
   assert.strictEqual(canAutomate(usuario), false);
-  assert.strictEqual(canAutomate({ role: 'Usuario', modules: ['reports_write'] }), true);
+  assert.strictEqual(canAutomate(null), false);
 });
 
 test('el catálogo es coherente: claves únicas y sin exponer contraseñas ni adjuntos', () => {

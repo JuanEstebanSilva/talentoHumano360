@@ -60,4 +60,4 @@ CREATE INDEX IF NOT EXISTS idx_automatizaciones_proxima ON automatizaciones(prox
 CREATE INDEX IF NOT EXISTS idx_automatizaciones_creador ON automatizaciones(LOWER(creado_por));
 CREATE INDEX IF NOT EXISTS idx_auto_ejecuciones_auto    ON automatizacion_ejecuciones(id_automatizacion, iniciado_en DESC);
 
--- Los permisos de este módulo se asignan en 33_accesos_adicionales.sql.
+-- Acceso: todo usuario registrado (decisión de la entidad); se controla en el servicio.

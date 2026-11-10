@@ -52,20 +52,23 @@ test('suggestTipo usa la palabra clave más específica y solo palabras completa
   assert.strictEqual(suggestTipo('memorando.pdf', tipos), null);
 });
 
-test('permisos: dependen del rol y los módulos, nunca del nombre', () => {
-  const angelaPorNombre = { name: 'Angela', username: 'angela.falsa', role: 'Usuario', modules: ['dashboard'] };
-  assert.strictEqual(canRead(angelaPorNombre), false);
-  assert.strictEqual(canWrite(angelaPorNombre), false);
+test('permisos: todo usuario registrado lee y escribe; lo sensible depende del rol y los módulos', () => {
+  const sinModulos = { name: 'Angela', username: 'angela.falsa', role: 'Usuario', modules: ['dashboard'] };
+  assert.strictEqual(canRead(sinModulos), true);
+  assert.strictEqual(canWrite(sinModulos), true);
+  assert.strictEqual(canViewSensitive(sinModulos), false);
 
-  const lector = { role: 'Usuario', modules: ['documents'] };
-  assert.strictEqual(canRead(lector), true);
-  assert.strictEqual(canWrite(lector), false);
-  assert.strictEqual(canViewSensitive(lector), false);
+  // Sin sesión (sin username) no hay acceso.
+  for (const anonimo of [null, undefined, {}, { role: 'Coordinador', modules: ['*'] }]) {
+    assert.strictEqual(canRead(anonimo), false);
+    assert.strictEqual(canWrite(anonimo), false);
+  }
 
-  const gestor = { role: 'Usuario', modules: ['documents_write'] };
+  const gestor = { username: 'gestor', role: 'Usuario', modules: ['documents_write'] };
   assert.strictEqual(canRead(gestor), true);
   assert.strictEqual(canWrite(gestor), true);
   assert.strictEqual(canViewSensitive(gestor), false);
+  assert.strictEqual(canViewSensitive({ username: 'x', role: 'Usuario', permissions: ['documents:sensitive'] }), true);
 
   assert.strictEqual(canViewSensitive({ role: 'Usuario', modules: ['documents', 'documents_sensitive'] }), true);
   assert.strictEqual(canViewSensitive({ role: 'Coordinador', modules: [] }), true);

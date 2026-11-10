@@ -112,23 +112,31 @@ test('soportes de solicitudes', { skip: !url && 'Definir TEST_DATABASE_URL para 
     assert.strictEqual(lista.body.restringido, false);
     assert.strictEqual(lista.body.puedeAdjuntar, true);
 
-    // Con solo lectura lo ve, pero no se le ofrece adjuntar.
+    // Todo usuario registrado con acceso a solicitudes lo ve y puede adjuntar (no es sensible).
     const lector = await list(id, token(['documents', 'admin-requests']));
     assert.strictEqual(lector.body.data.length, 1);
-    assert.strictEqual(lector.body.puedeAdjuntar, false);
+    assert.strictEqual(lector.body.puedeAdjuntar, true);
   });
 
   await t.test('consultar los soportes de una solicitud inexistente responde 404', async () => {
     assert.strictEqual((await list(2147483000, coordinador)).status, 404);
   });
 
-  await t.test('exige acceso a solicitudes y a documentos', async () => {
+  await t.test('exige sesión y acceso a solicitudes; el módulo de documentos ya no se exige', async () => {
     const id = await newRequest('Permiso Laboral');
     assert.strictEqual((await upload(id, sinSolicitudes)).status, 403);
     assert.strictEqual((await list(id, sinSolicitudes)).status, 403);
-    assert.strictEqual((await upload(id, token(['admin-requests']))).status, 403); // Sin módulo de documentos.
-    assert.strictEqual((await upload(id, token(['documents', 'admin-requests']))).status, 403); // Solo lectura.
     assert.strictEqual((await list(id, token(['dashboard']))).status, 403);
+    assert.strictEqual((await upload(id, token(['dashboard']))).status, 403);
+    assert.strictEqual((await upload(id, '')).status, 401);
+    assert.strictEqual((await list(id, '')).status, 401);
+    // Con acceso a solicitudes basta: no hace falta el módulo de documentos ni el de escritura.
+    const sinModulo = await upload(id, token(['admin-requests']));
+    assert.strictEqual(sinModulo.status, 201, JSON.stringify(sinModulo.body));
+    docs.push(sinModulo.body.id);
+    const soloLectura = await upload(id, token(['documents', 'admin-requests']));
+    assert.strictEqual(soloLectura.status, 201, JSON.stringify(soloLectura.body));
+    docs.push(soloLectura.body.id);
   });
 
   await t.test('valida solicitud, cédula y contenido del archivo', async () => {

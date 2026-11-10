@@ -304,9 +304,9 @@ Módulos añadidos sobre la base del equipo, sin cambiar los existentes:
 | **Gestión Documental** | `services/documents-service` (puerto 3009, `/api/documents`) | Archivos y versiones en el volumen `documents_data`; carpeta de entrada automática en `documents_inbox`. |
 | **Informes y Automatización** | `services/reports-service` (puerto 3010, `/api/reports`, `/api/automation`) | Informes limitados a los módulos que el usuario ya puede consultar; también muestra el historial de cargas masivas. |
 | **Historial de cargas masivas** | `services/*/src/utils/importHistory.js` | Registra en la tabla `importaciones` cada carga confirmada, rechazada o fallida, sin cambiar la lógica de la ruta. |
-| **Migraciones** | `database/28_…` a `database/33_…` | `33_accesos_adicionales.sql` asigna los accesos a estos módulos (ver abajo). |
+| **Migraciones** | `database/28_…` a `database/32_…` | Tablas de documentos, informes, automatizaciones e historial de cargas. |
 
-**Accesos:** los servicios `admin-requests` y `sst` reescriben `usuarios.modulos` y `usuarios.permisos` al arrancar. Por eso los accesos a `documents` y `reports` se guardan en la tabla `accesos_adicionales` y un trigger los vuelve a añadir. Para dar o quitar un acceso, se agrega o borra una fila en esa tabla.
+**Accesos (decisión de la entidad):** todo usuario registrado usa Gestión Documental e Informes. Los documentos de tipos sensibles exigen el permiso `documents:sensitive`, y cada informe solo trae módulos que el usuario ya puede consultar. Los documentos se conservan hasta que alguien los elimine a mano.
 
 **Pruebas:** `npm test` con `TEST_DATABASE_URL` apuntando a una base de pruebas (nunca la de producción). Sin esa variable, las pruebas de integración se omiten.
 

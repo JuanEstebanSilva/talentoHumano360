@@ -71,16 +71,20 @@ test('API de informes y automatización', { skip: !url && 'Definir TEST_DATABASE
   const generar = (token, filtros, extra = {}) =>
     call('POST', '/reports/generar', token, { fuente: 'solicitudes', filtros: { documento: tag, ...filtros }, ...extra }).then(json);
 
-  await t.test('exige sesión y acceso al módulo', async () => {
+  await t.test('exige sesión; cualquier usuario registrado entra, pero sin fuentes que no puede consultar', async () => {
     assert.strictEqual((await call('GET', '/reports/catalogo', null)).status, 401);
-    assert.strictEqual((await call('GET', '/reports/catalogo', ajeno)).status, 403);
+    assert.strictEqual((await call('GET', '/automation', null)).status, 401);
+    const res = await json(await call('GET', '/reports/catalogo', ajeno));
+    assert.strictEqual(res.status, 200);
+    assert.ok(!res.body.fuentes.some(f => f.id === 'solicitudes'));
+    assert.strictEqual(res.body.puedeAutomatizar, true);
   });
 
   await t.test('el catálogo solo muestra fuentes permitidas y sin SQL', async () => {
     const { body } = await json(await call('GET', '/reports/catalogo', lector));
     assert.deepStrictEqual(body.fuentes.map(f => f.id), ['solicitudes']);
     assert.ok(!JSON.stringify(body).includes('solicitudes_admin'));
-    assert.strictEqual(body.puedeAutomatizar, false);
+    assert.strictEqual(body.puedeAutomatizar, true);
     const all = await json(await call('GET', '/reports/catalogo', coordinador));
     assert.strictEqual(all.body.fuentes.length, SOURCES.length);
   });
@@ -124,6 +128,7 @@ test('API de informes y automatización', { skip: !url && 'Definir TEST_DATABASE
 
   await t.test('no permite consultar datos de módulos ajenos ni filtros inválidos', async () => {
     assert.strictEqual((await call('POST', '/reports/generar', sinFuente, { fuente: 'solicitudes' })).status, 404);
+    assert.strictEqual((await call('POST', '/reports/generar', ajeno, { fuente: 'solicitudes' })).status, 404);
     assert.strictEqual((await call('POST', '/reports/generar', gestor, { fuente: 'no_existe' })).status, 404);
     assert.strictEqual((await call('POST', '/reports/generar', gestor, { fuente: 'solicitudes', filtros: { inventado: 'x' } })).status, 400);
     assert.strictEqual((await call('POST', '/reports/generar', gestor, { fuente: 'solicitudes', columnas: ['password'] })).status, 400);
@@ -140,8 +145,13 @@ test('API de informes y automatización', { skip: !url && 'Definir TEST_DATABASE
   let id;
 
   await t.test('crear automatización: valida permisos y datos', async () => {
-    assert.strictEqual((await call('POST', '/automation', lector, definicion)).status, 403);
+    // Cualquier usuario registrado puede programar, pero solo sobre fuentes que ya puede consultar.
+    assert.strictEqual((await call('POST', '/automation', null, definicion)).status, 401);
     assert.strictEqual((await call('POST', '/automation', sinFuente, definicion)).status, 403);
+    assert.strictEqual((await call('POST', '/automation', ajeno, definicion)).status, 403);
+    const deLector = await json(await call('POST', '/automation', lector, definicion));
+    assert.strictEqual(deLector.status, 201);
+    createdAutomations.push(deLector.body.id);
     assert.strictEqual((await call('POST', '/automation', gestor, { ...definicion, nombre: '' })).status, 400);
     assert.strictEqual((await call('POST', '/automation', gestor, { ...definicion, inicio: 'mañana' })).status, 400);
     assert.strictEqual((await call('POST', '/automation', gestor, { ...definicion, frecuencia: 'personalizada', intervalo: 0, unidad: 'dias' })).status, 400);

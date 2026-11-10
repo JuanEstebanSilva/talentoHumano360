@@ -24,12 +24,14 @@ function hasFullAccess(user) {
   return role.includes('administrador') || role.includes('coordinador') || mods.includes('*') || mods.includes('all');
 }
 
+// La entidad decidió que todo usuario registrado use Informes y Automatización.
+// Lo que limita es canAccessSource: cada informe solo trae módulos que el usuario ya puede consultar.
 function canUseReports(user) {
-  return hasFullAccess(user) || modulesOf(user).includes('reports') || hasPermission(user, 'reports', 'read');
+  return Boolean(user?.username);
 }
 
 function canAutomate(user) {
-  return hasFullAccess(user) || modulesOf(user).includes('reports_write') || hasPermission(user, 'reports', 'write');
+  return Boolean(user?.username);
 }
 
 function canAccessSource(user, source) {

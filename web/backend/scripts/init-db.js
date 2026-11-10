@@ -30,7 +30,7 @@ const ADDITIONAL_MIGRATIONS = [
   '29_informes_automatizacion.sql',
   '30_importaciones.sql',
   '31_soportes_solicitudes.sql',
-  '32_importaciones_resultado.sql', '33_accesos_adicionales.sql',
+  '32_importaciones_resultado.sql',
 ];
 
 // Scripts SQL maestros para inicialización desde cero

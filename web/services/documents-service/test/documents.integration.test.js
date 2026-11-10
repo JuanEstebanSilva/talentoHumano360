@@ -71,15 +71,18 @@ test('API de documentos', { skip: !url && 'Definir TEST_DATABASE_URL para ejecut
   };
   const pdf = (text) => Buffer.from(`%PDF-1.7 ${text} ${suffix}`);
 
-  await t.test('exige sesión y acceso al módulo', async () => {
+  await t.test('exige sesión; cualquier usuario registrado accede, tenga o no el módulo', async () => {
     assert.strictEqual((await call('GET', '', null)).status, 401);
-    assert.strictEqual((await call('GET', '', ajeno)).status, 403);
+    assert.strictEqual((await call('GET', '', ajeno)).status, 200);
     assert.strictEqual((await call('GET', '', lector)).status, 200);
   });
 
-  await t.test('un lector no puede cargar archivos', async () => {
+  await t.test('cualquier usuario registrado puede cargar archivos; sin sesión no', async () => {
     const res = await upload('', lector, 'x.pdf', pdf('lector'));
-    assert.strictEqual(res.status, 403);
+    assert.strictEqual(res.status, 201);
+    created.push((await res.json()).id);
+    const anon = await fetch(base, { method: 'POST', body: new FormData() });
+    assert.strictEqual(anon.status, 401);
   });
 
   await t.test('rechaza archivos cuyo contenido no es válido', async () => {
@@ -98,8 +101,8 @@ test('API de documentos', { skip: !url && 'Definir TEST_DATABASE_URL para ejecut
     assert.strictEqual(doc.sugerencia.cedula, cedula);
     assert.strictEqual(doc.sugerencia.tipoNombre, 'Hoja de vida');
 
-    // El lector no ve la bandeja.
-    assert.strictEqual((await call('GET', `/${doc.id}`, lector)).status, 404);
+    // La bandeja es visible para todo usuario registrado.
+    assert.strictEqual((await call('GET', `/${doc.id}`, lector)).status, 200);
 
     const confirm = await call('PATCH', `/${doc.id}`, gestor, { cedula: doc.sugerencia.cedula, idTipo: doc.sugerencia.idTipo });
     assert.strictEqual(confirm.status, 200);
@@ -162,8 +165,8 @@ test('API de documentos', { skip: !url && 'Definir TEST_DATABASE_URL para ejecut
   });
 
   await t.test('eliminar oculta el documento y conserva el archivo y su historial', async () => {
-    assert.strictEqual((await call('DELETE', `/${pendingId}`, lector)).status, 403);
-    assert.strictEqual((await call('DELETE', `/${pendingId}`, gestor, { motivo: 'Prueba' })).status, 200);
+    assert.strictEqual((await call('DELETE', `/${pendingId}`, null)).status, 401);
+    assert.strictEqual((await call('DELETE', `/${pendingId}`, ajeno, { motivo: 'Prueba' })).status, 200);
     assert.strictEqual((await call('GET', `/${pendingId}`, gestor)).status, 404);
     const { rows } = await pool.query('SELECT COUNT(*) AS n FROM documento_eventos WHERE id_documento = $1 AND accion = $2', [pendingId, 'Eliminación']);
     assert.strictEqual(Number(rows[0].n), 1);

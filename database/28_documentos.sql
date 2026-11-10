@@ -84,4 +84,4 @@ INSERT INTO tipos_documento (codigo, nombre, categoria, palabras_clave, es_sensi
   ('OTRO',             'Otro documento',                         'General',        '', FALSE)
 ON CONFLICT (codigo) DO NOTHING;
 
--- Los permisos de este módulo se asignan en 33_accesos_adicionales.sql.
+-- Acceso: todo usuario registrado (decisión de la entidad); se controla en el servicio.

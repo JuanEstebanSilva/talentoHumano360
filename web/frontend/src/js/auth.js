@@ -110,7 +110,8 @@ const Auth = (() => {
     if (!isLoggedIn()) return false;
     const user = getUser();
     const mod = String(moduleName || '').toLowerCase().trim();
-    if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad') {
+    if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad'
+      || mod === 'documents' || mod === 'reports') { // Gestión Documental e Informes: todo usuario registrado.
       return true;
     }
     const scope = getRoleScope(user);

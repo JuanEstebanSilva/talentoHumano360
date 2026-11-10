@@ -52,13 +52,7 @@ Si un registro ya existía, cada módulo decide qué hacer según su propia lóg
 
 ## Permisos
 
-Usan el modelo `modulos` + `permisos` del equipo:
-
-- Módulo `reports` y permiso `reports:read`: generar informes, solo de los módulos que el usuario ya puede consultar.
-- `reports:write`: programar automatizaciones. Cada usuario ve y gestiona solo las suyas.
-- Quien tiene `*` (Administrador) ve todas.
-
-Los accesos se asignan en la tabla `accesos_adicionales` (`database/33_accesos_adicionales.sql`), porque los servicios admin-requests y sst reescriben los permisos de los usuarios al arrancar.
+Por decisión de la entidad, todo usuario registrado puede generar informes y programar automatizaciones. Cada informe solo trae datos de los módulos que el usuario ya puede consultar con el modelo `modulos` + `permisos` del equipo. Cada usuario ve y gestiona solo sus automatizaciones; quien tiene `*` (Administrador) ve todas.
 
 ## Agregar un informe o un filtro
 

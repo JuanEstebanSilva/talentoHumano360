@@ -1,7 +1,6 @@
-// Permisos del módulo. Salen solo del rol y de los módulos firmados en el token.
-//   documents           → consultar documentos clasificados
-//   documents_write     → cargar, clasificar, versionar y eliminar
-//   documents_sensitive → ver y gestionar tipos marcados como sensibles (salud)
+// Permisos del módulo. La entidad decidió que todo usuario registrado use Gestión Documental:
+// cualquier sesión válida consulta, carga, clasifica, versiona y elimina.
+// Los tipos marcados como sensibles (salud) siguen exigiendo documents:sensitive.
 
 function modulesOf(user) {
   return Array.isArray(user?.modules) ? user.modules : [];
@@ -25,11 +24,11 @@ function hasFullAccess(user) {
 }
 
 function canWrite(user) {
-  return hasFullAccess(user) || modulesOf(user).includes('documents_write') || hasPermission(user, 'documents', 'write');
+  return Boolean(user?.username);
 }
 
 function canRead(user) {
-  return canWrite(user) || modulesOf(user).includes('documents') || hasPermission(user, 'documents', 'read');
+  return Boolean(user?.username);
 }
 
 function canViewSensitive(user) {

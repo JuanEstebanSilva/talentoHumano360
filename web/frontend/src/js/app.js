@@ -1730,8 +1730,8 @@ const App = (() => {
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', false);
       setVisibility('nav-settings', true);
-      setVisibility('nav-documents', false);
-      setVisibility('nav-reports', false);
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       applyRoleSidebarAccess(user);
       return;
     }
@@ -1767,8 +1767,8 @@ const App = (() => {
       setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
       setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
       setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
-      setVisibility('nav-documents', hasAll || mods.includes('documents'));
-      setVisibility('nav-reports', hasAll || mods.includes('reports'));
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       setVisibility('nav-settings', true);
     }
   }

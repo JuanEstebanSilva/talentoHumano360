@@ -113,3 +113,17 @@ Consecuencias técnicas si esto se confirma:
 | 6. Formularios | Dependencias de información identificadas | Formatos oficiales |
 | 8. Servicios para APIs externas | Dependencias de información identificadas | Mecanismos que ofrezcan los sistemas |
 | 9. Sincronización con Humano | Dependencias de información identificadas | Acceso a Humano y reglas de cruce de datos |
+
+## 6. Respuestas de la entidad (10 de noviembre de 2026)
+
+| Pregunta | Respuesta | Qué se hizo o qué implica |
+| :--- | :--- | :--- |
+| TH-01. Cómo llegan los documentos | Casi todo llega en Excel por correo. Los permisos se piden en un Forms; la idea es que se pidan en la aplicación. | Las cargas masivas por Excel ya quedan en el historial de importaciones. El formulario de permisos ya existe en la aplicación (módulo del equipo). |
+| TH-08. Formularios vigentes | Dependen de las vistas y permisos de cada usuario. | Se mantienen los formularios actuales de cada módulo, con sus permisos. |
+| TH-12. Acceso a Gestión Documental e Informes | Todos los usuarios registrados. | Aplicado: cualquier sesión válida entra a los dos módulos. |
+| DA-02 y DA-03. Documentos sensibles | Los ve quien tenga los permisos y módulos para eso. | Los tipos sensibles exigen `documents:sensitive`; los informes solo traen módulos que el usuario puede consultar. |
+| DA-04. Conservación | Hasta que alguien los elimine manualmente. | La aplicación no borra documentos de forma automática. |
+| SI-01 y SI-02. Humano y pagos | No tienen un sistema avanzado; solo lo básico. | Objetivos 7, 8 y 9: no hay API ni servicio que conectar. La integración se hace con la carga de archivos Excel y la exportación de informes, que ya existen. |
+| IN-01 e IN-06. Servidor | Un computador antiguo en la oficina de Talento Humano; acceso solo desde la misma red. | La aplicación ya funciona por IP en la red local (`config.js`). Conviene reservar una IP fija para ese equipo en el router. |
+| IN-02. Copias de seguridad | Quedan en el mismo computador. | Riesgo aceptado: si el disco falla se pierden datos y copias. Queda pendiente para próximos pasantes. |
+| IN-07. Conexión desde otros equipos de la red | En prueba. | Pendiente del resultado. |
