@@ -2682,7 +2682,16 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-depto-exp">Depto. de Expedición Cédula</label>
               <select id="ef-depto-exp" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${cats.divipola.departamentos.map(dep => `<option value="${escHtml(dep)}" ${(isEdit && emp.departamentoExpedicion === dep) ? 'selected' : ''}>${escHtml(dep)}</option>`).join('')}
+                ${(function() {
+                  const deptos = Array.from(cats.divipola?.departamentos || []).sort((a, b) => {
+                    const aB = /boyac[aá]/i.test(a);
+                    const bB = /boyac[aá]/i.test(b);
+                    if (aB && !bB) return -1;
+                    if (!aB && bB) return 1;
+                    return a.localeCompare(b, 'es');
+                  });
+                  return deptos.map(dep => `<option value="${escHtml(dep)}" ${(isEdit && emp.departamentoExpedicion === dep) ? 'selected' : ''}>${escHtml(dep)}</option>`).join('');
+                })()}
               </select>
             </div>
 
@@ -3277,7 +3286,13 @@ const EmployeesModule = (() => {
     const updateMunicipiosForDepto = (selectedDepto, currentMpio = '') => {
       if (!mpioExpSelect) return;
       const cleanDepto = (selectedDepto || '').trim().toUpperCase();
-      const mpios = cats.divipola.municipiosPorDepto[cleanDepto] || [];
+      let mpios = cats.divipola.municipiosPorDepto[cleanDepto] || [];
+      // Para Boyacá, TUNJA aparece siempre de primer municipio
+      if (cleanDepto === 'BOYACÁ' || cleanDepto === 'BOYACA') {
+        const tunjas = mpios.filter(m => m.toUpperCase() === 'TUNJA');
+        const otros = mpios.filter(m => m.toUpperCase() !== 'TUNJA').sort((a, b) => a.localeCompare(b, 'es'));
+        mpios = [...(tunjas.length ? tunjas : ['TUNJA']), ...otros];
+      }
       mpioExpSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
         mpios.map(c => `<option value="${escHtml(c)}" ${c.toUpperCase() === (currentMpio || '').toUpperCase() ? 'selected' : ''}>${escHtml(c)}</option>`).join('');
 

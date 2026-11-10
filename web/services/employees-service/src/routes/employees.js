@@ -898,6 +898,17 @@ router.get('/catalogs', auth, async (_, res) => {
       municipiosPorDepto[depto].push(mpio);
     }
 
+    // Ordenar municipios: para Boyacá, TUNJA aparece siempre en la primera posición
+    for (const depto of Object.keys(municipiosPorDepto)) {
+      municipiosPorDepto[depto].sort((a, b) => {
+        if (depto === 'BOYACÁ' || depto === 'BOYACA') {
+          if (a === 'TUNJA') return -1;
+          if (b === 'TUNJA') return 1;
+        }
+        return a.localeCompare(b, 'es');
+      });
+    }
+
     // Discapacidades canónicas y existentes en BD (todas en MAYÚSCULAS)
     const discSet = new Set((DISCAPACIDADES_VALIDAS || []).map(d => d.toUpperCase()));
     for (const r of (discRes?.rows || [])) {
@@ -973,7 +984,7 @@ router.get(['/municipios', '/divipola'], auth, async (req, res) => {
       idx++;
     }
 
-    sql += ` ORDER BY municipio ASC LIMIT 250`;
+    sql += ` ORDER BY CASE WHEN UPPER(municipio) = 'TUNJA' THEN 0 ELSE 1 END, municipio ASC LIMIT 250`;
     const r = await pool.query(sql, params);
     res.json({
       total: r.rowCount,

@@ -141,6 +141,7 @@ const ViaticosModule = (() => {
   // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
   const COLOMBIA_GEO = {
     'Boyacá': [
+      'Tunja',
       'Almeida', 'Aquitania', 'Arcabuco', 'Belén', 'Berbeo', 'Betéitiva', 'Boavita', 'Boyacá',
       'Briceño', 'Buenavista', 'Busbanzá', 'Caldas', 'Campohermoso', 'Cerinza', 'Chinavita',
       'Chiquinquirá', 'Chiscas', 'Chita', 'Chitaraque', 'Chivatá', 'Chivor', 'Chíquiza',
@@ -156,7 +157,7 @@ const ViaticosModule = (() => {
       'Santa Rosa de Viterbo', 'Santa Sofía', 'Santana', 'Siachoque', 'Soatá', 'Socha', 'Socotá',
       'Sogamoso', 'Somondoco', 'Sora', 'Soracá', 'Sotaquirá', 'Susacón', 'Sutamarchán',
       'Sutatenza', 'Sáchica', 'Sátivanorte', 'Sátivasur', 'Tasco', 'Tenza', 'Tibaná', 'Tibasosa',
-      'Tinjacá', 'Tipacoque', 'Toca', 'Togüí', 'Tota', 'Tunja', 'Tununguá', 'Turmequé', 'Tuta',
+      'Tinjacá', 'Tipacoque', 'Toca', 'Togüí', 'Tota', 'Tununguá', 'Turmequé', 'Tuta',
       'Tutazá', 'Tópaga', 'Ventaquemada', 'Villa de Leyva', 'Viracachá', 'Zetaquira', 'Úmbita',
       'Otro municipio'
     ],
@@ -765,7 +766,13 @@ const ViaticosModule = (() => {
               <div class="form-group">
                 <label class="form-label">Departamento</label>
                 <select id="vf-depto" class="filter-select" onchange="ViaticosModule.onDeptoChange()" ${dis}>
-                  <option value="" ${!defaultDepto ? 'selected' : ''}>Seleccione Departamento...</option>${Object.keys(COLOMBIA_GEO).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
+                  <option value="" ${!defaultDepto ? 'selected' : ''}>Seleccione Departamento...</option>${Object.keys(COLOMBIA_GEO).sort((a, b) => {
+                    const aB = /boyac[aá]/i.test(a);
+                    const bB = /boyac[aá]/i.test(b);
+                    if (aB && !bB) return -1;
+                    if (!aB && bB) return 1;
+                    return a.localeCompare(b, 'es');
+                  }).map(d => `<option value="${d}" ${d === defaultDepto ? 'selected' : ''}>${d}</option>`).join('')}
                 </select>
               </div>
               <div class="form-group">
@@ -1274,7 +1281,12 @@ const ViaticosModule = (() => {
       updateDestinoFinal();
       return;
     }
-    const munis = COLOMBIA_GEO[depto] || ['Capital / Ciudad Principal', 'Otro municipio'];
+    let munis = COLOMBIA_GEO[depto] || ['Capital / Ciudad Principal', 'Otro municipio'];
+    if (/boyac[aá]/i.test(depto)) {
+      const tunjas = munis.filter(m => m.toLowerCase() === 'tunja');
+      const otros = munis.filter(m => m.toLowerCase() !== 'tunja');
+      munis = [...(tunjas.length ? tunjas : ['Tunja']), ...otros];
+    }
     muniSelect.innerHTML = '<option value="">Seleccione Municipio...</option>' + munis.map(m => `<option value="${m}" ${m === selectedMuni ? 'selected' : ''}>${m}</option>`).join('');
     updateDestinoFinal();
   }
