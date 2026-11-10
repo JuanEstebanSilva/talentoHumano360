@@ -249,5 +249,5 @@ async function validatePermiso(body, { pool, excludeId = 0, keptSoportes = 0 }) 
   };
 }
 
-module.exports = { validatePermiso, formatHoras, clean };
+module.exports = { validatePermiso, formatHoras, clean, sniffMime };
 

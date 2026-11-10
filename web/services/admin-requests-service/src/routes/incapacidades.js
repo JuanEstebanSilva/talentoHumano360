@@ -562,6 +562,21 @@ router.get('/stats', auth, async (req, res) => {
       LIMIT 12
     `, vals);
 
+    // Detección de acumulación de ausentismo médico >= 90 días (INC-ALRT-001 / INC-ALRT-002)
+    const alertas90Q = await pool.query(`
+      SELECT
+        s.documento,
+        s.apellidos_nombres AS persona,
+        s.dependencia,
+        SUM(s.dias_solicitados)::int AS total_dias_acum,
+        COUNT(*)::int AS total_incapacidades
+      FROM solicitudes_admin s
+      WHERE ${where}
+      GROUP BY s.documento, s.apellidos_nombres, s.dependencia
+      HAVING SUM(s.dias_solicitados) >= 90
+      ORDER BY total_dias_acum DESC
+    `, vals);
+
     const row = r.rows[0] || {};
     res.json({
       total: row.total || 0,
@@ -574,6 +589,15 @@ router.get('/stats', auth, async (req, res) => {
       totalDias: row.total_dias || 0,
       totalDescuento: parseFloat(row.total_descuento) || 0,
       prorrogas: row.prorrogas || 0,
+      alertas90Dias: alertas90Q.rows.length,
+      hasAlert90: alertas90Q.rows.length > 0,
+      casosAlerta90: alertas90Q.rows.map(c => ({
+        documento: c.documento,
+        persona: c.persona,
+        dependencia: c.dependencia,
+        totalDiasAcum: c.total_dias_acum,
+        totalIncapacidades: c.total_incapacidades,
+      })),
       porCausa: porCausaQ.rows,
       porDependencia: porDepQ.rows,
       porEps: porEpsQ.rows,
@@ -894,6 +918,7 @@ router.post('/bulk', auth, async (req, res) => {
     res.status(201).json({
       inserted,
       skipped,
+      duplicatesSkipped: skipped,
       errors,
       message: `Se importaron ${inserted} registros de incapacidad exitosamente (${skipped} omitidos/duplicados).`
     });

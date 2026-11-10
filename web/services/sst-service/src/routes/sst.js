@@ -954,6 +954,16 @@ function mapSocioRow(r) {
 // ─── GET /api/sst/stats (Dashboards 6.4 Epidemiológico, 6.5 Sociodemográfico, 6.6 EPP) ───
 router.get('/stats', auth, async (req, res) => {
   try {
+    // Control de Acceso RBAC (DEF-003 / Confidencialidad Ley 1581 y Res. 2346):
+    // Solo Administración y Responsables SST tienen acceso a estadísticas e informes consolidados.
+    const permEpi = await getModulePermission(pool, req.user, 'epidemiologico');
+    const permSoc = await getModulePermission(pool, req.user, 'sociodemografico');
+    const permEpp = await getModulePermission(pool, req.user, 'epp');
+    const canAccess = permEpi.canManage || permSoc.canManage || permEpp.canManage || isAdminUser(req.user);
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Acceso denegado a estadísticas gerenciales de SST. Se requiere perfil de administración o responsable SST.' });
+    }
+
     const { anio = '', mes = '', fechaInicio = '', fechaFin = '', dependencia = '' } = req.query;
 
     // Filtros dinámicos para Epidemiológico (fecha_emo / dependencia)
@@ -1186,11 +1196,26 @@ router.get('/stats', auth, async (req, res) => {
     const stockDisponibleTotal = invRows.reduce((s, r) => s + (r.disponibles || 0), 0);
     const existenciasBajasCount = invRows.filter(r => r.bajo_stock).length;
 
+    // Conteo semáforo de vigencias médicas (EPI-SEM-001)
+    let semaforoVigentes = 0;
+    let semaforoPorVencer = 0;
+    let semaforoVencidos = 0;
+    for (const r of (epiPorEstado.rows || [])) {
+      const st = String(r.estado || '').toLowerCase();
+      const cnt = parseInt(r.cantidad || 0, 10);
+      if (st.includes('vigente')) semaforoVigentes += cnt;
+      else if (st.includes('próximo') || st.includes('proximo') || st.includes('alerta')) semaforoPorVencer += cnt;
+      else if (st.includes('vencid')) semaforoVencidos += cnt;
+    }
+
     res.json({
-      // Indicadores planos compatibles con llamadas existentes
+      // Indicadores planos compatibles con llamadas existentes y semáforo EPI-SEM-001
       totalEmo: ep.total_emo || 0,
-      emoVigentes: ep.emo_vigentes || 0,
-      emoAlertas: ep.emo_alertas || 0,
+      emoVigentes: ep.emo_vigentes || semaforoVigentes || 0,
+      emoAlertas: ep.emo_alertas || semaforoPorVencer || 0,
+      vigentes: semaforoVigentes,
+      porVencer: semaforoPorVencer,
+      vencidos: semaforoVencidos,
       casosSeguimiento: ep.casos_seguimiento || 0,
       direccionadosPve: ep.direccionados_pve || 0,
       conCondicionesSalud: ep.con_condiciones_salud || 0,
@@ -1215,8 +1240,11 @@ router.get('/stats', auth, async (req, res) => {
       // Objetos detallados para los 3 Dashboards interactivos (6.4, 6.5, 6.6)
       epidemiologico: {
         totalEmo: ep.total_emo || 0,
-        emoVigentes: ep.emo_vigentes || 0,
-        emoAlertas: ep.emo_alertas || 0,
+        emoVigentes: ep.emo_vigentes || semaforoVigentes || 0,
+        emoAlertas: ep.emo_alertas || semaforoPorVencer || 0,
+        vigentes: semaforoVigentes,
+        porVencer: semaforoPorVencer,
+        vencidos: semaforoVencidos,
         casosSeguimiento: ep.casos_seguimiento || 0,
         direccionadosPve: ep.direccionados_pve || 0,
         conCondicionesSalud: ep.con_condiciones_salud || 0,

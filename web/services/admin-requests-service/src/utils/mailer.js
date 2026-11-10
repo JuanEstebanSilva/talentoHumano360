@@ -97,7 +97,7 @@ async function sendMail({ to, subject, html, text }) {
 }
 
 // ─── Plantillas ──────────────────────────────────────────────────────────────
-function layout(titulo, intro, filas, pie) {
+function layout(titulo, intro, filas, pie, extraHtml = '') {
   const rows = filas.filter(f => f[1] !== '' && f[1] != null).map(([k, v]) => `
       <tr>
         <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#f8fafc;font-weight:600;color:#334155;width:34%">${esc(k)}</td>
@@ -114,6 +114,7 @@ function layout(titulo, intro, filas, pie) {
     <div style="padding:22px 24px;color:#0f172a;font-size:14px;line-height:1.55">
       <p style="margin:0 0 14px">${intro}</p>
       <table style="border-collapse:collapse;width:100%;font-size:13px">${rows}</table>
+      ${extraHtml}
       <p style="margin:16px 0 0;color:#475569;font-size:12.5px">${pie}</p>
       ${link}
     </div>
@@ -143,14 +144,31 @@ function filasPermiso(s) {
 
 function buildJefeEmail(s) {
   const subject = `Solicitud de permiso laboral ${s.radicado} · ${s.persona}`;
+  let extraHtml = '';
+  let decisionText = '';
+  if (s.approveUrl && s.rejectUrl) {
+    extraHtml = `
+      <div style="margin:22px 0 16px;padding:16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;text-align:center">
+        <p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#1e293b">Decisión rápida como Jefe Inmediato (un solo clic):</p>
+        <div style="display:inline-block;margin:0 auto">
+          <a href="${esc(s.approveUrl)}" style="display:inline-block;background:#287522;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:700;margin:4px 6px">✓ Aprobar Permiso</a>
+          <a href="${esc(s.rejectUrl)}" style="display:inline-block;background:#b91c1c;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:13px;font-weight:700;margin:4px 6px">✗ Rechazar Permiso</a>
+        </div>
+        <p style="margin:10px 0 0;font-size:11px;color:#64748b">Válido por 72 horas mediante enlace seguro. No requiere inicio de sesión previo.</p>
+      </div>`;
+    decisionText = `\n\nDecisión rápida como Jefe Inmediato:\n- Aprobar Permiso: ${s.approveUrl}\n- Rechazar Permiso: ${s.rejectUrl}\n(Enlaces válidos por 72 horas sin requerir inicio de sesión previo)`;
+  }
+
   const html = layout(
     'Nueva solicitud de permiso laboral',
     `Buen día, <strong>${esc(s.jefeNombre)}</strong>. El servidor público <strong>${esc(s.persona)}</strong> radicó una solicitud de permiso laboral y lo indicó como su jefe inmediato.`,
     filasPermiso(s),
-    'Para cualquier observación sobre esta solicitud, comuníquese con la Dirección General de Talento Humano.'
+    'Para cualquier observación sobre esta solicitud, comuníquese con la Dirección General de Talento Humano.',
+    extraHtml
   );
   const text = `Nueva solicitud de permiso laboral ${s.radicado}\n\n` +
     filasPermiso(s).filter(f => f[1]).map(([k, v]) => `${k}: ${v}`).join('\n') +
+    decisionText +
     '\n\nPara cualquier observación comuníquese con la Dirección General de Talento Humano.';
   return { to: s.jefeCorreo, subject, html, text };
 }

@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
+const path   = require('path');
 const { Pool } = require('pg');
 
 const pool = new Pool(
@@ -102,7 +103,7 @@ function todayDMY() {
 // ─── Formulario de Permisos Laborales (CamposFormulario.xlsx) ────────────────
 const permisosCatalog = require('../catalogs/permisos');
 const licenciasCatalog = require('../catalogs/licencias');
-const { validatePermiso, formatHoras } = require('../utils/permisos-validator');
+const { validatePermiso, formatHoras, sniffMime } = require('../utils/permisos-validator');
 const { notifyPermiso } = require('../utils/mailer');
 
 // Migración idempotente: agrega las columnas/tablas del formulario nuevo si aún no existen.
@@ -195,7 +196,7 @@ function mapRow(r) {
 }
 
 // Datos para las plantillas de correo a partir de una fila ya guardada
-function notificationPayload(r, soportesCount) {
+function notificationPayload(r, soportesCount, decisionUrls = {}) {
   let jornadaTexto = r.jornada || '';
   if (r.modalidad === 'horas') jornadaTexto = `${r.jornada}: salida ${r.hora_salida} · entrada ${r.hora_entrada}`;
   if (r.modalidad === 'varios_dias') jornadaTexto = 'Todo el día (varios días)';
@@ -208,14 +209,36 @@ function notificationPayload(r, soportesCount) {
     jornadaTexto, duracion: duracionLabel(r), motivo: r.motivo,
     soportesCount, observaciones: r.observaciones,
     jefeNombre: r.jefe_nombre, jefeCorreo: r.jefe_correo,
+    approveUrl: decisionUrls.approveUrl || null,
+    rejectUrl: decisionUrls.rejectUrl || null,
   };
 }
 
 async function sendAndStoreNotification(id) {
   const { rows } = await pool.query('SELECT * FROM solicitudes_admin WHERE id_solicitud=$1', [id]);
   if (!rows.length) return null;
+  const row = rows[0];
   const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM solicitudes_admin_soportes WHERE id_solicitud=$1', [id]);
-  const noti = await notifyPermiso(notificationPayload(rows[0], cnt.rows[0].n));
+
+  let approveUrl = null;
+  let rejectUrl = null;
+  if (row.jefe_correo) {
+    const baseUrl = (process.env.APP_PUBLIC_URL || 'http://localhost').replace(/\/+$/, '');
+    const approveToken = jwt.sign(
+      { idSolicitud: id, accion: 'Aprobada', email: row.jefe_correo, scope: 'jefe_decision' },
+      JWT_SECRET,
+      { expiresIn: '72h' }
+    );
+    const rejectToken = jwt.sign(
+      { idSolicitud: id, accion: 'Rechazada', email: row.jefe_correo, scope: 'jefe_decision' },
+      JWT_SECRET,
+      { expiresIn: '72h' }
+    );
+    approveUrl = `${baseUrl}/api/admin-requests/public/decision?token=${approveToken}&accion=aprobar`;
+    rejectUrl = `${baseUrl}/api/admin-requests/public/decision?token=${rejectToken}&accion=rechazar`;
+  }
+
+  const noti = await notifyPermiso(notificationPayload(row, cnt.rows[0].n, { approveUrl, rejectUrl }));
   await pool.query(
     'UPDATE solicitudes_admin SET notificacion_estado=$1, notificacion_detalle=$2, notificacion_fecha=NOW() WHERE id_solicitud=$3',
     [noti.estado, noti.detalle, id]);
@@ -246,17 +269,49 @@ router.get('/catalogs/permisos', auth, (_req, res) => {
 });
 
 function parseGenericSoportes(list) {
-  if (!Array.isArray(list)) return [];
+  if (list == null) return [];
+  if (!Array.isArray(list)) {
+    throw new Error('El formato de soportes debe ser un arreglo de archivos.');
+  }
+  if (list.length > 5) {
+    throw new Error('Máximo 5 soportes por solicitud.');
+  }
+  const ALLOWED_EXTS = ['.pdf', '.jpg', '.jpeg', '.png'];
+  const ALLOWED_MIMES = ['application/pdf', 'image/jpeg', 'image/png'];
+
   const out = [];
   for (const f of list) {
-    if (!f || !f.base64 || !f.nombre) continue;
-    const b64 = String(f.base64).replace(/^data:[^;]+;base64,/, '');
+    if (!f) continue;
+    const rawNombre = String(f.nombre || '').trim();
+    if (!rawNombre) {
+      throw new Error('Uno de los soportes no tiene un nombre de archivo válido.');
+    }
+    const cleanNombre = rawNombre.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200);
+    const ext = path.extname(cleanNombre).toLowerCase();
+    if (!ALLOWED_EXTS.includes(ext)) {
+      throw new Error(`El soporte «${cleanNombre}» tiene un formato no permitido. Solo se aceptan archivos PDF, JPG o PNG.`);
+    }
+
+    const b64 = String(f.base64 || '').replace(/^data:[^;]+;base64,/, '');
+    if (!b64) {
+      throw new Error(`El soporte «${cleanNombre}» no contiene datos o está vacío.`);
+    }
     const buf = Buffer.from(b64, 'base64');
-    if (!buf.length) continue;
-    const tipo = f.tipo || 'application/pdf';
+    if (!buf.length) {
+      throw new Error(`El soporte «${cleanNombre}» está vacío.`);
+    }
+    if (buf.length > 5 * 1024 * 1024) {
+      throw new Error(`El soporte «${cleanNombre}» supera el tamaño máximo permitido de 5 MB.`);
+    }
+
+    const detectedMime = sniffMime(buf);
+    if (!detectedMime || !ALLOWED_MIMES.includes(detectedMime)) {
+      throw new Error(`El soporte «${cleanNombre}» no es un archivo válido o su contenido binario no coincide con la extensión permitida (PDF, JPG, PNG).`);
+    }
+
     out.push({
-      nombre: String(f.nombre).replace(/[\\/:*?"<>|]+/g, '_').slice(0, 200),
-      tipo,
+      nombre: cleanNombre,
+      tipo: detectedMime,
       buffer: buf
     });
   }
@@ -412,11 +467,11 @@ router.get('/stats', auth, async (req, res) => {
 
     const baseByType = await pool.query(
       `SELECT tipo,
-              COUNT(*)::int FILTER (WHERE estado='Pendiente') AS pendientes,
-              COUNT(*)::int FILTER (WHERE estado='En revisión') AS revision,
-              COUNT(*)::int FILTER (WHERE estado='Aprobada' OR estado='Finalizada') AS aprobadas,
-              COUNT(*)::int FILTER (WHERE estado='Rechazada') AS rechazadas,
-              COUNT(*)::int FILTER (WHERE estado='Finalizada') AS finalizadas,
+              (COUNT(*) FILTER (WHERE estado='Pendiente'))::int AS pendientes,
+              (COUNT(*) FILTER (WHERE estado='En revisión'))::int AS revision,
+              (COUNT(*) FILTER (WHERE estado='Aprobada' OR estado='Finalizada'))::int AS aprobadas,
+              (COUNT(*) FILTER (WHERE estado='Rechazada'))::int AS rechazadas,
+              (COUNT(*) FILTER (WHERE estado='Finalizada'))::int AS finalizadas,
               COUNT(*)::int AS total
        FROM solicitudes_admin GROUP BY tipo`
     );
@@ -431,12 +486,12 @@ router.get('/stats', auth, async (req, res) => {
       const kpiQ = await pool.query(
         `SELECT
             COUNT(*)::int AS total,
-            COUNT(*)::int FILTER (WHERE estado = 'Pendiente') AS pendientes,
-            COUNT(*)::int FILTER (WHERE estado = 'En revisión') AS revision,
-            COUNT(*)::int FILTER (WHERE estado = 'Aprobada') AS aprobadas,
-            COUNT(*)::int FILTER (WHERE estado = 'Finalizada' OR (estado = 'Aprobada' AND fecha_fin <> '' AND fecha_fin < TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'))) AS finalizadas,
-            COUNT(*)::int FILTER (WHERE estado = 'Aprobada' AND (fecha_fin = '' OR fecha_fin >= TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'))) AS activas,
-            COUNT(*)::int FILTER (WHERE estado = 'Rechazada') AS rechazadas,
+            (COUNT(*) FILTER (WHERE estado = 'Pendiente'))::int AS pendientes,
+            (COUNT(*) FILTER (WHERE estado = 'En revisión'))::int AS revision,
+            (COUNT(*) FILTER (WHERE estado = 'Aprobada'))::int AS aprobadas,
+            (COUNT(*) FILTER (WHERE estado = 'Finalizada' OR (estado = 'Aprobada' AND fecha_fin <> '' AND fecha_fin < TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'))))::int AS finalizadas,
+            (COUNT(*) FILTER (WHERE estado = 'Aprobada' AND (fecha_fin = '' OR fecha_fin >= TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'))))::int AS activas,
+            (COUNT(*) FILTER (WHERE estado = 'Rechazada'))::int AS rechazadas,
             COALESCE(SUM(dias_solicitados), 0)::int AS total_dias,
             COALESCE(SUM(horas_solicitadas), 0)::numeric(10,2) AS total_horas
            FROM solicitudes_admin
@@ -463,8 +518,8 @@ router.get('/stats', auth, async (req, res) => {
         `SELECT
             COALESCE(NULLIF(TRIM(dependencia), ''), 'SIN DEPENDENCIA') AS dependencia,
             COUNT(*)::int AS cantidad,
-            COUNT(*)::int FILTER (WHERE estado = 'Aprobada' OR estado = 'Finalizada') AS aprobadas,
-            COUNT(*)::int FILTER (WHERE estado = 'Pendiente' OR estado = 'En revisión') AS pendientes
+            (COUNT(*) FILTER (WHERE estado = 'Aprobada' OR estado = 'Finalizada'))::int AS aprobadas,
+            (COUNT(*) FILTER (WHERE estado = 'Pendiente' OR estado = 'En revisión'))::int AS pendientes
            FROM solicitudes_admin
           WHERE ${where}
           GROUP BY 1
@@ -481,8 +536,8 @@ router.get('/stats', auth, async (req, res) => {
               ELSE TO_CHAR(creado_en, 'YYYY-MM')
             END AS mes,
             COUNT(*)::int AS cantidad,
-            COUNT(*)::int FILTER (WHERE estado = 'Aprobada' OR estado = 'Finalizada') AS aprobadas,
-            COUNT(*)::int FILTER (WHERE estado = 'Rechazada') AS rechazadas,
+            (COUNT(*) FILTER (WHERE estado = 'Aprobada' OR estado = 'Finalizada'))::int AS aprobadas,
+            (COUNT(*) FILTER (WHERE estado = 'Rechazada'))::int AS rechazadas,
             COALESCE(SUM(dias_solicitados), 0)::int AS dias
            FROM solicitudes_admin
           WHERE ${where}
@@ -612,6 +667,17 @@ router.post('/', auth, async (req, res) => {
   if (!tipo || !VALID_TIPOS.includes(tipo))
     return res.status(400).json({ error: `Tipo inválido. Use: ${VALID_TIPOS.join(', ')}` });
 
+  // Control de Acceso RBAC Temprano (DEF-002 / Auditoría E2E):
+  // Verifica autorización antes de cualquier validación o radicación.
+  const modulo = moduloFromTipo(tipo);
+  const perm = await getModulePermission(pool, req.user, modulo);
+  const isSelf = isSelfRequest(req.user, req.body);
+  if (!perm.canManage && !isSelf && !isAdminUser(req.user)) {
+    return res.status(403).json({
+      error: `No tiene permisos para radicar ni administrar solicitudes en el módulo de ${tipo === 'Licencia' ? 'Licencias' : tipo}.`
+    });
+  }
+
   // Permisos Laborales: flujo validado del formulario oficial
   if (tipo === 'Permiso Laboral') {
     try { return await createPermiso(req, res); }
@@ -624,8 +690,13 @@ router.post('/', auth, async (req, res) => {
   if (!persona || !documento)
     return res.status(400).json({ error: 'Persona y documento son requeridos.' });
 
-  const modulo = moduloFromTipo(tipo);
-  const perm = await getModulePermission(pool, req.user, modulo);
+  let soportesParsed = [];
+  try {
+    soportesParsed = parseGenericSoportes(req.body.soportes);
+  } catch (sopErr) {
+    return res.status(400).json({ error: sopErr.message });
+  }
+
   // Si el usuario es Funcionario, el estado inicial siempre es 'Pendiente'
   const estadoInicial = perm.canApprove ? normalizeStatus(estado) : 'Pendiente';
 
@@ -646,7 +717,6 @@ router.post('/', auth, async (req, res) => {
        req.user.username || 'web']);
 
     const newId = r.rows[0].id_solicitud;
-    const soportesParsed = parseGenericSoportes(req.body.soportes);
     if (soportesParsed.length) {
       await insertSoportes(client, newId, soportesParsed, req.user.username || 'web');
     }
@@ -792,6 +862,13 @@ router.put('/:id', auth, async (req, res) => {
     }
   }
 
+  let soportesParsed = [];
+  try {
+    soportesParsed = parseGenericSoportes(req.body.soportes);
+  } catch (sopErr) {
+    return res.status(400).json({ error: sopErr.message });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -812,7 +889,6 @@ router.put('/:id', auth, async (req, res) => {
       await client.query('DELETE FROM solicitudes_admin_soportes WHERE id_solicitud=$1 AND id_soporte = ANY($2::int[])', [numId, eliminar]);
     }
 
-    const soportesParsed = parseGenericSoportes(req.body.soportes);
     if (soportesParsed.length) {
       await insertSoportes(client, numId, soportesParsed, req.user.username || 'web');
     }
@@ -945,6 +1021,15 @@ router.get('/:id/soportes', auth, async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido.' });
   try {
+    const sol = await pool.query('SELECT * FROM solicitudes_admin WHERE id_solicitud=$1', [id]);
+    if (!sol.rows.length) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+    const row = sol.rows[0];
+    const modulo = moduloFromTipo(row.tipo);
+    const perm = await getModulePermission(pool, req.user, modulo);
+    if (!perm.canManage && !isSelfRequest(req.user, row) && !isAdminUser(req.user)) {
+      return res.status(403).json({ error: 'No tiene permisos para consultar los soportes de esta solicitud.' });
+    }
+
     const r = await pool.query(
       `SELECT id_soporte, nombre_archivo, tipo_mime, tamano_bytes, subido_por, creado_en
          FROM solicitudes_admin_soportes WHERE id_solicitud=$1 ORDER BY id_soporte`, [id]);
@@ -963,6 +1048,15 @@ router.get('/:id/soportes/:sid', auth, async (req, res) => {
   const id = parseInt(req.params.id), sid = parseInt(req.params.sid);
   if (!id || !sid) return res.status(400).json({ error: 'ID inválido.' });
   try {
+    const sol = await pool.query('SELECT * FROM solicitudes_admin WHERE id_solicitud=$1', [id]);
+    if (!sol.rows.length) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+    const row = sol.rows[0];
+    const modulo = moduloFromTipo(row.tipo);
+    const perm = await getModulePermission(pool, req.user, modulo);
+    if (!perm.canManage && !isSelfRequest(req.user, row) && !isAdminUser(req.user)) {
+      return res.status(403).json({ error: 'No tiene permisos para descargar el soporte de esta solicitud.' });
+    }
+
     const r = await pool.query(
       `SELECT nombre_archivo, tipo_mime, contenido FROM solicitudes_admin_soportes
         WHERE id_solicitud=$1 AND id_soporte=$2`, [id, sid]);
@@ -994,6 +1088,174 @@ router.post('/:id/reenviar-notificacion', auth, async (req, res) => {
   } catch (err) {
     console.error('[admin-requests] reenviar notificación error:', err.message);
     res.status(500).json({ error: 'Error al reenviar la notificación.' });
+  }
+});
+
+// ─── GET /api/admin-requests/public/decision ─────────────────────────────────
+// Endpoint público para aprobación / rechazo directo del Jefe Inmediato con token criptográfico (DEF-005)
+router.get('/public/decision', async (req, res) => {
+  const { token, accion } = req.query;
+  const isJson = req.query.json === 'true' || (req.headers.accept && req.headers.accept.includes('application/json'));
+
+  const renderHtml = ({ title, message, color = '#287522', success = true, radicado = '' }) => `
+    <!doctype html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>${title} · Talento Humano 360</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; color: #0f172a; }
+        .card { max-width: 580px; margin: 40px auto; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .header { background: ${color}; color: #fff; padding: 20px 24px; }
+        .header h1 { font-size: 20px; margin: 4px 0 0; font-weight: 700; }
+        .header small { text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; font-size: 11px; }
+        .body { padding: 24px; line-height: 1.6; font-size: 14px; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 12px; background: #f1f5f9; color: #334155; }
+        .footer { padding: 14px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #64748b; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <small>Gobernación de Boyacá · Talento Humano 360</small>
+          <h1>${title}</h1>
+        </div>
+        <div class="body">
+          ${radicado ? `<p><strong>Radicado:</strong> <span class="badge">${radicado}</span></p>` : ''}
+          <p>${message}</p>
+          <p style="margin-top:20px; font-size: 12.5px; color: #64748b;">
+            Esta decisión queda registrada de forma inmutable en el historial institucional de auditoría conforme a la normativa vigente.
+          </p>
+        </div>
+        <div class="footer">
+          Dirección General de Talento Humano · Sistema Institucional Talento 360
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  if (!token) {
+    if (isJson) return res.status(400).json({ error: 'Token de decisión requerido.' });
+    return res.status(400).send(renderHtml({
+      title: 'Token Requerido',
+      message: 'No se suministró el token de autorización en el enlace.',
+      color: '#dc2626',
+      success: false
+    }));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    if (isJson) return res.status(400).json({ error: 'Token inválido o expirado. Los enlaces de correo tienen vigencia de 72 horas.' });
+    return res.status(400).send(renderHtml({
+      title: 'Enlace Expirado o Inválido',
+      message: 'El enlace de decisión ha expirado o no es válido (vigencia máxima de 72 horas). Por favor comuníquese con la Dirección General de Talento Humano si requiere gestionar el permiso.',
+      color: '#dc2626',
+      success: false
+    }));
+  }
+
+  if (decoded.scope !== 'jefe_decision' || !decoded.idSolicitud) {
+    if (isJson) return res.status(400).json({ error: 'Token no autorizado para esta operación.' });
+    return res.status(400).send(renderHtml({
+      title: 'Operación No Autorizada',
+      message: 'El token suministrado no corresponde a una decisión de jefe inmediato.',
+      color: '#dc2626',
+      success: false
+    }));
+  }
+
+  try {
+    const prevRes = await pool.query('SELECT * FROM solicitudes_admin WHERE id_solicitud=$1', [decoded.idSolicitud]);
+    if (!prevRes.rows.length) {
+      if (isJson) return res.status(404).json({ error: 'Solicitud no encontrada.' });
+      return res.status(404).send(renderHtml({
+        title: 'Solicitud No Encontrada',
+        message: 'No se encontró la solicitud de permiso asociada en el sistema institucional.',
+        color: '#dc2626',
+        success: false
+      }));
+    }
+
+    const prevRow = prevRes.rows[0];
+    const prevEstado = normalizeStatus(prevRow.estado);
+    const radicado = radicadoOf(prevRow.tipo, decoded.idSolicitud);
+
+    // Si ya fue gestionada previamente
+    if (prevEstado === 'Aprobada' || prevEstado === 'Rechazada' || prevEstado === 'Finalizada') {
+      const msg = `Esta solicitud ya fue gestionada previamente y se encuentra en estado <strong>«${prevEstado}»</strong>. No se requieren acciones adicionales.`;
+      if (isJson) return res.json({ message: `Solicitud ya gestionada previamente con estado ${prevEstado}.`, estado: prevEstado, radicado });
+      return res.send(renderHtml({
+        title: `Solicitud Ya Gestionada (${prevEstado})`,
+        message: msg,
+        color: prevEstado === 'Aprobada' ? '#287522' : '#64748b',
+        success: true,
+        radicado
+      }));
+    }
+
+    const accionTarget = (accion || decoded.accion || '').toLowerCase().trim();
+    const esRechazo = accionTarget.includes('rechaz') || accionTarget.includes('deneg');
+    const nuevoEstado = esRechazo ? 'Rechazada' : 'Aprobada';
+    const notaGestion = `Decisión directa registrada por el jefe inmediato (${decoded.email}) mediante enlace seguro de notificación.`;
+    const aprobadoPor = `${prevRow.jefe_nombre ? prevRow.jefe_nombre + ' · ' : ''}${decoded.email}`;
+
+    await pool.query(
+      `UPDATE solicitudes_admin
+          SET estado = $1, aprobado_por = $2, nota_gestion = $3
+        WHERE id_solicitud = $4`,
+      [nuevoEstado, aprobadoPor, notaGestion, decoded.idSolicitud]
+    );
+
+    await pool.query(
+      'INSERT INTO historial_solicitudes_admin(id_solicitud, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
+      [decoded.idSolicitud, nuevoEstado, notaGestion, decoded.email]
+    );
+
+    await logAudit(pool, {
+      modulo: 'permisos',
+      idRegistro: decoded.idSolicitud,
+      radicado,
+      user: { username: decoded.email, name: prevRow.jefe_nombre || decoded.email, role: 'Jefe Inmediato' },
+      tipoOperacion: nuevoEstado === 'Aprobada' ? 'APROBACION' : 'RECHAZO',
+      valoresAnteriores: { estado: prevEstado, notaGestion: prevRow.nota_gestion, aprobadoPor: prevRow.aprobado_por },
+      valoresNuevos: { estado: nuevoEstado, notaGestion, aprobadoPor },
+      observaciones: notaGestion,
+    });
+
+    if (isJson) {
+      return res.json({
+        message: `Solicitud ${nuevoEstado.toLowerCase()} exitosamente.`,
+        estado: nuevoEstado,
+        radicado,
+        id: decoded.idSolicitud
+      });
+    }
+
+    const okMsg = nuevoEstado === 'Aprobada'
+      ? `Ha <strong>APROBADO</strong> exitosamente la solicitud de permiso laboral para el funcionario <strong>${upper(prevRow.apellidos_nombres)}</strong>.`
+      : `Ha <strong>RECHAZADO</strong> la solicitud de permiso laboral para el funcionario <strong>${upper(prevRow.apellidos_nombres)}</strong>.`;
+
+    return res.send(renderHtml({
+      title: `Solicitud ${nuevoEstado} Exitosamente`,
+      message: okMsg,
+      color: nuevoEstado === 'Aprobada' ? '#287522' : '#dc2626',
+      success: true,
+      radicado
+    }));
+  } catch (err) {
+    console.error('[admin-requests/public/decision] error:', err.message);
+    if (isJson) return res.status(500).json({ error: 'Error interno al procesar la decisión.' });
+    return res.status(500).send(renderHtml({
+      title: 'Error del Sistema',
+      message: 'Ocurrió un error al registrar la decisión. Intente nuevamente en unos minutos.',
+      color: '#dc2626',
+      success: false
+    }));
   }
 });
 

@@ -2284,8 +2284,9 @@ const IncapacidadesModule = (() => {
         const res = typeof API.bulkCreateIncapacidades === 'function'
           ? await API.bulkCreateIncapacidades(rows)
           : await API.bulkCreateAdminRequests(rows);
-        if (res.duplicatesSkipped > 0) {
-          App.showToast(`Se importaron ${res.inserted} incapacidades (${res.duplicatesSkipped} duplicados omitidos).`, 'warning');
+        const dupCount = (res.duplicatesSkipped != null ? res.duplicatesSkipped : res.skipped) || 0;
+        if (dupCount > 0) {
+          App.showToast(`Se importaron ${res.inserted} incapacidades (${dupCount} duplicados omitidos).`, 'warning');
         } else {
           App.showToast(`Se importaron ${res.inserted} incapacidades correctamente.`, 'success');
         }
