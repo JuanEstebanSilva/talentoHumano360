@@ -960,6 +960,7 @@ const App = (() => {
   const MODULE_TITLES = {
     'admin-errors': 'Centro de Errores e Incidentes',
     'admin-backups': 'Copias de Seguridad del Sistema',
+    'admin-modules-unlock': 'Módulos del Sistema',
     dashboard: 'Dashboard',
     employees: 'Servidores Públicos',
     requests: 'Solicitudes de Vacaciones',
@@ -977,6 +978,7 @@ const App = (() => {
   const MODULE_ICONS = {
     'admin-errors': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     'admin-backups': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+    'admin-modules-unlock': '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
     employees: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     requests: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -994,6 +996,7 @@ const App = (() => {
   const VALID_ROUTES = new Set([
     'admin-errors',
     'admin-backups',
+    'admin-modules-unlock',
     'dashboard',
     'employees',
     'requests',
@@ -1019,6 +1022,10 @@ const App = (() => {
   }
 
   function applyRoleSidebarAccess(user) {
+    if (user && isUserAdmin(user)) {
+      applyNavigationPermissions(user);
+      return;
+    }
     const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
     const showLi = (id, visible) => {
       const el = document.getElementById(id);
@@ -1105,10 +1112,27 @@ const App = (() => {
     const isAdmin = isUserAdmin(user);
 
     if (isAdmin) {
-      // El Administrador General dispone de visibilidad global y supervisión sobre todos los módulos del sistema (TSK-010 / AUD-010).
+      if (rawModule === 'admin-modules-unlock') {
+        const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+        if (isElevated) {
+          promptAdminUnlockedOptions();
+        } else {
+          promptAdminUnlock('dashboard');
+        }
+        return;
+      }
+
+      const technicalAdminRoutes = new Set(['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+
+      if (!technicalAdminRoutes.has(rawModule) && !isElevated) {
+        // El administrador intenta acceder a módulos operativos sin haber confirmado su contraseña
+        promptAdminUnlock(rawModule, options);
+        return;
+      }
     } else {
       // Para usuarios regulares: bloquear módulos de administración técnica
-      if (rawModule === 'admin-errors' || rawModule === 'admin-backups') {
+      if (rawModule === 'admin-errors' || rawModule === 'admin-backups' || rawModule === 'admin-modules-unlock') {
         showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
         navigate('dashboard');
         return;
@@ -1639,6 +1663,236 @@ const App = (() => {
     });
   }
 
+  // ─── Desbloqueo de Módulos para Administrador Técnico ───────────────────────
+  let isAdminUnlocking = false;
+
+  function promptAdminUnlock(targetModule = 'dashboard', targetOptions = {}) {
+    if (isAdminUnlocking) {
+      const pwd = document.getElementById('admin-unlock-password');
+      if (pwd) pwd.focus();
+      return;
+    }
+    isAdminUnlocking = true;
+
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const adminEmail = user.username || 'admin@boyaca.gov.co';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'admin-unlock-dialog-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Desbloquear Módulos Institucionales');
+    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.25s ease;';
+
+    overlay.innerHTML = `
+      <div style="background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); max-width: 460px; width: 100%; overflow: hidden; border: 1px solid var(--border-color, #e2e8f0); animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        <div style="background: linear-gradient(135deg, #005387 0%, #003659 100%); padding: 24px 26px; color: #fff; text-align: center; position: relative;">
+          <div style="width: 52px; height: 52px; margin: 0 auto 12px; background: rgba(234, 179, 8, 0.2); border: 2px solid rgba(234, 179, 8, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #facc15;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #ffffff; letter-spacing: -0.01em;">
+            Módulos del Sistema
+          </h3>
+          <p style="margin: 6px 0 0; font-size: 0.86rem; color: rgba(255,255,255,0.85); line-height: 1.45;">
+            Para acceder a los módulos y submódulos institucionales, confirme su contraseña de administrador.
+          </p>
+        </div>
+
+        <form id="admin-unlock-form" style="padding: 24px;" novalidate>
+          <div id="admin-unlock-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500; border: 1px solid #fca5a5;"></div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Administrador
+            </label>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f8fafc);">
+              <span style="font-size: 0.92rem; font-weight: 600; color: var(--text-primary, #1e293b);">${escHtml(adminEmail)}</span>
+              <span style="font-size: 0.72rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Admin</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 22px;">
+            <label for="admin-unlock-password" style="display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Contraseña de Login
+            </label>
+            <div style="position: relative;">
+              <input type="password" id="admin-unlock-password" required autocomplete="current-password" placeholder="Ingrese su contraseña institucional" style="width: 100%; padding: 10px 42px 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
+              <button type="button" id="admin-unlock-pwd-toggle" aria-label="Mostrar contraseña" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted, #64748b); padding: 4px; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-open">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-closed" style="display: none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" id="admin-unlock-btn-cancel" class="btn btn-secondary" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              Cancelar
+            </button>
+            <button type="submit" id="admin-unlock-btn-submit" class="btn btn-primary" style="padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; background: #005387; color: #fff; border: none; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,83,135,0.25);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+              </svg>
+              <span>Desbloquear Módulos</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const pwdInput = overlay.querySelector('#admin-unlock-password');
+    const toggleBtn = overlay.querySelector('#admin-unlock-pwd-toggle');
+    const eyeOpen = toggleBtn ? toggleBtn.querySelector('.eye-open') : null;
+    const eyeClosed = toggleBtn ? toggleBtn.querySelector('.eye-closed') : null;
+    const errEl = overlay.querySelector('#admin-unlock-error');
+    const form = overlay.querySelector('#admin-unlock-form');
+    const cancelBtn = overlay.querySelector('#admin-unlock-btn-cancel');
+    const submitBtn = overlay.querySelector('#admin-unlock-btn-submit');
+
+    if (pwdInput) {
+      setTimeout(() => pwdInput.focus(), 100);
+    }
+
+    if (toggleBtn && pwdInput && eyeOpen && eyeClosed) {
+      toggleBtn.addEventListener('click', () => {
+        if (pwdInput.type === 'password') {
+          pwdInput.type = 'text';
+          eyeOpen.style.display = 'none';
+          eyeClosed.style.display = 'block';
+        } else {
+          pwdInput.type = 'password';
+          eyeOpen.style.display = 'block';
+          eyeClosed.style.display = 'none';
+        }
+      });
+    }
+
+    function cleanup() {
+      isAdminUnlocking = false;
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }
+
+    cancelBtn.addEventListener('click', () => {
+      cleanup();
+      const current = activeModule || 'admin-errors';
+      const technicalAdminRoutes = new Set(['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      if (!technicalAdminRoutes.has(current)) {
+        navigate('admin-errors');
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pwd = pwdInput ? pwdInput.value.trim() : '';
+      if (!pwd) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingrese su contraseña de login institucional.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Verificando...</span>';
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await API.verifyPassword(adminEmail, pwd);
+        if (res && res.valid) {
+          cleanup();
+          if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+            Auth.setAdminElevated(true);
+          }
+          applyNavigationPermissions(user);
+          showToast('Módulos operativos desbloqueados exitosamente.', 'success');
+          navigate(targetModule || 'dashboard', targetOptions || {});
+        } else {
+          throw new Error((res && res.error) || 'Contraseña incorrecta.');
+        }
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || 'Contraseña incorrecta. Por favor intente nuevamente.';
+          errEl.style.display = 'block';
+        }
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+            <span>Desbloquear Módulos</span>
+          `;
+        }
+      }
+    });
+  }
+
+  function promptAdminUnlockedOptions() {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    openModal(
+      'Módulos Institucionales Desbloqueados',
+      `
+        <div style="text-align: center; padding: 12px 6px;">
+          <div style="width: 52px; height: 52px; margin: 0 auto 16px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <p style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 8px; font-weight: 600;">
+            Actualmente cuenta con acceso total a todos los módulos y submódulos.
+          </p>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0;">
+            Puede continuar navegando en los módulos institucionales o volver a bloquearlos para restringir la vista al entorno técnico (Centro de Errores y Copias de Seguridad).
+          </p>
+        </div>
+      `,
+      [
+        {
+          text: 'Bloquear Módulos',
+          cls: 'btn btn-secondary',
+          onClick: () => {
+            closeModal();
+            if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+              Auth.setAdminElevated(false);
+            }
+            applyNavigationPermissions(user);
+            showToast('Módulos institucionales bloqueados. Se requerirá contraseña para reingresar.', 'info');
+            navigate('admin-errors');
+          }
+        },
+        {
+          text: 'Ir al Dashboard',
+          cls: 'btn btn-primary',
+          onClick: () => {
+            closeModal();
+            navigate('dashboard');
+          }
+        }
+      ]
+    );
+  }
+
   // ─── Login & App Views ──────────────────────────────────────────────────────
   function showLogin() {
     const uInput = document.getElementById('login-username');
@@ -1945,8 +2199,9 @@ const App = (() => {
 
   function isUserAdmin(user = {}) {
     const role = (user.role || '').toLowerCase();
+    const uname = (user.username || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
-    return role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all');
+    return role === 'administrador' || role === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || mods.includes('*') || mods.includes('all');
   }
 
   function applyNavigationPermissions(user = {}) {
@@ -1965,6 +2220,7 @@ const App = (() => {
     if (scope !== 'all') {
       setVisibility('li-admin-errors', false);
       setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', false);
       setVisibility('nav-settings', true);
@@ -1973,20 +2229,48 @@ const App = (() => {
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (admin / admin123):
+      // Para el Administrador técnico (admin@boyaca.gov.co / @dmin123):
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
+      setVisibility('li-admin-modules-unlock', true);
       setVisibility('nav-admin-errors', true);
       setVisibility('nav-admin-backups', true);
       setVisibility('nav-settings', true);
 
-      // Supervisión global sobre módulos funcionales para el Administrador General (TSK-010 / AUD-010)
-      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => setVisibility(id, true));
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+      const unlockBtn = document.getElementById('nav-admin-modules-unlock');
+      const lockStatusEl = document.getElementById('admin-modules-lock-status');
+
+      if (unlockBtn) {
+        if (isElevated) {
+          unlockBtn.classList.add('is-unlocked');
+          unlockBtn.setAttribute('title', 'Módulos Operativos (Desbloqueados - Clic para opciones)');
+          if (lockStatusEl) {
+            lockStatusEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px; height:13px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+          }
+        } else {
+          unlockBtn.classList.remove('is-unlocked');
+          unlockBtn.setAttribute('title', 'Módulos Operativos (Bloqueados - Ingrese contraseña para desbloquear)');
+          if (lockStatusEl) {
+            lockStatusEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px; height:13px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+          }
+        }
+      }
+
+      // Si el administrador está elevado con contraseña, se muestran los módulos operativos; de lo contrario, permanecen ocultos ("DE RESTO NO")
+      const operationalNavs = [
+        'nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group',
+        'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos',
+        'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'
+      ];
+      operationalNavs.forEach(id => setVisibility(id, isElevated));
+
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
       // Ocultar las herramientas de administración técnica
       setVisibility('li-admin-errors', false);
       setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', false);
 
@@ -2562,6 +2846,9 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
+          if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+            Auth.setAdminElevated(false);
+          }
           const landing = getDefaultLandingRoute(res.user);
 
           const proceedToDashboard = () => {
@@ -2750,6 +3037,19 @@ const App = (() => {
       if (typeof FX !== 'undefined') FX.Sound.navClick();
     });
 
+    // Módulo general de desbloqueo de módulos institucionales para Administrador
+    document.getElementById('nav-admin-modules-unlock')?.addEventListener('click', () => {
+      const btn = document.getElementById('nav-admin-modules-unlock');
+      if (typeof FX !== 'undefined') FX.animateNavClick(btn);
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+      if (isElevated) {
+        promptAdminUnlockedOptions();
+      } else {
+        promptAdminUnlock('dashboard');
+      }
+      document.getElementById('sidebar')?.classList.remove('mobile-open');
+    });
+
     // Check existing session and cleanse stored user data
     if (Auth.isLoggedIn()) {
       const storedUser = Auth.getUser();
@@ -2896,6 +3196,9 @@ const App = (() => {
     restoreFormDraft,
     clearFormDraft,
     promptReauthentication,
+    promptAdminUnlock,
+    promptAdminUnlockedOptions,
+    applyNavigationPermissions,
     checkAndRestoreDraft
   };
 })();

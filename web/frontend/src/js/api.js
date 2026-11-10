@@ -133,6 +133,8 @@ const API = (() => {
     // Auth
     login: (username, password) =>
       request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+    verifyPassword: (username, password) =>
+      request('/auth/verify-password', { method: 'POST', body: JSON.stringify({ username, password }) }),
     updateProfile: (data) =>
       request('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
 

@@ -5,6 +5,7 @@
 const Auth = (() => {
   const TOKEN_KEY = 'h360_token';
   const USER_KEY  = 'h360_user';
+  const ADMIN_ELEVATED_KEY = 'talento360_admin_elevated';
 
   function save(token, user) {
     localStorage.setItem(TOKEN_KEY, token);
@@ -21,6 +22,20 @@ const Auth = (() => {
   function clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(ADMIN_ELEVATED_KEY);
+  }
+
+  function isAdminElevated() {
+    if (!isAdmin()) return false;
+    return sessionStorage.getItem(ADMIN_ELEVATED_KEY) === 'true';
+  }
+
+  function setAdminElevated(val) {
+    if (val) {
+      sessionStorage.setItem(ADMIN_ELEVATED_KEY, 'true');
+    } else {
+      sessionStorage.removeItem(ADMIN_ELEVATED_KEY);
+    }
   }
 
   function decodeJwtPayload(token) {
@@ -203,5 +218,5 @@ const Auth = (() => {
     return false;
   }
 
-  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules };
+  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, isAdminElevated, setAdminElevated, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules };
 })();

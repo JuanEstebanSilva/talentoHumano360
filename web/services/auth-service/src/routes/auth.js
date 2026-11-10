@@ -228,6 +228,61 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
+// ─── POST /api/auth/verify-password ───────────────────────────────────────────
+router.post('/verify-password', loginLimiter, async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ valid: false, error: 'Por favor ingrese usuario y contraseña.' });
+  }
+
+  const normalizedUser = username.trim().toLowerCase();
+  const normalizedPass = password.trim();
+
+  try {
+    const userResult = await pool.query(
+      `SELECT id_usuario, username, password, rol, estado
+       FROM usuarios
+       WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
+       LIMIT 1`,
+      [normalizedUser]
+    );
+
+    if (userResult.rows.length === 0) {
+      await bcrypt.compare(normalizedPass, DUMMY_HASH);
+      return res.status(401).json({ valid: false, error: 'Credenciales inválidas.' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.estado && user.estado.toUpperCase() !== 'ACTIVO') {
+      return res.status(403).json({ valid: false, error: 'Usuario inactivo. Contacte a la Dirección de Talento Humano.' });
+    }
+
+    const isBcrypt = user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'));
+    let matches = false;
+
+    if (isBcrypt) {
+      matches = await bcrypt.compare(normalizedPass, user.password);
+    } else {
+      if (user.password === normalizedPass) {
+        matches = true;
+      } else {
+        await bcrypt.compare(normalizedPass, DUMMY_HASH);
+      }
+    }
+
+    if (!matches) {
+      return res.status(401).json({ valid: false, error: 'Contraseña incorrecta.' });
+    }
+
+    return res.json({ valid: true, message: 'Contraseña verificada correctamente.' });
+  } catch (err) {
+    console.error('[auth] Verify password error:', err.message);
+    return res.status(500).json({ valid: false, error: 'Error interno del servidor al verificar la contraseña.' });
+  }
+});
+
 // ─── POST /api/auth/logout ────────────────────────────────────────────────────
 router.post('/logout', (req, res) => {
   res.clearCookie('talento360_token', { path: '/' });

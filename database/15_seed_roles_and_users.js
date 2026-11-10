@@ -27,8 +27,8 @@ async function main() {
 
     const users = [
       {
-        username: 'admin',
-        pass: 'admin',
+        username: 'admin@boyaca.gov.co',
+        pass: '@dmin123',
         nombre: 'Administrador',
         rol: 'Administrador',
         cargo: 'Administrador del Sistema',

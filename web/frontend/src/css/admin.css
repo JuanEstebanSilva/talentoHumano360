@@ -1184,3 +1184,62 @@
 [data-theme="dark"] .empty-icon-shield {
   background: rgba(37, 77, 50, 0.25);
 }
+
+/* ─── Módulo General / Desbloqueo de Módulos para Administrador ──────────────── */
+.nav-item--admin-unlock {
+  border-left: 3px solid #eab308 !important;
+  background: rgba(234, 179, 8, 0.08);
+  position: relative;
+  transition: all 0.25s ease;
+  font-weight: 600;
+}
+
+.nav-item--admin-unlock:hover {
+  background: rgba(234, 179, 8, 0.15) !important;
+}
+
+.nav-item--admin-unlock.is-unlocked {
+  border-left-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.nav-item--admin-unlock.is-unlocked:hover {
+  background: rgba(16, 185, 129, 0.16) !important;
+}
+
+.admin-modules-lock-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(234, 179, 8, 0.2);
+  color: #b45309;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.nav-item--admin-unlock.is-unlocked .admin-modules-lock-status {
+  background: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+[data-theme="dark"] .nav-item--admin-unlock {
+  background: rgba(234, 179, 8, 0.12);
+}
+
+[data-theme="dark"] .admin-modules-lock-status {
+  background: rgba(234, 179, 8, 0.25);
+  color: #facc15;
+}
+
+[data-theme="dark"] .nav-item--admin-unlock.is-unlocked {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+[data-theme="dark"] .nav-item--admin-unlock.is-unlocked .admin-modules-lock-status {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
