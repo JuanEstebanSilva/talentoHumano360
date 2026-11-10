@@ -1342,7 +1342,7 @@ router.post('/bulk', auth, async (req, res) => {
       const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
       const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
-      const saldo = parseFloat(row.saldo || row['SALDO']) || null;
+      const saldo = cleanMoney(pickFirst(row, ['saldo', 'SALDO', 'Saldo', 'saldo_cop', 'SALDO_COP', 'SALDO COP']));
       const rawTotal = pickFirst(row, [
         'valorTotal', 'valor_total', 'Valor Total', 'VALOR TOTAL', 'VALOR_TOTAL',
         'Total', 'TOTAL', 'Total Viático', 'Total Viatico', 'TOTAL VIATICO',

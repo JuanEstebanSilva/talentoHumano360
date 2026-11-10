@@ -138,6 +138,25 @@ const ViaticosModule = (() => {
     });
   }
 
+  // ─── Parser Ultra-Robusto de Monedas y Saldos Institucionales ────────────────
+  function cleanMoneyNum(val) {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return isNaN(val) ? null : val;
+    let s = String(val).trim();
+    if (!s) return null;
+    s = s.replace(/[\$\sCOPcop]/g, '');
+    if (!s) return null;
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+      s = s.replace(/,/g, '');
+    } else if (/^\d+,\d+$/.test(s)) {
+      s = s.replace(',', '.');
+    }
+    const num = parseFloat(s);
+    return isNaN(num) ? null : num;
+  }
+
   // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
   const COLOMBIA_GEO = {
     'Boyacá': [
@@ -4424,6 +4443,8 @@ const ViaticosModule = (() => {
             if (colFecha === -1) colFecha = colNom + 1;
             if (colDest === -1) colDest = colFecha + 1;
             if (colVal === -1) colVal = colDest + 1;
+            if (colSaldo === -1 || colSaldo <= colVal) colSaldo = colVal + 1;
+            if (colObs === -1 || colObs <= colVal) colObs = colVal + 2;
 
             for (let rIdx = headerIdx + 1; rIdx < sheetData.length; rIdx++) {
               const row = sheetData[rIdx] || [];
@@ -4434,9 +4455,9 @@ const ViaticosModule = (() => {
               const rawFecha = row[colFecha];
               const resolVal = colRes !== -1 && row[colRes] ? String(row[colRes]).trim() : '';
               const destVal = colDest !== -1 && row[colDest] ? String(row[colDest]).trim() : 'SIN ESPECIFICAR';
-              const valNum = colVal !== -1 && row[colVal] != null ? Number(row[colVal]) : 0;
-              const valor = isNaN(valNum) ? 0 : valNum;
-              const saldoVal = colSaldo !== -1 && row[colSaldo] != null && !isNaN(Number(row[colSaldo])) ? Number(row[colSaldo]) : null;
+              const valNum = colVal !== -1 && row[colVal] != null ? cleanMoneyNum(row[colVal]) : null;
+              const valor = valNum !== null ? valNum : 0;
+              const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
               const obsVal = colObs !== -1 && row[colObs] ? String(row[colObs]).trim() : '';
 
               const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal) : { start: '01/01/2026', end: '01/01/2026', dias: 1 };
@@ -5013,9 +5034,9 @@ const ViaticosModule = (() => {
             const rawFecha = row[colFecha];
             const resolVal = row[colResolucion] ? String(row[colResolucion]).trim() : '';
             const destinoVal = row[colDestino] ? String(row[colDestino]).trim().toUpperCase() : 'SIN ESPECIFICAR';
-            const valNum = row[colValor] != null ? Number(row[colValor]) : 0;
-            const valor = isNaN(valNum) ? 0 : valNum;
-            const saldoVal = row[colSaldo] != null && !isNaN(Number(row[colSaldo])) ? Number(row[colSaldo]) : null;
+            const valNum = colValor !== -1 && row[colValor] != null ? cleanMoneyNum(row[colValor]) : null;
+            const valor = valNum !== null ? valNum : 0;
+            const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
             const obsVal = row[colObs] ? String(row[colObs]).trim() : '';
 
             const dInfo = parseDateRobust(rawFecha, resolVal);
@@ -5152,31 +5173,31 @@ const ViaticosModule = (() => {
 
       // 17 Secretarías y Despachos Institucionales de la Gobernación de Boyacá
       const SECRETARIAS_PLANTILLA = [
-        { code: 'DESPACHOGOBER', name: 'DESPACHO DEL GOBERNADOR', saldo: 50000000, sampleNom: 'ANA MARIA ROJAS VILLAMIL', sampleFecha: '18,19/01/2026', sampleLugar: 'TUNJA / BOGOTA', sampleRes: '0056/17/01/2026', sampleVal: 138000 },
-        { code: 'HACIENDA', name: 'SECRETARÍA DE HACIENDA', saldo: 50000000, sampleNom: 'PEDRO PASCASIO MARTINEZ', sampleFecha: '29,30/01/2026', sampleLugar: 'SATIVANORTE', sampleRes: '0200/29/01/2026', sampleVal: 128000 },
-        { code: 'PLANEACION', name: 'SECRETARÍA DE PLANEACIÓN', saldo: 40000000, sampleNom: 'HENRY ALIRIO MORALES JAIME', sampleFecha: '18,19/04/2026', sampleLugar: 'CHISCAS, GUICAN, EL COCUY', sampleRes: '1337/15/04/2026', sampleVal: 383000 },
-        { code: 'GENERAL', name: 'SECRETARÍA GENERAL', saldo: 45000000, sampleNom: 'GARCIA MARTINEZ LUIS FERNANDO', sampleFecha: '15,16/05/2026', sampleLugar: 'BOGOTA D.C.', sampleRes: '0412/12/05/2026', sampleVal: 240000 },
-        { code: 'INFRAESTRUCTURA', name: 'SECRETARÍA DE INFRAESTRUCTURA', saldo: 60000000, sampleNom: 'RAMIREZ LOPEZ CARLOS ARTURO', sampleFecha: '20,21/02/2026', sampleLugar: 'PUERTO BOYACA', sampleRes: '0520/20/02/2026', sampleVal: 350000 },
-        { code: 'EDUCACION', name: 'SECRETARÍA DE EDUCACIÓN', saldo: 70000000, sampleNom: 'MONTAÑEZ SILVA CLARA INES', sampleFecha: '05,06/03/2026', sampleLugar: 'SOATA', sampleRes: '0615/05/03/2026', sampleVal: 180000 },
-        { code: 'AGRICULTURA', name: 'SECRETARÍA DE AGRICULTURA', saldo: 40000000, sampleNom: 'CASTRO VARGAS DANIEL FELIPE', sampleFecha: '18,19/02/2026', sampleLugar: 'MIRAFLORES', sampleRes: '0710/18/02/2026', sampleVal: 210000 },
-        { code: 'INTEGRACION SOCIAL', name: 'SECRETARÍA DE INTEGRACIÓN SOCIAL', saldo: 35000000, sampleNom: 'PINZON DUARTE LILIANA ANDREA', sampleFecha: '22,23/03/2026', sampleLugar: 'GARAGOA', sampleRes: '0812/22/03/2026', sampleVal: 165000 },
-        { code: 'CULTURA', name: 'SECRETARÍA DE CULTURA Y PATRIMONIO', saldo: 30000000, sampleNom: 'TORRES BARRERA MAURICIO', sampleFecha: '10,11/04/2026', sampleLugar: 'VILLA DE LEYVA', sampleRes: '0915/10/04/2026', sampleVal: 195000 },
-        { code: 'MINAS', name: 'SECRETARÍA DE MINAS Y ENERGÍA', saldo: 35000000, sampleNom: 'HERNANDEZ ROA GABRIEL', sampleFecha: '14,15/03/2026', sampleLugar: 'PAZ DE RIO', sampleRes: '1012/14/03/2026', sampleVal: 220000 },
-        { code: 'GOBIERNO', name: 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL', saldo: 45000000, sampleNom: 'ORTIZ SUAREZ BLANCA HELENA', sampleFecha: '02,03/02/2026', sampleLugar: 'CHIQUINQUIRA', sampleRes: '1105/02/02/2026', sampleVal: 175000 },
-        { code: 'DESARROLLOEMP', name: 'SECRETARÍA DE DESARROLLO EMPRESARIAL', saldo: 40000000, sampleNom: 'GOMEZ BERNAL RICARDO', sampleFecha: '25,26/03/2026', sampleLugar: 'DUITAMA', sampleRes: '1210/25/03/2026', sampleVal: 150000 },
-        { code: 'CONTRATACION', name: 'SECRETARÍA DE CONTRATACIÓN', saldo: 30000000, sampleNom: 'SUAREZ RIVERA ANDRES', sampleFecha: '11,12/02/2026', sampleLugar: 'BOGOTA D.C.', sampleRes: '1302/11/02/2026', sampleVal: 240000 },
-        { code: 'AMBIENTE', name: 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE', saldo: 35000000, sampleNom: 'RODRIGUEZ PAEZ CAMILA', sampleFecha: '19,20/03/2026', sampleLugar: 'AQUITANIA', sampleRes: '1410/19/03/2026', sampleVal: 185000 },
-        { code: 'TURISMO', name: 'SECRETARÍA DE TURISMO', saldo: 30000000, sampleNom: 'ALVAREZ DUARTE JULIAN', sampleFecha: '08,09/04/2026', sampleLugar: 'PAIPA', sampleRes: '1515/08/04/2026', sampleVal: 145000 },
-        { code: 'TIC', name: 'SECRETARÍA TIC Y GOBIERNO ABIERTO', saldo: 35000000, sampleNom: 'MEDINA REYES OSCAR DAVID', sampleFecha: '16,17/03/2026', sampleLugar: 'SOGAMOSO', sampleRes: '1612/16/03/2026', sampleVal: 160000 },
-        { code: 'SALUD', name: 'SECRETARÍA DE SALUD', saldo: 80000000, sampleNom: 'FRANCISCO JOSE ALVAREZ OCHOA', sampleFecha: '02,03/02/2026', sampleLugar: 'PAIPA, COMBITA', sampleRes: '0256/02/02/2026', sampleVal: 190000 }
+        { code: 'DESPACHOGOBER', name: 'DESPACHO DEL GOBERNADOR' },
+        { code: 'HACIENDA', name: 'SECRETARÍA DE HACIENDA' },
+        { code: 'PLANEACION', name: 'SECRETARÍA DE PLANEACIÓN' },
+        { code: 'GENERAL', name: 'SECRETARÍA GENERAL' },
+        { code: 'INFRAESTRUCTURA', name: 'SECRETARÍA DE INFRAESTRUCTURA' },
+        { code: 'EDUCACION', name: 'SECRETARÍA DE EDUCACIÓN' },
+        { code: 'AGRICULTURA', name: 'SECRETARÍA DE AGRICULTURA' },
+        { code: 'INTEGRACION SOCIAL', name: 'SECRETARÍA DE INTEGRACIÓN SOCIAL' },
+        { code: 'CULTURA', name: 'SECRETARÍA DE CULTURA Y PATRIMONIO' },
+        { code: 'MINAS', name: 'SECRETARÍA DE MINAS Y ENERGÍA' },
+        { code: 'GOBIERNO', name: 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL' },
+        { code: 'DESARROLLOEMP', name: 'SECRETARÍA DE DESARROLLO EMPRESARIAL' },
+        { code: 'CONTRATACION', name: 'SECRETARÍA DE CONTRATACIÓN' },
+        { code: 'AMBIENTE', name: 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE' },
+        { code: 'TURISMO', name: 'SECRETARÍA DE TURISMO' },
+        { code: 'TIC', name: 'SECRETARÍA TIC Y GOBIERNO ABIERTO' },
+        { code: 'SALUD', name: 'SECRETARÍA DE SALUD' }
       ];
 
       SECRETARIAS_PLANTILLA.forEach(sec => {
         const rows = [
           ['GOBERNACIÓN DE BOYACÁ - EJECUCIÓN PRESUPUESTAL VIÁTICOS'],
           [sec.name],
-          [null, null, null, null, null, 'SALDO'],
-          ['ITEM', 'NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No.RESOLUCION', 'VALOR', sec.saldo, 'OBSERVACIONES'],
+          [],
+          ['ITEM', 'NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No.RESOLUCION', 'VALOR', 'SALDO', 'OBSERVACIONES'],
         ];
         // 20 filas en blanco para ingreso directo del usuario
         for (let i = 1; i <= 20; i++) {
