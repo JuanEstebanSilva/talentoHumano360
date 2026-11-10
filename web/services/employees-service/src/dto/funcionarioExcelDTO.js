@@ -91,12 +91,8 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   let fechaEncargo = null;
   if (rawEnc !== undefined && rawEnc !== null && String(rawEnc).trim() !== '') {
     fechaEncargo = parseExcelDate(rawEnc);
-    if (!fechaEncargo) {
-      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Encargo: "${rawEnc}"`);
-      err.campo = 'FECHA DE ENCARGO';
-      err.valor = String(rawEnc);
-      throw err;
-    }
+    // Si el campo opcional contiene texto no convertible a fecha (ej: "XXXXX", "SUPERVI", "N/A"),
+    // se asigna null de manera segura para no descartar ni rechazar la importación del funcionario.
   }
 
   // 3. Cálculo dinámico de Edad y Tiempo de Servicio (Reglas 13 y 14: "X años, Y meses, Z días")
