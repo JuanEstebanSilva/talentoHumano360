@@ -1068,6 +1068,12 @@ const App = (() => {
 
   async function navigate(module, options = {}) {
     let rawModule = String(module || '').replace(/^#\/?/, '').trim();
+
+    // Detener auto-refresco del módulo de errores si se sale de él
+    if (rawModule !== 'admin-errors' && typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
+
     if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
       return navigate('incapacidades');
     }
@@ -1895,6 +1901,9 @@ const App = (() => {
 
   // ─── Login & App Views ──────────────────────────────────────────────────────
   function showLogin() {
+    if (typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
     const uInput = document.getElementById('login-username');
     const pInput = document.getElementById('login-password');
     const err = document.getElementById('login-error');
@@ -3245,12 +3254,29 @@ window.addEventListener('hashchange', () => {
 (function setupGlobalErrorMonitor() {
   if (typeof window === 'undefined') return;
 
+  function shouldIgnoreError(msg) {
+    if (!msg) return true;
+    const str = String(msg);
+    return str.includes('[Admin Errors API]') ||
+           str.includes('[AdminErrorsModule]') ||
+           str.includes('[AdminBackupsModule]') ||
+           str.includes('/api/admin/errors') ||
+           str.includes('/api/admin/backups') ||
+           str.includes('[API.reportError]') ||
+           str.includes('Acceso denegado') ||
+           str.includes('requieren permisos de Administrador') ||
+           str.includes('Token expirado') ||
+           str.includes('Token inválido') ||
+           str.includes('ResizeObserver') ||
+           str.includes('Script error.');
+  }
+
   // 1. Excepciones no capturadas de JavaScript en ventana
   window.addEventListener('error', (event) => {
     try {
       if (!event) return;
       const message = event.message || (typeof event.error === 'object' && event.error ? event.error.message : String(event));
-      if (!message || message.includes('ResizeObserver') || message.includes('Script error.')) {
+      if (shouldIgnoreError(message)) {
         return;
       }
       const stack = event.error && event.error.stack ? event.error.stack : '';
@@ -3286,6 +3312,9 @@ window.addEventListener('hashchange', () => {
         message = reason.message || reason.name || JSON.stringify(reason);
         stack = reason.stack || '';
       }
+      if (shouldIgnoreError(message)) {
+        return;
+      }
       let usuario = 'Anónimo';
       try {
         const u = localStorage.getItem('h360_user');
@@ -3317,12 +3346,7 @@ window.addEventListener('hashchange', () => {
       if (isReporting) return;
       try {
         const firstArg = args[0];
-        // Evitar bucles con las propias llamadas de monitoreo o red de admin
-        if (typeof firstArg === 'string' && (
-          firstArg.includes('[Admin Errors API]') ||
-          firstArg.includes('/api/admin/errors') ||
-          firstArg.includes('[API.reportError]')
-        )) {
+        if (shouldIgnoreError(firstArg)) {
           return;
         }
 
@@ -3334,7 +3358,7 @@ window.addEventListener('hashchange', () => {
           return String(a);
         }).join(' ');
 
-        if (!msg || msg.trim().length === 0) return;
+        if (!msg || msg.trim().length === 0 || shouldIgnoreError(msg)) return;
 
         let usuario = 'Anónimo';
         try {

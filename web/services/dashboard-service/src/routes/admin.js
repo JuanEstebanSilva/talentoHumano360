@@ -134,6 +134,24 @@ router.post('/errors', async (req, res) => {
     const userAgent = (req.headers['user-agent'] || '').slice(0, 500);
     const isUserReport = !!reportadoPorUsuario;
 
+    // Filtrar falsos incidentes derivados de control de acceso o peticiones internas de administración
+    const lowerMsg = cleanMensaje.toLowerCase();
+    const lowerStack = (cleanStack || '').toLowerCase();
+    if (
+      lowerMsg.includes('acceso denegado') ||
+      lowerMsg.includes('requieren permisos de administrador') ||
+      lowerMsg.includes('[adminerrorsmodule]') ||
+      lowerMsg.includes('[adminbackupsmodule]') ||
+      lowerMsg.includes('/api/admin/errors') ||
+      lowerMsg.includes('/api/admin/backups') ||
+      lowerMsg.includes('token expirado') ||
+      lowerMsg.includes('token inválido') ||
+      lowerStack.includes('[adminerrorsmodule]') ||
+      lowerStack.includes('/api/admin/errors')
+    ) {
+      return res.json({ success: true, ignored: true });
+    }
+
     // Deduplicación básica: evitar registrar 50 veces el mismo error en 5 segundos
     const dedupeKey = `${cleanTipo}:${cleanUrl}:${cleanMensaje.slice(0, 100)}`;
     const now = Date.now();

@@ -16,6 +16,31 @@ const AdminErrorsModule = (() => {
   let isLoading = false;
   let autoRefreshTimer = null;
 
+  function stopAutoRefresh() {
+    if (autoRefreshTimer) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+    }
+  }
+
+  function isUserAdmin() {
+    if (typeof Auth === 'undefined' || !Auth.getUser) return false;
+    const user = Auth.getUser();
+    if (!user) return false;
+    if (typeof Auth.isAdmin === 'function') {
+      return Auth.isAdmin(user);
+    }
+    const r = String(user.role || '').toLowerCase();
+    const uname = String(user.username || '').toLowerCase();
+    return r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com';
+  }
+
+  function isCurrentViewAdminErrors() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const hash = (window.location.hash || '').replace(/^#\/?/, '').split('?')[0];
+    return hash === 'admin-errors';
+  }
+
   function escHtml(str) {
     if (!str) return '';
     return String(str)
@@ -143,6 +168,11 @@ const AdminErrorsModule = (() => {
   }
 
   async function loadData(page = 1) {
+    if (!isUserAdmin() || !isCurrentViewAdminErrors()) {
+      stopAutoRefresh();
+      return;
+    }
+
     isLoading = true;
     currentPagination.page = page;
 
@@ -160,6 +190,18 @@ const AdminErrorsModule = (() => {
       currentPagination = res.pagination || currentPagination;
       currentSummary = res.summary || currentSummary;
     } catch (err) {
+      const errMsg = String((err && err.message) || err || '');
+      const isAuthProblem = (err && (err.status === 401 || err.status === 403)) ||
+        errMsg.includes('Acceso denegado') ||
+        errMsg.includes('requieren permisos') ||
+        errMsg.includes('Forbidden') ||
+        errMsg.includes('Unauthorized');
+
+      if (isAuthProblem) {
+        stopAutoRefresh();
+        return;
+      }
+
       console.error('[AdminErrorsModule] Error al cargar incidencias:', err);
       if (typeof App !== 'undefined' && App.showToast) {
         App.showToast('No se pudieron consultar los errores del sistema.', 'error');
@@ -889,10 +931,16 @@ const AdminErrorsModule = (() => {
     setupEvents();
     await loadData(1);
 
-    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-    autoRefreshTimer = setInterval(() => {
-      loadData(currentPagination.page);
-    }, 45 * 1000);
+    stopAutoRefresh();
+    if (isUserAdmin() && isCurrentViewAdminErrors()) {
+      autoRefreshTimer = setInterval(() => {
+        if (!isUserAdmin() || !isCurrentViewAdminErrors()) {
+          stopAutoRefresh();
+          return;
+        }
+        loadData(currentPagination.page);
+      }, 45 * 1000);
+    }
   }
 
   function setupEvents() {
@@ -977,6 +1025,7 @@ const AdminErrorsModule = (() => {
   return {
     render,
     loadData,
+    stopAutoRefresh,
     updateStatus,
     openDetailModal,
     copyStackToClipboard,

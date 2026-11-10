@@ -70,7 +70,29 @@ const AdminBackupsModule = (() => {
     `;
   }
 
+  function isUserAdmin() {
+    if (typeof Auth === 'undefined' || !Auth.getUser) return false;
+    const user = Auth.getUser();
+    if (!user) return false;
+    if (typeof Auth.isAdmin === 'function') {
+      return Auth.isAdmin(user);
+    }
+    const r = String(user.role || '').toLowerCase();
+    const uname = String(user.username || '').toLowerCase();
+    return r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com';
+  }
+
+  function isCurrentViewAdminBackups() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    const hash = (window.location.hash || '').replace(/^#\/?/, '').split('?')[0];
+    return hash === 'admin-backups';
+  }
+
   async function loadData() {
+    if (!isUserAdmin() || !isCurrentViewAdminBackups()) {
+      return;
+    }
+
     try {
       const [listRes, cfgRes] = await Promise.all([
         API.getAdminBackups(),
@@ -83,6 +105,17 @@ const AdminBackupsModule = (() => {
       renderTable();
       populateConfigInputs();
     } catch (err) {
+      const errMsg = String((err && err.message) || err || '');
+      const isAuthProblem = (err && (err.status === 401 || err.status === 403)) ||
+        errMsg.includes('Acceso denegado') ||
+        errMsg.includes('requieren permisos') ||
+        errMsg.includes('Forbidden') ||
+        errMsg.includes('Unauthorized');
+
+      if (isAuthProblem) {
+        return;
+      }
+
       console.error('[AdminBackupsModule] Error al cargar backups:', err);
       if (typeof App !== 'undefined' && App.showToast) {
         App.showToast('No se pudieron consultar los respaldos del sistema.', 'error');

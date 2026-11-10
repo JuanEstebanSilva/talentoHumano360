@@ -23,6 +23,9 @@ const Auth = (() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(ADMIN_ELEVATED_KEY);
+    if (typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
   }
 
   function isAdminElevated() {
