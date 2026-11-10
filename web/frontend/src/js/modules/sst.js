@@ -1467,12 +1467,33 @@ const SstModule = (() => {
   function readForm() {
     const nombreCompleto = document.getElementById('sst-nombre')?.value.trim();
     const documento = document.getElementById('sst-doc')?.value.trim();
-    if (!nombreCompleto || !documento) {
-      App.showToast('El nombre del servidor y su documento son requeridos.', 'warning');
+    if (!nombreCompleto) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('sst-nombre', 'El nombre del servidor público es requerido.');
+      } else {
+        App.showToast('El nombre del servidor público es requerido.', 'warning');
+      }
+      return null;
+    }
+    if (!documento) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('sst-doc', 'El documento de identidad es requerido.');
+      } else {
+        App.showToast('El documento de identidad es requerido.', 'warning');
+      }
       return null;
     }
 
     if (state.tab === 'epidemiologico') {
+      const fechaEmo = document.getElementById('sst-fecha-emo')?.value;
+      if (!fechaEmo) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-fecha-emo', 'La fecha de realización del examen médico (EMO) es obligatoria.');
+        } else {
+          App.showToast('La fecha del examen médico es obligatoria.', 'warning');
+        }
+        return null;
+      }
       return {
         nombreCompleto,
         documento,
@@ -1498,6 +1519,15 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epp') {
+      const fechaEntrega = document.getElementById('sst-fecha-entrega')?.value;
+      if (!fechaEntrega) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-fecha-entrega', 'La fecha de entrega del elemento de protección es obligatoria.');
+        } else {
+          App.showToast('La fecha de entrega es obligatoria.', 'warning');
+        }
+        return null;
+      }
       return {
         nombreCompleto,
         documento,

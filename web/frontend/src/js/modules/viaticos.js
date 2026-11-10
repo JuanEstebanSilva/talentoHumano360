@@ -1943,12 +1943,47 @@ const ViaticosModule = (() => {
 
   function readForm() {
     const nombre = document.getElementById('vf-nombre')?.value.trim();
+    const doc = document.getElementById('vf-doc')?.value.trim();
     const rawDestino = document.getElementById('vf-destino')?.value?.trim();
     const destino = rawDestino || 'TUNJA, BOYACÁ';
     const fi = document.getElementById('vf-fi')?.value;
     const ff = document.getElementById('vf-ff')?.value;
 
-    if (!nombre) { App.showToast('El nombre del funcionario es requerido.', 'warning'); return null; }
+    if (!nombre) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-nombre', 'El nombre del funcionario es requerido.');
+      } else {
+        App.showToast('El nombre del funcionario es requerido.', 'warning');
+      }
+      return null;
+    }
+
+    if (!doc) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-doc', 'El documento de identidad es requerido.');
+      } else {
+        App.showToast('El documento de identidad es requerido.', 'warning');
+      }
+      return null;
+    }
+
+    if (!fi) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-fi', 'La fecha de inicio de la comisión es requerida.');
+      } else {
+        App.showToast('La fecha de inicio de la comisión es requerida.', 'warning');
+      }
+      return null;
+    }
+
+    if (fi && ff && new Date(ff) < new Date(fi)) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-ff', 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.');
+      } else {
+        App.showToast('La fecha de finalización debe ser posterior o igual a la fecha de inicio.', 'error');
+      }
+      return null;
+    }
 
     const tipoDestino = document.querySelector('input[name="vf-tipo-dest"]:checked')?.value || 'Nacional';
 

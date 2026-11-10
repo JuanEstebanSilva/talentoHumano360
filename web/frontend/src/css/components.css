@@ -7603,26 +7603,60 @@ select.filter-select {
   pointer-events: none;
 }
 
-/* ─── Input Error Highlight Animation ─── */
+/* ─── Input Error Highlight Animation & Universal Form Validation ─── */
+@keyframes shakeField {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+@keyframes pulseError {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.48);
+  }
+}
+
 .form-input.input-invalid,
 .filter-select.input-invalid,
+.flatpickr-input-custom.input-invalid,
+input.flatpickr-input.input-invalid,
+textarea.input-invalid,
+select.input-invalid,
 .input-invalid {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28) !important;
   background-color: rgba(239, 68, 68, 0.06) !important;
-  animation: pulseError 1.5s infinite ease-in-out;
+  animation: shakeField 0.35s ease-in-out, pulseError 1.5s infinite ease-in-out 0.35s !important;
 }
 
-@keyframes pulseError {
+.form-group:has(.input-invalid) label,
+.floating-group:has(.input-invalid) label,
+.form-group.has-error label,
+.floating-group.has-error label {
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+}
 
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-  }
+[data-theme="dark"] .form-input.input-invalid,
+[data-theme="dark"] .filter-select.input-invalid,
+[data-theme="dark"] .flatpickr-input-custom.input-invalid,
+[data-theme="dark"] input.flatpickr-input.input-invalid,
+[data-theme="dark"] textarea.input-invalid,
+[data-theme="dark"] select.input-invalid,
+[data-theme="dark"] .input-invalid {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.35) !important;
+  background-color: rgba(239, 68, 68, 0.16) !important;
+}
 
-  50% {
-    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.45);
-  }
+[data-theme="dark"] .form-group:has(.input-invalid) label,
+[data-theme="dark"] .floating-group:has(.input-invalid) label,
+[data-theme="dark"] .form-group.has-error label,
+[data-theme="dark"] .floating-group.has-error label {
+  color: #f87171 !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -8193,6 +8227,9 @@ body.error-404-active #login-screen {
    - Soporte total para temas Claro y Oscuro con identidad corporativa
    ═══════════════════════════════════════════════════════════════════════════ */
 .flatpickr-calendar {
+  position: fixed !important;
+  display: flex !important;
+  flex-direction: column !important;
   width: 364px !important;
   font-family: 'Nunito Sans', var(--font-base), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   border-radius: 20px !important;
@@ -8586,11 +8623,14 @@ span.flatpickr-weekday:nth-child(7) {
 
 /* ─── Pie de Acciones Rápidas (Hoy / Limpiar) ─── */
 .flatpickr-custom-footer {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 10 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   padding: 10px 18px 12px 18px !important;
-  margin-top: 6px !important;
+  margin-top: auto !important;
   background: #f8fafc !important;
   border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
   flex-shrink: 0 !important;

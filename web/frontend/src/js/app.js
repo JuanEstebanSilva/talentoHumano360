@@ -10,6 +10,67 @@ const App = (() => {
     return activeModule;
   }
 
+  // ─── Humanización de Errores Técnicos y PostgreSQL ─────────────────────────
+  function humanizeErrorMessage(rawMsg) {
+    if (!rawMsg || typeof rawMsg !== 'string') return 'Ocurrió un error inesperado al procesar la solicitud.';
+    const str = rawMsg.trim();
+
+    // 1. Violación de restricción NOT NULL en PostgreSQL
+    if (/null value in column ["']?([^"'\s]+)["']?.*violates not-null constraint/i.test(str)) {
+      const colMatch = str.match(/null value in column ["']?([^"'\s]+)["']?.*violates not-null constraint/i);
+      const col = colMatch ? colMatch[1].toLowerCase() : '';
+      const colDict = {
+        fecha_inicio: 'La fecha de inicio de vigencia es obligatoria.',
+        fecha_fin: 'La fecha de terminación o fin es obligatoria.',
+        fecha: 'La fecha es obligatoria.',
+        numero_documento: 'El número de documento de identidad es obligatorio.',
+        documento: 'El número de documento de identidad es obligatorio.',
+        cedula: 'La cédula de ciudadanía es obligatoria.',
+        nombres: 'El nombre del servidor público es obligatorio.',
+        apellidos: 'Los apellidos del servidor público son obligatorios.',
+        apellidos_nombres: 'El nombre completo del servidor público es obligatorio.',
+        cargo: 'El cargo del servidor público es obligatorio.',
+        dependencia: 'La dependencia institucional es obligatoria.',
+        tipo_solicitud: 'El tipo de solicitud es obligatorio.',
+        modalidad: 'La modalidad laboral es obligatoria.',
+        horario: 'El esquema de horario es obligatorio.',
+        numero_consecutivo: 'El número consecutivo oficial es obligatorio.'
+      };
+      if (colDict[col]) return colDict[col];
+      return `El campo obligatorio "${col.replace(/_/g, ' ')}" no puede estar vacío.`;
+    }
+
+    // 2. Violación de restricción UNIQUE en PostgreSQL
+    if (/duplicate key value violates unique constraint/i.test(str) || /unique constraint/i.test(str)) {
+      if (/cedula|documento/i.test(str)) return 'Ya existe un servidor público registrado con este documento de identidad.';
+      if (/correo|email/i.test(str)) return 'Ya existe un usuario institucional registrado con este correo electrónico.';
+      if (/consecutivo/i.test(str)) return 'Ya existe un registro con este número consecutivo oficial.';
+      return 'Ya existe un registro con estos mismos datos en el sistema.';
+    }
+
+    // 3. Violación de llave foránea (Foreign Key)
+    if (/violates foreign key constraint/i.test(str)) {
+      return 'El servidor público o registro relacionado no existe o no se encuentra activo.';
+    }
+
+    // 4. Violación de CHECK constraint
+    if (/violates check constraint/i.test(str)) {
+      return 'Uno de los valores ingresados no cumple con el formato o los límites permitidos.';
+    }
+
+    // 5. Errores de red o conexión
+    if (/failed to fetch/i.test(str) || /networkerror/i.test(str)) {
+      return 'No fue posible conectarse con el servidor. Verifique su conexión de red.';
+    }
+
+    // 6. Limpieza de prefijos técnicos si la causa interna fue SQL
+    if (str.includes('violates') || str.includes('constraint') || str.includes('relation "')) {
+      return 'Por favor verifique los campos obligatorios del formulario.';
+    }
+
+    return str;
+  }
+
   // ─── Toast System ──────────────────────────────────────────────────────────
   function showToast(message, type = 'info') {
     if (typeof Settings !== 'undefined' && !Settings.isNotificationTypeEnabled(type)) {
@@ -23,9 +84,12 @@ const App = (() => {
       warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
       info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
     };
+
+    const finalMessage = type === 'error' ? humanizeErrorMessage(message) : message;
+
     const toast = document.createElement('div');
     toast.className = `toast toast--${type}`;
-    toast.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+    toast.innerHTML = `${icons[type] || icons.info}<span>${finalMessage}</span>`;
     container.appendChild(toast);
 
     // FX: animate toast in with sound
@@ -39,6 +103,89 @@ const App = (() => {
         setTimeout(() => toast.remove(), 300);
       }
     }, 4000);
+  }
+
+  // ─── Validación Universal de Formularios & Resaltado en Rojo ─────────────────
+  function markFieldInvalid(fieldOrId, message) {
+    if (!fieldOrId) return;
+
+    let el = null;
+    if (typeof fieldOrId === 'string') {
+      el = document.getElementById(fieldOrId);
+      if (!el) {
+        try { el = document.querySelector(fieldOrId); } catch (_) {}
+      }
+      if (!el) {
+        el = document.querySelector(`[name="${fieldOrId}"], .${fieldOrId}`);
+      }
+    } else if (fieldOrId instanceof HTMLElement) {
+      el = fieldOrId;
+    }
+
+    if (!el) {
+      if (message) showToast(message, 'error');
+      return;
+    }
+
+    // Si el campo pertenece a una pestaña oculta, cambiar automáticamente a esa pestaña
+    const tabPane = el.closest('.form-tab-pane, .tab-pane, [data-tab-content]');
+    if (tabPane && (!tabPane.classList.contains('active') || tabPane.style.display === 'none')) {
+      const tabId = tabPane.id;
+      if (typeof EmployeesModule !== 'undefined' && EmployeesModule.switchFormTab && tabId.startsWith('tab-form-')) {
+        EmployeesModule.switchFormTab(tabId);
+      } else if (typeof HorariosModule !== 'undefined' && HorariosModule.switchFormTab && tabId.startsWith('tab-hor-')) {
+        HorariosModule.switchFormTab(tabId);
+      } else {
+        const tabBtn = document.querySelector(`button[data-tab="${tabId}"], .form-wizard-tab[data-tab="${tabId}"], button[onclick*="${tabId}"]`);
+        if (tabBtn) {
+          tabBtn.click();
+        } else {
+          tabPane.classList.add('active');
+          tabPane.style.display = 'block';
+        }
+      }
+    }
+
+    // Elemento visible que recibirá foco y borde rojo (soporta flatpickr altInput)
+    const targetInput = (el._flatpickr && el._flatpickr.altInput) ? el._flatpickr.altInput : el;
+
+    el.classList.add('input-invalid');
+    targetInput.classList.add('input-invalid');
+
+    const group = el.closest('.form-group, .floating-group, .adv-filter-field');
+    if (group) group.classList.add('has-error');
+
+    // Desplazar suavemente hasta el campo y enfocar
+    setTimeout(() => {
+      try {
+        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (_) {
+        targetInput.scrollIntoView(true);
+      }
+      try {
+        targetInput.focus();
+      } catch (_) {}
+    }, 90);
+
+    if (message) {
+      showToast(message, 'error');
+    }
+
+    // Quitar el rojo automáticamente cuando el usuario ingrese o modifique el valor
+    const clearHandler = () => {
+      el.classList.remove('input-invalid');
+      targetInput.classList.remove('input-invalid');
+      if (group) group.classList.remove('has-error');
+      el.removeEventListener('input', clearHandler);
+      el.removeEventListener('change', clearHandler);
+      targetInput.removeEventListener('input', clearHandler);
+      targetInput.removeEventListener('change', clearHandler);
+    };
+
+    el.addEventListener('input', clearHandler);
+    el.addEventListener('change', clearHandler);
+    targetInput.addEventListener('input', clearHandler);
+    targetInput.addEventListener('change', clearHandler);
   }
 
   // ─── Modal System & Dirty Form Tracking ─────────────────────────────────────
@@ -359,8 +506,9 @@ const App = (() => {
     const targetRect = target.getBoundingClientRect();
     if (targetRect.width === 0 && targetRect.height === 0) return;
 
-    const calHeight = cal.offsetHeight || 410;
-    const calWidth = cal.offsetWidth || 364;
+    // Medición exacta y robusta para garantizar que toda la grilla y el pie queden dentro del viewport
+    const calHeight = Math.max(cal.offsetHeight || 0, cal.scrollHeight || 0, 465);
+    const calWidth = Math.max(cal.offsetWidth || 0, 364);
     const vpWidth = window.innerWidth || document.documentElement.clientWidth;
     const vpHeight = window.innerHeight || document.documentElement.clientHeight;
 
@@ -368,13 +516,13 @@ const App = (() => {
     const spaceAbove = targetRect.top;
 
     // Decisión de apertura vertical:
-    // 1. Si cabe abajo con holgura (al menos calHeight + 8px), abrir abajo.
-    // 2. Si no cabe abajo pero sí arriba (al menos calHeight + 8px), abrir arriba.
+    // 1. Si cabe abajo con holgura (al menos calHeight + 10px), abrir abajo.
+    // 2. Si no cabe abajo pero sí arriba (al menos calHeight + 10px), abrir arriba.
     // 3. Si no cabe completo en ninguno de los dos, abrir en el lado que tenga MAYOR espacio disponible.
     let openAbove = false;
-    if (spaceBelow >= calHeight + 8) {
+    if (spaceBelow >= calHeight + 10) {
       openAbove = false;
-    } else if (spaceAbove >= calHeight + 8) {
+    } else if (spaceAbove >= calHeight + 10) {
       openAbove = true;
     } else {
       openAbove = (spaceAbove >= spaceBelow);
@@ -385,17 +533,13 @@ const App = (() => {
     // Clamping estricto en el viewport:
     // NUNCA permitir que el pie del calendario (con los botones 'Hoy' y 'Limpiar')
     // quede cortado fuera de la pantalla.
-    const maxTop = vpHeight - calHeight - 8;
+    const maxTop = Math.max(8, vpHeight - calHeight - 10);
     const minTop = 8;
 
-    if (top > maxTop) {
-      top = maxTop;
-    }
-    if (top < minTop) {
-      top = minTop;
-    }
+    if (top > maxTop) top = maxTop;
+    if (top < minTop) top = minTop;
 
-    // Si la altura del calendario supera la altura del viewport (ej. pantallas pequeñas o zoom alto)
+    // Si la altura del calendario supera la altura del viewport disponible
     if (calHeight > vpHeight - 16) {
       cal.style.maxHeight = (vpHeight - 16) + 'px';
       cal.style.overflowY = 'auto';
@@ -412,11 +556,10 @@ const App = (() => {
     if (left > maxLeft) left = maxLeft;
     if (left < minLeft) left = minLeft;
 
-    const pageY = window.pageYOffset || document.documentElement.scrollTop || 0;
-    const pageX = window.pageXOffset || document.documentElement.scrollLeft || 0;
-
-    cal.style.top = (pageY + top) + 'px';
-    cal.style.left = (pageX + left) + 'px';
+    // Al usar position: fixed !important en CSS, las coordenadas son directamente respecto al viewport
+    cal.style.position = 'fixed';
+    cal.style.top = Math.round(top) + 'px';
+    cal.style.left = Math.round(left) + 'px';
     cal.style.right = 'auto';
 
     // Ajustar clases indicadoras de flecha (arriba / abajo)
@@ -2627,6 +2770,8 @@ const App = (() => {
     showLogin,
     showApp,
     showToast,
+    humanizeErrorMessage,
+    markFieldInvalid,
     openModal,
     closeModal,
     markFormClean,

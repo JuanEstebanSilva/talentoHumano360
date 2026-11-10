@@ -372,7 +372,32 @@ const AdminRequestsModule = (() => {
 
   function readForm() {
     const nombre = document.getElementById('af-nombre')?.value.trim();
-    if (!nombre) { App.showToast('El nombre es requerido.', 'warning'); return null; }
+    if (!nombre) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-nombre', 'El nombre del servidor público es requerido.');
+      } else {
+        App.showToast('El nombre es requerido.', 'warning');
+      }
+      return null;
+    }
+    const fi = document.getElementById('af-fi')?.value.trim();
+    const ff = document.getElementById('af-ff')?.value.trim();
+    if (!fi) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-fi', 'La fecha de inicio de la solicitud es requerida.');
+      } else {
+        App.showToast('La fecha de inicio de la solicitud es requerida.', 'warning');
+      }
+      return null;
+    }
+    if (fi && ff && new Date(ff) < new Date(fi)) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-ff', 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.');
+      } else {
+        App.showToast('La fecha de finalización debe ser posterior o igual a la de inicio.', 'error');
+      }
+      return null;
+    }
     return {
       tipo: document.getElementById('af-tipo')?.value,
       persona: nombre,

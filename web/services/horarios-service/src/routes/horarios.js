@@ -1465,6 +1465,12 @@ router.post('/', auth, async (req, res) => {
     });
   }
 
+  if (!fecha_inicio) {
+    return res.status(400).json({
+      error: 'La fecha de inicio de vigencia del esquema es obligatoria.',
+    });
+  }
+
   if (modalidad === 'Presencial') {
     return res.status(400).json({
       error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial. Este módulo administra exclusivamente Teletrabajo, Trabajo en casa y Horario flexible.',
@@ -1685,6 +1691,12 @@ router.post('/', auth, async (req, res) => {
     if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
       return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
     }
+    if (err.code === '23502' || (err.message && err.message.includes('not-null constraint'))) {
+      return res.status(400).json({ error: 'La fecha de inicio y todos los campos obligatorios del esquema de horario deben ser completados.' });
+    }
+    if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+      return res.status(409).json({ error: 'Ya existe un esquema de horario registrado con este número consecutivo oficial.' });
+    }
     res.status(500).json({ error: 'Error al registrar horario: ' + err.message });
   }
 });
@@ -1752,6 +1764,12 @@ router.put('/:id', auth, async (req, res) => {
   if (modalidad === 'Presencial') {
     return res.status(400).json({
       error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial.',
+    });
+  }
+
+  if (req.body.fecha_inicio !== undefined && !req.body.fecha_inicio) {
+    return res.status(400).json({
+      error: 'La fecha de inicio de vigencia del esquema no puede estar vacía.',
     });
   }
 
@@ -1904,6 +1922,12 @@ router.put('/:id', auth, async (req, res) => {
     console.error('[horarios-service] Error actualizando horario:', err);
     if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
       return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
+    if (err.code === '23502' || (err.message && err.message.includes('not-null constraint'))) {
+      return res.status(400).json({ error: 'La fecha de inicio y todos los campos obligatorios del esquema de horario deben ser completados.' });
+    }
+    if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+      return res.status(409).json({ error: 'Ya existe un esquema de horario registrado con este número consecutivo oficial.' });
     }
     res.status(500).json({ error: 'Error al actualizar horario: ' + err.message });
   }

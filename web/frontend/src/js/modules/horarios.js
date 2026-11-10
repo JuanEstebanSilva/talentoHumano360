@@ -2162,9 +2162,31 @@ const HorariosModule = (() => {
     const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
     const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
 
-    // Validaciones
+    // Validaciones exhaustivas de formulario con navegación visual y foco
     if (!documento || !apellidos_nombres) {
-      App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('emp-search-schedule', 'Debe buscar y seleccionar un servidor público de planta.');
+      } else {
+        App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
+      }
+      return;
+    }
+
+    if (!fecha_inicio) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia del esquema es obligatoria.');
+      } else {
+        App.showToast('La fecha de inicio del esquema es obligatoria.', 'warning');
+      }
+      return;
+    }
+
+    if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-fecha-fin', 'La fecha de terminación debe ser posterior o igual a la fecha de inicio.');
+      } else {
+        App.showToast('La fecha de terminación no puede ser anterior a la fecha de inicio.', 'error');
+      }
       return;
     }
 
@@ -2172,11 +2194,14 @@ const HorariosModule = (() => {
     if (!existingId) {
       const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
       if (!cVal || cVal < currentMinConsecutivo) {
-        App.showToast(`El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`, 'error');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('horario-consecutivo', `El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`);
+        } else {
+          App.showToast(`El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`, 'error');
+        }
         const cInp = document.getElementById('horario-consecutivo');
         if (cInp) {
           cInp.value = currentMinConsecutivo;
-          cInp.focus();
         }
         return;
       }
@@ -2231,7 +2256,18 @@ const HorariosModule = (() => {
       await loadData();
       await loadStats();
     } catch (err) {
-      App.showToast(err.message, 'error');
+      const msg = err.message || '';
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        if (msg.includes('fecha_inicio')) {
+          App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia es obligatoria.');
+          return;
+        }
+        if (msg.includes('consecutivo')) {
+          App.markFieldInvalid('horario-consecutivo', 'El número consecutivo ya existe o no es válido.');
+          return;
+        }
+      }
+      App.showToast(msg, 'error');
     }
   }
 
@@ -2963,7 +2999,18 @@ const HorariosModule = (() => {
       await loadData();
       loadStats();
     } catch (err) {
-      App.showToast(err.message, 'error');
+      const msg = err.message || '';
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        if (msg.includes('fecha_inicio')) {
+          App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia es obligatoria.');
+          return;
+        }
+        if (msg.includes('consecutivo')) {
+          App.markFieldInvalid('horario-consecutivo', 'El número consecutivo ya existe o no es válido.');
+          return;
+        }
+      }
+      App.showToast(msg, 'error');
     }
   }
 
@@ -4203,6 +4250,7 @@ const HorariosModule = (() => {
   return {
     render,
     openCreate,
+    openScheduleModal,
     openEdit,
     openView,
     openStatusPicker,

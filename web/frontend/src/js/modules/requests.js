@@ -336,7 +336,22 @@ const RequestsModule = (() => {
     const doc    = document.getElementById('rf-doc')?.value.trim();
     const dep    = document.getElementById('rf-dep')?.value.trim();
     const fecha  = document.getElementById('rf-fecha')?.value.trim();
-    if (!nombre) { App.showToast('El nombre es requerido.', 'warning'); return null; }
+    if (!nombre) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('rf-nombre', 'El nombre del servidor público es requerido.');
+      } else {
+        App.showToast('El nombre es requerido.', 'warning');
+      }
+      return null;
+    }
+    if (!fecha) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('rf-fecha', 'La fecha de inicio de la solicitud es requerida.');
+      } else {
+        App.showToast('La fecha de inicio es requerida.', 'warning');
+      }
+      return null;
+    }
     const body = {
       persona: nombre, documento: doc, dependencia: dep,
       cargo: document.getElementById('rf-cargo')?.value.trim(),

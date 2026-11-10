@@ -2403,6 +2403,10 @@ const EmployeesModule = (() => {
   }
 
   function markInvalidField(fieldOrId, message) {
+    if (typeof App !== 'undefined' && App.markFieldInvalid) {
+      App.markFieldInvalid(fieldOrId, message);
+      return;
+    }
     const el = typeof fieldOrId === 'string' ? document.getElementById(fieldOrId) : fieldOrId;
     if (!el) {
       if (message) App.showToast(message, 'error');
