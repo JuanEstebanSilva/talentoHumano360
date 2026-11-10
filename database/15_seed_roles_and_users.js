@@ -27,8 +27,8 @@ async function main() {
 
     const users = [
       {
-        username: 'admin@boyaca.gov.co',
-        pass: '@dmin123',
+        username: 'alejoleo2022@gmail.com',
+        pass: '@Alejo123',
         nombre: 'Administrador',
         rol: 'Administrador',
         cargo: 'Administrador del Sistema',
@@ -72,8 +72,8 @@ async function main() {
     for (const u of users) {
       const hash = await bcrypt.hash(u.pass, 10);
       // Eliminar variantes previas si existen
-      if (u.username === 'admin') {
-        await client.query("DELETE FROM usuarios WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co')");
+      if (u.username === 'alejoleo2022@gmail.com' || u.username === 'admin') {
+        await client.query("DELETE FROM usuarios WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co', 'alejoleo2022@gmail.com')");
       } else {
         await client.query("DELETE FROM usuarios WHERE LOWER(username) = LOWER('" + u.username + "')");
       }

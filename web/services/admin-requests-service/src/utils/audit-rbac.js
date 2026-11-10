@@ -570,7 +570,7 @@ function isAdminUser(user) {
   if (!user) return false;
   const role = String(user.role || '').toLowerCase();
   const uname = String(user.username || '').toLowerCase();
-  return role.includes('administrador') || uname === 'admin@boyaca.gov.co' || uname === 'angela.ussa@boyaca.gov.co';
+  return role.includes('administrador') || uname === 'alejoleo2022@gmail.com' || uname === 'admin@boyaca.gov.co' || uname === 'angela.ussa@boyaca.gov.co';
 }
 
 async function getModulePermission(pool, user, modulo) {

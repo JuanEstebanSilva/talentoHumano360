@@ -8,7 +8,7 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT;
 UPDATE usuarios SET 
   modulos = '*', 
   permisos = '*' 
-WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co');
+WHERE LOWER(username) IN ('admin', 'admin@boyaca.gov.co', 'alejoleo2022@gmail.com');
 
 -- 2. Ángela Ussa y Blanca Soler: CRUD en Servidores Públicos, VER en Horarios y Viáticos
 UPDATE usuarios SET 

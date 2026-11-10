@@ -217,7 +217,7 @@ El sistema cuenta con usuarios institucionales preconfigurados según su compete
 
 | Usuario / Correo | Contraseña | Perfil Institucional | Permisos y Alcance de Gestión |
 |---|---|---|---|
-| `admin` / `admin@boyaca.gov.co` | `@dmin123` | **Administrador Técnico** | Infraestructura, monitoreo de incidentes de error (`admin:errors`), gestión de copias de seguridad (`admin:backups`) y configuración global del sistema |
+| `admin` / `alejoleo2022@gmail.com` | `@Alejo123` | **Administrador Técnico** | Infraestructura, monitoreo de incidentes de error (`admin:errors`), gestión de copias de seguridad (`admin:backups`) y configuración global del sistema |
 | `angela.ussa` / `angela.ussa@boyaca.gov.co` | `@Angela123` | **Dirección de Talento Humano** | Gestión integral de servidores públicos (`employees:read`, `employees:write`), creación, retiros, importación masiva y reportes ejecutivos |
 | `blanca.soler` / `blanca.soler@boyaca.gov.co` | `@Blanca123` | **Gestión de Planta y Servidores** | Servidores públicos, novedades de personal, revinculaciones y actualización de expedientes (`employees:read`, `employees:write`) |
 | `doris.canon` / `doris.canon@boyaca.gov.co` | `@Doris123` | **Control de Horarios y Modalidades** | Administración de acuerdos de teletrabajo, trabajo en casa, horarios flexibles y seguimiento de vencimientos (`horarios:read`, `horarios:write`) |
