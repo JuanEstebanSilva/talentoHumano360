@@ -1,10 +1,13 @@
 [Unit]
-Description=Comprobar cambios de Talento360 en GitHub
+Description=Actualizacion protegida de Talento360 desde GitHub
 Wants=network-online.target
-After=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
 
 [Service]
 Type=oneshot
-User=talento360-server
-WorkingDirectory=/home/talento360-server/talentoHumano360
-ExecStart=/home/talento360-server/talentoHumano360/actualizar-talento360.sh
+User=root
+ExecStart=/usr/local/bin/actualizar-talento360.sh
+TimeoutStartSec=45min
+StandardOutput=journal
+StandardError=journal

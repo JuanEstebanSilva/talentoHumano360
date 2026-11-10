@@ -1,36 +1,37 @@
-# Comprobador de cambios Talento360 (modo seguro)
+# Actualizador automático de Talento360 (v2)
 
-Revisa `origin/main` aproximadamente cada 5 minutos mediante `systemd`, después del arranque del servidor.
+## Instalación
+Copiar estos cuatro archivos y la carpeta `systemd/` a la raíz del repositorio, hacer commit y subir a `main`.
+En Ubuntu:
 
-**Importante:** esta primera versión **solo detecta** actualizaciones. **No hace `git pull`, no despliega, no ejecuta SQL y no toca PostgreSQL.** Se diseñó así para no arriesgar los registros existentes hasta revisar migraciones y probar restauración.
+```bash
+cd ~/talentoHumano360
+git pull --ff-only origin main
+bash instalar-actualizador.sh
+sudo systemctl start talento360-update.service
+sudo systemctl status talento360-update.service --no-pager
+systemctl list-timers --all talento360-update.timer
+```
 
-## Instalar en Ubuntu Server
+## Funcionamiento
+Cada ~5 minutos comprueba `origin/main`. Si no hay cambios no hace nada. Si hay cambios de código permitidos: crea un respaldo PostgreSQL en `/var/backups/talento360/`, valida el formato, avanza Git, reconstruye servicios distintos de `postgres` sin dependencias, y comprueba el frontend en `http://127.0.0.1/`. Ante fallo intenta volver al commit anterior. **No restaura automáticamente la base de datos**.
 
-1. Copia estos archivos a la **raíz** del repositorio `talentoHumano360` y súbelos a `main`:
-   - `actualizar-talento360.sh`
-   - `instalar-actualizador.sh`
-   - `systemd/talento360-update.service`
-   - `systemd/talento360-update.timer`
-2. En el servidor, desde `~/talentoHumano360`, ejecuta:
+**Cambios sensibles se bloquean**: archivos SQL, carpetas de bases de datos/migraciones/semillas, archivos Compose, Dockerfile, `.env`, y `package.json` / `package-lock.json`. Requieren despliegue manual supervisado. Esto reduce riesgos, pero NO garantiza que código nuevo no altere datos o inserte duplicados. El código de arranque y las migraciones deben revisarse antes de confiar datos reales al sistema.
 
-   ```bash
-   git pull --ff-only origin main
-   bash instalar-actualizador.sh
-   ```
+No se ejecuta `down -v`, `volume rm`, ni se recrea PostgreSQL durante el despliegue. No se crea una segunda base de datos. Los respaldos son archivos, no bases activas. No se borran respaldos automáticamente: vigilar espacio en disco y establecer política de retención.
 
-3. Para comprobar:
+## Comandos útiles
+```bash
+sudo journalctl -u talento360-update.service -n 40 --no-pager
+sudo systemctl status talento360-update.timer --no-pager
+sudo systemctl stop talento360-update.timer   # pausar actualizaciones
+sudo systemctl start talento360-update.timer  # reanudar
+sudo ls -lh /var/backups/talento360
+```
 
-   ```bash
-   systemctl list-timers --all talento360-update.timer
-   sudo journalctl -u talento360-update.service -n 20 --no-pager
-   ```
-
-## Consideraciones
-
-- El servicio asume usuario Linux `talento360-server` y ruta `/home/talento360-server/talentoHumano360`.
-- El script usa `flock` para evitar revisiones simultáneas y no actualiza si hay cambios locales o si el historial diverge.
-- `git fetch` sí actualiza referencias remotas, pero no los archivos del proyecto.
-- El archivo `web/.env` debe mantenerse fuera de Git; nunca subir contraseñas o secretos.
-- El volumen persistente de PostgreSQL no se modifica.
-- **No** usar `docker compose down -v` ni `docker volume rm`.
-- Antes de habilitar despliegues automáticos: revisar migraciones y semillas de los microservicios, probar restauración de respaldos, y definir ventana de mantenimiento y reversión.
+## Limitaciones y precauciones
+- Se asume ruta `/home/talento360-server/talentoHumano360`, usuario `talento360-server`, servicio `postgres`, contenedor `talento360_db` y puerto local 80.
+- Las copias están en el mismo equipo: también deben copiarse periódicamente a un destino seguro externo, con permisos adecuados.
+- La verificación HTTP comprueba solo el frontend; no garantiza funcionamiento de API ni integridad de datos.
+- El rollback del código puede fallar y NO revierte cambios de esquema ni datos.
+- La ejecución automática puede interrumpir usuarios. Para datos institucionales, obtener autorización, revisar migraciones y probar restauración y flujos reales antes de habilitar despliegues desatendidos.
