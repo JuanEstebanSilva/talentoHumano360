@@ -345,6 +345,99 @@ const App = (() => {
     }
   }
 
+  function positionCalendarSmartly(inst, customElement) {
+    if (!inst || !inst.calendarContainer) return;
+
+    // Elemento ancla: Siempre priorizar altInput visible generado por Flatpickr
+    const target = customElement || inst.altInput || inst._positionElement || inst.input;
+    if (!target) return;
+
+    // Garantizar que toda la estructura (incluyendo footer con botones Hoy y Limpiar) esté inyectada
+    ensureCalendarCustomUI(inst);
+
+    const cal = inst.calendarContainer;
+    const targetRect = target.getBoundingClientRect();
+    if (targetRect.width === 0 && targetRect.height === 0) return;
+
+    const calHeight = cal.offsetHeight || 410;
+    const calWidth = cal.offsetWidth || 364;
+    const vpWidth = window.innerWidth || document.documentElement.clientWidth;
+    const vpHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    const spaceBelow = vpHeight - targetRect.bottom;
+    const spaceAbove = targetRect.top;
+
+    // Decisión de apertura vertical:
+    // 1. Si cabe abajo con holgura (al menos calHeight + 8px), abrir abajo.
+    // 2. Si no cabe abajo pero sí arriba (al menos calHeight + 8px), abrir arriba.
+    // 3. Si no cabe completo en ninguno de los dos, abrir en el lado que tenga MAYOR espacio disponible.
+    let openAbove = false;
+    if (spaceBelow >= calHeight + 8) {
+      openAbove = false;
+    } else if (spaceAbove >= calHeight + 8) {
+      openAbove = true;
+    } else {
+      openAbove = (spaceAbove >= spaceBelow);
+    }
+
+    let top = openAbove ? (targetRect.top - calHeight - 4) : (targetRect.bottom + 4);
+
+    // Clamping estricto en el viewport:
+    // NUNCA permitir que el pie del calendario (con los botones 'Hoy' y 'Limpiar')
+    // quede cortado fuera de la pantalla.
+    const maxTop = vpHeight - calHeight - 8;
+    const minTop = 8;
+
+    if (top > maxTop) {
+      top = maxTop;
+    }
+    if (top < minTop) {
+      top = minTop;
+    }
+
+    // Si la altura del calendario supera la altura del viewport (ej. pantallas pequeñas o zoom alto)
+    if (calHeight > vpHeight - 16) {
+      cal.style.maxHeight = (vpHeight - 16) + 'px';
+      cal.style.overflowY = 'auto';
+      top = 8;
+    } else {
+      cal.style.maxHeight = '';
+      cal.style.overflowY = '';
+    }
+
+    // Posicionamiento horizontal inteligente
+    let left = targetRect.left;
+    const maxLeft = vpWidth - calWidth - 8;
+    const minLeft = 8;
+    if (left > maxLeft) left = maxLeft;
+    if (left < minLeft) left = minLeft;
+
+    const pageY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    const pageX = window.pageXOffset || document.documentElement.scrollLeft || 0;
+
+    cal.style.top = (pageY + top) + 'px';
+    cal.style.left = (pageX + left) + 'px';
+    cal.style.right = 'auto';
+
+    // Ajustar clases indicadoras de flecha (arriba / abajo)
+    const isVisuallyAbove = (top + calHeight / 2) < targetRect.top;
+    cal.classList.toggle('arrowTop', !isVisuallyAbove);
+    cal.classList.toggle('arrowBottom', isVisuallyAbove);
+  }
+
+  // Listener global pasivo para reposicionar el calendario si el usuario hace scroll dentro de un modal
+  if (typeof window !== 'undefined' && !window._flatpickrGlobalRepositionInit) {
+    window._flatpickrGlobalRepositionInit = true;
+    const repositionOpenPicker = () => {
+      const openCal = document.querySelector('.flatpickr-calendar.open');
+      if (openCal && openCal._flatpickrInstance) {
+        positionCalendarSmartly(openCal._flatpickrInstance);
+      }
+    };
+    window.addEventListener('scroll', repositionOpenPicker, { capture: true, passive: true });
+    window.addEventListener('resize', repositionOpenPicker, { passive: true });
+  }
+
   function initDatePickers(container = document) {
     if (typeof flatpickr === 'undefined') return;
     try {
@@ -395,6 +488,9 @@ const App = (() => {
           weekNumbers: false,
           disableMobile: true,
           monthSelectorType: 'dropdown',
+          position: function(self, customElement) {
+            positionCalendarSmartly(self, customElement);
+          },
           onChange: function(selectedDates, dateStr) {
             input.value = dateStr;
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
@@ -406,6 +502,9 @@ const App = (() => {
             input.dispatchEvent(new Event('input', { bubbles: true }));
           },
           onReady: function(selectedDates, dateStr, instance) {
+            if (instance.calendarContainer) {
+              instance.calendarContainer._flatpickrInstance = instance;
+            }
             if (instance.altInput) {
               instance.altInput.placeholder = input.getAttribute('placeholder') || ' ';
               instance.altInput.setAttribute('autocomplete', 'off');
@@ -429,12 +528,19 @@ const App = (() => {
           },
           onYearChange: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           },
           onMonthChange: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           },
           onOpen: function(selectedDates, dateStr, instance) {
+            if (instance.calendarContainer) {
+              instance.calendarContainer._flatpickrInstance = instance;
+            }
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
+            requestAnimationFrame(() => positionCalendarSmartly(instance));
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) group.classList.add('is-focused', 'is-floated');
           },
@@ -447,6 +553,7 @@ const App = (() => {
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           }
         });
       });

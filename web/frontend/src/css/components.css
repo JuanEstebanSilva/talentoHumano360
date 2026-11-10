@@ -8593,6 +8593,7 @@ span.flatpickr-weekday:nth-child(7) {
   margin-top: 6px !important;
   background: #f8fafc !important;
   border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+  flex-shrink: 0 !important;
 }
 
 .flatpickr-custom-footer button {
