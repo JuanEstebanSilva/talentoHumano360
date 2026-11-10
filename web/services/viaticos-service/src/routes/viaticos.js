@@ -18,6 +18,34 @@ function parseDateInput(dStr) {
   return isNaN(dt.getTime()) ? null : new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
 }
 
+function cleanMoney(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return isNaN(val) ? null : val;
+  let s = String(val).trim();
+  if (!s) return null;
+  s = s.replace(/[\$\sCOPcop]/g, '');
+  if (!s) return null;
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+    s = s.replace(/,/g, '');
+  } else if (/^\d+,\d+$/.test(s)) {
+    s = s.replace(',', '.');
+  }
+  const num = parseFloat(s);
+  return isNaN(num) ? null : num;
+}
+
+function pickFirst(obj, keys) {
+  if (!obj || typeof obj !== 'object') return null;
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') {
+      return obj[k];
+    }
+  }
+  return null;
+}
+
 const pool = new Pool(
   process.env.DATABASE_URL
     ? {
@@ -1140,18 +1168,15 @@ router.post('/', auth, async (req, res) => {
     }
   }
 
-  let finalValorDiario = parseFloat(valorDiario);
-  let finalValorTotal = null;
-  if (req.body.valorTotal !== undefined && req.body.valorTotal !== null && req.body.valorTotal !== '') {
-    const parsed = parseFloat(req.body.valorTotal);
-    if (!isNaN(parsed)) finalValorTotal = parsed;
-  } else if (req.body.valor_total !== undefined && req.body.valor_total !== null && req.body.valor_total !== '') {
-    const parsed = parseFloat(req.body.valor_total);
-    if (!isNaN(parsed)) finalValorTotal = parsed;
+  let finalValorDiario = cleanMoney(valorDiario);
+  if (finalValorDiario === null || finalValorDiario < 0) {
+    finalValorDiario = 0;
   }
 
-  if (isNaN(finalValorDiario) || finalValorDiario < 0) {
-    finalValorDiario = 0;
+  let finalValorTotal = null;
+  const rawVT = req.body.valorTotal !== undefined ? req.body.valorTotal : req.body.valor_total;
+  if (rawVT !== undefined && rawVT !== null && String(rawVT).trim() !== '') {
+    finalValorTotal = cleanMoney(rawVT);
   }
 
   let obsFinal = (observaciones || '').trim();
@@ -1318,20 +1343,19 @@ router.post('/bulk', auth, async (req, res) => {
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
       const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
       const saldo = parseFloat(row.saldo || row['SALDO']) || null;
-      const rawTotal = row.valorTotal != null ? row.valorTotal : (row.valor_total != null ? row.valor_total : (row['Valor Total'] != null ? row['Valor Total'] : (row['VALOR TOTAL'] != null ? row['VALOR TOTAL'] : (row.Total != null ? row.Total : (row.TOTAL != null ? row.TOTAL : (row.valor != null ? row.valor : (row.VALOR != null ? row.VALOR : null)))))));
-      let rowValorTotal = null;
-      if (rawTotal !== null && rawTotal !== undefined && String(rawTotal).trim() !== '') {
-        const parsed = parseFloat(rawTotal);
-        if (!isNaN(parsed)) rowValorTotal = parsed;
-      }
+      const rawTotal = pickFirst(row, [
+        'valorTotal', 'valor_total', 'Valor Total', 'VALOR TOTAL', 'VALOR_TOTAL',
+        'Total', 'TOTAL', 'Total Viático', 'Total Viatico', 'TOTAL VIATICO',
+        'valor', 'VALOR'
+      ]);
+      const rowValorTotal = cleanMoney(rawTotal);
 
       // valorDiario es opcional e informativo, no determina ni sobrescribe el valor total
-      let valorDiario = 0;
-      const rawDiario = row.valorDiario != null ? row.valorDiario : (row.valor_diario != null ? row.valor_diario : (row['Valor Diario'] != null ? row['Valor Diario'] : (row['VALOR DIARIO'] != null ? row['VALOR DIARIO'] : null)));
-      if (rawDiario !== null && rawDiario !== undefined && String(rawDiario).trim() !== '') {
-        const parsed = parseFloat(rawDiario);
-        if (!isNaN(parsed)) valorDiario = parsed;
-      }
+      const rawDiario = pickFirst(row, [
+        'valorDiario', 'valor_diario', 'Valor Diario', 'VALOR DIARIO', 'VALOR_DIARIO',
+        'Tarifa Diaria', 'TARIFA DIARIA', 'Tarifa', 'TARIFA', 'Diario', 'DIARIO'
+      ]);
+      const valorDiario = cleanMoney(rawDiario) || 0;
       if (rowValorTotal !== null) totalValor += rowValorTotal;
 
       if (!persona) {
@@ -1532,18 +1556,20 @@ router.put('/:id', auth, async (req, res) => {
       }
     }
 
-    let finalValorDiario = parseFloat(valorDiario);
-    let finalValorTotal = null;
-    if (req.body.valorTotal !== undefined && req.body.valorTotal !== null && req.body.valorTotal !== '') {
-      const parsed = parseFloat(req.body.valorTotal);
-      if (!isNaN(parsed)) finalValorTotal = parsed;
-    } else if (req.body.valor_total !== undefined && req.body.valor_total !== null && req.body.valor_total !== '') {
-      const parsed = parseFloat(req.body.valor_total);
-      if (!isNaN(parsed)) finalValorTotal = parsed;
+    let finalValorDiario = cleanMoney(valorDiario);
+    if (finalValorDiario === null || finalValorDiario < 0) {
+      finalValorDiario = parseFloat(currentViatico.valor_diario) || 0;
     }
 
-    if (isNaN(finalValorDiario) || finalValorDiario < 0) {
-      finalValorDiario = parseFloat(currentViatico.valor_diario) || 0;
+    let finalValorTotal = currentViatico.valor_total;
+    const rawVT = req.body.valorTotal !== undefined ? req.body.valorTotal : req.body.valor_total;
+    if (rawVT !== undefined) {
+      if (rawVT === null || String(rawVT).trim() === '') {
+        finalValorTotal = null;
+      } else {
+        const parsed = cleanMoney(rawVT);
+        if (parsed !== null) finalValorTotal = parsed;
+      }
     }
 
     let obsFinal = (observaciones || '').trim();
@@ -1555,7 +1581,7 @@ router.put('/:id', auth, async (req, res) => {
 
     await client.query(
       `UPDATE viaticos SET dependencia=$1, apellidos_nombres=$2, documento=$3, cargo=$4, destino=$5, motivo=$6,
-        fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, valor_total=COALESCE($11, valor_total),
+        fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, valor_total=$11,
         estado=$12, observaciones=$13, aprobado_por=$14,
         tipo_destino=COALESCE($15, tipo_destino), soporte=COALESCE($16, soporte),
         numero_resolucion=COALESCE($17, numero_resolucion), saldo=COALESCE($18, saldo),
