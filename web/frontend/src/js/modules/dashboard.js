@@ -908,64 +908,88 @@ const DashboardModule = (() => {
       }
 
       if (ctxStatus) {
-        // Crear gradientes vibrantes con alto contraste desde la colorimetría oficial de Boyacá
-        // 1. Aprobadas: Verde vivo a verde bosque
-        const gradAprobada = ctxStatus.createLinearGradient(0, 0, 0, 260);
-        gradAprobada.addColorStop(0, '#28871B'); // Verde vivo
-        gradAprobada.addColorStop(1, '#287522'); // Verde bosque
-
-        // 2. Pendientes: Naranja quemado a amarillo mostaza
-        const gradPendiente = ctxStatus.createLinearGradient(0, 0, 0, 260);
-        gradPendiente.addColorStop(0, '#D14600'); // Naranja quemado
-        gradPendiente.addColorStop(1, '#D1AD2A'); // Amarillo mostaza
-
-        // 3. Finalizadas / Otras: Morado institucional a magenta
-        const gradOtras = ctxStatus.createLinearGradient(0, 0, 0, 260);
-        gradOtras.addColorStop(0, '#914169'); // Vino rosado / Morado oficial
-        gradOtras.addColorStop(1, '#B84BA7'); // Magenta Andino
-
-        chartDona = safeCreateChart(ctxStatus, {
-          type: 'doughnut',
-          data: {
-            labels: ['Aprobadas', 'Pendientes', 'Finalizadas / Otras'],
-            datasets: [{
-              data: [aprobadas || 1, pendientes, rechazadaCount],
-              backgroundColor: [gradAprobada, gradPendiente, gradOtras],
-              borderColor: chartBorderColor,
-              borderWidth: 3,
-              hoverOffset: 12,
-              spacing: 4,
-              borderRadius: 6,
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                display: false // Eliminada la leyenda duplicada de circulitos (explicada abajo)
+        if (totalViaticos === 0) {
+          chartDona = safeCreateChart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+              labels: ['Sin viáticos registrados'],
+              datasets: [{
+                data: [1],
+                backgroundColor: [isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'],
+                borderColor: chartBorderColor,
+                borderWidth: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
               },
-              tooltip: {
-                backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
-                titleColor: isDark ? '#f8fafc' : '#0f172a',
-                bodyColor: isDark ? '#cbd5e1' : '#334155',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
-                borderWidth: 1,
-                padding: 12,
-                cornerRadius: 10,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                callbacks: {
-                  label: (ctx) => {
-                    const val = ctx.raw || 0;
-                    const pct = totalViaticos > 0 ? ((val / totalViaticos) * 100).toFixed(1) : 0;
-                    return `  ${ctx.label}: ${val.toLocaleString('es-CO')} comisiones (${pct}%)`;
+              cutout: '68%'
+            }
+          });
+        } else {
+          // Crear gradientes vibrantes con alto contraste desde la colorimetría oficial de Boyacá
+          // 1. Aprobadas: Verde vivo a verde bosque
+          const gradAprobada = ctxStatus.createLinearGradient(0, 0, 0, 260);
+          gradAprobada.addColorStop(0, '#28871B'); // Verde vivo
+          gradAprobada.addColorStop(1, '#287522'); // Verde bosque
+
+          // 2. Pendientes: Naranja quemado a amarillo mostaza
+          const gradPendiente = ctxStatus.createLinearGradient(0, 0, 0, 260);
+          gradPendiente.addColorStop(0, '#D14600'); // Naranja quemado
+          gradPendiente.addColorStop(1, '#D1AD2A'); // Amarillo mostaza
+
+          // 3. Finalizadas / Otras: Morado institucional a magenta
+          const gradOtras = ctxStatus.createLinearGradient(0, 0, 0, 260);
+          gradOtras.addColorStop(0, '#914169'); // Vino rosado / Morado oficial
+          gradOtras.addColorStop(1, '#B84BA7'); // Magenta Andino
+
+          chartDona = safeCreateChart(ctxStatus, {
+            type: 'doughnut',
+            data: {
+              labels: ['Aprobadas', 'Pendientes', 'Finalizadas / Otras'],
+              datasets: [{
+                data: [aprobadas, pendientes, rechazadaCount],
+                backgroundColor: [gradAprobada, gradPendiente, gradOtras],
+                borderColor: chartBorderColor,
+                borderWidth: 3,
+                hoverOffset: 12,
+                spacing: 4,
+                borderRadius: 6,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false // Eliminada la leyenda duplicada de circulitos (explicada abajo)
+                },
+                tooltip: {
+                  backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                  titleColor: isDark ? '#f8fafc' : '#0f172a',
+                  bodyColor: isDark ? '#cbd5e1' : '#334155',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                  borderWidth: 1,
+                  padding: 12,
+                  cornerRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  callbacks: {
+                    label: (ctx) => {
+                      const val = ctx.raw || 0;
+                      const pct = totalViaticos > 0 ? ((val / totalViaticos) * 100).toFixed(1) : 0;
+                      return `  ${ctx.label}: ${val.toLocaleString('es-CO')} comisiones (${pct}%)`;
+                    }
                   }
                 }
-              }
-            },
-            cutout: '68%'
-          }
-        });
+              },
+              cutout: '68%'
+            }
+          });
+        }
       }
 
       // ─── Chart 2: Destinos más frecuentes (Barras Horizontales con Gradientes Contrastantes) ───
@@ -1083,7 +1107,8 @@ const DashboardModule = (() => {
         const depCounts = {};
         viaticosData.forEach(v => {
           const dep = normalizeDep(v.dependencia);
-          depBudgets[dep] = (depBudgets[dep] || 0) + (parseFloat(v.valor_total) || 150000);
+          const valNum = parseFloat(v.valor_total);
+          depBudgets[dep] = (depBudgets[dep] || 0) + (isNaN(valNum) ? 0 : valNum);
           depCounts[dep] = (depCounts[dep] || 0) + 1;
         });
         const topBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]).slice(0, 6);
@@ -2493,7 +2518,7 @@ const DashboardModule = (() => {
         viaticosData.forEach(v => {
           const dep = (v.dependencia || 'SECRETARÍA GENERAL').trim().toUpperCase();
           const val = parseFloat(v.valorTotal || v.valor_total || 0);
-          depBudgets[dep] = (depBudgets[dep] || 0) + (val > 0 ? val : 150000);
+          depBudgets[dep] = (depBudgets[dep] || 0) + (val > 0 ? val : 0);
           depCommissions[dep] = (depCommissions[dep] || 0) + 1;
         });
         const sortedBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]);

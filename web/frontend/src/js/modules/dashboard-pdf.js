@@ -498,7 +498,7 @@ const DashboardPDF = (() => {
     viaticosData.forEach(v => {
       const dep = (v.dependencia || 'SECRETARÍA GENERAL').trim().toUpperCase();
       const val = parseFloat(v.valorTotal || v.valor_total || 0);
-      depBudgets[dep] = (depBudgets[dep] || 0) + (val > 0 ? val : 150000);
+      depBudgets[dep] = (depBudgets[dep] || 0) + (val > 0 ? val : 0);
       depCommissions[dep] = (depCommissions[dep] || 0) + 1;
     });
     const sortedBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]);
