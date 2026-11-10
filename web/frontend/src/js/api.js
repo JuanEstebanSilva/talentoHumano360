@@ -129,6 +129,29 @@ const API = (() => {
     return data;
   }
 
+  // Multipart: el navegador define el Content-Type con su boundary.
+  async function sendDocumentFile(url, file, fields) {
+    const formData = new FormData();
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') formData.append(key, value);
+    });
+    formData.append('archivo', file);
+    const res = await fetch(BASE + url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${Auth.getToken()}` },
+      body: formData,
+    });
+    if (res.status === 401) {
+      Auth.clear();
+      App.showLogin();
+      throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+    }
+    if (res.status === 413) throw new Error('El archivo supera el tamaño máximo de 25 MB.');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    return data;
+  }
+
   return {
     // Auth
     login: (username, password) =>
@@ -215,7 +238,7 @@ const API = (() => {
     getRequests: (params = {}) => request('/requests?' + new URLSearchParams(params)),
     getRequestCatalogs: () => request('/requests/catalogs'),
     createRequest: (data) => request('/requests', { method: 'POST', body: JSON.stringify(data) }),
-    bulkCreateRequests: (rows) => request('/requests/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateRequests: (rows) => request('/requests/bulk', { method: 'POST', body: JSON.stringify({ rows, nombreArchivo: ExcelService.getLastImportFileName() }) }),
     updateRequest: (id, data) => request(`/requests/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateRequestStatus: (id, estado, notaGestion = '') =>
       request(`/requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, notaGestion }) }),
@@ -247,7 +270,7 @@ const API = (() => {
     },
     getIncapacidadesCatalogs: () => request('/admin-requests/incapacidades/catalogs'),
     createIncapacidad: (data) => request('/admin-requests/incapacidades', { method: 'POST', body: JSON.stringify(data) }),
-    bulkCreateIncapacidades: (rows) => request('/admin-requests/incapacidades/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateIncapacidades: (rows) => request('/admin-requests/incapacidades/bulk', { method: 'POST', body: JSON.stringify({ rows, nombreArchivo: ExcelService.getLastImportFileName() }) }),
     updateIncapacidad: (id, data) => request(`/admin-requests/incapacidades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateIncapacidadStatus: (id, estado, observaciones = '') =>
       request(`/admin-requests/incapacidades/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
@@ -311,7 +334,7 @@ const API = (() => {
     updateSstEpidemiologicoStatus: (id, estadoFinalCaso, actividadesPendientes = '') =>
       request(`/sst/epidemiologico/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estadoFinalCaso, actividadesPendientes }) }),
     checkSstEmoVencimientos: () => request('/sst/epidemiologico/check-vencimientos', { method: 'POST' }),
-    bulkCreateSstEpidemiologico: (rows) => request('/sst/epidemiologico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateSstEpidemiologico: (rows) => request('/sst/epidemiologico/bulk', { method: 'POST', body: JSON.stringify({ rows, nombreArchivo: ExcelService.getLastImportFileName() }) }),
     deleteSstEpidemiologico: (id) => request(`/sst/epidemiologico/${id}`, { method: 'DELETE' }),
 
     getSstEpp: (params = {}) => request('/sst/epp?' + new URLSearchParams(params)),
@@ -320,13 +343,13 @@ const API = (() => {
       request(`/sst/epp/inventario/${encodeURIComponent(codigo)}`, { method: 'PUT', body: JSON.stringify(data) }),
     createSstEpp: (data) => request('/sst/epp', { method: 'POST', body: JSON.stringify(data) }),
     updateSstEpp: (id, data) => request(`/sst/epp/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    bulkCreateSstEpp: (rows) => request('/sst/epp/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateSstEpp: (rows) => request('/sst/epp/bulk', { method: 'POST', body: JSON.stringify({ rows, nombreArchivo: ExcelService.getLastImportFileName() }) }),
     deleteSstEpp: (id) => request(`/sst/epp/${id}`, { method: 'DELETE' }),
 
     getSstSociodemografico: (params = {}) => request('/sst/sociodemografico?' + new URLSearchParams(params)),
     createSstSociodemografico: (data) => request('/sst/sociodemografico', { method: 'POST', body: JSON.stringify(data) }),
     updateSstSociodemografico: (id, data) => request(`/sst/sociodemografico/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    bulkCreateSstSociodemografico: (rows) => request('/sst/sociodemografico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    bulkCreateSstSociodemografico: (rows) => request('/sst/sociodemografico/bulk', { method: 'POST', body: JSON.stringify({ rows, nombreArchivo: ExcelService.getLastImportFileName() }) }),
     deleteSstSociodemografico: (id) => request(`/sst/sociodemografico/${id}`, { method: 'DELETE' }),
 
     // Gobernanza Unificada: RBAC, Responsables por Módulo, Auditoría Inmutable y Documentos Institucionales
@@ -384,6 +407,54 @@ const API = (() => {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     },
+
+    // Gestión documental
+    getDocuments: (params = {}) => request('/documents?' + new URLSearchParams(params)),
+    getDocument: (id) => request(`/documents/${id}`),
+    getDocumentsSummary: () => request('/documents/resumen'),
+    getDocumentTypes: () => request('/documents/tipos'),
+    createDocumentType: (data) => request('/documents/tipos', { method: 'POST', body: JSON.stringify(data) }),
+    updateDocumentType: (id, data) => request(`/documents/tipos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    updateDocument: (id, data) => request(`/documents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteDocument: (id, motivo = '') => request(`/documents/${id}`, { method: 'DELETE', body: JSON.stringify({ motivo }) }),
+    uploadDocument: (file, fields = {}) => sendDocumentFile('/documents', file, fields),
+    uploadDocumentVersion: (id, file, nota = '') => sendDocumentFile(`/documents/${id}/versiones`, file, { nota }),
+    getRequestSupports: (id) => request(`/documents/soportes/solicitud/${id}`),
+    uploadRequestSupport: (id, file) => sendDocumentFile(`/documents/soportes/solicitud/${id}`, file, {}),
+    // Devuelve el archivo como Blob: así el token nunca viaja en la URL.
+    getDocumentFile: async (id, { version, inline } = {}) => {
+      const params = new URLSearchParams();
+      if (version) params.set('version', version);
+      if (inline) params.set('inline', '1');
+      const res = await fetch(`${BASE}/documents/${id}/archivo?${params}`, {
+        headers: { Authorization: `Bearer ${Auth.getToken()}` },
+      });
+      if (res.status === 401) {
+        Auth.clear();
+        App.showLogin();
+        throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+      return res.blob();
+    },
+
+    // Informes y automatización
+    getReportCatalog: () => request('/reports/catalogo'),
+    getReportOptions: (fuente) => request(`/reports/opciones/${encodeURIComponent(fuente)}`),
+    generateReport: (data) => request('/reports/generar', { method: 'POST', body: JSON.stringify(data) }),
+    getAutomations: () => request('/automation'),
+    createAutomation: (data) => request('/automation', { method: 'POST', body: JSON.stringify(data) }),
+    updateAutomation: (id, data) => request(`/automation/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    pauseAutomation: (id) => request(`/automation/${id}/pausar`, { method: 'POST' }),
+    resumeAutomation: (id) => request(`/automation/${id}/reanudar`, { method: 'POST' }),
+    runAutomation: (id) => request(`/automation/${id}/ejecutar`, { method: 'POST' }),
+    deleteAutomation: (id) => request(`/automation/${id}`, { method: 'DELETE' }),
+    getAutomationRuns: (params = {}) => request('/automation/ejecuciones?' + new URLSearchParams(params)),
+    getAutomationRun: (id) => request(`/automation/ejecuciones/${id}`),
+    getImportHistory: (params = {}) => request('/reports/importaciones?' + new URLSearchParams(params)),
 
     // Administración Técnica: Monitoreo de Errores y Copias de Seguridad
     reportError: (payload) =>

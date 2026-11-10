@@ -163,6 +163,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-development}
+      TZ: America/Bogota # La copia diaria programada usa la hora de Colombia.
       PORT: 3006
       DB_HOST: postgres
       DB_PORT: 5432
@@ -170,6 +171,8 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - backups_data:/app/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -226,6 +229,56 @@ services:
       - talento360_net
 
   # ─────────────────────────────────────────────────
+  # MICROSERVICE 10 — Documents Service (Gestión documental)
+  # ─────────────────────────────────────────────────
+  documents-service:
+    build: ./services/documents-service
+    container_name: talento360_documents
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3009
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-talento360}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+      DOCUMENTS_STORAGE_DIR: /data/documentos
+      DOCUMENTS_INBOX_DIR: /data/bandeja
+    volumes:
+      - documents_data:/data/documentos
+      - documents_inbox:/data/bandeja
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - talento360_net
+
+  # ─────────────────────────────────────────────────
+  # MICROSERVICE 11 — Reports Service (Informes y automatización)
+  # ─────────────────────────────────────────────────
+  reports-service:
+    build: ./services/reports-service
+    container_name: talento360_reports
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3010
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-talento360}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - talento360_net
+
+
+  # ─────────────────────────────────────────────────
   # FRONTEND + GATEWAY (Nginx)
   # ─────────────────────────────────────────────────
   frontend:
@@ -246,11 +299,16 @@ services:
       - dashboard-service
       - horarios-service
       - sst-service
+      - documents-service
+      - reports-service
     networks:
       - talento360_net
 
 volumes:
   postgres_data:
+  backups_data:
+  documents_data:
+  documents_inbox:
 
 networks:
   talento360_net:

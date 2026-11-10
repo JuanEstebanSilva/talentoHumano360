@@ -13,8 +13,13 @@
     return;
   }
 
-  // 2. Si se está ejecutando en localhost / Docker Compose local, usar rutas relativas '/api/...'
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  // 2. En la red local el backend está en el mismo origen (Nginx del Docker Compose): rutas relativas '/api/...'.
+  //    Cubre localhost, direcciones IP (p. ej. http://192.168.1.20) y nombres de equipo sin dominio o .local.
+  const host = window.location.hostname;
+  const isIPv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  const isIPv6 = host.includes(':') || host.startsWith('[');
+  const isLocalName = host !== '' && (!host.includes('.') || host.endsWith('.local'));
+  if (host === 'localhost' || isIPv4 || isIPv6 || isLocalName) {
     window.TALENTO360_API_URL = '';
     return;
   }

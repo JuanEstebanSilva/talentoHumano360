@@ -23,6 +23,16 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
+// Migraciones de gestión documental, informes e historial de cargas. Son idempotentes:
+// se aplican al crear la base y en cada arranque, después de sincronizar roles y permisos.
+const ADDITIONAL_MIGRATIONS = [
+  '28_documentos.sql',
+  '29_informes_automatizacion.sql',
+  '30_importaciones.sql',
+  '31_soportes_solicitudes.sql',
+  '32_importaciones_resultado.sql', '33_accesos_adicionales.sql',
+];
+
 // Scripts SQL maestros para inicialización desde cero
 const SQL_FILES = [
   '01_schema.sql',
@@ -50,6 +60,7 @@ const SQL_FILES = [
   '25_viaticos_ciclo_de_vida_y_estados.sql',
   '26_rbac_cross_module_read_and_permissions.sql',
   '27_clean_transactional_inserts.sql',
+  ...ADDITIONAL_MIGRATIONS,
 ];
 
 function findDatabaseDir() {
@@ -173,6 +184,12 @@ async function runMigrations(client, dbDir = null) {
         const rolesSql = fs.readFileSync(rolesSqlPath, 'utf8');
         await client.query(rolesSql);
         console.log('[Talento 360 DB Migration] Roles y permisos sincronizados correctamente.');
+      }
+
+      // Gestión documental, informes e historial de cargas (después de los roles: sus permisos se suman a los sincronizados).
+      for (const file of ADDITIONAL_MIGRATIONS) {
+        const sqlPath = path.join(dbDir, file);
+        if (fs.existsSync(sqlPath)) await client.query(fs.readFileSync(sqlPath, 'utf8'));
       }
     }
 

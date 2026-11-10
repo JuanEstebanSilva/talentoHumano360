@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node web/backend/server.js",
     "build": "node -e \"console.log('Build completed successfully')\"",
-    "db:init": "node web/backend/scripts/init-db.js"
+    "db:init": "node web/backend/scripts/init-db.js",
+    "test": "node --test web/services/documents-service/test/utils.test.js web/services/documents-service/test/documents.integration.test.js web/services/documents-service/test/inbox.integration.test.js web/services/documents-service/test/soportes.integration.test.js web/services/reports-service/test/utils.test.js web/services/reports-service/test/reports.integration.test.js web/services/requests-service/test/importHistory.test.js web/services/requests-service/test/requests.integration.test.js web/services/admin-requests-service/test/admin-requests.integration.test.js web/services/employees-service/test/employees.integration.test.js web/services/sst-service/test/sst.integration.test.js web/services/dashboard-service/test/dashboard.integration.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

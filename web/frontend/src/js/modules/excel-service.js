@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ExcelService = (() => {
+  let lastImportFileName = ''; // Se envía con la carga para el historial de importaciones.
 
   /**
    * Sanitiza valores de celdas para prevenir inyección de fórmulas (CWE-1236 / AUD-008 / AUD-009).
@@ -168,6 +169,11 @@ const ExcelService = (() => {
     ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
+
+    // Hojas adicionales opcionales: [{ name, rows: [[...], ...] }]
+    (options.extraSheets || []).forEach(sheet => {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet.rows), sheet.name.substring(0, 31));
+    });
 
     const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}`;
     saveWorkbookWithHeaderStyle(wb, fullFilename);
@@ -745,6 +751,7 @@ const ExcelService = (() => {
         alert('Por favor seleccione un archivo Excel válido (.xlsx o .xls).');
         return;
       }
+      lastImportFileName = file.name;
 
       fileInfo.style.display = 'block';
       fileInfo.textContent = `Archivo cargado: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
@@ -988,6 +995,7 @@ const ExcelService = (() => {
 
   return {
     exportToExcel,
+    getLastImportFileName: () => lastImportFileName,
     exportToCSV,
     buildCSVContent,
     downloadTemplate,

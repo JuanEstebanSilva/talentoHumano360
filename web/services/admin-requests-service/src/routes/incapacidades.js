@@ -7,6 +7,7 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 const cat    = require('../catalogs/incapacidades');
 const {
   ensureAuditAndRbacSchema,
@@ -807,7 +808,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ─── POST /api/incapacidades/bulk (Importación Masiva Transaccional - 9.3) ────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'incapacidades'), async (req, res) => {
   const perm = await getModulePermission(pool, req.user, 'incapacidades');
   if (!perm.canImport) {
     return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden realizar importaciones masivas.' });

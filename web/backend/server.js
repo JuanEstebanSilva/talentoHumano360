@@ -183,6 +183,10 @@ const dashboardRoutes     = require('../services/dashboard-service/src/routes/da
 const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
 const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
 const sstRoutes           = require('../services/sst-service/src/routes/sst');
+// Aportes de gestión documental e informes
+const documentsRoutes     = require('../services/documents-service/src/routes/documents');
+const reportsRoutes       = require('../services/reports-service/src/routes/reports');
+const automationRoutes    = require('../services/reports-service/src/routes/automation');
 
 // ─── Montaje de Rutas API ─────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -200,6 +204,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/sst', sstRoutes);
+app.use('/api/documents', documentsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/automation', automationRoutes);
 
 // Manejador 404 para rutas API no encontradas
 app.use('/api/*', (req, res) => {

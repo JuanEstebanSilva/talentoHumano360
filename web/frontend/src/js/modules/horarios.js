@@ -3818,6 +3818,7 @@ const HorariosModule = (() => {
         const res = await API.bulkCreateHorarios({
           rows: allCleanRows,
           hojasProcesadas,
+          nombreArchivo: selectedFile?.name,
         });
 
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 
 function parseDateInput(dStr) {
   if (!dStr) return null;
@@ -1202,7 +1203,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ─── POST /api/viaticos/bulk (Carga Masiva) ──────────────────────────────────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : Array.isArray(req.body) ? req.body : [];
   const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) ? req.body.hojasProcesadas : [];

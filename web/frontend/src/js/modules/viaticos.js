@@ -4406,7 +4406,7 @@ const ViaticosModule = (() => {
           }
 
           if (allRows.length > 0) {
-            await API.bulkCreateViaticos({ rows: allRows, id_paquete });
+            await API.bulkCreateViaticos({ rows: allRows, id_paquete, nombreArchivo: file?.name });
             App.showToast(`Se importaron ${allRows.length.toLocaleString('es-CO')} viáticos en esta vigencia.`, 'success');
           }
           resolve(allRows.length);
@@ -4993,7 +4993,7 @@ const ViaticosModule = (() => {
 
         App.showToast(`Importando ${allRows.length.toLocaleString('es-CO')} viáticos en ${hojasProcesadas.length} secretarías...`, 'info');
 
-        const res = await API.bulkCreateViaticos({ rows: allRows, hojasProcesadas });
+        const res = await API.bulkCreateViaticos({ rows: allRows, hojasProcesadas, nombreArchivo: selectedFile?.name });
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
 
         const { resumen = {}, errores = [] } = res;

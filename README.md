@@ -295,6 +295,25 @@ Todos los comandos deben ejecutarse desde la carpeta `web/`:
 
 ---
 
+## 🗂️ Gestión Documental, Informes y Automatización
+
+Módulos añadidos sobre la base del equipo, sin cambiar los existentes:
+
+| Pieza | Dónde | Notas |
+| :--- | :--- | :--- |
+| **Gestión Documental** | `services/documents-service` (puerto 3009, `/api/documents`) | Archivos y versiones en el volumen `documents_data`; carpeta de entrada automática en `documents_inbox`. |
+| **Informes y Automatización** | `services/reports-service` (puerto 3010, `/api/reports`, `/api/automation`) | Informes limitados a los módulos que el usuario ya puede consultar; también muestra el historial de cargas masivas. |
+| **Historial de cargas masivas** | `services/*/src/utils/importHistory.js` | Registra en la tabla `importaciones` cada carga confirmada, rechazada o fallida, sin cambiar la lógica de la ruta. |
+| **Migraciones** | `database/28_…` a `database/33_…` | `33_accesos_adicionales.sql` asigna los accesos a estos módulos (ver abajo). |
+
+**Accesos:** los servicios `admin-requests` y `sst` reescriben `usuarios.modulos` y `usuarios.permisos` al arrancar. Por eso los accesos a `documents` y `reports` se guardan en la tabla `accesos_adicionales` y un trigger los vuelve a añadir. Para dar o quitar un acceso, se agrega o borra una fila en esa tabla.
+
+**Pruebas:** `npm test` con `TEST_DATABASE_URL` apuntando a una base de pruebas (nunca la de producción). Sin esa variable, las pruebas de integración se omiten.
+
+Más detalle en [docs/INFORMES_Y_AUTOMATIZACION.md](docs/INFORMES_Y_AUTOMATIZACION.md), [docs/COPIAS_DE_SEGURIDAD.md](docs/COPIAS_DE_SEGURIDAD.md) y [docs/ANALISIS_PROCESOS_E_INTEGRACIONES.md](docs/ANALISIS_PROCESOS_E_INTEGRACIONES.md).
+
+---
+
 ## 📄 Licencia y Uso Institucional
 
 Desarrollado para la **Gobernación de Boyacá** — Subdirección de Talento Humano.  

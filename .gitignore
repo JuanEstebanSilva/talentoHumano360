@@ -28,3 +28,6 @@ Thumbs.db
 # Documentos locales
 documentos/
 documentosParaAnalisis/
+
+# Archivos de Gestión Documental en desarrollo local
+storage/
