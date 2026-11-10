@@ -2593,6 +2593,22 @@ const App = (() => {
         });
       }
     }
+
+    document.getElementById('prof-name')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveProfile();
+      }
+    });
+
+    passInputs.forEach(input => {
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveProfile();
+        }
+      });
+    });
   }
 
   async function saveProfile() {
@@ -2644,7 +2660,8 @@ const App = (() => {
       }
 
       updateUserDisplay(res.user);
-      closeModal();
+      markFormClean();
+      closeModal(true);
       showToast('Perfil actualizado exitosamente.', 'success');
       if (typeof FX !== 'undefined') FX.successBurst(btn);
     } catch (err) {
