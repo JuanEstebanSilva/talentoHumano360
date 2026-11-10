@@ -1187,59 +1187,135 @@
 
 /* ─── Módulo General / Desbloqueo de Módulos para Administrador ──────────────── */
 .nav-item--admin-unlock {
-  border-left: 3px solid #eab308 !important;
-  background: rgba(234, 179, 8, 0.08);
   position: relative;
-  transition: all 0.25s ease;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25) !important;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   font-weight: 600;
 }
 
-.nav-item--admin-unlock:hover {
-  background: rgba(234, 179, 8, 0.15) !important;
+.nav-item--admin-unlock::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  height: 64%;
+  width: 4px;
+  background: #eab308;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.75);
+  transition: all 0.22s ease;
 }
 
+.nav-item--admin-unlock .nav-icon {
+  color: #facc15 !important;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+}
+
+.nav-item--admin-unlock:hover {
+  background: rgba(234, 179, 8, 0.16) !important;
+  border-color: rgba(234, 179, 8, 0.45) !important;
+  transform: translateY(-2px);
+}
+
+.nav-item--admin-unlock:hover .nav-icon {
+  transform: scale(1.15);
+  filter: drop-shadow(0 2px 6px rgba(250, 204, 21, 0.5));
+}
+
+/* Estado Desbloqueado */
 .nav-item--admin-unlock.is-unlocked {
-  border-left-color: #10b981 !important;
   background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.nav-item--admin-unlock.is-unlocked::before {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
+}
+
+.nav-item--admin-unlock.is-unlocked .nav-icon {
+  color: #34d399 !important;
 }
 
 .nav-item--admin-unlock.is-unlocked:hover {
   background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
 }
 
+.nav-item--admin-unlock.is-unlocked:hover .nav-icon {
+  filter: drop-shadow(0 2px 6px rgba(52, 211, 153, 0.5));
+}
+
+/* Badge de texto en modo expandido */
 .admin-modules-lock-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(234, 179, 8, 0.2);
-  color: #b45309;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(234, 179, 8, 0.18);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.35);
   flex-shrink: 0;
-  transition: all 0.25s ease;
+  white-space: nowrap;
+  line-height: 1;
+  transition: all 0.22s ease;
 }
 
 .nav-item--admin-unlock.is-unlocked .admin-modules-lock-status {
-  background: rgba(16, 185, 129, 0.2);
-  color: #059669;
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
+/* ─── Ajustes específicos para Barra Lateral Colapsada ("Guardada") ─────────── */
+.app.sidebar-collapsed .nav-item--admin-unlock {
+  justify-content: center !important;
+  padding: 12px 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock::before {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .nav-label {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .admin-modules-lock-status {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .nav-icon {
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+}
+
+/* Dark Theme overrides */
 [data-theme="dark"] .nav-item--admin-unlock {
-  background: rgba(234, 179, 8, 0.12);
-}
-
-[data-theme="dark"] .admin-modules-lock-status {
-  background: rgba(234, 179, 8, 0.25);
-  color: #facc15;
+  background: rgba(234, 179, 8, 0.10);
+  border-color: rgba(234, 179, 8, 0.25) !important;
 }
 
 [data-theme="dark"] .nav-item--admin-unlock.is-unlocked {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.25) !important;
 }
 
-[data-theme="dark"] .nav-item--admin-unlock.is-unlocked .admin-modules-lock-status {
-  background: rgba(16, 185, 129, 0.25);
-  color: #34d399;
+[data-theme="dark"] .app.sidebar-collapsed .nav-item--admin-unlock {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }

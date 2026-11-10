@@ -81,7 +81,7 @@
   <link rel="stylesheet" href="css/components.css?v=20261110_v2" />
   <link rel="stylesheet" href="css/animations.css?v=20261104_gemini_v1" />
   <link rel="stylesheet" href="css/legal.css?v=20261104_gemini_v1" />
-  <link rel="stylesheet" href="css/admin.css?v=20261110_admin_stepup" />
+  <link rel="stylesheet" href="css/admin.css?v=20261110_admin_sidebar_fix" />
 
   <!-- Flatpickr (Calendario Institucional Moderno) -->
   <link rel="stylesheet" href="css/flatpickr.min.css" />
@@ -290,18 +290,13 @@
           </li>
           <!-- Módulo General de Desbloqueo Operativo (Solo visible para Administrador) -->
           <li id="li-admin-modules-unlock" style="display:none;">
-            <button class="nav-item nav-item--admin-unlock" id="nav-admin-modules-unlock" title="Módulos del Sistema" data-tooltip="Módulos">
+            <button class="nav-item nav-item--admin-unlock" id="nav-admin-modules-unlock" title="Módulos del Sistema" data-tooltip="Desbloquear Módulos">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <span class="nav-label">Módulos del Sistema</span>
-              <span class="admin-modules-lock-status" id="admin-modules-lock-status" title="Estado de acceso">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="lock-icon-svg" style="width:13px; height:13px;">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </span>
+              <span class="admin-modules-lock-status" id="admin-modules-lock-status">Bloqueado</span>
             </button>
           </li>
           <li>
@@ -667,7 +662,7 @@
   <script src="js/modules/legal.js?v=20261109_merged_v1"></script>
   <script src="js/modules/admin-errors.js?v=20261109_merged_v1"></script>
   <script src="js/modules/admin-backups.js?v=20261109_merged_v1"></script>
-  <script src="js/app.js?v=20261110_admin_stepup"></script>
+  <script src="js/app.js?v=20261110_admin_sidebar_fix"></script>
 </body>
 
 </html>
