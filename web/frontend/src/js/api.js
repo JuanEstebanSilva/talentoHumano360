@@ -25,19 +25,104 @@ const API = (() => {
       'Content-Type': 'application/json',
       ...options.headers,
     };
-    const token = Auth.getToken();
+    const token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(BASE + url, { ...options, headers });
+    let res;
+    try {
+      res = await fetch(BASE + url, { ...options, headers });
+    } catch (networkErr) {
+      if (!url.includes('/admin/errors')) {
+        let uName = 'Anónimo';
+        try {
+          const uStr = localStorage.getItem('h360_user');
+          if (uStr) uName = JSON.parse(uStr).username || 'Usuario';
+        } catch (_) {}
+        fetch(BASE + '/admin/errors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'API_ERROR',
+            mensaje: `Fallo de conexión o red al consultar: ${options.method || 'GET'} ${url} — ${networkErr.message}`,
+            url: window.location.href,
+            usuario: uName
+          })
+        }).catch(() => {});
+      }
+      throw networkErr;
+    }
 
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       if (res.status === 401 && !url.includes('/auth/login')) {
-        Auth.clear();
-        App.showLogin();
-        throw new Error(data.error || 'Sesión expirada. Por favor inicia sesión de nuevo.');
+        // AUD-012 / AUD-013: Capturar borrador del formulario activo en sessionStorage
+        try {
+          if (typeof sessionStorage !== 'undefined') {
+            const activeContainer = document.querySelector('#modal-body, form, .form-container, #main-content');
+            if (activeContainer) {
+              const inputs = Array.from(activeContainer.querySelectorAll('input:not([type="password"]):not([type="file"]), textarea, select'));
+              const draft = {};
+              inputs.forEach(el => {
+                const k = el.name || el.id;
+                if (k && !k.toLowerCase().includes('password') && !k.toLowerCase().includes('token') && !k.toLowerCase().includes('secret')) {
+                  draft[k] = el.type === 'checkbox' ? el.checked : el.value;
+                }
+              });
+              sessionStorage.setItem('talento360_form_draft', JSON.stringify({ timestamp: Date.now(), draft }));
+            }
+          }
+        } catch (_) {}
+
+        // AUD-012: Capturar borrador enriquecido mediante App
+        if (typeof App !== 'undefined' && App.captureActiveFormDraft) {
+          App.captureActiveFormDraft();
+        }
+
+        // Si la aplicación soporta reautenticación en caliente (in-place modal), invocarla
+        if (typeof App !== 'undefined' && App.promptReauthentication) {
+          return new Promise((resolve, reject) => {
+            App.promptReauthentication({
+              onSuccess: async () => {
+                try {
+                  // Reintentar la petición original con el nuevo token renovado
+                  const retryRes = await request(url, options);
+                  resolve(retryRes);
+                } catch (retryErr) {
+                  reject(retryErr);
+                }
+              },
+              onCancel: () => {
+                reject(new Error('Sesión expirada. Por favor inicie sesión nuevamente.'));
+              }
+            });
+          });
+        }
+
+        // Fallback estándar en caso de que App no esté inicializada
+        if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
+        if (typeof App !== 'undefined' && App.showLogin) App.showLogin();
+        throw new Error(data.error || 'Sesión expirada. Se guardó un borrador de los datos ingresados para su recuperación.');
       }
+
+      if (res.status >= 500 && !url.includes('/admin/errors')) {
+        let uName = 'Anónimo';
+        try {
+          const uStr = localStorage.getItem('h360_user');
+          if (uStr) uName = JSON.parse(uStr).username || 'Usuario';
+        } catch (_) {}
+        fetch(BASE + '/admin/errors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipo: 'API_ERROR',
+            mensaje: `Error ${res.status} en servidor: ${options.method || 'GET'} ${url} — ${data.error || 'Error interno'}`,
+            url: window.location.href,
+            usuario: uName
+          })
+        }).catch(() => {});
+      }
+
       throw new Error(data.error || `Error ${res.status}`);
     }
 
@@ -80,6 +165,7 @@ const API = (() => {
       return request(`/employees/${clean}`);
     },
     getEmployeeCatalogs: () => request('/employees/catalogs'),
+    createDependencia: (nombre) => request('/employees/dependencias', { method: 'POST', body: JSON.stringify({ nombre }) }),
     createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     bulkCreateEmployees: (rows) => request('/employees/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
     uploadEmployeesExcel: async (file) => {
@@ -121,8 +207,8 @@ const API = (() => {
       return data;
     },
     updateEmployee: (cedula, data) => request(`/employees/${cedula}`, { method: 'PUT', body: JSON.stringify(data) }),
-    updateEmployeeStatus: (cedula, estadoServidor) =>
-      request(`/employees/${cedula}/status`, { method: 'PATCH', body: JSON.stringify({ estadoServidor }) }),
+    updateEmployeeStatus: (cedula, estadoServidor, extraData = {}) =>
+      request(`/employees/${cedula}/status`, { method: 'PATCH', body: JSON.stringify({ estadoServidor, ...extraData }) }),
     deleteEmployee: (cedula) => request(`/employees/${cedula}`, { method: 'DELETE' }),
 
     // Vacaciones
@@ -171,14 +257,29 @@ const API = (() => {
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
-    getViaticosStats: () => request('/viaticos/stats'),
+    getViaticosRankingFuncionarios: (params = {}) => request('/viaticos/ranking-funcionarios' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
+    getViaticosDependencias: (params = {}) => request('/viaticos/dependencias' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
+    getViaticosStats: (params = {}) => request('/viaticos/stats' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
+    getViaticosAnios: () => request('/viaticos/anios'),
+    createViaticosAnio: (data) => request('/viaticos/anios', { method: 'POST', body: JSON.stringify(data) }),
+    deleteViaticosAnio: (anio) => request(`/viaticos/anios/${anio}`, { method: 'DELETE' }),
+    getViaticosPaquetes: () => request('/viaticos/paquetes'),
+    createViaticosPaquete: (data) => request('/viaticos/paquetes', { method: 'POST', body: JSON.stringify(data) }),
+    updateViaticosPaquete: (id, data) => request(`/viaticos/paquetes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteViaticosPaquete: (id) => request(`/viaticos/paquetes/${id}`, { method: 'DELETE' }),
     createViatico: (data) => request('/viaticos', { method: 'POST', body: JSON.stringify(data) }),
     bulkCreateViaticos: (payload) =>
       request('/viaticos/bulk', { method: 'POST', body: JSON.stringify(Array.isArray(payload) ? { rows: payload } : payload) }),
     updateViatico: (id, data) => request(`/viaticos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    updateViaticoStatus: (id, estado, observaciones = '') =>
-      request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
+    updateViaticoStatus: (id, estado, observaciones = '', extra = {}) =>
+      request(`/viaticos/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones, ...extra }) }),
+    getViaticoHistorial: (id) =>
+      request(`/viaticos/${id}/historial`),
     deleteViatico: (id) => request(`/viaticos/${id}`, { method: 'DELETE' }),
+    calculateViaticoLiquidacion: (data) =>
+      request('/viaticos/calcular-liquidacion', { method: 'POST', body: JSON.stringify(data) }),
+    getViaticoSupport: (id) =>
+      request(`/viaticos/${id}/soporte`),
 
     // Horarios y Modalidades de Trabajo
     getHorarios: (params = {}) => request('/horarios?' + new URLSearchParams(params)),
@@ -283,5 +384,38 @@ const API = (() => {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     },
+
+    // Administración Técnica: Monitoreo de Errores y Copias de Seguridad
+    reportError: (payload) =>
+      request('/admin/errors', { method: 'POST', body: JSON.stringify(payload) }).catch(err => {
+        console.warn('[API.reportError] No se pudo enviar el reporte:', err.message);
+        return { success: false };
+      }),
+    getAdminErrors: (params = {}) =>
+      request('/admin/errors?' + new URLSearchParams(params)),
+    updateAdminErrorStatus: (id, estado) =>
+      request(`/admin/errors/${id}`, { method: 'PATCH', body: JSON.stringify({ estado }) }),
+    deleteAdminError: (id) =>
+      request(`/admin/errors/${id}`, { method: 'DELETE' }),
+    clearAllAdminErrors: (onlyResolved = false) =>
+      request('/admin/errors/clear-all', { method: 'POST', body: JSON.stringify({ onlyResolved }) }),
+
+    // Administración Técnica: Copias de Seguridad (Backups)
+    getAdminBackups: () =>
+      request('/admin/backups'),
+    generateAdminBackup: () =>
+      request('/admin/backups/generate', { method: 'POST' }),
+    deleteAdminBackup: (id) =>
+      request(`/admin/backups/${id}`, { method: 'DELETE' }),
+    getAdminBackupConfig: () =>
+      request('/admin/backups/config'),
+    updateAdminBackupConfig: (config) =>
+      request('/admin/backups/config', { method: 'PUT', body: JSON.stringify(config) }),
+    getAdminBackupDownloadUrl: (id) => {
+      const base = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
+      return `${base}/admin/backups/download/${id}`;
+    },
   };
 })();
+
+window.API = API;

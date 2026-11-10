@@ -4,6 +4,12 @@
 
 const App = (() => {
 
+  // ─── Active Module State ───────────────────────────────────────────────────
+  let activeModule = 'dashboard';
+  function getCurrentModule() {
+    return activeModule;
+  }
+
   // ─── Toast System ──────────────────────────────────────────────────────────
   function showToast(message, type = 'info') {
     if (typeof Settings !== 'undefined' && !Settings.isNotificationTypeEnabled(type)) {
@@ -35,8 +41,94 @@ const App = (() => {
     }, 4000);
   }
 
-  // ─── Modal System ──────────────────────────────────────────────────────────
+  // ─── Modal System & Dirty Form Tracking ─────────────────────────────────────
   let modalCloseSeq = 0;
+  let modalIsEditForm = false;
+  let modalInitialSnapshot = null;
+
+  function captureModalFormSnapshot() {
+    const body = document.getElementById('modal-body');
+    if (!body) return '';
+    const controls = body.querySelectorAll('input:not([type="button"]):not([type="submit"]):not([type="hidden"]), select, textarea');
+    const values = [];
+    controls.forEach(ctrl => {
+      if (ctrl.id === 'modal-search') return;
+      if (ctrl.type === 'checkbox' || ctrl.type === 'radio') {
+        values.push(`${ctrl.name || ctrl.id}:${ctrl.checked}`);
+      } else {
+        values.push(`${ctrl.name || ctrl.id}:${ctrl.value}`);
+      }
+    });
+    return values.join('|:::|');
+  }
+
+  function isModalDirty() {
+    if (!modalIsEditForm || modalInitialSnapshot === null) return false;
+    const current = captureModalFormSnapshot();
+    return current !== modalInitialSnapshot;
+  }
+
+  function markFormClean() {
+    modalIsEditForm = false;
+    modalInitialSnapshot = null;
+    removeUnsavedChangesPrompt();
+  }
+
+  function removeUnsavedChangesPrompt() {
+    document.getElementById('modal-unsaved-confirm')?.remove();
+  }
+
+  function showUnsavedChangesPrompt() {
+    const box = document.querySelector('.modal-box');
+    if (!box) return;
+    if (document.getElementById('modal-unsaved-confirm')) return;
+
+    if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.warning) {
+      FX.Sound.warning();
+    }
+
+    const promptEl = document.createElement('div');
+    promptEl.id = 'modal-unsaved-confirm';
+    promptEl.className = 'modal-unsaved-backdrop';
+    promptEl.innerHTML = `
+      <div class="modal-unsaved-card">
+        <div class="modal-unsaved-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="modal-unsaved-title">¿Descartar cambios sin guardar?</h3>
+        <p class="modal-unsaved-desc">
+          Has realizado modificaciones en este formulario. Si decides salir ahora, <strong>se perderán todos los cambios no guardados</strong>.
+        </p>
+        <div class="modal-unsaved-actions">
+          <button type="button" class="btn btn-secondary" id="btn-unsaved-stay">
+            Continuar Editando
+          </button>
+          <button type="button" class="btn btn-danger" id="btn-unsaved-discard">
+            Salir sin Guardar
+          </button>
+        </div>
+      </div>
+    `;
+
+    box.appendChild(promptEl);
+
+    document.getElementById('btn-unsaved-stay')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeUnsavedChangesPrompt();
+    });
+
+    document.getElementById('btn-unsaved-discard')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      markFormClean();
+      closeModal(true);
+    });
+  }
 
   function openModal(title, bodyHtml, footerButtons = [], customClass = '') {
     const overlay = document.getElementById('modal-overlay');
@@ -45,6 +137,17 @@ const App = (() => {
     const footerEl = document.getElementById('modal-footer');
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
+
+    removeUnsavedChangesPrompt();
+
+    // Detectar si el modal corresponde a un formulario de edición
+    const lowerTitle = String(title || '').toLowerCase();
+    const hasEditAction = Array.isArray(footerButtons) && footerButtons.some(b =>
+      (b.cls && b.cls.includes('btn-gold')) ||
+      (b.text && (b.text.toLowerCase().includes('guardar cambios') || b.text.toLowerCase().includes('actualizar')))
+    );
+    modalIsEditForm = lowerTitle.includes('editar') || hasEditAction;
+    modalInitialSnapshot = null;
 
     modalCloseSeq++; // Invalidate any running closeModal animation callbacks
 
@@ -68,18 +171,29 @@ const App = (() => {
     footerEl.innerHTML = '';
     footerButtons.forEach(btn => {
       const el = document.createElement('button');
-      el.className = `btn ${btn.cls || 'btn-secondary'}`;
+      const cls = btn.cls || btn.type || 'btn-secondary';
+      el.className = `btn ${cls}`;
       if (btn.id) el.id = btn.id;
-      el.textContent = btn.text;
-      el.onclick = btn.action;
+      if (btn.html) {
+        el.innerHTML = btn.html;
+      } else {
+        el.textContent = btn.text || btn.label || '';
+      }
+      el.onclick = btn.action || btn.onClick;
       footerEl.appendChild(el);
     });
 
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
-    // Inicializar selectores de fecha mejorados (Flatpickr institucional)
-    setTimeout(() => initDatePickers(bodyEl), 30);
+    // Inicializar selectores de fecha mejorados (Flatpickr institucional) y UX de formularios
+    setTimeout(() => {
+      initDatePickers(bodyEl);
+      initFormUX(bodyEl);
+      if (modalIsEditForm) {
+        modalInitialSnapshot = captureModalFormSnapshot();
+      }
+    }, 140);
 
     // FX: animated modal open
     if (typeof FX !== 'undefined') {
@@ -89,134 +203,250 @@ const App = (() => {
     }
   }
 
+  const DATE_INPUT_SELECTOR = 'input[type="date"]:not(.flatpickr-input-custom), input[data-datepicker]:not(.flatpickr-input-custom), input.datepicker-input:not(.flatpickr-input-custom), input.filter-datepicker:not(.flatpickr-input-custom), input.input-date:not(.flatpickr-input-custom)';
+
+  function ensureCalendarCustomUI(inst) {
+    if (!inst || !inst.calendarContainer) return;
+
+    // 1. Botón 'X' institucional estilizado para cerrar el calendario
+    const monthsBar = inst.calendarContainer.querySelector('.flatpickr-months');
+    if (monthsBar) {
+      let closeBtn = inst.calendarContainer.querySelector('.flatpickr-custom-close');
+      const closeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      if (!closeBtn) {
+        closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'flatpickr-custom-close';
+        closeBtn.title = 'Cerrar calendario';
+        closeBtn.setAttribute('aria-label', 'Cerrar calendario');
+        closeBtn.innerHTML = closeSvg;
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          inst.close();
+        });
+        monthsBar.appendChild(closeBtn);
+      } else {
+        closeBtn.innerHTML = closeSvg;
+      }
+    }
+
+    // 2. Selector Desplegable de Año institucional (rango 1920 a 2050, texto amarillo #FFF200)
+    const currentMonthEl = inst.calendarContainer.querySelector('.flatpickr-current-month');
+    const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
+    let yearSelect = null;
+    if (currentMonthEl && numInput) {
+      numInput.style.display = 'none';
+
+      yearSelect = currentMonthEl.querySelector('.flatpickr-year-dropdown');
+      const currentY = inst.currentYear || (inst.latestSelectedDateObj ? inst.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
+
+      if (!yearSelect) {
+        yearSelect = document.createElement('select');
+        yearSelect.className = 'flatpickr-year-dropdown';
+        yearSelect.setAttribute('aria-label', 'Seleccionar año');
+        yearSelect.title = 'Seleccionar año';
+
+        const minYear = 1920;
+        const maxYear = 2050;
+        let optionsHtml = '';
+        for (let y = minYear; y <= maxYear; y++) {
+          optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
+        }
+        yearSelect.innerHTML = optionsHtml;
+        yearSelect.value = currentY.toString();
+
+        yearSelect.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const newY = parseInt(e.target.value, 10);
+          if (!isNaN(newY)) {
+            inst.changeYear(newY);
+          }
+        });
+
+        numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
+        inst._customYearSelect = yearSelect;
+      } else {
+        if (yearSelect.value !== currentY.toString()) {
+          yearSelect.value = currentY.toString();
+        }
+        inst._customYearSelect = yearSelect;
+      }
+    }
+
+    // 3. Eliminar flechas apiladas de navegación por solicitud del usuario
+    if (currentMonthEl) {
+      const oldNav = currentMonthEl.querySelector('.flatpickr-stacked-nav');
+      if (oldNav) oldNav.remove();
+    }
+    const anyOldNav = inst.calendarContainer.querySelector('.flatpickr-stacked-nav');
+    if (anyOldNav) anyOldNav.remove();
+
+    // 4. Selector de Mes: Ajuste exacto de ancho con medición precisa canvas
+    const monthSelect = inst.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+    if (monthSelect) {
+      monthSelect.title = 'Seleccionar mes';
+      monthSelect.setAttribute('aria-label', 'Seleccionar mes');
+
+      const adjustWidth = () => {
+        const selectedOpt = monthSelect.options[monthSelect.selectedIndex];
+        const monthText = selectedOpt ? selectedOpt.text.trim() : '';
+        if (monthText) {
+          if (!ensureCalendarCustomUI._canvas) {
+            ensureCalendarCustomUI._canvas = document.createElement('canvas');
+          }
+          const ctx = ensureCalendarCustomUI._canvas.getContext('2d');
+          ctx.font = '800 1.3rem Merriweather, Georgia, serif';
+          const measured = Math.ceil(ctx.measureText(monthText).width);
+          // Ancho cómodo y espacioso para que ningún mes quede apretado
+          monthSelect.style.width = Math.max(measured + 12, 64) + 'px';
+        }
+      };
+
+      adjustWidth();
+
+      if (document.fonts && document.fonts.ready && !monthSelect._hasFontReadyListener) {
+        monthSelect._hasFontReadyListener = true;
+        document.fonts.ready.then(() => adjustWidth());
+      }
+
+      if (!monthSelect._hasAutoWidthListener) {
+        monthSelect._hasAutoWidthListener = true;
+        monthSelect.addEventListener('change', () => {
+          setTimeout(() => {
+            adjustWidth();
+            ensureCalendarCustomUI(inst);
+          }, 0);
+        });
+      }
+    }
+
+    // 4. Pie de acciones rápidas (Hoy / Limpiar)
+    if (!inst.calendarContainer.querySelector('.flatpickr-custom-footer')) {
+      const footer = document.createElement('div');
+      footer.className = 'flatpickr-custom-footer';
+      footer.innerHTML = `
+        <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
+        <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
+      `;
+      footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inst.setDate(new Date(), true);
+        inst.close();
+      });
+      footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inst.clear();
+        inst.close();
+      });
+      inst.calendarContainer.appendChild(footer);
+    }
+  }
+
   function initDatePickers(container = document) {
     if (typeof flatpickr === 'undefined') return;
     try {
+      if (flatpickr.l10ns && flatpickr.l10ns.es) {
+        flatpickr.localize(flatpickr.l10ns.es);
+      }
+      flatpickr.setDefaults({
+        locale: (flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+        firstDayOfWeek: 1,
+        weekNumbers: false
+      });
+
       const inputs = [];
-      if (container && container.matches && (container.matches('input[type="date"], input[data-datepicker], input.datepicker-input'))) {
+      if (container && container.matches && container.matches(DATE_INPUT_SELECTOR)) {
         inputs.push(container);
       } else if (container && container.querySelectorAll) {
-        inputs.push(...container.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input'));
+        inputs.push(...container.querySelectorAll(DATE_INPUT_SELECTOR));
       }
+
       inputs.forEach(input => {
-        if (input._flatpickr) return;
+        if (input._flatpickr || input.classList.contains('flatpickr-input-custom') || (input.type === 'hidden' && input.classList.contains('flatpickr-input'))) return;
         const currentVal = input.value || '';
+        const minVal = input.getAttribute('min') || undefined;
+        const maxVal = input.getAttribute('max') || undefined;
+
+        let baseClass = (input.className || 'form-input')
+          .replace(/\bflatpickr-input\b/g, '')
+          .replace(/\bflatpickr-input-custom\b/g, '')
+          .replace(/\binput-date\b/g, '')
+          .replace(/\bdatepicker-input\b/g, '')
+          .replace(/\bfilter-datepicker\b/g, '')
+          .trim();
+        if (!baseClass.includes('form-input')) {
+          baseClass += ' form-input';
+        }
+        const altClass = (baseClass + ' flatpickr-input-custom').trim();
+
         flatpickr(input, {
           locale: (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
           dateFormat: 'Y-m-d',
           altInput: true,
           altFormat: 'd/m/Y',
-          altInputClass: ((input.className || 'form-input').replace(/\bflatpickr-input\b/g, '') + ' flatpickr-input-custom').trim(),
+          altInputClass: altClass,
           defaultDate: currentVal || null,
+          minDate: minVal,
+          maxDate: maxVal,
           allowInput: true,
+          weekNumbers: false,
           disableMobile: true,
           monthSelectorType: 'dropdown',
+          onChange: function(selectedDates, dateStr) {
+            input.value = dateStr;
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
+            if (group) {
+              if (dateStr) group.classList.add('is-floated');
+              else group.classList.remove('is-floated');
+            }
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          },
           onReady: function(selectedDates, dateStr, instance) {
-            if (!instance.calendarContainer) return;
-            // 1. Botón 'X' institucional para cerrar el calendario sin cambios
-            const monthsBar = instance.calendarContainer.querySelector('.flatpickr-months');
-            if (monthsBar && !instance.calendarContainer.querySelector('.flatpickr-custom-close')) {
-              const closeBtn = document.createElement('button');
-              closeBtn.type = 'button';
-              closeBtn.className = 'flatpickr-custom-close';
-              closeBtn.title = 'Cerrar calendario (sin cambios)';
-              closeBtn.setAttribute('aria-label', 'Cerrar calendario');
-              closeBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;pointer-events:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-              closeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.close();
-              });
-              monthsBar.appendChild(closeBtn);
+            if (instance.altInput) {
+              instance.altInput.placeholder = input.getAttribute('placeholder') || ' ';
+              instance.altInput.setAttribute('autocomplete', 'off');
+              instance.altInput.setAttribute('aria-label', input.getAttribute('aria-label') || 'Seleccionar fecha');
             }
 
-            // 2. Selector Desplegable de Año (fácil de usar, rango 1920 a 2050)
-            const currentMonthEl = instance.calendarContainer.querySelector('.flatpickr-current-month');
-            const numInput = currentMonthEl ? currentMonthEl.querySelector('.numInputWrapper') : null;
-            if (currentMonthEl && numInput && !currentMonthEl.querySelector('.flatpickr-year-dropdown')) {
-              numInput.style.display = 'none';
-
-              const yearSelect = document.createElement('select');
-              yearSelect.className = 'flatpickr-year-dropdown';
-              yearSelect.setAttribute('aria-label', 'Seleccionar año');
-              yearSelect.title = 'Seleccionar año';
-
-              const minYear = 1920;
-              const maxYear = 2050;
-              const currentY = instance.currentYear || (instance.latestSelectedDateObj ? instance.latestSelectedDateObj.getFullYear() : new Date().getFullYear());
-
-              let optionsHtml = '';
-              for (let y = minYear; y <= maxYear; y++) {
-                optionsHtml += `<option value="${y}" ${y === currentY ? 'selected' : ''}>${y}</option>`;
+            // Sincronización con etiquetas flotantes
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
+            if (group) {
+              if (currentVal || dateStr) group.classList.add('is-floated');
+              if (instance.altInput) {
+                instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
+                instance.altInput.addEventListener('blur', () => {
+                  group.classList.remove('is-focused');
+                  if (!input.value) group.classList.remove('is-floated');
+                });
               }
-              yearSelect.innerHTML = optionsHtml;
-              yearSelect.value = currentY.toString();
-
-              yearSelect.addEventListener('change', (e) => {
-                e.stopPropagation();
-                const newY = parseInt(e.target.value, 10);
-                if (!isNaN(newY)) {
-                  instance.changeYear(newY);
-                }
-              });
-
-              numInput.parentNode.insertBefore(yearSelect, numInput.nextSibling);
-              instance._customYearSelect = yearSelect;
             }
 
-            // 3. Tooltip accesible en desplegable de mes
-            const monthSelect = instance.calendarContainer.querySelector('.flatpickr-monthDropdown-months');
-            if (monthSelect) {
-              monthSelect.title = 'Seleccionar mes';
-            }
-
-            // 4. Footer institucional rápido (Hoy / Limpiar)
-            if (!instance.calendarContainer.querySelector('.flatpickr-custom-footer')) {
-              const footer = document.createElement('div');
-              footer.className = 'flatpickr-custom-footer';
-              footer.innerHTML = `
-                <button type="button" class="fp-btn-today" title="Seleccionar fecha de hoy">Hoy</button>
-                <button type="button" class="fp-btn-clear" title="Borrar fecha seleccionada">Limpiar</button>
-              `;
-              footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.setDate(new Date(), true);
-                instance.close();
-              });
-              footer.querySelector('.fp-btn-clear').addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                instance.clear();
-                instance.close();
-              });
-              instance.calendarContainer.appendChild(footer);
-            }
+            ensureCalendarCustomUI(instance);
           },
           onYearChange: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
+            ensureCalendarCustomUI(instance);
           },
           onMonthChange: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
+            ensureCalendarCustomUI(instance);
           },
           onOpen: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
+            ensureCalendarCustomUI(instance);
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
+            if (group) group.classList.add('is-focused', 'is-floated');
+          },
+          onClose: function(selectedDates, dateStr, instance) {
+            const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
+            if (group) {
+              group.classList.remove('is-focused');
+              if (!input.value) group.classList.remove('is-floated');
             }
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
-            if (instance._customYearSelect && instance.currentYear && instance._customYearSelect.value !== instance.currentYear.toString()) {
-              instance._customYearSelect.value = instance.currentYear.toString();
-            }
-          },
-          onChange: function(selectedDates, dateStr) {
-            input.value = dateStr;
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-            input.dispatchEvent(new Event('input', { bubbles: true }));
+            ensureCalendarCustomUI(instance);
           }
         });
       });
@@ -225,7 +455,232 @@ const App = (() => {
     }
   }
 
-  function closeModal() {
+
+  /**
+   * Inicializa la experiencia moderna de formularios institucional Talento360:
+   * - Floating Labels automáticos y sincronización reactiva
+   * - Teclado y navegación optimizada (enterkeyhint, navegación secuencial sin envíos accidentales)
+   */
+  /**
+   * Mejora dinámica universal de botones de agregar (+)
+   * Asegura que cualquier botón con clase .btn-action-icon-add o .btn-action-add-circle
+   * tenga su etiqueta animada (.btn-action-add-label) para expandirse con animación al hacer hover.
+   */
+  function enhanceAddButtons(root = document) {
+    if (!root || !root.querySelectorAll) return;
+    const btns = root.querySelectorAll ? root.querySelectorAll('.btn-action-icon-add, .btn-action-add-circle') : [];
+    btns.forEach(btn => {
+      if (btn.querySelector('.btn-action-add-label')) return;
+      let labelText = '';
+      const id = (btn.id || '').toLowerCase();
+      const title = (btn.getAttribute('title') || btn.getAttribute('aria-label') || '').toLowerCase();
+      if (id.includes('servidor') || title.includes('servidor')) labelText = 'Nuevo Servidor';
+      else if (id.includes('horario') || title.includes('horario')) labelText = 'Nuevo Horario';
+      else if (id.includes('viatico') || title.includes('viático') || title.includes('viatico')) labelText = 'Nuevo Viático';
+      else if (btn.classList.contains('btn-action-export-pdf') || id.includes('pdf') || title.includes('pdf')) labelText = 'Exportar PDF';
+      else if (title.includes('vigencia')) labelText = 'Nueva Vigencia';
+      else if (title.includes('carpeta')) labelText = 'Nueva Carpeta';
+      else if (title.includes('agregar') || title.includes('nuevo') || title.includes('crear')) labelText = 'Nuevo';
+
+      if (labelText) {
+        const span = document.createElement('span');
+        span.className = 'btn-action-add-label';
+        span.textContent = labelText;
+        btn.appendChild(span);
+      }
+    });
+  }
+
+  // ─── Interceptor Global de Asignaciones Programáticas a .value ──────────────────
+  // Garantiza que cuando un script asigna input.value = '...' en CUALQUIER formulario,
+  // la etiqueta flotante (.is-floated) se active instantáneamente sin pisar el texto.
+  (function installGlobalFloatingLabelInterceptor() {
+    function patchSetter(proto) {
+      const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (!desc || !desc.set || desc.set._isPatched) return;
+      const originalSet = desc.set;
+      const patchedSet = function(val) {
+        originalSet.call(this, val);
+        try {
+          const group = this.closest ? this.closest('.floating-group, .form-group, .adv-filter-field, .filter-group') : null;
+          if (group) {
+            const hasVal = (val !== undefined && val !== null && String(val).trim() !== '');
+            if (hasVal) {
+              group.classList.add('is-floated');
+            } else if (typeof document !== 'undefined' && document.activeElement !== this && !this._flatpickr) {
+              group.classList.remove('is-floated');
+            }
+          }
+        } catch (_) {}
+      };
+      patchedSet._isPatched = true;
+      Object.defineProperty(proto, 'value', {
+        ...desc,
+        set: patchedSet
+      });
+    }
+    try {
+      if (typeof HTMLInputElement !== 'undefined') patchSetter(HTMLInputElement.prototype);
+      if (typeof HTMLTextAreaElement !== 'undefined') patchSetter(HTMLTextAreaElement.prototype);
+      if (typeof HTMLSelectElement !== 'undefined') patchSetter(HTMLSelectElement.prototype);
+    } catch (_) {}
+  })();
+
+  function initFormUX(container = document) {
+    if (!container) return;
+    try {
+      const groups = container.querySelectorAll('.form-group, .adv-filter-field, .filter-group');
+      groups.forEach(group => {
+        // Exclusiones: tarjetas de modalidad, toggles de destino, upload zone, excel dropzones, headers
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+
+        const label = group.querySelector('.form-label, .filter-label, label');
+        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        if (!label || !control) return;
+
+        // Activar grupo flotante
+        group.classList.add('floating-group');
+        if (control.matches('select')) {
+          group.classList.add('is-select');
+        } else if (!control.getAttribute('placeholder')) {
+          control.setAttribute('placeholder', ' ');
+        }
+
+        const updateState = () => {
+          let hasVal = false;
+          if (control.matches('select')) {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          } else if (control.type === 'date' || control._flatpickr) {
+            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
+
+          if (hasVal) {
+            group.classList.add('is-floated');
+          } else if (document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
+            group.classList.remove('is-floated');
+          }
+        };
+
+        // Estado inicial
+        updateState();
+
+        // Listeners de foco e interacción
+        if (!control._hasFloatListeners) {
+          control._hasFloatListeners = true;
+          control.addEventListener('focus', () => {
+            group.classList.add('is-focused', 'is-floated');
+          });
+          control.addEventListener('blur', () => {
+            group.classList.remove('is-focused');
+            updateState();
+          });
+          control.addEventListener('input', updateState);
+          control.addEventListener('change', updateState);
+        }
+      });
+
+      // Configuración de navegación por teclado y enterkeyhint
+      const activeInputs = Array.from(container.querySelectorAll(
+        'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
+      )).filter(el => el.offsetParent !== null); // Solo visibles
+
+      activeInputs.forEach((inp, idx) => {
+        if (!inp.getAttribute('enterkeyhint')) {
+          if (idx === activeInputs.length - 1) {
+            inp.setAttribute('enterkeyhint', 'done');
+          } else {
+            inp.setAttribute('enterkeyhint', 'next');
+          }
+        }
+
+        if (!inp._hasEnterNavListener) {
+          inp._hasEnterNavListener = true;
+          inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              if (inp.tagName === 'TEXTAREA') return; // Permitir salto de línea en áreas de texto
+              // Evitar envíos accidentales o cierre de modal
+              e.preventDefault();
+              e.stopPropagation();
+
+              // Buscar el contenedor activo (pestaña activa o modal)
+              const scope = inp.closest('.form-tab-pane.active') || inp.closest('.form-grid') || container;
+              const scopeInputs = Array.from(scope.querySelectorAll(
+                'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+              )).filter(el => el.offsetParent !== null && !el.classList.contains('input-locked-servidor'));
+
+              const currentIdx = scopeInputs.indexOf(inp);
+              if (currentIdx !== -1 && currentIdx < scopeInputs.length - 1) {
+                const nextField = scopeInputs[currentIdx + 1];
+                if (nextField._flatpickr && nextField._flatpickr.altInput) {
+                  nextField._flatpickr.altInput.focus();
+                } else {
+                  nextField.focus();
+                }
+              } else {
+                // Si es el último campo visible, enfocar el botón de continuar o guardar
+                const nextActionBtn = document.querySelector('#modal-footer #btn-wizard-next, #modal-footer .btn-primary, #modal-footer .btn-gold');
+                if (nextActionBtn) nextActionBtn.focus();
+              }
+            }
+          });
+        }
+      });
+    } catch (err) {
+      console.warn('[Talento360] initFormUX notice:', err);
+    }
+  }
+
+  /**
+   * Refresca las etiquetas flotantes tras cambios programáticos (autocompletados, catálogos)
+   */
+  function refreshFloatingLabels(container = document) {
+    if (!container) return;
+    try {
+      const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
+      groups.forEach(group => {
+        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        if (!control) return;
+        group.classList.add('floating-group');
+        let hasVal = false;
+        if (control.matches('select')) {
+          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          group.classList.add('is-select');
+        } else if (control.type === 'date' || control._flatpickr) {
+          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
+        } else {
+          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+        }
+        if (hasVal) {
+          group.classList.add('is-floated');
+        } else if (typeof document !== 'undefined' && document.activeElement !== control && (!control._flatpickr || document.activeElement !== control._flatpickr.altInput)) {
+          group.classList.remove('is-floated');
+        }
+      });
+    } catch (_) {}
+  }
+
+  function closeModal(force = false) {
+    if (force !== true && modalIsEditForm && isModalDirty()) {
+      showUnsavedChangesPrompt();
+      return;
+    }
+
+    markFormClean();
+
     const currentSeq = ++modalCloseSeq;
     const overlay = document.getElementById('modal-overlay');
     const box = document.querySelector('.modal-box');
@@ -253,6 +708,8 @@ const App = (() => {
 
   // ─── Navigation ────────────────────────────────────────────────────────────
   const MODULE_TITLES = {
+    'admin-errors': 'Centro de Errores e Incidentes',
+    'admin-backups': 'Copias de Seguridad del Sistema',
     dashboard: 'Dashboard',
     employees: 'Servidores Públicos',
     requests: 'Solicitudes de Vacaciones',
@@ -268,6 +725,8 @@ const App = (() => {
   };
 
   const MODULE_ICONS = {
+    'admin-errors': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    'admin-backups': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
     employees: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     requests: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -283,6 +742,8 @@ const App = (() => {
   };
 
   const VALID_ROUTES = new Set([
+    'admin-errors',
+    'admin-backups',
     'dashboard',
     'employees',
     'requests',
@@ -303,6 +764,7 @@ const App = (() => {
     if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
     if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
     if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+    if (user && isUserAdmin(user)) return { module: 'admin-errors', options: {} };
     return { module: 'dashboard', options: {} };
   }
 
@@ -383,15 +845,40 @@ const App = (() => {
     }
 
     // 2. Ruta válida: ocultar overlay global 404 si estaba visible y asegurar visualización del app
+    activeModule = rawModule;
     if (typeof Error404Module !== 'undefined') {
       Error404Module.hide();
     }
 
+    // 2.1 Control de permisos por rol / módulo
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+    const isAdmin = isUserAdmin(user);
+
+    if (isAdmin) {
+      // El Administrador General dispone de visibilidad global y supervisión sobre todos los módulos del sistema (TSK-010 / AUD-010).
+    } else {
+      // Para usuarios regulares: bloquear módulos de administración técnica
+      if (rawModule === 'admin-errors' || rawModule === 'admin-backups') {
+        showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
+        navigate('dashboard');
+        return;
+      }
+
+      const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
+      if (!publicRoutes.includes(rawModule)) {
+        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
+          showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+          navigate('dashboard');
+          return;
+        }
+      }
+    }
+
     const appElement = document.getElementById('app');
     if (appElement && typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
-      if (appElement.style.display === 'none') {
-        appElement.style.display = 'grid';
-      }
+      appElement.style.setProperty('display', 'grid', 'important');
+      const lsElement = document.getElementById('login-screen');
+      if (lsElement) lsElement.style.setProperty('display', 'none', 'important');
     }
 
     const container = document.getElementById('module-container');
@@ -404,6 +891,12 @@ const App = (() => {
       b.classList.remove('active');
       b.removeAttribute('aria-current');
     });
+
+    const activeNavBtn = document.getElementById(`nav-${rawModule}`);
+    if (activeNavBtn) {
+      activeNavBtn.classList.add('active');
+      activeNavBtn.setAttribute('aria-current', 'page');
+    }
 
     if (rawModule === 'admin-requests') {
       const adminGroupBtn = document.getElementById('nav-admin-group');
@@ -468,17 +961,30 @@ const App = (() => {
     if (badge) badge.setAttribute('title', title);
     document.getElementById('app')?.setAttribute('data-current-module', rawModule);
 
-    const targetHash = rawModule + (options.tab ? `?tab=${options.tab}` : '') + (options.tipo ? `?tipo=${options.tipo}` : '');
+    const targetParams = [];
+    if (options.tab) targetParams.push(`tab=${encodeURIComponent(options.tab)}`);
+    if (options.tipo) targetParams.push(`tipo=${encodeURIComponent(options.tipo)}`);
+    if (options.year) targetParams.push(`year=${encodeURIComponent(options.year)}`);
+    if (options.pkg) targetParams.push(`pkg=${encodeURIComponent(options.pkg)}`);
+    const targetHash = rawModule + (targetParams.length ? `?${targetParams.join('&')}` : '');
     const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
-    if (currentHash !== targetHash && currentHash !== rawModule) {
+    if (currentHash !== targetHash) {
       if (window.history && window.history.pushState) {
         window.history.pushState(null, '', `#${targetHash}`);
+      } else {
+        window.location.hash = targetHash;
       }
     }
 
     const renderSelectedModule = async () => {
       try {
         switch (rawModule) {
+          case 'admin-errors':
+            if (typeof AdminErrorsModule !== 'undefined') await AdminErrorsModule.render(container);
+            break;
+          case 'admin-backups':
+            if (typeof AdminBackupsModule !== 'undefined') await AdminBackupsModule.render(container);
+            break;
           case 'dashboard':      await DashboardModule.render(container); break;
           case 'employees':     await EmployeesModule.render(container); break;
           case 'requests':      await RequestsModule.render(container); break;
@@ -497,7 +1003,7 @@ const App = (() => {
             break;
           }
           case 'incapacidades': await IncapacidadesModule.render(container); break;
-          case 'viaticos':      await ViaticosModule.render(container); break;
+          case 'viaticos':      await ViaticosModule.render(container, options); break;
           case 'horarios':      await HorariosModule.render(container); break;
           case 'sst': {
             const tabKey = options.tab || 'epidemiologico';
@@ -542,11 +1048,17 @@ const App = (() => {
     if (typeof FX !== 'undefined') {
       FX.animatePageTransition(container, async () => {
         await renderSelectedModule();
+        enhanceAddButtons(container);
+        initFormUX(container);
+        refreshFloatingLabels(container);
         FX.onModuleRendered(container);
         container.scrollTop = 0;
       });
     } else {
       await renderSelectedModule();
+      enhanceAddButtons(container);
+      initFormUX(container);
+      refreshFloatingLabels(container);
       container.scrollTop = 0;
     }
   }
@@ -558,6 +1070,323 @@ const App = (() => {
       toggle.setAttribute('aria-expanded', 'true');
       menu.setAttribute('aria-hidden', 'false');
     }
+  }
+
+  // ─── AUD-012: Form Draft Preservation & In-Place Re-authentication ──────────
+  let inMemoryDraft = null;
+  let isReauthenticating = false;
+
+  function captureActiveFormDraft() {
+    try {
+      const modalBody = document.getElementById('modal-body');
+      const modalOverlay = document.getElementById('modal-overlay');
+      const modalTitle = document.getElementById('modal-title');
+      const isModalOpen = modalOverlay && (modalOverlay.style.display === 'flex' || (typeof window !== 'undefined' && window.getComputedStyle && window.getComputedStyle(modalOverlay).display === 'flex'));
+
+      const container = (isModalOpen && modalBody) ? modalBody : document.getElementById('main-content');
+      if (!container) return null;
+
+      const fields = container.querySelectorAll('input, textarea, select');
+      if (!fields || fields.length === 0) return null;
+
+      const draftValues = {};
+      let hasData = false;
+
+      fields.forEach((field, index) => {
+        const type = (field.type || '').toLowerCase();
+        const name = field.name || field.id || `field_${index}`;
+
+        // Strictly exclude passwords, hidden tokens, file inputs
+        if (type === 'password' || type === 'file') return;
+        if (name.toLowerCase().includes('password') || name.toLowerCase().includes('token') || name.toLowerCase().includes('secret') || name.toLowerCase().includes('csrf')) return;
+
+        let val = null;
+        if (type === 'checkbox') {
+          val = field.checked;
+          hasData = true;
+        } else if (type === 'radio') {
+          if (field.checked) {
+            val = field.value;
+            hasData = true;
+          }
+        } else {
+          val = field.value;
+          if (val && typeof val === 'string' && val.trim().length > 0) hasData = true;
+        }
+
+        if (val !== null && val !== undefined) {
+          draftValues[name] = {
+            value: val,
+            id: field.id || null,
+            name: field.name || null,
+            tagName: field.tagName.toLowerCase(),
+            type: type
+          };
+        }
+      });
+
+      if (!hasData) return null;
+
+      const draft = {
+        timestamp: Date.now(),
+        module: activeModule,
+        isModal: !!isModalOpen,
+        modalTitle: isModalOpen && modalTitle ? modalTitle.textContent : null,
+        values: draftValues
+      };
+
+      inMemoryDraft = draft;
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('t360_form_draft', JSON.stringify(draft));
+        }
+      } catch (_) {}
+
+      return draft;
+    } catch (err) {
+      console.warn('[Draft] Error capturando borrador:', err);
+      return null;
+    }
+  }
+
+  function restoreFormDraft(targetDraft) {
+    try {
+      let draft = targetDraft || inMemoryDraft;
+      if (!draft && typeof sessionStorage !== 'undefined') {
+        try {
+          const raw = sessionStorage.getItem('t360_form_draft');
+          if (raw) draft = JSON.parse(raw);
+        } catch (_) {}
+      }
+
+      if (!draft || !draft.values || Object.keys(draft.values).length === 0) return false;
+
+      const modalBody = document.getElementById('modal-body');
+      const modalOverlay = document.getElementById('modal-overlay');
+      const isModalOpen = modalOverlay && (modalOverlay.style.display === 'flex' || (typeof window !== 'undefined' && window.getComputedStyle && window.getComputedStyle(modalOverlay).display === 'flex'));
+      const container = (isModalOpen && modalBody) ? modalBody : document.getElementById('main-content');
+      if (!container) return false;
+
+      let restoredCount = 0;
+      Object.keys(draft.values).forEach(key => {
+        const item = draft.values[key];
+        let field = null;
+        if (item.id) {
+          const safeId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(item.id) : item.id.replace(/["'\\]/g, '\\$&');
+          field = container.querySelector(`#${safeId}`);
+        }
+        if (!field && item.name) {
+          const safeName = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(item.name) : item.name.replace(/["'\\]/g, '\\$&');
+          field = container.querySelector(`[name="${safeName}"]`);
+        }
+
+        if (field) {
+          if (item.type === 'checkbox') {
+            field.checked = !!item.value;
+          } else if (item.type === 'radio') {
+            if (field.value === item.value) field.checked = true;
+          } else {
+            field.value = item.value;
+          }
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          field.dispatchEvent(new Event('change', { bubbles: true }));
+          restoredCount++;
+        }
+      });
+
+      if (restoredCount > 0) {
+        try { refreshFloatingLabels(container); } catch (_) {}
+        showToast(`Se restauraron ${restoredCount} campo(s) del borrador previo.`, 'info');
+        clearFormDraft();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('[Draft] Error restaurando borrador:', err);
+      return false;
+    }
+  }
+
+  function clearFormDraft() {
+    inMemoryDraft = null;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('t360_form_draft');
+        sessionStorage.removeItem('talento360_form_draft');
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('t360_form_draft');
+        localStorage.removeItem('talento360_form_draft');
+      }
+    } catch (_) {}
+  }
+
+  function checkAndRestoreDraft() {
+    try {
+      let draft = inMemoryDraft;
+      if (!draft && typeof sessionStorage !== 'undefined') {
+        const raw = sessionStorage.getItem('t360_form_draft');
+        if (raw) draft = JSON.parse(raw);
+      }
+      if (draft && draft.values && Object.keys(draft.values).length > 0) {
+        if (draft.module === activeModule) {
+          restoreFormDraft(draft);
+        }
+      }
+    } catch (_) {}
+  }
+
+  function promptReauthentication(options = {}) {
+    if (isReauthenticating) {
+      const existing = document.getElementById('reauth-dialog-overlay');
+      if (existing) {
+        const pwd = existing.querySelector('#reauth-password');
+        if (pwd) pwd.focus();
+        return;
+      }
+    }
+    isReauthenticating = true;
+
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const currentUsername = user.username || '';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'reauth-dialog-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Reautenticación requerida');
+    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px;';
+
+    overlay.innerHTML = `
+      <div style="background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); max-width: 440px; width: 100%; overflow: hidden; border: 1px solid var(--border-color, #e2e8f0);">
+        <div style="background: linear-gradient(135deg, #005387 0%, #003659 100%); padding: 22px 24px; color: #fff; text-align: center;">
+          <div style="width: 48px; height: 48px; margin: 0 auto 12px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">Sesión Expirada</h3>
+          <p style="margin: 6px 0 0; font-size: 0.875rem; color: rgba(255,255,255,0.85);">
+            Tus datos ingresados se encuentran protegidos. Ingresa tu contraseña para continuar sin perder tu trabajo.
+          </p>
+        </div>
+
+        <form id="reauth-form" style="padding: 24px;" novalidate>
+          <div id="reauth-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500;"></div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Institucional
+            </label>
+            <input type="text" id="reauth-username" readonly style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f1f5f9); color: var(--text-primary, #334155); font-weight: 600; cursor: not-allowed; box-sizing: border-box;" />
+          </div>
+
+          <div style="margin-bottom: 22px;">
+            <label for="reauth-password" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Contraseña
+            </label>
+            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem;" />
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" id="reauth-btn-cancel" class="btn btn-secondary" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+              Cerrar Sesión
+            </button>
+            <button type="submit" id="reauth-btn-submit" class="btn btn-primary" style="padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; background: #005387; color: #fff; border: none; display: flex; align-items: center; gap: 8px;">
+              <span>Reanudar Sesión</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const userInput = overlay.querySelector('#reauth-username');
+    if (userInput) userInput.value = currentUsername;
+
+    const pwdInput = overlay.querySelector('#reauth-password');
+    const errEl = overlay.querySelector('#reauth-error');
+    const form = overlay.querySelector('#reauth-form');
+    const cancelBtn = overlay.querySelector('#reauth-btn-cancel');
+    const submitBtn = overlay.querySelector('#reauth-btn-submit');
+
+    if (pwdInput) {
+      setTimeout(() => pwdInput.focus(), 80);
+    }
+
+    function cleanupOverlay() {
+      isReauthenticating = false;
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }
+
+    cancelBtn.addEventListener('click', () => {
+      cleanupOverlay();
+      if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
+      showLogin();
+      showToast('Sesión finalizada. Inicie sesión nuevamente.', 'info');
+      if (options && typeof options.onCancel === 'function') {
+        options.onCancel();
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pwd = pwdInput ? pwdInput.value : '';
+      if (!pwd) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingresa tu contraseña institucional.';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Verificando...</span>';
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await API.login(currentUsername, pwd);
+        if (res && res.token && res.user) {
+          if (res.user) {
+            res.user.role = sanitizeRole(res.user.role);
+            if (!res.user.jobTitle) {
+              res.user.jobTitle = resolveJobTitle(res.user);
+            }
+          }
+          Auth.save(res.token, res.user);
+          cleanupOverlay();
+          showToast('Sesión reanudada con éxito.', 'success');
+
+          // Restaurar borrador de formulario si está presente
+          restoreFormDraft();
+
+          if (options && typeof options.onSuccess === 'function') {
+            options.onSuccess(res);
+          }
+        } else {
+          throw new Error('Respuesta de autenticación inválida.');
+        }
+      } catch (authErr) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Reanudar Sesión</span>';
+        }
+        if (errEl) {
+          errEl.textContent = authErr.message || 'Contraseña incorrecta. Por favor intenta de nuevo.';
+          errEl.style.display = 'block';
+        }
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
+      }
+    });
   }
 
   // ─── Login & App Views ──────────────────────────────────────────────────────
@@ -574,14 +1403,16 @@ const App = (() => {
 
     // Clean neutral theme on the public login page
     if (typeof Settings !== 'undefined') {
-      Settings.resetToDefaults();
+      try { Settings.resetToDefaults(); } catch (_) {}
     }
 
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'flex', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'none', 'important');
     // Re-trigger login animation when returning to login
     requestAnimationFrame(() => {
-      if (typeof FX !== 'undefined') FX.animateLoginIn();
+      if (typeof FX !== 'undefined' && FX.animateLoginIn) FX.animateLoginIn();
     });
   }
 
@@ -597,6 +1428,7 @@ const App = (() => {
     { id: 'purple', name: 'Púrpura Andino', bg: '#B84BA7' },
     { id: 'plum', name: 'Ciruela', bg: '#914169' },
     { id: 'forest', name: 'Verde Bosque', bg: '#287522' },
+    { id: 'white', name: 'Blanco Puro', bg: '#FFFFFF' },
   ];
 
   let currentAvatarColor = null;
@@ -625,6 +1457,233 @@ const App = (() => {
     localStorage.setItem(key, color);
   }
 
+  function hexToRgba(hex, alpha = 0.18) {
+    if (!hex || typeof hex !== 'string') return `rgba(255, 255, 255, ${alpha})`;
+    let c = hex.replace('#', '').trim();
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length === 6) {
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    return `rgba(255, 255, 255, ${alpha})`;
+  }
+
+  function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return { r: 227, g: 36, b: 49 };
+    let c = hex.replace('#', '').trim();
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length === 6) {
+      return {
+        r: parseInt(c.substring(0, 2), 16) || 0,
+        g: parseInt(c.substring(2, 4), 16) || 0,
+        b: parseInt(c.substring(4, 6), 16) || 0,
+      };
+    }
+    return { r: 227, g: 36, b: 49 };
+  }
+
+  function getLuminance(r, g, b) {
+    const a = [r, g, b].map(v => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  }
+
+  function getContrastRatio(l1, l2) {
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  // Calcula el color de texto más legible y de alto contraste según el avatar y el tema
+  function getAccessibleTextColor(hexColor, isDark = false) {
+    if (!hexColor) return isDark ? '#f87171' : '#E32431';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+
+    if (isDark) {
+      // Fondo oscuro institucional (~#0b1329, luminancia ~0.015)
+      const bgLum = 0.015;
+      const ratio = getContrastRatio(lum, bgLum);
+
+      // Si el avatar es negro puro (#000000) o excesivamente oscuro
+      if (lum < 0.08 || ratio < 3.2) {
+        return '#f8fafc'; // Se proyecta blanco nítido
+      }
+      // Si el contraste es bajo contra fondo oscuro, se aclara conservando el matiz
+      if (ratio < 4.5) {
+        const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * 0.45));
+        const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * 0.45));
+        const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * 0.45));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      return hexColor;
+    } else {
+      // Fondo claro institucional (~#ffffff, luminancia 1.0)
+      const bgLum = 1.0;
+      const ratio = getContrastRatio(lum, bgLum);
+
+      // Si el avatar es blanco (#ffffff) o excesivamente claro (lum > 0.82 o ratio < 2.5:1)
+      // Como solicitó explícitamente el usuario: si se llega a poner un avatar blanco, aparecerá en negro
+      if (lum > 0.82 || ratio < 2.5) {
+        return '#0f172a'; // Negro institucional / pizarra profundo
+      }
+      // Si es un color claro como amarillo puro o pastel con contraste < 4.5:1 en fondo blanco
+      if (ratio < 4.5) {
+        const factor = 0.58;
+        const r = Math.round(rgb.r * factor);
+        const g = Math.round(rgb.g * factor);
+        const b = Math.round(rgb.b * factor);
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      return hexColor;
+    }
+  }  function getAvatarTextColor(hexColor) {
+    if (!hexColor) return '#ffffff';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+    // Si el fondo del avatar es muy claro (ej: blanco #ffffff o colores pálidos con luminancia > 0.65), la letra DEBE ser oscura
+    if (lum > 0.65) {
+      return '#0f172a';
+    }
+    return '#ffffff';
+  }
+
+  function getRoleTextColor(hexColor) {
+    if (!hexColor) return '#ffffff';
+    const rgb = hexToRgb(hexColor);
+    const lum = getLuminance(rgb.r, rgb.g, rgb.b);
+    // Si el avatar es blanco (#ffffff) o muy claro, blanco tiene un contraste perfecto contra el fondo oscuro del perfil
+    if (lum > 0.8) {
+      return '#ffffff';
+    }
+    // Si es un color muy oscuro (por ejemplo azul oscuro o verde bosque que se perdería en el fondo oscuro)
+    if (lum < 0.15) {
+      const factor = 0.55;
+      const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * factor));
+      const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * factor));
+      const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * factor));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    return hexColor;
+  }
+
+  function applyAvatarTheming(color) {
+    let avatarColor = color;
+    if (!avatarColor) {
+      const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+      avatarColor = user ? getAvatarColor(user.username) : AVATAR_PALETTES[0].bg;
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+      (typeof Settings !== 'undefined' && Settings.get && Settings.get('theme') === 'dark');
+
+    const nameColor = getAccessibleTextColor(avatarColor, isDark);
+    const nameColorLight = getAccessibleTextColor(avatarColor, false);
+    const nameColorDark = getAccessibleTextColor(avatarColor, true);
+    const avatarTextColor = getAvatarTextColor(avatarColor);
+    const roleColor = getRoleTextColor(avatarColor);
+
+    // ─── Generación de Fondo Oscuro y Acentos con el mismo Matiz del Avatar ───
+    const rgb = hexToRgb(avatarColor);
+    const isWhite = (rgb.r > 240 && rgb.g > 240 && rgb.b > 240);
+    const isVeryDark = (rgb.r < 30 && rgb.g < 30 && rgb.b < 30);
+
+    let cardBg, cardBgHover, cardBorder, cardBorderHover, cardHighlight, cardGlow;
+
+    if (isWhite) {
+      cardBg = 'linear-gradient(135deg, #1e242c 0%, #0f141a 100%)';
+      cardBgHover = 'linear-gradient(135deg, #2b333e 0%, #161c24 100%)';
+      cardBorder = 'rgba(255, 255, 255, 0.28)';
+      cardBorderHover = 'rgba(255, 255, 255, 0.55)';
+      cardHighlight = 'rgba(255, 255, 255, 0.35)';
+      cardGlow = 'rgba(255, 255, 255, 0.18)';
+    } else if (isVeryDark) {
+      cardBg = 'linear-gradient(135deg, #1a202c 0%, #0d1117 100%)';
+      cardBgHover = 'linear-gradient(135deg, #252e3e 0%, #121822 100%)';
+      cardBorder = 'rgba(255, 255, 255, 0.22)';
+      cardBorderHover = 'rgba(255, 255, 255, 0.45)';
+      cardHighlight = 'rgba(255, 255, 255, 0.25)';
+      cardGlow = 'rgba(255, 255, 255, 0.14)';
+    } else {
+      // Mucho más oscuro pero manteniendo la saturación y tonalidad viva del avatar
+      const rTop = Math.round(rgb.r * 0.22);
+      const gTop = Math.round(rgb.g * 0.22);
+      const bTop = Math.round(rgb.b * 0.22);
+
+      const rBot = Math.round(rgb.r * 0.09);
+      const gBot = Math.round(rgb.g * 0.09);
+      const bBot = Math.round(rgb.b * 0.09);
+
+      const rHoverTop = Math.round(rgb.r * 0.30);
+      const gHoverTop = Math.round(rgb.g * 0.30);
+      const bHoverTop = Math.round(rgb.b * 0.30);
+
+      const rHoverBot = Math.round(rgb.r * 0.14);
+      const gHoverBot = Math.round(rgb.g * 0.14);
+      const bHoverBot = Math.round(rgb.b * 0.14);
+
+      cardBg = `linear-gradient(135deg, rgb(${rTop}, ${gTop}, ${bTop}) 0%, rgb(${rBot}, ${gBot}, ${bBot}) 100%)`;
+      cardBgHover = `linear-gradient(135deg, rgb(${rHoverTop}, ${gHoverTop}, ${bHoverTop}) 0%, rgb(${rHoverBot}, ${gHoverBot}, ${bHoverBot}) 100%)`;
+      cardBorder = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.38)`;
+      cardBorderHover = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.68)`;
+      cardHighlight = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.40)`;
+      cardGlow = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.30)`;
+    }
+
+    // Variables globales en :root para que apliquen a TODO el software
+    const rootEl = document.documentElement;
+    rootEl.style.setProperty('--user-avatar-color', avatarColor);
+    rootEl.style.setProperty('--user-avatar-text-color', avatarTextColor);
+    rootEl.style.setProperty('--user-name-color', nameColor);
+    rootEl.style.setProperty('--user-name-color-light', nameColorLight);
+    rootEl.style.setProperty('--user-name-color-dark', nameColorDark);
+    rootEl.style.setProperty('--user-role-color', roleColor);
+    rootEl.style.setProperty('--user-card-bg', cardBg);
+    rootEl.style.setProperty('--user-card-bg-hover', cardBgHover);
+    rootEl.style.setProperty('--user-card-border', cardBorder);
+    rootEl.style.setProperty('--user-card-border-hover', cardBorderHover);
+    rootEl.style.setProperty('--user-card-highlight', cardHighlight);
+    rootEl.style.setProperty('--user-card-glow', cardGlow);
+
+    const sidebarUserEl = document.getElementById('sidebar-user');
+    if (sidebarUserEl) {
+      sidebarUserEl.style.setProperty('--avatar-accent-color', roleColor);
+      sidebarUserEl.style.setProperty('--user-role-color', roleColor);
+      sidebarUserEl.style.setProperty('--user-card-bg', cardBg);
+      sidebarUserEl.style.setProperty('--user-card-bg-hover', cardBgHover);
+      sidebarUserEl.style.setProperty('--user-card-border', cardBorder);
+      sidebarUserEl.style.setProperty('--user-card-border-hover', cardBorderHover);
+      sidebarUserEl.style.setProperty('--user-card-highlight', cardHighlight);
+      sidebarUserEl.style.setProperty('--user-card-glow', cardGlow);
+    }
+
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl) {
+      avatarEl.style.background = avatarColor;
+      avatarEl.style.color = avatarTextColor;
+    }
+
+    const topAvatarEl = document.getElementById('topbar-avatar');
+    if (topAvatarEl) {
+      topAvatarEl.style.background = avatarColor;
+      topAvatarEl.style.color = avatarTextColor;
+    }
+
+    const roleEl = document.getElementById('user-role');
+    if (roleEl) {
+      roleEl.style.setProperty('color', roleColor, 'important');
+    }
+
+    const profileBtn = document.getElementById('profile-btn');
+    if (profileBtn) {
+      profileBtn.style.setProperty('color', roleColor);
+    }
+  }
+
   function sanitizeRole(role) {
     if (!role) return 'Administrador';
     const r = String(role).trim();
@@ -634,6 +1693,68 @@ const App = (() => {
     return r;
   }
 
+  function isUserAdmin(user = {}) {
+    const role = (user.role || '').toLowerCase();
+    const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
+    return role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all');
+  }
+
+  function applyNavigationPermissions(user = {}) {
+    const isAdmin = isUserAdmin(user);
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
+    const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : ['dashboard'];
+    const hasAll = mods.includes('*') || mods.includes('all');
+
+    const setVisibility = (id, isVisible) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const li = el.closest('li') || el;
+      li.style.display = isVisible ? '' : 'none';
+    };
+
+    if (scope !== 'all') {
+      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-backups', false);
+      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-backups', false);
+      setVisibility('nav-settings', true);
+      applyRoleSidebarAccess(user);
+      return;
+    }
+
+    if (isAdmin) {
+      // Para el Administrador técnico (admin / admin123):
+      setVisibility('li-admin-errors', true);
+      setVisibility('li-admin-backups', true);
+      setVisibility('nav-admin-errors', true);
+      setVisibility('nav-admin-backups', true);
+      setVisibility('nav-settings', true);
+
+      // Supervisión global sobre módulos funcionales para el Administrador General (TSK-010 / AUD-010)
+      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => setVisibility(id, true));
+    } else {
+      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
+      // Ocultar las herramientas de administración técnica
+      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-backups', false);
+      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-backups', false);
+
+      // Mostrar sus módulos funcionales según permisos
+      setVisibility('nav-dashboard', true);
+      setVisibility('nav-employees', hasAll || mods.includes('employees'));
+      setVisibility('nav-requests', hasAll || mods.includes('requests'));
+      setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
+      setVisibility('nav-permisos', hasAll || mods.includes('admin-requests') || mods.includes('permisos'));
+      setVisibility('nav-licencias', hasAll || mods.includes('admin-requests') || mods.includes('licencias'));
+      setVisibility('nav-incapacidades', hasAll || mods.includes('incapacidades'));
+      setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
+      setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
+      setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
+      setVisibility('nav-settings', true);
+    }
+  }
+
   function resolveJobTitle(user = {}) {
     if (user.jobTitle && String(user.jobTitle).trim()) {
       return String(user.jobTitle).trim();
@@ -641,6 +1762,7 @@ const App = (() => {
     const username = String(user.username || '').toLowerCase();
     const name = String(user.name || '').toLowerCase();
     const role = String(user.role || '').toLowerCase();
+    const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
     if (username.includes('sandra') || role === 'sst' || role.includes('sst')) {
       return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
     }
@@ -653,43 +1775,47 @@ const App = (() => {
     if (username.includes('alejandro') || role === 'permisos') {
       return 'Responsable de Permisos Laborales';
     }
-    if (username.includes('angela') || name.includes('angela') || name.includes('ussa')) {
-      return 'Directora de Talento Humano';
+    if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all')) {
+      return 'Administrador del Sistema';
     }
-    if (username.includes('carlos') || name.includes('carlos')) {
-      return 'Coordinador de Solicitudes';
-    }
-    if (username.includes('maria') || name.includes('maria')) {
-      return 'Analista de Talento Humano';
-    }
-    return '';
+    if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
+    if (mods.includes('viaticos')) return 'Gestión de Viáticos';
+    if (mods.includes('horarios')) return 'Gestión de Horarios y Modalidades';
+    return 'Servidor Público';
   }
 
   function showApp() {
     const user = Auth.getUser();
     // Load per-user personalized preferences (theme, font, sound, etc.)
     if (typeof Settings !== 'undefined' && user && user.username) {
-      Settings.loadForUser(user.username);
+      try { Settings.loadForUser(user.username); } catch (e) { console.warn('[Settings] Error:', e); }
     }
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'grid';
-    applyRoleSidebarAccess(user);
-    updateUserDisplay(user);
-    updateTopbarDateTime();
-    updateTopbarQuickControls();
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'none', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'grid', 'important');
+
+    try { applyRoleSidebarAccess(user); } catch (_) {}
+    try { updateUserDisplay(user); } catch (e) { console.warn('[UserDisplay] Error:', e); }
+    try { updateTopbarDateTime(); } catch (_) {}
+    try { updateTopbarQuickControls(); } catch (_) {}
     // FX: animate app entry
-    if (typeof FX !== 'undefined') {
-      FX.animateAppEnter();
-      setTimeout(() => FX.Sound.loginSuccess(), 100);
+    if (typeof FX !== 'undefined' && FX.animateAppEnter) {
+      try { FX.animateAppEnter(); } catch (_) {}
+      setTimeout(() => { if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.loginSuccess(); }, 100);
     }
   }
 
   function updateUserDisplay(user = {}) {
-    const name = user.name || 'Angela Ussa';
-    const role = sanitizeRole(user.role || 'Administrador');
-    const jobTitle = resolveJobTitle(user);
+    const isAdmin = isUserAdmin(user);
+    const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
     const initial = name.charAt(0).toUpperCase();
     const avatarColor = getAvatarColor(user.username);
+    const avatarTextColor = getAvatarTextColor(avatarColor);
+    const roleColor = getRoleTextColor(avatarColor);
+
+    // Aplicar tema dinámico del recuadro de usuario según el color del avatar
+    applyAvatarTheming(avatarColor);
 
     // Sidebar
     const nameEl = document.getElementById('user-name');
@@ -698,19 +1824,18 @@ const App = (() => {
     const avatarEl = document.getElementById('user-avatar');
     if (nameEl) nameEl.textContent = name;
     if (jobTitleEl) {
-      if (jobTitle) {
-        jobTitleEl.textContent = jobTitle;
-        jobTitleEl.style.display = 'block';
-      } else {
-        jobTitleEl.textContent = '';
-        jobTitleEl.style.display = 'none';
-      }
+      jobTitleEl.textContent = '';
+      jobTitleEl.style.display = 'none';
     }
-    if (roleEl) roleEl.textContent = role;
+    if (roleEl) {
+      const userArea = user.area || user.dependencia || (isAdmin ? 'Administración General' : 'Talento Humano');
+      roleEl.textContent = userArea;
+      roleEl.style.setProperty('color', roleColor, 'important');
+    }
     if (avatarEl) {
       avatarEl.textContent = initial;
       avatarEl.style.background = avatarColor;
-      // FX: avatar pop
+      avatarEl.style.color = avatarTextColor;
       if (typeof FX !== 'undefined') FX.animateAvatarUpdate();
     }
 
@@ -719,17 +1844,29 @@ const App = (() => {
     const topRoleEl = document.getElementById('topbar-role-badge');
     const topAvatarEl = document.getElementById('topbar-avatar');
     if (topNameEl) topNameEl.textContent = name;
-    if (topRoleEl) topRoleEl.textContent = role === 'Administrador' ? 'Admin' : role;
+    if (topRoleEl) {
+      if (isAdmin) {
+        topRoleEl.style.display = 'inline-flex';
+        topRoleEl.textContent = 'Admin';
+      } else {
+        topRoleEl.style.display = 'none';
+      }
+    }
     if (topAvatarEl) {
       topAvatarEl.textContent = initial;
       topAvatarEl.style.background = avatarColor;
+      topAvatarEl.style.color = avatarTextColor;
     }
+// Aplicar filtrado dinámico de navegación según permisos de módulos
+    applyNavigationPermissions(user);
   }
 
   // ─── User Profile Modal ────────────────────────────────────────────────────
   function openProfileModal() {
     const user = Auth.getUser();
-    const initial = (user.name || 'A').charAt(0).toUpperCase();
+    const isAdmin = isUserAdmin(user);
+    const name = user.name || (isAdmin ? 'Administrador' : 'Usuario');
+    const initial = (name || 'U').charAt(0).toUpperCase();
     currentAvatarColor = getAvatarColor(user.username);
 
     const swatchesHtml = AVATAR_PALETTES.map(p => {
@@ -742,11 +1879,10 @@ const App = (() => {
 
     const bodyHtml = `
       <div class="profile-card-header">
-        <div class="profile-avatar-large" id="prof-avatar-preview" style="background:${currentAvatarColor};">${initial}</div>
+        <div class="profile-avatar-large" id="prof-avatar-preview" style="background:${currentAvatarColor}; color:${getAvatarTextColor(currentAvatarColor)};">${initial}</div>
         <div class="profile-header-info">
-          <div class="profile-name-display">${escHtml(user.name || 'Angela Ussa')}</div>
-          <div class="profile-job-title">${escHtml(resolveJobTitle(user))}</div>
-          <span class="profile-role-pill">${escHtml(sanitizeRole(user.role || 'Administrador'))}</span>
+          <div class="profile-name-display">${escHtml(name)}</div>
+          ${isAdmin ? '<span class="profile-role-pill">Administrador</span>' : ''}
           <p class="profile-dept-subtitle">Gobernación de Boyacá · Talento Humano</p>
         </div>
       </div>
@@ -816,7 +1952,15 @@ const App = (() => {
 
     openModal('Mi Perfil', bodyHtml, [
       { text: 'Configuración', cls: 'btn-secondary', id: 'prof-settings-btn', action: () => { closeModal(); navigate('settings'); } },
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => closeModal() },
+      {
+        text: 'Cancelar',
+        cls: 'btn-secondary',
+        action: () => {
+          // Revertir vista previa en tiempo real al color guardado
+          applyAvatarTheming(getAvatarColor(user.username));
+          closeModal();
+        }
+      },
       { text: 'Guardar Cambios', cls: 'btn-primary', id: 'prof-save-btn', action: saveProfile },
     ]);
 
@@ -865,6 +2009,9 @@ const App = (() => {
           const bg = btn.dataset.bg;
           currentAvatarColor = bg;
           previewAvatar.style.background = bg;
+          previewAvatar.style.color = getAvatarTextColor(bg);
+          // Actualizar en tiempo real el tono del recuadro del sidebar
+          applyAvatarTheming(bg);
 
           // Update active swatch state
           swatchesContainer.querySelectorAll('.avatar-swatch').forEach(s => {
@@ -883,6 +2030,9 @@ const App = (() => {
           const hex = e.target.value;
           currentAvatarColor = hex;
           previewAvatar.style.background = hex;
+          previewAvatar.style.color = getAvatarTextColor(hex);
+          // Actualizar en tiempo real el tono del recuadro del sidebar
+          applyAvatarTheming(hex);
 
           swatchesContainer.querySelectorAll('.avatar-swatch').forEach(s => {
             s.classList.remove('active');
@@ -938,6 +2088,7 @@ const App = (() => {
       // Save custom avatar color
       if (currentAvatarColor) {
         setAvatarColor(res.user.username, currentAvatarColor);
+        applyAvatarTheming(currentAvatarColor);
       }
 
       updateUserDisplay(res.user);
@@ -999,6 +2150,7 @@ const App = (() => {
           closeModal();
           // FX: logout sound
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.logout();
+          clearFormDraft();
           Auth.clear();
           if (typeof Settings !== 'undefined') {
             Settings.resetToDefaults();
@@ -1063,10 +2215,27 @@ const App = (() => {
         contrastBtn.setAttribute('title', 'Líneas de tabla y alto contraste: Desactivados (clic para activar)');
       }
     }
+
+    // Actualizar contrastes accesibles del avatar y nombre del usuario según el nuevo tema
+    try {
+      applyAvatarTheming();
+    } catch (_) {}
   }
 
   // ─── Init ──────────────────────────────────────────────────────────────────
   function init() {
+    // Configuración universal en Español para Flatpickr
+    if (typeof flatpickr !== 'undefined') {
+      if (flatpickr.l10ns && flatpickr.l10ns.es) {
+        flatpickr.localize(flatpickr.l10ns.es);
+      }
+      flatpickr.setDefaults({
+        locale: (flatpickr.l10ns && flatpickr.l10ns.es) ? flatpickr.l10ns.es : 'es',
+        firstDayOfWeek: 1,
+        weekNumbers: false
+      });
+    }
+
     // Initialize system settings & preferences
     if (typeof Settings !== 'undefined') {
       Settings.init();
@@ -1077,6 +2246,20 @@ const App = (() => {
     if (isCollapsed) {
       document.getElementById('app')?.classList.add('sidebar-collapsed');
     }
+    const updateSidebarToggleAttributes = (collapsed) => {
+      const toggleBtn = document.getElementById('sidebar-toggle');
+      if (!toggleBtn) return;
+      if (collapsed) {
+        toggleBtn.setAttribute('title', 'Abrir barra lateral (Alt + B)');
+        toggleBtn.setAttribute('aria-label', 'Abrir barra lateral');
+        toggleBtn.setAttribute('data-tooltip', 'Abrir barra lateral');
+      } else {
+        toggleBtn.setAttribute('title', 'Cerrar barra lateral (Alt + B)');
+        toggleBtn.setAttribute('aria-label', 'Cerrar barra lateral');
+        toggleBtn.setAttribute('data-tooltip', 'Cerrar barra lateral');
+      }
+    };
+    updateSidebarToggleAttributes(isCollapsed);
 
     // Topbar live date/time & quick controls
     updateTopbarDateTime();
@@ -1130,29 +2313,44 @@ const App = (() => {
           }
           Auth.save(res.token, res.user);
           const landing = getDefaultLandingRoute(res.user);
-          
+
           const proceedToDashboard = () => {
-            showApp();
-            navigate(landing.module, landing.options);
+            try {
+              if (typeof Settings !== 'undefined' && res.user && res.user.username) {
+                Settings.loadForUser(res.user.username);
+              }
+              showApp();
+              navigate(landing.module, landing.options);
+              try { checkAndRestoreDraft(); } catch (_) {}
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+                LegalModule.requireConsentModal();
+              }
+            } catch (transitionErr) {
+              console.error('[Login Transition Error]:', transitionErr);
+              const ls = document.getElementById('login-screen');
+              if (ls) ls.style.setProperty('display', 'none', 'important');
+              const app = document.getElementById('app');
+              if (app) app.style.setProperty('display', 'grid', 'important');
+              try { navigate(landing.module, landing.options); } catch (_) {}
+              try { checkAndRestoreDraft(); } catch (_) {}
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+                LegalModule.requireConsentModal();
+              }
+            }
           };
 
-          // FX: success animation then transition with legal consent gate
-          if (typeof FX !== 'undefined') {
-            FX.animateLoginSuccess(() => {
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                showApp();
-                LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
-              } else {
-                proceedToDashboard();
-              }
-            });
+          let hasProceeded = false;
+          const safeProceed = () => {
+            if (hasProceeded) return;
+            hasProceeded = true;
+            proceedToDashboard();
+          };
+
+          if (typeof FX !== 'undefined' && FX.animateLoginSuccess) {
+            FX.animateLoginSuccess(safeProceed);
+            setTimeout(safeProceed, 550);
           } else {
-            if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-              showApp();
-              LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
-            } else {
-              proceedToDashboard();
-            }
+            safeProceed();
           }
         } catch (err) {
           errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
@@ -1167,15 +2365,17 @@ const App = (() => {
       });
     }
 
-    // Logout
-    document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+    // Logout (botón en la barra superior y fallback)
+    const handleLogoutTrigger = (e) => {
       e.stopPropagation();
       confirmLogout();
-    });
+    };
+    document.getElementById('topbar-logout-btn')?.addEventListener('click', handleLogoutTrigger);
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogoutTrigger);
 
     // Profile modal openers
     document.getElementById('sidebar-user')?.addEventListener('click', (e) => {
-      if (e.target.closest('#logout-btn')) return;
+      if (e.target.closest('#logout-btn') || e.target.closest('#topbar-logout-btn')) return;
       openProfileModal();
     });
     document.getElementById('profile-btn')?.addEventListener('click', (e) => {
@@ -1228,6 +2428,7 @@ const App = (() => {
       } else {
         const collapsed = app.classList.toggle('sidebar-collapsed');
         localStorage.setItem('talento360_sidebar_collapsed', String(collapsed));
+        updateSidebarToggleAttributes(collapsed);
         // FX: sidebar toggle animation
         if (typeof FX !== 'undefined') FX.animateSidebarToggle(collapsed);
       }
@@ -1236,8 +2437,25 @@ const App = (() => {
     document.getElementById('sidebar-toggle')?.addEventListener('click', toggleSidebar);
     document.getElementById('topbar-sidebar-toggle')?.addEventListener('click', toggleSidebar);
 
-    // Modal close - Únicamente mediante los botones del modal/formulario (sin parpadeos al hacer clic afuera)
-    document.getElementById('modal-close')?.addEventListener('click', closeModal);
+    // Modal close - Únicamente mediante los botones del modal/formulario (con confirmación si hay cambios)
+    document.getElementById('modal-close')?.addEventListener('click', () => closeModal(false));
+
+    // Tecla Escape para modales y confirmación de descarte de cambios
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const unsavedPrompt = document.getElementById('modal-unsaved-confirm');
+        if (unsavedPrompt) {
+          e.preventDefault();
+          removeUnsavedChangesPrompt();
+          return;
+        }
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay && overlay.style.display !== 'none' && window.getComputedStyle(overlay).opacity > 0.1) {
+          e.preventDefault();
+          closeModal(false);
+        }
+      }
+    });
 
     // Nav items
     document.querySelectorAll('.nav-item[data-module]:not(.nav-group-toggle), .sidebar-settings-btn[data-module]').forEach(btn => {
@@ -1285,16 +2503,9 @@ const App = (() => {
       const storedUser = Auth.getUser();
       if (storedUser && typeof storedUser === 'object') {
         let changed = false;
-        if (storedUser.role === 'Administradora') {
-          storedUser.role = 'Administrador';
+        if (!storedUser.modules || !Array.isArray(storedUser.modules)) {
+          storedUser.modules = Auth.getUserModules(storedUser);
           changed = true;
-        }
-        if (!storedUser.jobTitle) {
-          const title = resolveJobTitle(storedUser);
-          if (title) {
-            storedUser.jobTitle = title;
-            changed = true;
-          }
         }
         if (changed) {
           localStorage.setItem('h360_user', JSON.stringify(storedUser));
@@ -1305,6 +2516,9 @@ const App = (() => {
       }
       showApp();
       const landing = getDefaultLandingRoute(storedUser);
+      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
+        LegalModule.requireConsentModal();
+      }
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
       const [initMod, initQuery] = initialHash.split('?');
 
@@ -1313,13 +2527,11 @@ const App = (() => {
         const options = {};
         if (params.get('tab')) options.tab = params.get('tab');
         if (params.get('tipo')) options.tipo = params.get('tipo');
+        if (params.get('year')) options.year = params.get('year');
+        if (params.get('pkg')) options.pkg = params.get('pkg');
         navigate(initMod, options);
       } else {
-        if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-          LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
-        } else {
-          navigate(landing.module, landing.options);
-        }
+        navigate(landing.module, landing.options);
       }
     } else {
       if (typeof Settings !== 'undefined') {
@@ -1350,12 +2562,26 @@ const App = (() => {
           if (m.addedNodes && m.addedNodes.length) {
             for (const node of m.addedNodes) {
               if (node.nodeType === 1) {
-                if (node.matches && node.matches('input[type="date"], input[data-datepicker], input.datepicker-input')) {
+                if (node.classList && (node.classList.contains('flatpickr-calendar') || node.classList.contains('flatpickr-input-custom') || node.classList.contains('flatpickr-wrapper'))) {
+                  continue;
+                }
+                if (node.matches && node.matches(DATE_INPUT_SELECTOR)) {
                   initDatePickers(node);
                 } else if (node.querySelectorAll) {
-                  const dates = node.querySelectorAll('input[type="date"], input[data-datepicker], input.datepicker-input');
+                  const dates = node.querySelectorAll(DATE_INPUT_SELECTOR);
                   if (dates.length) initDatePickers(node);
                 }
+                if (node.matches && node.matches('.form-group, .filter-group, .adv-filter-field')) {
+                  initFormUX(node);
+                  refreshFloatingLabels(node);
+                } else if (node.querySelectorAll) {
+                  const groups = node.querySelectorAll('.form-group, .filter-group, .adv-filter-field');
+                  if (groups.length) {
+                    initFormUX(node);
+                    refreshFloatingLabels(node);
+                  }
+                }
+                enhanceAddButtons(node);
               }
             }
           }
@@ -1371,7 +2597,7 @@ const App = (() => {
           this._flatpickr.open();
           return;
         }
-        if (this.type === 'date' || this.hasAttribute('data-datepicker')) {
+        if (this.matches && this.matches(DATE_INPUT_SELECTOR)) {
           initDatePickers(this);
           if (this._flatpickr) {
             this._flatpickr.open();
@@ -1386,20 +2612,52 @@ const App = (() => {
     if (typeof FX !== 'undefined') FX.init();
   }
 
-  return { init, navigate, showLogin, showApp, showToast, openModal, closeModal, openProfileModal, confirmLogout, updateTopbarQuickControls, updateTopbarDateTime, initDatePickers };
+  return {
+    init,
+    navigate,
+    getCurrentModule,
+    showLogin,
+    showApp,
+    showToast,
+    openModal,
+    closeModal,
+    markFormClean,
+    isModalDirty,
+    openProfileModal,
+    confirmLogout,
+    updateTopbarQuickControls,
+    updateTopbarDateTime,
+    initDatePickers,
+    initFormUX,
+    refreshFloatingLabels,
+    applyAvatarTheming,
+    getAccessibleTextColor,
+    getAvatarColor,
+    getAvatarTextColor,
+    getRoleTextColor,
+    enhanceAddButtons,
+    isUserAdmin,
+    captureActiveFormDraft,
+    restoreFormDraft,
+    clearFormDraft,
+    promptReauthentication,
+    checkAndRestoreDraft
+  };
 })();
 
 // Exposición global amigable (soporta tanto App como app con minúscula en consola)
 window.App = App;
 window.app = App;
 
-// Enrutador reactivo por hash en URL (ej: http://localhost/#/settingsggg o #/sst?tab=epp)
+// Enrutador reactivo por hash en URL (ej: http://localhost/#/settings o #/sst?tab=epp)
 window.addEventListener('hashchange', () => {
   const fullHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
   if (typeof App !== 'undefined' && App.navigate) {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
-        App.navigate('dashboard');
+        const user = Auth.getUser ? Auth.getUser() : null;
+        const defaultMod = (user && App.isUserAdmin && App.isUserAdmin(user)) ? 'admin-errors' : 'dashboard';
+        App.navigate(defaultMod);
       } else {
         App.showLogin();
       }
@@ -1410,9 +2668,133 @@ window.addEventListener('hashchange', () => {
     const options = {};
     if (params.get('tab')) options.tab = params.get('tab');
     if (params.get('tipo')) options.tipo = params.get('tipo');
+    if (params.get('year')) options.year = params.get('year');
+    if (params.get('pkg')) options.pkg = params.get('pkg');
     App.navigate(mod, options);
   }
 });
+
+// ─── Monitor Global de Errores y Excepciones para Administración Técnica ────
+(function setupGlobalErrorMonitor() {
+  if (typeof window === 'undefined') return;
+
+  // 1. Excepciones no capturadas de JavaScript en ventana
+  window.addEventListener('error', (event) => {
+    try {
+      if (!event) return;
+      const message = event.message || (typeof event.error === 'object' && event.error ? event.error.message : String(event));
+      if (!message || message.includes('ResizeObserver') || message.includes('Script error.')) {
+        return;
+      }
+      const stack = event.error && event.error.stack ? event.error.stack : '';
+      const url = event.filename || window.location.href;
+      let usuario = 'Anónimo';
+      try {
+        const u = localStorage.getItem('h360_user');
+        if (u) usuario = JSON.parse(u).username || 'Usuario';
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'JS_EXCEPTION',
+          mensaje: message,
+          url,
+          stack,
+          usuario
+        });
+      }
+    } catch (_) {}
+  });
+
+  // 2. Promesas rechazadas no manejadas (unhandledrejection)
+  window.addEventListener('unhandledrejection', (event) => {
+    try {
+      if (!event) return;
+      const reason = event.reason;
+      let message = 'Unhandled Promise Rejection';
+      let stack = '';
+      if (typeof reason === 'string') {
+        message = reason;
+      } else if (reason && typeof reason === 'object') {
+        message = reason.message || reason.name || JSON.stringify(reason);
+        stack = reason.stack || '';
+      }
+      let usuario = 'Anónimo';
+      try {
+        const u = localStorage.getItem('h360_user');
+        if (u) usuario = JSON.parse(u).username || 'Usuario';
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'PROMISE_REJECTION',
+          mensaje: message,
+          url: window.location.href,
+          stack,
+          usuario
+        });
+      }
+    } catch (_) {}
+  });
+
+  // 3. Captura automática y transparente de console.error
+  if (typeof console !== 'undefined' && console.error) {
+    const origConsoleError = console.error;
+    let isReporting = false;
+
+    console.error = function(...args) {
+      try {
+        origConsoleError.apply(console, args);
+      } catch (_) {}
+
+      if (isReporting) return;
+      try {
+        const firstArg = args[0];
+        // Evitar bucles con las propias llamadas de monitoreo o red de admin
+        if (typeof firstArg === 'string' && (
+          firstArg.includes('[Admin Errors API]') ||
+          firstArg.includes('/api/admin/errors') ||
+          firstArg.includes('[API.reportError]')
+        )) {
+          return;
+        }
+
+        const msg = args.map(a => {
+          if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack || ''}`;
+          if (typeof a === 'object') {
+            try { return JSON.stringify(a); } catch (_) { return String(a); }
+          }
+          return String(a);
+        }).join(' ');
+
+        if (!msg || msg.trim().length === 0) return;
+
+        let usuario = 'Anónimo';
+        try {
+          const u = localStorage.getItem('h360_user');
+          if (u) usuario = JSON.parse(u).username || 'Usuario';
+        } catch (_) {}
+
+        isReporting = true;
+        if (typeof API !== 'undefined' && API.reportError) {
+          API.reportError({
+            tipo: 'CONSOLE_ERROR',
+            mensaje: msg.slice(0, 4000),
+            url: window.location.href,
+            stack: (new Error()).stack || null,
+            usuario
+          }).finally(() => {
+            isReporting = false;
+          });
+        } else {
+          isReporting = false;
+        }
+      } catch (_) {
+        isReporting = false;
+      }
+    };
+  }
+})();
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => App.init());

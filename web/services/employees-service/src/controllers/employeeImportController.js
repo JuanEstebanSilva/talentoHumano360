@@ -5,11 +5,14 @@ const { mapRowToFuncionarioDTO } = require('../dto/funcionarioExcelDTO');
 const { evaluarCedula, esFilaFantasma, detectarVacante, extraerCargoExcel } = require('../utils/excelHelper');
 const EmployeeImportService = require('../services/employeeImportService');
 
-// Configuración de Multer para carga en memoria (hasta 35MB)
+// Configuración de Multer para carga en memoria (límite razonable: 15 MB)
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
+const MAX_EXCEL_ROWS = 5000;
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 35 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (file.originalname.startsWith('~$')) {
       return cb(new Error('El archivo enviado (~$) es un archivo temporal de bloqueo de Excel. Debes seleccionar y subir el archivo original de datos.'), false);
@@ -36,50 +39,103 @@ const uploadAny = upload.fields([{ name: 'archivo', maxCount: 1 }, { name: 'file
  */
 function detectarMapeoCargos(worksheet) {
   if (!worksheet || !worksheet['!ref']) {
-    return { colCargoNominal: 0, colCodNominal: 1, colGraNominal: 2, colCargoActual: 5, colCodActual: 6, colGraActual: 7 };
+    return {
+      colEncargo: 0,
+      colEncargoCod: 1,
+      colEncargoGra: 2,
+      colEncargoAsig: 3,
+      colDep: 4,
+      colCargoTitular: 5,
+      colCodTitular: 6,
+      colGraTitular: 7,
+      colCargoNominal: 5,
+      colCodNominal: 6,
+      colGraNominal: 7,
+      colCargoActual: 5,
+      colCodActual: 6,
+      colGraActual: 7
+    };
   }
   const range = XLSX.utils.decode_range(worksheet['!ref']);
-  const cargoCols = [];
-  const codCols = [];
-  const graCols = [];
-  let explicitActualCargo = null;
-  let explicitActualCod = null;
-  let explicitActualGra = null;
+  let colEncargo = null;
+  let colEncargoCod = null;
+  let colEncargoGra = null;
+  let colEncargoAsig = null;
+  let colDep = null;
+  let colCargoTitular = null;
+  let colCodTitular = null;
+  let colGraTitular = null;
 
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
     const val = String(cell?.v || '').trim().toUpperCase();
-    if (val.includes('CARGO ACTUAL') || val.includes('DENOMINACIÓN ACTUAL') || val.includes('DENOMINACION ACTUAL')) {
-      explicitActualCargo = C;
-    } else if (val.includes('DENOMINAC') || val === 'CARGO') {
-      cargoCols.push(C);
+
+    if (val.includes('DENOMINAC') && val.includes('ENCARGO')) {
+      colEncargo = C;
+    } else if (val.includes('DENOMINAC') && !val.includes('ENCARGO')) {
+      colCargoTitular = C;
+    } else if (val.includes('ASIGNAC')) {
+      colEncargoAsig = C;
+    } else if (val.includes('DEPEN')) {
+      colDep = C;
+    }
+  }
+
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+    const val = String(cell?.v || '').trim().toUpperCase();
+
+    if (val.startsWith('COD') || val.includes('CÓDIGO') || val.includes('CODIGO')) {
+      if (colDep !== null && C < colDep) {
+        if (colEncargoCod === null) colEncargoCod = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colCodTitular === null) colCodTitular = C;
+      } else {
+        if (colEncargoCod === null) colEncargoCod = C;
+        else if (colCodTitular === null) colCodTitular = C;
+      }
     }
 
-    if (val.includes('COD') && val.includes('ACTUAL')) {
-      explicitActualCod = C;
-    } else if (val.startsWith('COD') || val.includes('CÓDIGO') || val.includes('CODIGO')) {
-      codCols.push(C);
-    }
-
-    if (val.includes('GRA') && val.includes('ACTUAL')) {
-      explicitActualGra = C;
-    } else if (val.startsWith('GRA') || val.includes('GRADO')) {
-      graCols.push(C);
+    if (val.startsWith('GRA') || val.includes('GRADO')) {
+      if (colDep !== null && C < colDep) {
+        if (colEncargoGra === null) colEncargoGra = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colGraTitular === null) colGraTitular = C;
+      } else {
+        if (colEncargoGra === null) colEncargoGra = C;
+        else if (colGraTitular === null) colGraTitular = C;
+      }
     }
   }
 
   return {
-    colCargoNominal: cargoCols[0] !== undefined ? cargoCols[0] : 0,
-    colCodNominal: codCols[0] !== undefined ? codCols[0] : 1,
-    colGraNominal: graCols[0] !== undefined ? graCols[0] : 2,
-    colCargoActual: explicitActualCargo !== null ? explicitActualCargo : (cargoCols.length > 1 ? cargoCols[1] : (cargoCols[0] !== undefined ? cargoCols[0] : 5)),
-    colCodActual: explicitActualCod !== null ? explicitActualCod : (codCols.length > 1 ? codCols[1] : (codCols[0] !== undefined ? codCols[0] : 6)),
-    colGraActual: explicitActualGra !== null ? explicitActualGra : (graCols.length > 1 ? graCols[1] : (graCols[0] !== undefined ? graCols[0] : 7)),
+    colEncargo: colEncargo !== null ? colEncargo : 0,
+    colEncargoCod: colEncargoCod !== null ? colEncargoCod : 1,
+    colEncargoGra: colEncargoGra !== null ? colEncargoGra : 2,
+    colEncargoAsig: colEncargoAsig !== null ? colEncargoAsig : 3,
+    colDep: colDep !== null ? colDep : 4,
+    colCargoTitular: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodTitular: colCodTitular !== null ? colCodTitular : 6,
+    colGraTitular: colGraTitular !== null ? colGraTitular : 7,
+    colCargoNominal: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodNominal: colCodTitular !== null ? colCodTitular : 6,
+    colGraNominal: colGraTitular !== null ? colGraTitular : 7,
+    colCargoActual: colCargoTitular !== null ? colCargoTitular : 5,
+    colCodActual: colCodTitular !== null ? colCodTitular : 6,
+    colGraActual: colGraTitular !== null ? colGraTitular : 7
   };
 }
 const uploadMiddleware = (req, res, next) => {
   uploadAny(req, res, (err) => {
-    if (err) return next(err);
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          error: 'El archivo supera el tamaño máximo permitido de 15 MB. Por favor divida el archivo o reduzca elementos pesados.'
+        });
+      }
+      return res.status(400).json({ success: false, error: err.message });
+    }
     if (!req.file) {
       if (req.files && req.files['archivo'] && req.files['archivo'][0]) {
         req.file = req.files['archivo'][0];
@@ -90,6 +146,44 @@ const uploadMiddleware = (req, res, next) => {
     next();
   });
 };
+
+/**
+ * Valida la estructura mínima requerida de columnas en la primera fila de la hoja de cálculo.
+ */
+function validarEstructuraHoja(worksheet, sheetName) {
+  if (!worksheet || !worksheet['!ref']) {
+    return { valida: false, motivo: `La hoja "${sheetName}" está completamente vacía.` };
+  }
+  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  const headers = [];
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+    if (cell && cell.v !== undefined && cell.v !== null) {
+      const hStr = String(cell.v).replace(/[\u200B-\u200D\uFEFF\u00A0\u00AD]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+      if (hStr) headers.push(hStr);
+    }
+  }
+  if (headers.length === 0) {
+    return { valida: false, motivo: `La hoja "${sheetName}" no contiene encabezados en la primera fila.` };
+  }
+
+  const tieneIdentidad = headers.some(h =>
+    h.includes('CEDULA') || h.includes('CÉDULA') || h.includes('DOCUMENTO') || h.includes('CC') ||
+    h.includes('NOMBRE') || h.includes('APELLIDO') || h.includes('FUNCIONARIO')
+  );
+  const tieneOrganizacional = headers.some(h =>
+    h.includes('CARGO') || h.includes('DENOMINAC') || h.includes('DEPEN') || h.includes('AREA') || h.includes('ÁREA')
+  );
+
+  if (!tieneIdentidad && !tieneOrganizacional) {
+    return {
+      valida: false,
+      motivo: `La hoja "${sheetName}" no contiene las columnas requeridas para servidores públicos (requiere columnas de identidad como CÉDULA/NOMBRES y de cargo/dependencia). Columnas detectadas: ${headers.slice(0, 8).join(', ')}`
+    };
+  }
+
+  return { valida: true, headers };
+}
 
 /**
  * Controlador Senior para procesamiento e importación masiva de Excel con filtrado
@@ -119,6 +213,49 @@ async function importarExcel(req, res, pool) {
       return res.status(400).json({
         success: false,
         error: 'El archivo Excel no contiene ninguna hoja de cálculo disponible para lectura.'
+      });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Pre-validaciones globales del libro: tamaño en filas y estructura de cabeceras
+    // ──────────────────────────────────────────────────────────────────────────
+    let totalFilasEstimadas = 0;
+    let algunaHojaConCabeceraValida = false;
+    let primerErrorEstructura = '';
+
+    for (const sName of workbook.SheetNames) {
+      const ws = workbook.Sheets[sName];
+      if (!ws || !ws['!ref']) continue;
+      const rng = XLSX.utils.decode_range(ws['!ref']);
+      const rowCount = Math.max(0, rng.e.r - rng.s.r);
+      totalFilasEstimadas += rowCount;
+
+      const validacion = validarEstructuraHoja(ws, sName);
+      if (validacion.valida) {
+        algunaHojaConCabeceraValida = true;
+      } else if (!primerErrorEstructura) {
+        primerErrorEstructura = validacion.motivo;
+      }
+    }
+
+    if (totalFilasEstimadas === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El archivo Excel está completamente vacío o no contiene filas de datos.'
+      });
+    }
+
+    if (totalFilasEstimadas > MAX_EXCEL_ROWS) {
+      return res.status(400).json({
+        success: false,
+        error: `El archivo supera el límite máximo permitido de ${MAX_EXCEL_ROWS} filas (se detectaron aproximadamente ${totalFilasEstimadas} filas). Por favor divida el archivo o reduzca el tamaño del lote.`
+      });
+    }
+
+    if (!algunaHojaConCabeceraValida) {
+      return res.status(400).json({
+        success: false,
+        error: primerErrorEstructura || 'El archivo Excel no contiene las columnas requeridas para servidores públicos.'
       });
     }
 
@@ -175,6 +312,19 @@ async function importarExcel(req, res, pool) {
       const worksheet = workbook.Sheets[sheetName];
       if (!worksheet) continue;
 
+      const validacionHoja = validarEstructuraHoja(worksheet, sheetName);
+      if (!validacionHoja.valida) {
+        desglosePorHoja[sheetName] = {
+          totalFilas: 0,
+          registrosValidos: 0,
+          provisionales: 0,
+          filasConErrores: 0,
+          filasFantasmaOmitidas: 0,
+          estado: `Omitida: ${validacionHoja.motivo}`
+        };
+        continue;
+      }
+
       const colMap = detectarMapeoCargos(worksheet);
       const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { s: { r: 0, c: 0 } };
 
@@ -214,19 +364,36 @@ async function importarExcel(req, res, pool) {
           return null;
         };
 
-        const cellCargoActual = getCellVal(colMap.colCargoActual);
-        const cellCodActual = getCellVal(colMap.colCodActual);
-        const cellGraActual = getCellVal(colMap.colGraActual);
-        const cellCargoNominal = getCellVal(colMap.colCargoNominal);
-        const cellCodNominal = getCellVal(colMap.colCodNominal);
-        const cellGraNominal = getCellVal(colMap.colGraNominal);
+        const cellEncargo = getCellVal(colMap.colEncargo);
+        const cellEncargoCod = getCellVal(colMap.colEncargoCod);
+        const cellEncargoGra = getCellVal(colMap.colEncargoGra);
+        const cellEncargoAsig = getCellVal(colMap.colEncargoAsig);
+        const cellCargoTitular = getCellVal(colMap.colCargoTitular);
+        const cellCodTitular = getCellVal(colMap.colCodTitular);
+        const cellGraTitular = getCellVal(colMap.colGraTitular);
+        const cellDep = getCellVal(colMap.colDep);
 
-        if (cellCargoActual) rawRow['__CARGO_ACTUAL__'] = cellCargoActual;
-        if (cellCodActual) rawRow['__CODIGO_ACTUAL__'] = cellCodActual;
-        if (cellGraActual) rawRow['__GRADO_ACTUAL__'] = cellGraActual;
-        if (cellCargoNominal) rawRow['__CARGO_NOMINAL__'] = cellCargoNominal;
-        if (cellCodNominal) rawRow['__CODIGO_NOMINAL__'] = cellCodNominal;
-        if (cellGraNominal) rawRow['__GRADO_NOMINAL__'] = cellGraNominal;
+        if (cellEncargo) rawRow['__ENCARGO_DENOMINACION__'] = cellEncargo;
+        if (cellEncargoCod) rawRow['__ENCARGO_CODIGO__'] = cellEncargoCod;
+        if (cellEncargoGra) rawRow['__ENCARGO_GRADO__'] = cellEncargoGra;
+        if (cellEncargoAsig) rawRow['__ENCARGO_ASIGNACION__'] = cellEncargoAsig;
+
+        if (cellCargoTitular) {
+          rawRow['__CARGO_TITULAR__'] = cellCargoTitular;
+          rawRow['__CARGO_ACTUAL__'] = cellCargoTitular;
+          rawRow['__CARGO_NOMINAL__'] = cellCargoTitular;
+        }
+        if (cellCodTitular) {
+          rawRow['__CODIGO_TITULAR__'] = cellCodTitular;
+          rawRow['__CODIGO_ACTUAL__'] = cellCodTitular;
+          rawRow['__CODIGO_NOMINAL__'] = cellCodTitular;
+        }
+        if (cellGraTitular) {
+          rawRow['__GRADO_TITULAR__'] = cellGraTitular;
+          rawRow['__GRADO_ACTUAL__'] = cellGraTitular;
+          rawRow['__GRADO_NOMINAL__'] = cellGraTitular;
+        }
+        if (cellDep) rawRow['__DEPENDENCIA__'] = cellDep;
 
         // A. Detección y descarte de "Filas Fantasma" (espacios al final, celdas combinadas vacías)
         if (esFilaFantasma(rawRow)) {
@@ -286,13 +453,17 @@ async function importarExcel(req, res, pool) {
           validasEnHoja++;
         } catch (validationErr) {
           erroresEnHoja++;
+          const mensajeError = validationErr.message || 'Error de validación en columnas de datos';
           filasConErrores.push({
             hoja: sheetName,
             fila: rowNumber,
-            cedula: cedulaFinal,
+            cedula: cedulaFinal || 'NO ASIGNADA',
             nombre: nombreFinal || 'NO REPORTADO',
-            error: 'Error de validación en columnas de datos',
-            detalle: validationErr.message
+            campo: validationErr.campo || 'DATOS_FILA',
+            valor: validationErr.valor !== undefined ? validationErr.valor : (valorCedulaCrudo || 'N/A'),
+            motivo: mensajeError,
+            error: mensajeError,
+            detalle: mensajeError
           });
         }
       });
@@ -330,9 +501,12 @@ async function importarExcel(req, res, pool) {
           filasConErrores.push({
             hoja: errBD.hoja || 'Principal',
             fila: errBD.fila,
-            cedula: errBD.cedula,
+            cedula: errBD.cedula || 'NO ASIGNADA',
             nombre: errBD.nombre || 'N/A',
-            error: 'Error en base de datos al guardar registro',
+            campo: errBD.campo || 'BASE_DE_DATOS',
+            valor: errBD.valor || errBD.cedula || 'N/A',
+            motivo: errBD.error,
+            error: errBD.error,
             detalle: errBD.error
           });
         }
@@ -352,6 +526,10 @@ async function importarExcel(req, res, pool) {
       success: totalProcesadosExitosos > 0 || (registrosValidos.length === 0 && filasConErrores.length === 0),
       mensaje: `Procesamiento completado: ${resultadoBD.insertados} nuevos (Insert), ${resultadoBD.actualizados} actualizados (Update)${msgVacantes || msgProvisionales}, ${filasConErrores.length} fila(s) descartadas.`,
       archivo: req.file.originalname,
+      estrategiaTransaccional: 'SAVEPOINT_POR_FILA_TOLERANTE_A_FALLOS',
+      filasInsertadas: resultadoBD.insertados,
+      filasActualizadas: resultadoBD.actualizados,
+      filasRechazadas: filasConErrores,
       metadata: {
         totalHojas: hojasProcesadas.length,
         totalFilasLeidas,

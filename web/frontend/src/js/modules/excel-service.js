@@ -6,6 +6,72 @@
 const ExcelService = (() => {
 
   /**
+   * Sanitiza valores de celdas para prevenir inyección de fórmulas (CWE-1236 / AUD-008 / AUD-009).
+   *
+   * Detecta y neutraliza fórmulas maliciosas que inician con:
+   * '=', '+', '-', '@', '\t', '\r', '\n', '|', '%'
+   * considerando espacios y caracteres de control anteriores.
+   *
+   * Reglas de preservación de tipos:
+   * 1. No altera tipos number nativos (ej: -1500, -3.14, 42).
+   * 2. No altera fechas legítimas (Date o cadenas de fecha estándar).
+   * 3. No altera cadenas que representan números negativos legítimos (ej: "-1500", "-3.14", "- 1500.25").
+   * 4. Si una cadena contiene contenido peligroso precedido de espacios o caracteres de control,
+   *    se antepone el apóstrofe "'" para forzar a Excel y Calc a interpretar la celda como texto plano.
+   */
+  function sanitizeExcelValue(val, format = 'xlsx') {
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+
+      // 1. Preservar números negativos legítimos representados como cadenas (ej: "-1500", "-3.14", "- 1500.50")
+      const isLegitNegativeNum = /^[-−]\s*\d+([.,]\d+)?$/.test(trimmed);
+
+      // 2. Preservar fechas legítimas en formato ISO o estándar (ej: "2026-03-01", "2026/03/01", "01/03/2026")
+      const isLegitDate = /^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/.test(trimmed);
+
+      // 3. Detectar si inicia con caracteres de control (\t, \r, \n, etc.) o disparadores de fórmula (=, +, -, @, |, %)
+      const hasLeadingControlChar = /^[\t\r\n\0\x0B\x0C]/.test(val);
+      const hasFormulaTrigger = /^[=+@|%\-]/.test(trimmed);
+
+      if (!val.startsWith("'") && (hasLeadingControlChar || (hasFormulaTrigger && !isLegitNegativeNum && !isLegitDate))) {
+        return "'" + val;
+      }
+    }
+    return val;
+  }
+
+  /**
+   * Post-procesamiento exhaustivo de celdas en hojas de cálculo SheetJS (ws).
+   * Garantiza que los valores de texto no se serialicen con etiquetas de fórmulas ('f')
+   * y que el tipo de celda ('t') coincida con su contenido real.
+   */
+  function cleanWorksheetCells(ws) {
+    if (!ws || typeof ws !== 'object') return;
+    for (const cellKey of Object.keys(ws)) {
+      if (cellKey.startsWith('!')) continue;
+      const cell = ws[cellKey];
+      if (!cell || typeof cell !== 'object') continue;
+
+      // 1. Eliminar cualquier propiedad formula ('f')
+      if ('f' in cell) {
+        delete cell.f;
+      }
+
+      // 2. Comprobar tipo real y forzar sanitización estricta
+      if (typeof cell.v === 'string') {
+        cell.t = 's';
+        cell.v = sanitizeExcelValue(cell.v, 'xlsx');
+      } else if (typeof cell.v === 'number') {
+        cell.t = 'n';
+      } else if (typeof cell.v === 'boolean') {
+        cell.t = 'b';
+      } else if (cell.v instanceof Date) {
+        cell.t = 'd';
+      }
+    }
+  }
+
+  /**
    * Exporta una lista de datos a un archivo Excel (.xlsx) conservando estructura,
    * formatos de fecha, moneda y anchos de columna adaptativos.
    */
@@ -42,12 +108,14 @@ const ExcelService = (() => {
     }
 
     // Transformar registros según las columnas o tomar directamente las llaves
-    let rows;
     let colWidths;
+    let ws;
     if (columns && columns.length > 0) {
-      rows = data.map((item, idx) => {
-        const row = {};
-        columns.forEach(col => {
+      // Uso de Array of Arrays (aoa) para soportar columnas con encabezados repetidos (ej: COD., GRA.)
+      const headers = columns.map(c => String(c.header || c.key || ''));
+      const aoa = [headers];
+      data.forEach((item, idx) => {
+        const rowVals = columns.map(col => {
           let val = item[col.key];
           if (val === undefined && item[col.header] !== undefined) {
             val = item[col.header];
@@ -57,11 +125,183 @@ const ExcelService = (() => {
           } else if (val == null) {
             val = '';
           }
-          row[col.header] = val;
+          return sanitizeExcelValue(val);
+        });
+        aoa.push(rowVals);
+      });
+
+      colWidths = columns.map((col, colIdx) => {
+        let maxLen = (col.header || '').length;
+        for (let r = 1; r < aoa.length; r++) {
+          const valStr = String(aoa[r][colIdx] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        }
+        return { wch: Math.max(col.width || 12, maxLen + 3) };
+      });
+
+      ws = XLSX.utils.aoa_to_sheet(aoa);
+    } else {
+      const rows = data.map(r => {
+        const clean = {};
+        for (const [k, v] of Object.entries(r || {})) {
+          clean[k] = sanitizeExcelValue(v);
+        }
+        return clean;
+      });
+      const allKeys = Object.keys(rows[0] || {});
+      colWidths = allKeys.map(k => {
+        let maxLen = k.length;
+        rows.forEach(r => {
+          const valStr = String(r[k] || '');
+          if (valStr.length > maxLen) maxLen = Math.min(valStr.length, 45);
+        });
+        return { wch: Math.max(12, maxLen + 3) };
+      });
+      ws = XLSX.utils.json_to_sheet(rows);
+    }
+
+    // Post-procesar todas las celdas de la hoja para garantizar tipo estricto y sin fórmulas
+    cleanWorksheetCells(ws);
+
+    const wb = XLSX.utils.book_new();
+    ws['!cols'] = colWidths;
+    ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
+
+    const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}`;
+    saveWorkbookWithHeaderStyle(wb, fullFilename);
+
+    if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+  }
+
+  /**
+   * Genera el contenido en texto plano formato CSV (Comma-Separated Values)
+   * aplicando estrictamente la sanitización contra inyección de fórmulas (AUD-008)
+   * y las reglas de escape RFC 4180 con soporte de UTF-8 BOM.
+   */
+  function buildCSVContent(options = {}) {
+    let columns = [];
+    let data = [];
+
+    if (Array.isArray(options)) {
+      data = options;
+    } else if (options && typeof options === 'object') {
+      columns = options.columns || [];
+      data = options.data || [];
+    }
+
+    if (!data || !data.length) return '';
+
+    const formatField = (rawVal) => {
+      const sanitized = sanitizeExcelValue(rawVal, 'csv');
+      if (sanitized === null || sanitized === undefined) return '';
+      const s = String(sanitized);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const lines = [];
+
+    if (columns && columns.length > 0) {
+      const headers = columns.map(c => formatField(c.header || c.key || ''));
+      lines.push(headers.join(','));
+
+      data.forEach((item, idx) => {
+        const rowVals = columns.map(col => {
+          let val = item[col.key];
+          if (val === undefined && item[col.header] !== undefined) {
+            val = item[col.header];
+          }
+          if (col.format && typeof col.format === 'function') {
+            val = col.format(val, item, idx);
+          } else if (val == null) {
+            val = '';
+          }
+          return formatField(val);
+        });
+        lines.push(rowVals.join(','));
+      });
+    } else {
+      const allKeys = Object.keys(data[0] || {});
+      lines.push(allKeys.map(k => formatField(k)).join(','));
+
+      data.forEach(item => {
+        const rowVals = allKeys.map(k => formatField(item[k]));
+        lines.push(rowVals.join(','));
+      });
+    }
+
+    // Prefijo UTF-8 Byte Order Mark (\uFEFF) para visualización correcta en Excel
+    return '\uFEFF' + lines.join('\r\n');
+  }
+
+  /**
+   * Exporta datos a un archivo delimitado por comas (.csv) seguro y sanitizado contra CWE-1236.
+   */
+  function exportToCSV(options = {}, legacyFilename = 'Talento360_Export') {
+    let filename = 'Talento360_Export';
+    if (typeof options === 'string') {
+      filename = options;
+    } else if (options && typeof options === 'object' && options.filename) {
+      filename = options.filename;
+    } else if (legacyFilename) {
+      filename = legacyFilename;
+    }
+
+    const csvContent = buildCSVContent(options);
+    if (!csvContent) {
+      if (typeof Fx !== 'undefined' && Fx.play) Fx.play('toggle');
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('No hay registros disponibles para exportar con los filtros seleccionados.', 'warning');
+      } else {
+        alert('No hay registros disponibles para exportar.');
+      }
+      return;
+    }
+
+    const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+
+    if (typeof Blob !== 'undefined' && typeof document !== 'undefined') {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = fullFilename;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+  }
+
+  /**
+   * Construye un ArrayBuffer binario de un archivo Excel (.xlsx) listo para empaquetar en ZIP
+   */
+  function buildWorkbookBuffer(options = {}) {
+    if (typeof XLSX === 'undefined') return null;
+    const columns = options.columns || [];
+    const data = options.data || [];
+    const sheetName = (options.sheetName || 'Datos').substring(0, 31);
+
+    let rows;
+    let colWidths;
+    if (columns && columns.length > 0) {
+      rows = data.map((item, idx) => {
+        const row = {};
+        columns.forEach(col => {
+          let val = item[col.key];
+          if (val === undefined && item[col.header] !== undefined) val = item[col.header];
+          if (col.format && typeof col.format === 'function') val = col.format(val, item, idx);
+          else if (val == null) val = '';
+          row[col.header] = sanitizeExcelValue(val);
         });
         return row;
       });
-
       colWidths = columns.map(col => {
         let maxLen = (col.header || '').length;
         rows.forEach(r => {
@@ -71,7 +311,13 @@ const ExcelService = (() => {
         return { wch: Math.max(col.width || 12, maxLen + 3) };
       });
     } else {
-      rows = data;
+      rows = data.map(r => {
+        const clean = {};
+        for (const [k, v] of Object.entries(r || {})) {
+          clean[k] = sanitizeExcelValue(v);
+        }
+        return clean;
+      });
       const allKeys = Object.keys(rows[0] || {});
       colWidths = allKeys.map(k => {
         let maxLen = k.length;
@@ -85,15 +331,11 @@ const ExcelService = (() => {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
+    cleanWorksheetCells(ws);
     ws['!cols'] = colWidths;
     ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
-
-    XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
-
-    const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}`;
-    saveWorkbookWithHeaderStyle(wb, fullFilename);
-
-    if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   }
 
   /**
@@ -200,14 +442,14 @@ const ExcelService = (() => {
    * Aplica: fila 1 con altura de 41 píxeles (30.75 pt), texto en mayúscula sostenida,
    * negrita y centrado (horizontal y vertical), y autofiltro de tabla.
    */
-  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [] }) {
+  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [], preserveCase = false }) {
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel aún no está disponible.');
       return;
     }
 
-    // Cabeceras en mayúscula sostenida
-    const headers = columns.map(col => String(col.header || col.key || '').toUpperCase());
+    // Cabeceras en mayúscula sostenida o exactas según preserveCase
+    const headers = columns.map(col => preserveCase ? String(col.header || col.key || '') : String(col.header || col.key || '').toUpperCase());
 
     // Fila 1 de encabezados (una sola fila)
     const aoa = [headers];
@@ -224,6 +466,7 @@ const ExcelService = (() => {
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(aoa);
+    cleanWorksheetCells(ws);
 
     // Altura de la fila de títulos fijada exactamente a 41 píxeles (30.75 pt)
     ws['!rows'] = [
@@ -745,8 +988,17 @@ const ExcelService = (() => {
 
   return {
     exportToExcel,
+    exportToCSV,
+    buildCSVContent,
     downloadTemplate,
-    openImportModal
+    openImportModal,
+    buildWorkbookBuffer,
+    sanitizeExcelValue,
+    cleanWorksheetCells
   };
 
 })();
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ExcelService;
+}

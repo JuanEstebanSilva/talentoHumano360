@@ -62,59 +62,100 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     esDocumentoPendiente = evaluacion.esProvisional || !cedula;
   }
 
-  // 2. Parseo estricto de fechas
-  const fechaNacimiento = parseExcelDate(row['FECHA DE NACIMIENTO'] || row['FECHA NACIMIENTO'] || row['NACIMIENTO']);
-  const fechaIngreso = parseExcelDate(row['INGRESO'] || row['FECHA DE INGRESO'] || row['FECHA INGRESO']);
-  const fechaEncargo = parseExcelDate(row['FECHA DE ENCARGO'] || row['FECHA ENCARGO']);
+  // 2. Parseo estricto de fechas con captura de errores
+  const rawNac = row['FECHA DE NACIMIENTO'] || row['FECHA NACIMIENTO'] || row['NACIMIENTO'];
+  let fechaNacimiento = null;
+  if (rawNac !== undefined && rawNac !== null && String(rawNac).trim() !== '') {
+    fechaNacimiento = parseExcelDate(rawNac);
+    if (!fechaNacimiento) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Nacimiento: "${rawNac}"`);
+      err.campo = 'FECHA DE NACIMIENTO';
+      err.valor = String(rawNac);
+      throw err;
+    }
+  }
+
+  const rawIng = row['INGRESO'] || row['FECHA DE INGRESO'] || row['FECHA INGRESO'];
+  let fechaIngreso = null;
+  if (rawIng !== undefined && rawIng !== null && String(rawIng).trim() !== '') {
+    fechaIngreso = parseExcelDate(rawIng);
+    if (!fechaIngreso) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Ingreso: "${rawIng}"`);
+      err.campo = 'FECHA DE INGRESO';
+      err.valor = String(rawIng);
+      throw err;
+    }
+  }
+
+  const rawEnc = rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO'];
+  let fechaEncargo = null;
+  if (rawEnc !== undefined && rawEnc !== null && String(rawEnc).trim() !== '') {
+    fechaEncargo = parseExcelDate(rawEnc);
+    if (!fechaEncargo) {
+      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Encargo: "${rawEnc}"`);
+      err.campo = 'FECHA DE ENCARGO';
+      err.valor = String(rawEnc);
+      throw err;
+    }
+  }
 
   // 3. Cálculo dinámico de Edad y Tiempo de Servicio (Reglas 13 y 14: "X años, Y meses, Z días")
   const edadObj = fechaNacimiento ? calcularDiferenciaFechasExacta(fechaNacimiento) : null;
   const tiempoServicioObj = fechaIngreso ? calcularDiferenciaFechasExacta(fechaIngreso) : null;
 
-  // 4. Denominación del Cargo y Consolidación de Columnas (Regla 1)
-  // Se prioriza de forma estricta la columna F (Cargo Actual), G (Código Actual), H (Grado Actual)
-  // pero manteniendo compatibilidad total si la fila trae denominación nominal en columnas A, B, C.
-  const cargoActualText = sanitizeString(
+  // 4. Denominación del Cargo Titular y Datos de Encargo Oficial
+  // En el estándar institucional:
+  // - Col F (5), G (6), H (7): Cargo Titular / Base (DENOMINACIÓN CARGO, CÓDIGO, GRADO)
+  // - Col A (0), B (1), C (2), D (3): Encargo (DENOMINACIÓN ENCARGO, CÓDIGO, GRADO, ASIGNACIÓN)
+  const cargoTitularText = sanitizeString(
+    rawRow['__CARGO_TITULAR__'] ||
     rawRow['__CARGO_ACTUAL__'] ||
-    row['DENOMINACIÓN CARGO_1'] || row['DENOMINACION CARGO_1'] || row['CARGO_1'] ||
-    row['DENOMINACIÓN CARGO.1'] || row['DENOMINACION CARGO.1'] || row['CARGO.1'] ||
-    row['CARGO ACTUAL'] || row['DENOMINACIÓN CARGO ACTUAL'] || row['DENOMINACION CARGO ACTUAL'] ||
-    row['DENOMINACIÓN CARGO'] || row['DENOMINACION CARGO'] || row['CARGO']
-  ) || null;
+    row['DENOMINACIÓN CARGO'] || row['DENOMINACION CARGO'] || row['CARGO TITULAR'] ||
+    row['DENOMINACIÓN CARGO_1'] || row['DENOMINACION CARGO_1'] || row['CARGO']
+  ) || 'CARGO POR DEFINIR';
 
-  const codigoActual = sanitizeString(
+  const codigoTitular = sanitizeString(
+    rawRow['__CODIGO_TITULAR__'] ||
     rawRow['__CODIGO_ACTUAL__'] ||
     row['COD._1'] || row['COD_1'] || row['CODIGO_1'] || row['CÓDIGO_1'] ||
-    row['COD..1'] || row['COD.1'] || row['CODIGO.1'] || row['CÓDIGO.1'] ||
-    row['CODIGO ACTUAL'] || row['CÓDIGO ACTUAL'] || row['COD. ACTUAL'] || row['COD ACTUAL'] ||
     row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO']
-  ) || null;
+  ) || 'N/A';
 
-  const gradoActual = sanitizeString(
+  const gradoTitular = sanitizeString(
+    rawRow['__GRADO_TITULAR__'] ||
     rawRow['__GRADO_ACTUAL__'] ||
     row['GRA._1'] || row['GRA_1'] || row['GRADO_1'] ||
-    row['GRA..1'] || row['GRA.1'] || row['GRADO.1'] ||
-    row['GRADO ACTUAL'] || row['GRA. ACTUAL'] || row['GRA ACTUAL'] ||
     row['GRA.'] || row['GRA'] || row['GRADO']
+  ) || 'N/A';
+
+  // Datos específicos del encargo si la persona lo tiene activo
+  const encargoDenominacionText = sanitizeString(
+    rawRow['__ENCARGO_DENOMINACION__'] ||
+    row['DENOMINACIÓN ENCARGO'] || row['DENOMINACION ENCARGO'] || row['ENCARGO']
   ) || null;
 
-  const cargoNominalText = sanitizeString(
-    rawRow['__CARGO_NOMINAL__'] ||
-    row['DENOMINACIÓN CARGO'] || row['DENOMINACION CARGO'] || row['CARGO BASE'] || row['CARGO NOMINAL']
-  ) || cargoActualText || 'CARGO POR DEFINIR';
+  const encargoCodigoText = sanitizeString(
+    rawRow['__ENCARGO_CODIGO__'] ||
+    (encargoDenominacionText ? (row['COD.'] || row['COD'] || row['CODIGO']) : null)
+  ) || null;
 
-  const codigoNominal = sanitizeString(
-    rawRow['__CODIGO_NOMINAL__'] ||
-    row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO']
-  ) || codigoActual;
+  const encargoGradoText = sanitizeString(
+    rawRow['__ENCARGO_GRADO__'] ||
+    (encargoDenominacionText ? (row['GRA.'] || row['GRA'] || row['GRADO']) : null)
+  ) || null;
 
-  const gradoNominal = sanitizeString(
-    rawRow['__GRADO_NOMINAL__'] ||
-    row['GRA.'] || row['GRA'] || row['GRADO']
-  ) || gradoActual;
+  const rawAsignacion = rawRow['__ENCARGO_ASIGNACION__'] || row['ASIGNACION'] || row['ASIGNACIÓN'] || row['ASIGNACIO'];
+  let encargoAsignacionText = null;
+  if (rawAsignacion != null) {
+    const s = sanitizeString(rawAsignacion);
+    if (s) {
+      const num = sanitizeMoney(s);
+      encargoAsignacionText = num != null ? `$ ${Number(num).toLocaleString('es-CO')}` : s;
+    }
+  }
 
-  // Cargo principal consolidado (prioriza F, G, H)
-  const cargoPrincipal = cargoActualText || cargoNominalText;
+  // Cargo principal consolidado (el titular)
+  const cargoPrincipal = cargoTitularText;
 
   // 5. Nombres y Apellidos (Regla 7)
   let primerApellido = sanitizeString(row['PRIMER APELLIDO']) || '';
@@ -129,6 +170,27 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     segundoApellido = cargoPrincipal;
   } else if (!nombreCompleto) {
     nombreCompleto = sanitizeString(row['NOMBRE COMPLETO'] || row['FUNCIONARIO']) || `SERVIDOR SIN CÉDULA #${rowNumber}`;
+  } else {
+    // Validación estricta de formato: nombres y apellidos solo admiten letras, acentos y espacios
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'-]+$/;
+    if (primerApellido && !nameRegex.test(primerApellido)) {
+      const err = new Error(`El Primer Apellido "${primerApellido}" contiene caracteres o números no permitidos.`);
+      err.campo = 'PRIMER APELLIDO';
+      err.valor = primerApellido;
+      throw err;
+    }
+    if (segundoApellido && !nameRegex.test(segundoApellido)) {
+      const err = new Error(`El Segundo Apellido "${segundoApellido}" contiene caracteres o números no permitidos.`);
+      err.campo = 'SEGUNDO APELLIDO';
+      err.valor = segundoApellido;
+      throw err;
+    }
+    if (nombres && !nameRegex.test(nombres)) {
+      const err = new Error(`El campo Nombres "${nombres}" contiene caracteres o números no permitidos.`);
+      err.campo = 'NOMBRES';
+      err.valor = nombres;
+      throw err;
+    }
   }
 
   // 6. Parsing de Celulares (Regla 21: busca números separados por / y los convierte a arreglo)
@@ -199,18 +261,31 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       edadDetallada: esVacante ? null : (edadObj ? edadObj.texto : (sanitizeString(row['EDAD']) || null)),
       sexo: esVacante ? null : sanitizeString(row['SEXO'])
     },
+    cargoTitular: {
+      denominacion: cargoTitularText,
+      codigo: codigoTitular,
+      grado: gradoTitular
+    },
+    encargo: {
+      denominacion: encargoDenominacionText,
+      codigo: encargoCodigoText,
+      grado: encargoGradoText,
+      asignacion: encargoAsignacionText,
+      fechaEncargoDate: fechaEncargo,
+      fechaEncargoStr: formatDateISO(fechaEncargo)
+    },
     cargoNominal: {
-      denominacion: cargoNominalText,
-      codigo: codigoNominal,
-      grado: gradoNominal,
-      asignacion: sanitizeMoney(row['ASIGNACION'] || row['ASIGNACIÓN'] || rawRow['__ASIGNACION__'])
+      denominacion: cargoTitularText,
+      codigo: codigoTitular,
+      grado: gradoTitular,
+      asignacion: encargoAsignacionText
     },
     cargoActual: {
-      denominacion: cargoPrincipal,
-      codigo: codigoActual || codigoNominal,
-      grado: gradoActual || gradoNominal
+      denominacion: encargoDenominacionText || cargoTitularText,
+      codigo: encargoCodigoText || codigoTitular,
+      grado: encargoGradoText || gradoTitular
     },
-    dependencia: sanitizeString(row['DEPENDENCIA'] || row['AREA'] || row['DEPENDENCIA ACTUAL']),
+    dependencia: sanitizeString(rawRow['__DEPENDENCIA__'] || row['DEPENDENCIA'] || row['AREA'] || row['DEPENDENCIA ACTUAL']),
     vinculacion: {
       fechaIngresoDate: esVacante ? null : fechaIngreso,
       fechaIngresoStr: esVacante ? null : formatDateISO(fechaIngreso),

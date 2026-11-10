@@ -50,22 +50,85 @@ const pool = new Pool(
         ssl:      process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       }
 );
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'No autorizado.' });
+  let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Token inválido.' }); }
+  catch { res.status(401).json({ error: 'Token inválido o sesión expirada.' }); }
 }
-function canEdit(role) {
-  return role && (role.toLowerCase().includes('administrador') || role.toLowerCase().includes('coordinador'));
+function hasPermission(user, requiredPerm) {
+  if (!user) return false;
+  const role = String(typeof user === 'string' ? user : (user.role || user.rol || '')).toLowerCase();
+  const mods = (typeof user === 'object' && Array.isArray(user.modules))
+    ? user.modules
+    : (typeof user === 'object' && typeof user.modules === 'string' ? user.modules.split(',').map(m => m.trim().toLowerCase()) : []);
+  const perms = (typeof user === 'object' && Array.isArray(user.permissions)) ? user.permissions : [];
+
+  // 1. Acceso de Administrador General / Superusuario
+  if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all') || perms.includes('*')) {
+    return true;
+  }
+
+  // 2. Verificación estricta de permiso granular
+  if (requiredPerm) {
+    if (perms.includes(requiredPerm)) return true;
+    const [mod, action] = requiredPerm.split(':');
+    if (perms.includes(`${mod}:*`)) return true;
+    // Si la acción es lectura (read) y el módulo está asignado (sin restricción de solo escritura)
+    if (action === 'read' && mods.includes(mod)) return true;
+    // Para escritura (write/delete/import/export), NO basta tener el nombre del módulo en mods si perms existe
+    if (perms.length === 0 && mods.includes(mod)) return true;
+    if (action === 'write' && (mods.includes(`${mod}_write`) || mods.includes(`${mod}:write`))) return true;
+  }
+
+  return false;
+}
+
+function canEdit(user) {
+  return hasPermission(user, 'employees:write');
+}
+
+function canRead(user) {
+  return hasPermission(user, 'employees:read');
+}
+
+function canLookup(user) {
+  return canRead(user) ||
+    hasPermission(user, 'horarios:read') ||
+    hasPermission(user, 'horarios:write') ||
+    hasPermission(user, 'viaticos:read') ||
+    hasPermission(user, 'viaticos:write') ||
+    hasPermission(user, 'requests:read') ||
+    hasPermission(user, 'requests:write');
 }
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
 
 // ─── POST /api/employees/importar-excel (Carga Masiva de Archivo Excel) ─────────
 router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, res) => {
-  if (!canEdit(req.user.role)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ success: false, error: 'Permisos insuficientes para realizar la importación masiva.' });
   }
 
@@ -87,6 +150,10 @@ router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, r
 // - Dependencia
 // - Secretaría
 router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) => {
+  if (!canLookup(req.user)) {
+    return res.status(403).json({ success: false, error: 'Acceso denegado. Permisos insuficientes para consultar el censo de funcionarios.' });
+  }
+
   const { q = '', cedula = '', limit = 8 } = req.query;
   const searchLimit = Math.min(Math.max(1, parseInt(limit, 10) || 8), 25);
 
@@ -125,6 +192,11 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
     whereQuery += `)`;
 
+    params.push(rawTerm);
+    const rawTermParam = `$${params.length}`;
+    params.push(cleanCedula);
+    const cleanCedulaParam = `$${params.length}`;
+
     params.push(searchLimit);
     const limitParam = `$${params.length}`;
 
@@ -146,7 +218,7 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
       ORDER BY 
         CASE WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo' THEN 1 ELSE 2 END,
         CASE 
-          WHEN p.cedula = '${rawTerm.replace(/'/g, "''")}' OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = '${cleanCedula.replace(/'/g, "''")}' THEN 1 
+          WHEN p.cedula = ${rawTermParam} OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') = ${cleanCedulaParam} THEN 1 
           ELSE 2 
         END,
         p.nombre_completo ASC
@@ -199,7 +271,42 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
 
 // ─── GET /api/employees ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q = '', dependencia = '', cargo = '', page = 1, limit = 30 } = req.query;
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de servidores públicos.' });
+  }
+  const {
+    q = '',
+    dependencia = '',
+    cargo = '',
+    codigoCargo = '',
+    grado = '',
+    tipoSangre = '',
+    sexo = '',
+    edadMin = '',
+    edadMax = '',
+    fechaNacDesde = '',
+    fechaNacHasta = '',
+    tieneDiscapacidad = '',
+    tipoDiscapacidad = '',
+    situacion = '',
+    clasificacion = '',
+    concurso = '',
+    opec = '',
+    fechaIngresoDesde = '',
+    fechaIngresoHasta = '',
+    fechaEncargoDesde = '',
+    fechaEncargoHasta = '',
+    tieneEncargo = '',
+    encargoDenominacion = '',
+    encargoCodigo = '',
+    encargoGrado = '',
+    estudios = '',
+    institucionEstudios = '',
+    tieneDiplomado = '',
+    sortBy = '',
+    page = 1,
+    limit = 30
+  } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
   try {
     const trimmedQ = (q || '').trim();
@@ -263,10 +370,198 @@ router.get('/', auth, async (req, res) => {
         OR LOWER(cb.cargo) = LOWER($${cargoIdx})
       )`);
     }
+    // ─── FILTROS AVANZADOS ────────────────────────────────────────────────────────
+    if (codigoCargo && codigoCargo.trim()) {
+      params.push(codigoCargo.trim());
+      const idx = params.length;
+      whereConditions.push('(ca.codigo = $' + idx + ' OR cb.codigo = $' + idx + ' OR r.encargo_codigo = $' + idx + ')');
+    }
+
+    if (grado && grado.trim()) {
+      params.push(grado.trim());
+      const idx = params.length;
+      whereConditions.push('(ca.grado = $' + idx + ' OR cb.grado = $' + idx + ' OR r.encargo_grado = $' + idx + ')');
+    }
+
+    if (tipoSangre && tipoSangre.trim()) {
+      params.push(tipoSangre.trim());
+      const idx = params.length;
+      whereConditions.push('REPLACE(UPPER(COALESCE(p.tipo_sangre, \'\')), \'0\', \'O\') = REPLACE(UPPER($' + idx + '), \'0\', \'O\')');
+    }
+
+    if (sexo && sexo.trim()) {
+      const s = sexo.trim().toUpperCase();
+      if (s === 'M' || s.startsWith('MASC')) {
+        whereConditions.push('(UPPER(COALESCE(p.sexo, \'\')) LIKE \'M%\' OR UPPER(COALESCE(p.sexo, \'\')) = \'M\')');
+      } else if (s === 'F' || s.startsWith('FEM')) {
+        whereConditions.push('(UPPER(COALESCE(p.sexo, \'\')) LIKE \'F%\' OR UPPER(COALESCE(p.sexo, \'\')) = \'F\')');
+      } else {
+        params.push(s);
+        whereConditions.push('UPPER(COALESCE(p.sexo, \'\')) = UPPER($' + params.length + ')');
+      }
+    }
+
+    if (edadMin && !isNaN(parseInt(edadMin, 10))) {
+      params.push(parseInt(edadMin, 10));
+      whereConditions.push('(p.fecha_nacimiento ~ \'^\\d{4}-\\d{2}-\\d{2}$\' AND DATE_PART(\'year\', AGE(CURRENT_DATE, p.fecha_nacimiento::date)) >= $' + params.length + ')');
+    }
+
+    if (edadMax && !isNaN(parseInt(edadMax, 10))) {
+      params.push(parseInt(edadMax, 10));
+      whereConditions.push('(p.fecha_nacimiento ~ \'^\\d{4}-\\d{2}-\\d{2}$\' AND DATE_PART(\'year\', AGE(CURRENT_DATE, p.fecha_nacimiento::date)) <= $' + params.length + ')');
+    }
+
+    if (fechaNacDesde && fechaNacDesde.trim()) {
+      params.push(fechaNacDesde.trim());
+      whereConditions.push('p.fecha_nacimiento >= $' + params.length);
+    }
+
+    if (fechaNacHasta && fechaNacHasta.trim()) {
+      params.push(fechaNacHasta.trim());
+      whereConditions.push('p.fecha_nacimiento <= $' + params.length);
+    }
+
+    if (tieneDiscapacidad) {
+      const td = tieneDiscapacidad.trim().toLowerCase();
+      if (td === 'si' || td === 'true' || td === '1') {
+        whereConditions.push('(p.tipo_discapacidad IS NOT NULL AND TRIM(p.tipo_discapacidad) != \'\' AND UPPER(p.tipo_discapacidad) NOT IN (\'NINGUNA\', \'NINGUNO\', \'NO REGISTRA\', \'SIN ESPECIFICAR\'))');
+      } else if (td === 'no' || td === 'false' || td === '0') {
+        whereConditions.push('(p.tipo_discapacidad IS NULL OR TRIM(p.tipo_discapacidad) = \'\' OR UPPER(p.tipo_discapacidad) IN (\'NINGUNA\', \'NINGUNO\', \'NO REGISTRA\', \'SIN ESPECIFICAR\'))');
+      }
+    }
+
+    if (tipoDiscapacidad && tipoDiscapacidad.trim()) {
+      params.push('%' + tipoDiscapacidad.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(p.tipo_discapacidad, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (situacion && situacion.trim()) {
+      params.push('%' + situacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (clasificacion && clasificacion.trim()) {
+      params.push('%' + clasificacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (concurso) {
+      const cc = concurso.trim().toLowerCase();
+      if (cc === 'si' || cc === 'true' || cc === '1') {
+        whereConditions.push('(e.opec IS NOT NULL AND TRIM(e.opec) != \'\' AND UPPER(e.opec) NOT IN (\'NO\', \'NO REGISTRADO\', \'NINGUNA\', \'NINGUNO\', \'0\'))');
+      } else if (cc === 'no' || cc === 'false' || cc === '0') {
+        whereConditions.push('(e.opec IS NULL OR TRIM(e.opec) = \'\' OR UPPER(e.opec) IN (\'NO\', \'NO REGISTRADO\', \'NINGUNA\', \'NINGUNO\', \'0\'))');
+      }
+    }
+
+    if (opec && opec.trim()) {
+      params.push('%' + opec.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(e.opec, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (fechaIngresoDesde && fechaIngresoDesde.trim()) {
+      params.push(fechaIngresoDesde.trim());
+      whereConditions.push('r.fecha_ingreso >= $' + params.length);
+    }
+
+    if (fechaIngresoHasta && fechaIngresoHasta.trim()) {
+      params.push(fechaIngresoHasta.trim());
+      whereConditions.push('r.fecha_ingreso <= $' + params.length);
+    }
+
+    if (fechaEncargoDesde && fechaEncargoDesde.trim()) {
+      params.push(fechaEncargoDesde.trim());
+      whereConditions.push('r.fecha_encargo >= $' + params.length);
+    }
+
+    if (fechaEncargoHasta && fechaEncargoHasta.trim()) {
+      params.push(fechaEncargoHasta.trim());
+      whereConditions.push('r.fecha_encargo <= $' + params.length);
+    }
+
+    if (tieneEncargo) {
+      const te = tieneEncargo.trim().toLowerCase();
+      if (te === 'si' || te === 'true' || te === '1') {
+        whereConditions.push('((r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != \'\') OR UPPER(COALESCE(e.situacion, \'\')) = \'ENCARGO\')');
+      } else if (te === 'no' || te === 'false' || te === '0') {
+        whereConditions.push('((r.encargo_denominacion IS NULL OR TRIM(r.encargo_denominacion) = \'\') AND UPPER(COALESCE(e.situacion, \'\')) != \'ENCARGO\')');
+      }
+    }
+
+    if (encargoDenominacion && encargoDenominacion.trim()) {
+      params.push('%' + encargoDenominacion.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(r.encargo_denominacion, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (encargoCodigo && encargoCodigo.trim()) {
+      params.push(encargoCodigo.trim());
+      whereConditions.push('r.encargo_codigo = $' + params.length);
+    }
+
+    if (encargoGrado && encargoGrado.trim()) {
+      params.push(encargoGrado.trim());
+      whereConditions.push('r.encargo_grado = $' + params.length);
+    }
+
+    if (estudios && estudios.trim()) {
+      params.push('%' + estudios.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(edu.estudios, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (institucionEstudios && institucionEstudios.trim()) {
+      params.push('%' + institucionEstudios.trim() + '%');
+      whereConditions.push('UPPER(COALESCE(edu.institucion_estudios, \'\')) LIKE UPPER($' + params.length + ')');
+    }
+
+    if (tieneDiplomado) {
+      const td = tieneDiplomado.trim().toLowerCase();
+      if (td === 'si' || td === 'true' || td === '1') {
+        whereConditions.push('edu.tiene_diplomado = true');
+      } else if (td === 'no' || td === 'false' || td === '0') {
+        whereConditions.push('(edu.tiene_diplomado = false OR edu.tiene_diplomado IS NULL)');
+      }
+    }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const limitParam = `$${params.length + 1}`;
     const offsetParam = `$${params.length + 2}`;
+
+    let orderClause = `
+      CASE 
+        -- 1. Inactivos de últimas (prioridad 2)
+        WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) != 'activo' THEN 2
+        -- 2. Sin cédula de penúltimas (prioridad 1): documento_pendiente, prefijo PROV-, nulo/vacío, o vacantes
+        WHEN COALESCE(p.documento_pendiente, false) = true
+          OR p.cedula LIKE 'PROV-%'
+          OR p.cedula IS NULL
+          OR TRIM(p.cedula) = ''
+          OR TRIM(p.cedula) = '0'
+          OR COALESCE(p.es_vacante, false) = true
+          OR p.primer_apellido = 'VACANTE'
+          OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+          THEN 1
+        -- 3. Activos con cédula de primeras (prioridad 0)
+        ELSE 0 
+      END ASC,
+      p.nombre_completo ASC`;
+
+    if (sortBy === 'fecha_ingreso_asc' || sortBy === 'tiempo_servicio_desc') {
+      orderClause = `r.fecha_ingreso ASC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'fecha_ingreso_desc' || sortBy === 'tiempo_servicio_asc') {
+      orderClause = `r.fecha_ingreso DESC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'edad_asc') {
+      orderClause = `p.fecha_nacimiento DESC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'edad_desc') {
+      orderClause = `p.fecha_nacimiento ASC NULLS LAST, p.nombre_completo ASC`;
+    } else if (sortBy === 'alfabetico_asc') {
+      orderClause = `p.nombre_completo ASC`;
+    } else if (sortBy === 'alfabetico_desc') {
+      orderClause = `p.nombre_completo DESC`;
+    } else if (sortBy === 'cedula_asc') {
+      orderClause = `NULLIF(REGEXP_REPLACE(p.cedula, '[^0-9]', '', 'g'), '')::BIGINT ASC NULLS LAST`;
+    } else if (sortBy === 'cedula_desc') {
+      orderClause = `NULLIF(REGEXP_REPLACE(p.cedula, '[^0-9]', '', 'g'), '')::BIGINT DESC NULLS LAST`;
+    }
 
     const sql = `
       WITH vacantes_enum AS (
@@ -328,9 +623,14 @@ router.get('/', auth, async (req, res) => {
              COALESCE(e.opec,'') AS opec,
              COALESCE(e.novedades,'') AS novedades,
              COALESCE(r.fecha_ingreso,'') AS fecha_ingreso,
+             COALESCE(r.fecha_retiro,'') AS fecha_retiro,
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
+             COALESCE(r.encargo_denominacion,'') AS encargo_denominacion,
+             COALESCE(r.encargo_codigo,'') AS encargo_codigo,
+             COALESCE(r.encargo_grado,'') AS encargo_grado,
+             COALESCE(r.encargo_asignacion,'') AS encargo_asignacion,
              r.otros_tiempos_periodos
       FROM rel_principal r
       LEFT JOIN vacantes_enum ve ON ve.id_registro = r.id_registro
@@ -342,24 +642,7 @@ router.get('/', auth, async (req, res) => {
       LEFT JOIN educacion edu  ON edu.id_educacion   = r.id_educacion
       LEFT JOIN estados e      ON e.id_estado         = r.id_estado
       ${whereClause}
-      ORDER BY 
-        CASE 
-          -- 1. Inactivos de últimas (prioridad 2)
-          WHEN LOWER(COALESCE(e.estado_servidor, 'Activo')) != 'activo' THEN 2
-          -- 2. Sin cédula de penúltimas (prioridad 1): documento_pendiente, prefijo PROV-, nulo/vacío, o vacantes
-          WHEN COALESCE(p.documento_pendiente, false) = true
-            OR p.cedula LIKE 'PROV-%'
-            OR p.cedula IS NULL
-            OR TRIM(p.cedula) = ''
-            OR TRIM(p.cedula) = '0'
-            OR COALESCE(p.es_vacante, false) = true
-            OR p.primer_apellido = 'VACANTE'
-            OR p.nombre_completo LIKE 'PLAZA VACANTE%'
-            THEN 1
-          -- 3. Activos con cédula de primeras (prioridad 0)
-          ELSE 0 
-        END ASC,
-        p.nombre_completo ASC
+      ORDER BY ${orderClause}
       LIMIT ${limitParam} OFFSET ${offsetParam}`;
 
     const allParams = [...params, parseInt(limit), offset];
@@ -394,8 +677,10 @@ router.get('/', auth, async (req, res) => {
         // Cálculo dinámico estricto: "X años, Y meses, Z días"
         const dateNac = parseExcelDate(r.fecha_nacimiento);
         const dateIng = parseExcelDate(r.fecha_ingreso);
+        const esRetirado = (r.estado_servidor || '').toLowerCase() === 'retirado' || (r.situacion || '').toLowerCase() === 'retirado';
+        const dateRetiro = esRetirado ? parseExcelDate(r.fecha_retiro) : null;
         const edadCalc = dateNac ? calcularDiferenciaFechasExacta(dateNac) : null;
-        const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng) : null;
+        const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRetiro || undefined) : null;
         const esVacante = Boolean(r.es_vacante);
         const numeroVacante = r.numero_vacante ? parseInt(r.numero_vacante) : null;
         const codigoVacante = r.codigo_vacante || (numeroVacante ? `PLAZA VACANTE ${String(numeroVacante).padStart(4, '0')}` : (esVacante ? 'PLAZA VACANTE' : null));
@@ -483,12 +768,21 @@ router.get('/', auth, async (req, res) => {
           opec: esVacante ? null : r.opec,
           novedades: esVacante ? 'PLAZA VACANTE' : r.novedades,
           fechaIngreso: esVacante ? null : r.fecha_ingreso,
+          fechaRetiro: esVacante ? null : (r.fecha_retiro || null),
+          esRetirado: esRetirado,
           fechaEncargo: esVacante ? null : r.fecha_encargo,
           tiempoServicioCalculado: esVacante ? null : (tiempoCalc ? tiempoCalc.texto : 'No disponible'),
           otroTiempoGobernacion: esVacante ? null : r.otro_tiempo_gobernacion,
           otroTiempoCalculado: esVacante ? null : (otroTiempoCalc && otroTiempoCalc.tieneValor ? otroTiempoCalc.texto : '0 años, 0 meses, 0 días'),
           otroTiempoPeriodos: esVacante ? [] : (Array.isArray(r.otros_tiempos_periodos) ? r.otros_tiempos_periodos : []),
           tiempoTotalGobernacion: esVacante ? null : (tiempoTotalCalc ? tiempoTotalCalc.texto : (tiempoCalc ? tiempoCalc.texto : 'No disponible')),
+          encargoDenominacion: clean(r.encargo_denominacion),
+          encargoCodigo: clean(r.encargo_codigo),
+          encargoGrado: clean(r.encargo_grado),
+          encargoAsignacion: clean(r.encargo_asignacion),
+          cargoTitular: clean(r.cargo_base || r.cargo_actual),
+          codigoTitular: clean(r.codigo_base || r.codigo_actual),
+          gradoTitular: clean(r.grado_base || r.grado_actual),
           sexo: esVacante ? null : r.sexo,
           documento_pendiente: esVacante ? false : Boolean(r.documento_pendiente),
           es_vacante: esVacante,
@@ -501,7 +795,7 @@ router.get('/', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('[employees] list error:', err.message);
-    res.status(500).json({ error: 'Error al listar servidores.' });
+    res.status(500).json({ error: 'Error al listar servidores públicos.', details: err.message });
   }
 });
 
@@ -510,7 +804,7 @@ router.get('/catalogs', auth, async (_, res) => {
   try {
     const [depsRes, cargosRes, cargosPorDepRes, divipolaRes, estudiosRes, instRes, discRes] = await Promise.all([
       pool.query('SELECT DISTINCT dependencia FROM dependencias WHERE dependencia IS NOT NULL AND dependencia <> \'\' ORDER BY dependencia'),
-      pool.query('SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> \'\' ORDER BY cargo'),
+      pool.query(`SELECT DISTINCT cargo, codigo, grado, asignacion_sueldo, nivel FROM cargos WHERE cargo IS NOT NULL AND cargo <> '' AND cargo !~ '^[0-9]' AND cargo NOT IN ('NO REGISTRADO', 'XXXXX', 'CARGO POR DEFINIR') ORDER BY cargo`),
       pool.query(`
         SELECT DISTINCT d.dependencia, c.cargo, c.codigo, c.grado, c.asignacion_sueldo, c.nivel
         FROM rel_principal r
@@ -565,7 +859,7 @@ router.get('/catalogs', auth, async (_, res) => {
     const cargosSet = new Set();
     for (const r of cargosRes.rows) {
       const cName = clean(r.cargo)?.toUpperCase();
-      if (cName && !cargosSet.has(cName)) {
+      if (cName && !cargosSet.has(cName) && !cName.match(/^[0-9]/) && !['NO REGISTRADO', 'XXXXX', 'CARGO POR DEFINIR'].includes(cName)) {
         cargosSet.add(cName);
         cargosList.push({
           cargo: cName,
@@ -649,9 +943,76 @@ router.get('/catalogs', auth, async (_, res) => {
   }
 });
 
+// ─── GET /api/employees/municipios & /divipola (AUD-005 / AUD-006) ───────────
+router.get(['/municipios', '/divipola'], auth, async (req, res) => {
+  try {
+    const { q = '', depto = '15' } = req.query;
+    const cleanQ = (q || '').trim();
+    const cleanDepto = (depto || '').trim();
+
+    let sql = `
+      SELECT codigo_mpio AS codigo, municipio, departamento
+      FROM divipola
+      WHERE 1=1
+    `;
+    const params = [];
+    let idx = 1;
+
+    if (cleanDepto && cleanDepto !== 'todos') {
+      sql += ` AND (codigo_depto = $${idx} OR TRANSLATE(LOWER(departamento), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') = TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn'))`;
+      params.push(cleanDepto);
+      idx++;
+    }
+
+    if (cleanQ) {
+      sql += ` AND (
+        codigo_mpio LIKE $${idx}
+        OR TRANSLATE(LOWER(municipio), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`;
+      params.push(`%${cleanQ}%`);
+      idx++;
+    }
+
+    sql += ` ORDER BY municipio ASC LIMIT 250`;
+    const r = await pool.query(sql, params);
+    res.json({
+      total: r.rowCount,
+      departamento: cleanDepto || 'BOYACÁ',
+      municipios: r.rows
+    });
+  } catch (err) {
+    console.error('[employees] municipios error:', err);
+    res.status(500).json({ error: 'Error al consultar municipios.' });
+  }
+});
+
+// ─── POST /api/employees/dependencias (Registro Directo de Nueva Dependencia) ─
+router.post('/dependencias', auth, async (req, res) => {
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  try {
+    const { nombre } = req.body;
+    const cleanName = clean(nombre)?.toUpperCase();
+    if (!cleanName || ['NO REGISTRADO', 'HOLAAAAAAAA', 'HOJA2', 'NINGUNA'].includes(cleanName)) {
+      return res.status(400).json({ error: 'Nombre de dependencia inválido.' });
+    }
+    const existing = await pool.query('SELECT id_dependencia, dependencia FROM dependencias WHERE LOWER(TRIM(dependencia)) = LOWER($1) LIMIT 1', [cleanName]);
+    if (existing.rows.length > 0) {
+      return res.json({ message: 'La dependencia ya existe', dependencia: existing.rows[0].dependencia, id_dependencia: existing.rows[0].id_dependencia });
+    }
+    const maxRes = await pool.query("SELECT COALESCE(MAX(SUBSTRING(id_dependencia FROM '[0-9]+')::int), 0) AS max_id FROM dependencias WHERE id_dependencia ~ '^DEP[0-9]+'");
+    const nextNum = (maxRes.rows[0]?.max_id || 0) + 1;
+    const newId = `DEP${String(nextNum).padStart(3, '0')}`;
+    await pool.query('INSERT INTO dependencias(id_dependencia, dependencia) VALUES ($1, $2)', [newId, cleanName]);
+    res.status(201).json({ message: 'Dependencia creada exitosamente', id_dependencia: newId, dependencia: cleanName });
+  } catch (err) {
+    console.error('[employees] create dependencia error:', err.message);
+    res.status(500).json({ error: 'Error al registrar dependencia.' });
+  }
+});
+
 // ─── POST /api/employees (Crear Servidor con 22 Reglas Estrictas) ─────────────
 router.post('/', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
 
   const {
     nombreCompleto,
@@ -674,6 +1035,10 @@ router.post('/', auth, async (req, res) => {
     opec,
     fechaIngreso,
     fechaEncargo,
+    encargoDenominacion,
+    encargoCodigo,
+    encargoGrado,
+    encargoAsignacion,
     otroTiempoGobernacion,
     otroTiempoPeriodos,
     funciones,
@@ -710,8 +1075,17 @@ router.post('/', auth, async (req, res) => {
   const gradoValidado = validateGrado(grado);
   if (!gradoValidado.valido) return res.status(400).json({ error: gradoValidado.error });
 
-  // 5. Validar Estado del Servidor (Regla 6: Activo, Inactivo, Pensionado)
-  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  // 5. Validar Estado del Servidor (Deducido de Situación Administrativa si aplica)
+  let estadoParaValidar = estadoServidor;
+  const sitUpperPost = String(situacion || '').toUpperCase().trim();
+  if (sitUpperPost === 'RETIRADO' || sitUpperPost === 'INACTIVO') {
+    estadoParaValidar = 'Retirado';
+  } else if (sitUpperPost.includes('PENSION') && !sitUpperPost.includes('PREPENSION')) {
+    estadoParaValidar = 'Pensionado';
+  } else if (!estadoParaValidar) {
+    estadoParaValidar = 'Activo';
+  }
+  const estadoServidorValidado = validateEstadoServidor(estadoParaValidar);
   if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
 
   // 6. Validar Sexo (Opcional: si se ingresa valida Femenino, Masculino, Prefiero no decirlo)
@@ -775,13 +1149,18 @@ router.post('/', auth, async (req, res) => {
     }
 
     const nextId = async (table, col, prefix, width) => {
-      const r = await client.query(`SELECT ${col} FROM ${table}`);
-      let max = 0;
-      r.rows.forEach(row => {
-        const digits = (row[col.toLowerCase()] || '').replace(/\D/g, '');
-        if (digits) max = Math.max(max, parseInt(digits));
-      });
-      return prefix + String(max + 1).padStart(width, '0');
+      const seqMap = {
+        personas: 'seq_personas_id',
+        contactos: 'seq_contactos_id',
+        educacion: 'seq_educacion_id',
+        estados: 'seq_estados_id',
+        rel_principal: 'seq_rel_principal_id',
+        dependencias: 'seq_dependencias_id',
+        cargos: 'seq_cargos_id'
+      };
+      const seqName = seqMap[table] || `seq_${table}_id`;
+      const r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+      return r.rows[0].id;
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
@@ -925,8 +1304,9 @@ router.post('/', auth, async (req, res) => {
       `INSERT INTO rel_principal (
          id_registro, id_persona, id_cargo_base, id_cargo_actual, id_dependencia,
          id_educacion, id_contacto, id_estado, otro_tiempo_gobernacion, otros_tiempos_periodos,
-         tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+         tiempo_total_gobernacion, fecha_ingreso, tiempo_servicio, fecha_encargo,
+         encargo_denominacion, encargo_codigo, encargo_grado, encargo_asignacion
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
       [
         recordId,
         personId,
@@ -941,7 +1321,11 @@ router.post('/', auth, async (req, res) => {
         tiempoTotalGobernacionStr,
         fechaIngreso || null,
         tiempoCalcPost ? tiempoCalcPost.texto : null,
-        fechaEncargo || null
+        fechaEncargo || null,
+        clean(encargoDenominacion)?.toUpperCase() || null,
+        clean(encargoCodigo)?.toUpperCase() || null,
+        clean(encargoGrado)?.toUpperCase() || null,
+        clean(encargoAsignacion) || null
       ]
     );
 
@@ -963,6 +1347,9 @@ router.post('/', auth, async (req, res) => {
 
 // ─── GET /api/employees/:cedula ───────────────────────────────────────────────
 router.get('/:cedula', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de servidores públicos.' });
+  }
   const { cedula } = req.params;
   try {
     const sql = `
@@ -1026,9 +1413,14 @@ router.get('/:cedula', auth, async (req, res) => {
              COALESCE(e.opec,'') AS opec,
              COALESCE(e.novedades,'') AS novedades,
              COALESCE(r.fecha_ingreso,'') AS fecha_ingreso,
+             COALESCE(r.fecha_retiro,'') AS fecha_retiro,
              COALESCE(r.fecha_encargo,'') AS fecha_encargo,
              COALESCE(r.otro_tiempo_gobernacion,'') AS otro_tiempo_gobernacion,
              COALESCE(r.tiempo_total_gobernacion,'') AS tiempo_total_gobernacion,
+             COALESCE(r.encargo_denominacion,'') AS encargo_denominacion,
+             COALESCE(r.encargo_codigo,'') AS encargo_codigo,
+             COALESCE(r.encargo_grado,'') AS encargo_grado,
+             COALESCE(r.encargo_asignacion,'') AS encargo_asignacion,
              r.otros_tiempos_periodos
       FROM rel_principal r
       LEFT JOIN vacantes_enum ve ON ve.id_registro = r.id_registro
@@ -1062,8 +1454,10 @@ router.get('/:cedula', auth, async (req, res) => {
     const r = result.rows[0];
     const dateNac = parseExcelDate(r.fecha_nacimiento);
     const dateIng = parseExcelDate(r.fecha_ingreso);
+    const esRetirado = (r.estado_servidor || '').toLowerCase() === 'retirado' || (r.situacion || '').toLowerCase() === 'retirado';
+    const dateRetiro = esRetirado ? parseExcelDate(r.fecha_retiro) : null;
     const edadCalc = dateNac ? calcularDiferenciaFechasExacta(dateNac) : null;
-    const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng) : null;
+    const tiempoCalc = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRetiro || undefined) : null;
     const esVacante = Boolean(r.es_vacante);
     const numeroVacante = r.numero_vacante ? parseInt(r.numero_vacante) : null;
     const codigoVacante = r.codigo_vacante || (numeroVacante ? `PLAZA VACANTE ${String(numeroVacante).padStart(4, '0')}` : (esVacante ? 'PLAZA VACANTE' : null));
@@ -1146,12 +1540,21 @@ router.get('/:cedula', auth, async (req, res) => {
       opec: esVacante ? null : r.opec,
       novedades: esVacante ? 'PLAZA VACANTE' : r.novedades,
       fechaIngreso: esVacante ? null : r.fecha_ingreso,
+      fechaRetiro: esVacante ? null : (r.fecha_retiro || null),
+      esRetirado: esRetirado,
       fechaEncargo: esVacante ? null : r.fecha_encargo,
       tiempoServicioCalculado: esVacante ? null : (tiempoCalc ? tiempoCalc.texto : 'No disponible'),
       otroTiempoGobernacion: esVacante ? null : r.otro_tiempo_gobernacion,
       otroTiempoCalculado: esVacante ? null : (otroTiempoCalc && otroTiempoCalc.tieneValor ? otroTiempoCalc.texto : '0 años, 0 meses, 0 días'),
       otroTiempoPeriodos: esVacante ? [] : (Array.isArray(r.otros_tiempos_periodos) ? r.otros_tiempos_periodos : []),
       tiempoTotalGobernacion: esVacante ? null : (tiempoTotalCalc ? tiempoTotalCalc.texto : (tiempoCalc ? tiempoCalc.texto : 'No disponible')),
+      encargoDenominacion: clean(r.encargo_denominacion),
+      encargoCodigo: clean(r.encargo_codigo),
+      encargoGrado: clean(r.encargo_grado),
+      encargoAsignacion: clean(r.encargo_asignacion),
+      cargoTitular: clean(r.cargo_base || r.cargo_actual),
+      codigoTitular: clean(r.codigo_base || r.codigo_actual),
+      gradoTitular: clean(r.grado_base || r.grado_actual),
       sexo: esVacante ? null : r.sexo,
       documento_pendiente: esVacante ? false : Boolean(r.documento_pendiente),
       es_vacante: esVacante,
@@ -1166,7 +1569,7 @@ router.get('/:cedula', auth, async (req, res) => {
 
 // ─── PUT /api/employees/:cedula (Actualizar Servidor con 22 Reglas) ───────────
 router.put('/:cedula', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
   const {
     nombreCompleto,
@@ -1189,6 +1592,10 @@ router.put('/:cedula', auth, async (req, res) => {
     opec,
     fechaIngreso,
     fechaEncargo,
+    encargoDenominacion,
+    encargoCodigo,
+    encargoGrado,
+    encargoAsignacion,
     otroTiempoGobernacion,
     otroTiempoPeriodos,
     funciones,
@@ -1219,7 +1626,16 @@ router.put('/:cedula', auth, async (req, res) => {
   const gradoValidado = validateGrado(grado);
   if (!gradoValidado.valido) return res.status(400).json({ error: gradoValidado.error });
 
-  const estadoServidorValidado = validateEstadoServidor(estadoServidor);
+  let estadoParaValidarPut = estadoServidor;
+  const sitUpperPut = String(situacion || '').toUpperCase().trim();
+  if (sitUpperPut === 'RETIRADO' || sitUpperPut === 'INACTIVO') {
+    estadoParaValidarPut = 'Retirado';
+  } else if (sitUpperPut.includes('PENSION') && !sitUpperPut.includes('PREPENSION')) {
+    estadoParaValidarPut = 'Pensionado';
+  } else if (!estadoParaValidarPut) {
+    estadoParaValidarPut = 'Activo';
+  }
+  const estadoServidorValidado = validateEstadoServidor(estadoParaValidarPut);
   if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });
 
   const sexoValidado = validateSexo(sexo);
@@ -1393,13 +1809,13 @@ router.put('/:cedula', auth, async (req, res) => {
 
     // Actualizar o crear cargos
     const nextId = async (table, col, prefix, width) => {
-      const qr = await client.query(`SELECT ${col} FROM ${table}`);
-      let max = 0;
-      qr.rows.forEach(row => {
-        const digits = (row[col.toLowerCase()] || '').replace(/\D/g, '');
-        if (digits) max = Math.max(max, parseInt(digits));
-      });
-      return prefix + String(max + 1).padStart(width, '0');
+      const seqMap = {
+        dependencias: 'seq_dependencias_id',
+        cargos: 'seq_cargos_id'
+      };
+      const seqName = seqMap[table] || `seq_${table}_id`;
+      const qr = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+      return qr.rows[0].id;
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {
@@ -1460,6 +1876,22 @@ router.put('/:cedula', auth, async (req, res) => {
       updateParts.push(`fecha_encargo=$${idx++}`);
       updateVals.push(fechaEncargo || null);
     }
+    if (encargoDenominacion !== undefined) {
+      updateParts.push(`encargo_denominacion=$${idx++}`);
+      updateVals.push(clean(encargoDenominacion)?.toUpperCase() || null);
+    }
+    if (encargoCodigo !== undefined) {
+      updateParts.push(`encargo_codigo=$${idx++}`);
+      updateVals.push(clean(encargoCodigo)?.toUpperCase() || null);
+    }
+    if (encargoGrado !== undefined) {
+      updateParts.push(`encargo_grado=$${idx++}`);
+      updateVals.push(clean(encargoGrado)?.toUpperCase() || null);
+    }
+    if (encargoAsignacion !== undefined) {
+      updateParts.push(`encargo_asignacion=$${idx++}`);
+      updateVals.push(clean(encargoAsignacion) || null);
+    }
     if (otroTiempoPeriodos !== undefined || otroTiempoGobernacion !== undefined) {
       updateParts.push(`otro_tiempo_gobernacion=$${idx++}`);
       updateVals.push(expValidada ? (expValidada.acumuladoTexto || null) : null);
@@ -1517,11 +1949,11 @@ router.put('/:cedula', auth, async (req, res) => {
   }
 });
 
-// ─── PATCH /api/employees/:cedula/status ─────────────────────────────────────
+// ─── PATCH /api/employees/:cedula/status (Gestión de Activo, Retirado y Reactivación) ───
 router.patch('/:cedula/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
-  const { estadoServidor } = req.body;
+  const { estadoServidor, fechaRetiro, motivoRetiro, action, nuevaFechaIngreso } = req.body;
   if (!estadoServidor) return res.status(400).json({ error: 'estadoServidor es requerido.' });
 
   const estadoServidorValidado = validateEstadoServidor(estadoServidor);
@@ -1529,13 +1961,21 @@ router.patch('/:cedula/status', auth, async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const cleanTarget = (cedula || '').trim();
     const numericTarget = cleanTarget.replace(/\D/g, '');
 
     const r = await client.query(
-      `SELECT r.id_estado, p.nombre_completo 
+      `SELECT r.id_registro, r.id_estado, r.id_cargo_actual, r.id_cargo_base,
+              r.fecha_ingreso, r.fecha_retiro, r.tiempo_servicio, r.otro_tiempo_gobernacion,
+              r.otros_tiempos_periodos, r.tiempo_total_gobernacion,
+              e.estado_servidor, e.situacion,
+              ca.cargo AS cargo_actual_nombre,
+              p.nombre_completo, p.cedula
        FROM rel_principal r 
        LEFT JOIN personas p ON p.id_persona = r.id_persona 
+       LEFT JOIN estados e ON e.id_estado = r.id_estado
+       LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
        WHERE r.id_registro = $1 
           OR r.id_persona = $1 
           OR p.id_persona = $1 
@@ -1547,21 +1987,154 @@ router.patch('/:cedula/status', auth, async (req, res) => {
     );
 
     if (r.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Servidor no encontrado.' });
     }
 
-    const { id_estado, nombre_completo } = r.rows[0];
+    const row = r.rows[0];
+    const { id_registro, id_estado } = row;
+    const nuevoEstado = estadoServidorValidado.valor;
+    const estadoAnterior = row.estado_servidor || 'Activo';
+
+    // ─── CASO 1: RETIRO (Activo -> Retirado) ───
+    if (nuevoEstado === 'Retirado') {
+      const fRetiro = fechaRetiro ? fechaRetiro.trim() : new Date().toISOString().split('T')[0];
+      const dateIng = parseExcelDate(row.fecha_ingreso);
+      const dateRet = parseExcelDate(fRetiro) || new Date();
+
+      if (dateIng && dateRet < dateIng) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Inconsistencia cronológica: La fecha de retiro (${fRetiro}) no puede ser anterior a la fecha de ingreso actual del servidor (${row.fecha_ingreso}).`
+        });
+      }
+
+      const tiempoCongelado = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRet) : { texto: '0 años, 0 meses, 0 días' };
+
+      const otroCalc = calcularOtroTiempoNormalizado(row.otros_tiempos_periodos, row.otro_tiempo_gobernacion, dateIng);
+      const totalCongelado = sumarTiemposExactos(tiempoCongelado, otroCalc);
+
+      await client.query(
+        `UPDATE estados SET estado_servidor = 'Retirado', situacion = 'RETIRADO' WHERE id_estado = $1`,
+        [id_estado]
+      );
+
+      await client.query(
+        `UPDATE rel_principal 
+         SET fecha_retiro = $1, 
+             tiempo_servicio = $2,
+             tiempo_total_gobernacion = $3
+         WHERE id_registro = $4`,
+        [fRetiro, tiempoCongelado.texto, totalCongelado.texto, id_registro]
+      );
+
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: `Servidor ${row.nombre_completo || cedula} marcado como Retirado el ${fRetiro}. Contador de servicio detenido.`,
+        estadoServidor: 'Retirado',
+        fechaRetiro: fRetiro,
+        tiempoServicioCalculado: tiempoCongelado.texto,
+        tiempoTotalGobernacion: totalCongelado.texto
+      });
+    }
+
+    // ─── CASO 2: REACTIVACIÓN (Retirado -> Activo) ───
+    if (nuevoEstado === 'Activo' && (estadoAnterior === 'Retirado' || action === 'reactivate')) {
+      const fNuevaIngreso = nuevaFechaIngreso ? nuevaFechaIngreso.trim() : new Date().toISOString().split('T')[0];
+      const fRetiroAnterior = row.fecha_retiro || new Date().toISOString().split('T')[0];
+
+      if (row.fecha_retiro) {
+        const dateRetAnt = parseExcelDate(row.fecha_retiro);
+        const dateNuevoIng = parseExcelDate(fNuevaIngreso);
+        if (dateRetAnt && dateNuevoIng && dateNuevoIng < dateRetAnt) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            error: `Inconsistencia cronológica: La nueva fecha de ingreso (${fNuevaIngreso}) no puede ser anterior a la fecha de retiro previa del servidor (${row.fecha_retiro}).`
+          });
+        }
+      }
+      const fIngresoAnterior = row.fecha_ingreso || null;
+
+      // 1. Archivar periodo anterior en otros_tiempos_periodos
+      let periodosExistentes = Array.isArray(row.otros_tiempos_periodos) ? [...row.otros_tiempos_periodos] : [];
+      if (fIngresoAnterior) {
+        const dateIngAnt = parseExcelDate(fIngresoAnterior);
+        const dateRetAnt = parseExcelDate(fRetiroAnterior) || new Date();
+        const duracionAnt = dateIngAnt ? calcularDiferenciaFechasExacta(dateIngAnt, dateRetAnt) : { texto: 'No disponible' };
+
+        periodosExistentes.push({
+          desde: fIngresoAnterior,
+          hasta: fRetiroAnterior,
+          duracionTexto: duracionAnt.texto,
+          cargo: row.cargo_actual_nombre || 'Servidor Público',
+          entidad: 'Gobernación de Boyacá',
+          tipo: 'Periodo Gobernación Anterior'
+        });
+      }
+
+      // 2. Calcular nuevo acumulado de Otro Tiempo
+      const nuevoOtroTiempoCalc = calcularOtroTiempoNormalizado(periodosExistentes, null);
+      const nuevoOtroTiempoTexto = nuevoOtroTiempoCalc.tieneValor ? nuevoOtroTiempoCalc.texto : row.otro_tiempo_gobernacion;
+
+      // 3. Iniciar nuevo periodo de servicio actual desde la nueva fecha de ingreso
+      const dateNuevoIng = parseExcelDate(fNuevaIngreso) || new Date();
+      const nuevoServicioCalc = calcularDiferenciaFechasExacta(dateNuevoIng, new Date());
+
+      // 4. Nuevo tiempo total sumado
+      const nuevoTotalCalc = sumarTiemposExactos(nuevoServicioCalc, nuevoOtroTiempoCalc);
+
+      await client.query(
+        `UPDATE estados SET estado_servidor = 'Activo', situacion = 'ACTIVO' WHERE id_estado = $1`,
+        [id_estado]
+      );
+
+      await client.query(
+        `UPDATE rel_principal 
+         SET fecha_ingreso = $1,
+             fecha_retiro = NULL,
+             otros_tiempos_periodos = $2,
+             otro_tiempo_gobernacion = $3,
+             tiempo_servicio = $4,
+             tiempo_total_gobernacion = $5
+         WHERE id_registro = $6`,
+        [
+          fNuevaIngreso,
+          JSON.stringify(periodosExistentes),
+          nuevoOtroTiempoTexto,
+          nuevoServicioCalc.texto,
+          nuevoTotalCalc.texto,
+          id_registro
+        ]
+      );
+
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: `Servidor reactivado exitosamente con nueva vinculación desde el ${fNuevaIngreso}. Periodo anterior archivado en Otro Tiempo.`,
+        estadoServidor: 'Activo',
+        fechaIngreso: fNuevaIngreso,
+        tiempoServicioCalculado: nuevoServicioCalc.texto,
+        otroTiempoPeriodos: periodosExistentes,
+        otroTiempoGobernacion: nuevoOtroTiempoTexto,
+        tiempoTotalGobernacion: nuevoTotalCalc.texto
+      });
+    }
+
+    // ─── OTROS CAMBIOS DIRECTOS DE ESTADO ───
     await client.query(
       `UPDATE estados SET estado_servidor = $1 WHERE id_estado = $2`,
-      [estadoServidorValidado.valor, id_estado]
+      [nuevoEstado, id_estado]
     );
 
+    await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Estado actualizado a ${estadoServidorValidado.valor}`,
-      estadoServidor: estadoServidorValidado.valor
+      message: `Estado actualizado a ${nuevoEstado}`,
+      estadoServidor: nuevoEstado
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[employees-service] error updating status:', err.message);
     res.status(500).json({ error: 'Error al actualizar el estado: ' + err.message });
   } finally {
@@ -1569,9 +2142,9 @@ router.patch('/:cedula/status', auth, async (req, res) => {
   }
 });
 
-// ─── DELETE /api/employees/:cedula ───────────────────────────────────────────
+// ─── DELETE /api/employees/:cedula ───
 router.delete('/:cedula', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
   const client = await pool.connect();
   try {
@@ -1641,6 +2214,12 @@ router.delete('/:cedula', auth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[employees] delete error:', err.message);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(409).json({
+        success: false,
+        error: 'No es posible eliminar el servidor público porque cuenta con registros históricos asociados (acuerdos de horarios, comisiones de viáticos o antecedentes). Para desvincular al servidor sin perder la trazabilidad institucional, utilice la opción de Retiro / Cambio de Estado.'
+      });
+    }
     res.status(500).json({ error: 'Error al eliminar el servidor: ' + err.message });
   } finally {
     client.release();

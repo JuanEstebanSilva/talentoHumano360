@@ -17,7 +17,24 @@ const pool = new Pool(
         ssl:      process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       }
 );
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 const VALID_TIPOS = ['Permiso Laboral', 'Incapacidad', 'Licencia'];
 
@@ -31,10 +48,14 @@ const {
 } = require('../utils/audit-rbac');
 
 function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'No autorizado.' });
+  let token = (req.headers.authorization || req.query.token || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Token inválido.' }); }
+  catch { res.status(401).json({ error: 'Token inválido o sesión expirada.' }); }
 }
 
 function moduloFromTipo(tipo) {
@@ -42,6 +63,18 @@ function moduloFromTipo(tipo) {
   if (tipo === 'Licencia') return 'licencias';
   if (tipo === 'Incapacidad') return 'incapacidades';
   return 'permisos';
+}
+
+function canEdit(roleOrUser) {
+  if (!roleOrUser) return false;
+  const role = typeof roleOrUser === 'string' ? roleOrUser : (roleOrUser.role || roleOrUser.rol || '');
+  const r = role.toLowerCase().trim();
+  if (r === 'administrador' || r === 'admin' || r === 'coordinador' || r === 'coordinador de solicitudes' || r.includes('permiso') || r.includes('licencia') || r.includes('incapacidad')) return true;
+  if (typeof roleOrUser === 'object') {
+    const perms = Array.isArray(roleOrUser.permissions) ? roleOrUser.permissions : [];
+    if (perms.includes('*') || perms.includes('requests:write') || perms.includes('admin-requests:write') || perms.includes('requests:*')) return true;
+  }
+  return false;
 }
 
 function upper(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }

@@ -38,13 +38,22 @@
         if (s.density) document.documentElement.setAttribute('data-density', s.density);
       } catch (e) { }
     })();
+    window.escHtml = function (s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
   </script>
 
-  <!-- Preload fonts (Nunito Sans) -->
+  <!-- Preload fonts (Merriweather & Nunito Sans) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap"
     rel="stylesheet" />
 
   <!-- Chart.js -->
@@ -52,6 +61,9 @@
 
   <!-- SheetJS (Excel Engine) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- JSZip (Compresión y empaquetado de carpetas ZIP) -->
+  <script src="js/libs/jszip.min.js"></script>
 
   <!-- jsPDF & AutoTable (Local offline PDF Engine) -->
   <script src="js/libs/jspdf.umd.min.js"></script>
@@ -61,14 +73,15 @@
   <link rel="icon" id="app-favicon" type="image/png" href="imgs/logoCondor.png" />
 
   <!-- Preload background image & logos -->
-  <link rel="preload" as="image" href="imgs/gobernacion_bg.jpeg?v=3" />
+  <link rel="preload" as="image" href="imgs/gobernacion_bg.jpeg?v=20261102_prod_v1" />
   <link rel="preload" as="image" href="imgs/logoCondor.png" />
   <link rel="preload" as="image" href="imgs/logoCondorBlanco.png" />
 
-  <link rel="stylesheet" href="css/main.css?v=20261023_horarios_modal_v1" />
-  <link rel="stylesheet" href="css/components.css?v=20261023_horarios_ficha_v2" />
-  <link rel="stylesheet" href="css/animations.css?v=20260911_patch1" />
-  <link rel="stylesheet" href="css/legal.css?v=20260301" />
+  <link rel="stylesheet" href="css/main.css?v=20261108_v4" />
+  <link rel="stylesheet" href="css/components.css?v=20261108_v4" />
+  <link rel="stylesheet" href="css/animations.css?v=20261104_gemini_v1" />
+  <link rel="stylesheet" href="css/legal.css?v=20261104_gemini_v1" />
+  <link rel="stylesheet" href="css/admin.css?v=20261106_admin_v1" />
 
   <!-- Flatpickr (Calendario Institucional Moderno) -->
   <link rel="stylesheet" href="css/flatpickr.min.css" />
@@ -194,13 +207,13 @@
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <polyline points="9 12 11 14 15 10" />
             </svg>
-            <span>Acceso seguro · Sistema de Talento Humano</span>
+            <span>Acceso seguro — Sistema de Talento Humano</span>
           </div>
 
           <!-- Enlaces Legales y Normativos (MinTIC / Ley 1581) -->
           <nav class="login-legal-links" aria-label="Enlaces legales y normativos" style="margin-top:1.25rem; text-align:center; font-size:0.78rem; display:flex; justify-content:center; align-items:center; gap:0.6rem; flex-wrap:wrap;">
             <a href="views/privacidad.html" target="_blank" style="color:var(--text-muted); text-decoration:underline;">Privacidad</a>
-            <span style="color:var(--border-color); opacity:0.6;">·</span>
+            <span style="color:var(--border-color); opacity:0.6;">—</span>
             <a href="views/terminos.html" target="_blank" style="color:var(--text-muted); text-decoration:underline;">Términos</a>
             <a href="views/accesibilidad.html" target="_blank" style="display:none;" aria-hidden="true">Accesibilidad WCAG 2.1</a>
           </nav>
@@ -216,7 +229,7 @@
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar" role="navigation" aria-label="Menú principal">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
+        <div class="sidebar-logo" title="Gobernación de Boyacá">
           <!-- Talento 360 Condor logo (Color in light mode, Blanco in dark mode) -->
           <img src="imgs/logoCondor.png" alt="Escudo de Boyacá — Cóndor" class="sidebar-logo-condor logo-light-theme" />
           <img src="imgs/logoCondorBlanco.png" alt="Escudo de Boyacá — Cóndor Blanco"
@@ -225,15 +238,56 @@
         <div class="sidebar-brand">
           <span class="sidebar-title">Talento <span>360</span></span>
         </div>
-        <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Colapsar menú">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+        <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Cerrar barra lateral" title="Cerrar barra lateral (Alt + B)" data-tooltip="Cerrar barra lateral">
+          <!-- Icono al estar expandido: Cerrar barra lateral -->
+          <span class="sidebar-toggle-icon-collapse" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <path d="M14 9l-3 3 3 3" />
+            </svg>
+          </span>
+
+          <!-- Logo Cóndor de Boyacá al estar colapsado (en reposo) -->
+          <span class="sidebar-toggle-logo-collapsed" aria-hidden="true">
+            <img src="imgs/logoCondor.png" alt="Gobernación de Boyacá" class="sidebar-logo-condor logo-light-theme" />
+            <img src="imgs/logoCondorBlanco.png" alt="Gobernación de Boyacá" class="sidebar-logo-condor logo-dark-theme" />
+          </span>
+
+          <!-- Icono al estar colapsado y pasar el mouse (Hover): Abrir barra lateral -->
+          <span class="sidebar-toggle-icon-expand" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <path d="M12 9l3 3-3 3" />
+            </svg>
+          </span>
         </button>
       </div>
 
       <nav class="sidebar-nav">
         <ul role="list">
+          <!-- Módulos de Administración Técnica (Solo visibles para Rol Admin) -->
+          <li id="li-admin-errors" style="display:none;">
+            <button class="nav-item" data-module="admin-errors" id="nav-admin-errors" title="Monitoreo de Errores" data-tooltip="Errores">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span class="nav-label">Centro de Errores</span>
+            </button>
+          </li>
+          <li id="li-admin-backups" style="display:none;">
+            <button class="nav-item" data-module="admin-backups" id="nav-admin-backups" title="Copias de Seguridad" data-tooltip="Backups">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              <span class="nav-label">Copias de Seguridad</span>
+            </button>
+          </li>
           <li>
             <button class="nav-item active" data-module="dashboard" id="nav-dashboard" aria-current="page"
               title="Dashboard" data-tooltip="Dashboard">
@@ -410,21 +464,14 @@
         <div class="sidebar-user" id="sidebar-user" title="Ver / Editar mi perfil" role="button" tabindex="0">
           <div class="user-avatar" id="user-avatar" aria-hidden="true">A</div>
           <div class="user-info">
-            <span class="user-name" id="user-name">Angela Ussa</span>
-            <span class="user-job-title" id="user-job-title">Directora de Talento Humano</span>
-            <span class="user-role" id="user-role">Administrador</span>
+            <span class="user-name" id="user-name">Usuario</span>
+            <span class="user-job-title" id="user-job-title" style="display:none;"></span>
+            <span class="user-role" id="user-role">Talento Humano</span>
           </div>
           <button id="profile-btn" class="profile-btn" aria-label="Editar perfil" title="Editar perfil">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </button>
-          <button id="logout-btn" class="logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
           </button>
         </div>
@@ -538,6 +585,18 @@
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
+
+          <div class="topbar-vertical-divider" aria-hidden="true"></div>
+
+          <!-- Quick Access: Logout Button -->
+          <button id="topbar-logout-btn" class="topbar-action-btn topbar-logout-btn" aria-label="Cerrar sesión"
+            title="Cerrar sesión del sistema">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -572,24 +631,27 @@
   <div id="error-screen-404" class="error-404-overlay" style="display:none" role="alert" aria-live="assertive"></div>
 
   <!-- ─── Scripts ──────────────────────────────────────────────────────── -->
-  <script src="js/config.js?v=20260914_1"></script>
-  <script src="js/modules/settings.js?v=20260902_11"></script>
-  <script src="js/fx.js?v=20260929_fix404_final"></script>
-  <script src="js/auth.js?v=20261109_roles_v2"></script>
-  <script src="js/api.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/excel-service.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/report-generator.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/dashboard.js?v=20260911_pdf2"></script>
-  <script src="js/modules/employees.js?v=20261022_discapacidad_mayusc_v1"></script>
-  <script src="js/modules/requests.js?v=20261022_flatpickr_abs_v2"></script>
-  <script src="js/modules/admin-requests.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/incapacidades.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/viaticos.js?v=20261023_viaticos_buscar_v2"></script>
-  <script src="js/modules/horarios.js?v=20261023_horarios_ux_kpi_v1"></script>
-  <script src="js/modules/sst.js?v=20261109_roles_v2"></script>
-  <script src="js/modules/error404.js?v=20261020_2"></script>
-  <script src="js/modules/legal.js?v=20260301"></script>
-  <script src="js/app.js?v=20261109_roles_v2"></script>
+  <script src="js/config.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/settings.js?v=20261109_merged_v1"></script>
+  <script src="js/fx.js?v=20261109_merged_v1"></script>
+  <script src="js/auth.js?v=20261109_merged_v1"></script>
+  <script src="js/api.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/excel-service.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/report-generator.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/dashboard-pdf.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/dashboard.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/employees.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/requests.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/admin-requests.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/incapacidades.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/viaticos.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/horarios.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/sst.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/error404.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/legal.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/admin-errors.js?v=20261109_merged_v1"></script>
+  <script src="js/modules/admin-backups.js?v=20261109_merged_v1"></script>
+  <script src="js/app.js?v=20261109_merged_v1"></script>
 </body>
 
 </html>

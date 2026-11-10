@@ -713,7 +713,7 @@ const AdminRequestsModule = (() => {
         </td>
         <td>
           ${canManage ? `
-          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="AdminRequestsModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de esta solicitud" aria-label="Cambiar estado: ${r.estado}">
+          <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="AdminRequestsModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de esta solicitud" aria-label="Cambiar estado: ${escHtml(r.estado)}">
             <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>` : `<span class="badge ${badgeClass(r.estado)}">${escHtml(r.estado)}</span>`}

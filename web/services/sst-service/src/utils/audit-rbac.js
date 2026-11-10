@@ -111,11 +111,58 @@ const SCHEMA_AUDIT_RBAC_SQL = `
 
 const INITIAL_USERS = [
   {
+    username: 'admin',
+    password: '$2a$10$6KxndawYS6zz0r7PMzG4JeepSfqGCa8heMaJIn9g2R4Zqeg29wOQW',
+    nombre: 'Administrador',
+    rol: 'Administrador',
+    cargo_laboral: 'Administrador del Sistema',
+    modulos: '*',
+    permisos: '*',
+  },
+  {
+    username: 'angela.ussa@boyaca.gov.co',
+    password: '$2a$10$Qiy07yznq5fSnFhEUTHKaux5uBZrWZ6E34uB.uFEJIMmF9WK/vzhy',
+    nombre: 'Angela Ussa',
+    rol: 'Usuario',
+    cargo_laboral: 'Gestión de Servidores Públicos',
+    modulos: 'dashboard,employees,horarios,viaticos',
+    permisos: 'dashboard:read,employees:read,employees:write,employees:delete,employees:import,employees:export,horarios:read,viaticos:read',
+  },
+  {
+    username: 'blanca.soler@boyaca.gov.co',
+    password: '$2a$10$z.YAD5e1rQ1Y80g3yZvNAeYdwxDYvprlaXBFro4.7PQLYL4dd6NWm',
+    nombre: 'Blanca Soler',
+    rol: 'Usuario',
+    cargo_laboral: 'Gestión de Servidores Públicos',
+    modulos: 'dashboard,employees,horarios,viaticos',
+    permisos: 'dashboard:read,employees:read,employees:write,employees:delete,employees:import,employees:export,horarios:read,viaticos:read',
+  },
+  {
+    username: 'bergenet.gutierrez@boyaca.gov.co',
+    password: '$2a$10$qLIhhIK4eDPpwdhR.NAbwOkvWfEmUcTjF1kZ9eJHG0dC/2D/ymfi6',
+    nombre: 'Bergenet Gutierrez',
+    rol: 'Usuario',
+    cargo_laboral: 'Gestión de Viáticos',
+    modulos: 'dashboard,employees,horarios,viaticos',
+    permisos: 'dashboard:read,employees:read,horarios:read,viaticos:read,viaticos:write,viaticos:status,viaticos:import,viaticos:delete',
+  },
+  {
+    username: 'doris.canon@boyaca.gov.co',
+    password: '$2a$10$7sH2fGXq8jR7z68CKofTAu0iuWyhKjz9tA8KzdWcTC9/3JvaPi2LC',
+    nombre: 'Doris Cañon',
+    rol: 'Usuario',
+    cargo_laboral: 'Gestión de Horarios y Modalidades',
+    modulos: 'dashboard,employees,horarios,viaticos',
+    permisos: 'dashboard:read,employees:read,horarios:read,horarios:write,horarios:delete,viaticos:read',
+  },
+  {
     username: 'sandra.roa@boyaca.gov.co',
     password: 'Sandra@123',
     nombre: 'Sandra Roa',
     rol: 'SST',
     cargo_laboral: 'Responsable de Seguridad y Salud en el Trabajo (SST)',
+    modulos: 'sst',
+    permisos: 'sst:read,sst:write,epidemiologico:read,epidemiologico:write,sociodemografico:read,sociodemografico:write,epp:read,epp:write',
   },
   {
     username: 'luis.sanches@boyaca.gov.co',
@@ -123,6 +170,8 @@ const INITIAL_USERS = [
     nombre: 'Luis Sanchez',
     rol: 'Incapacidades',
     cargo_laboral: 'Responsable de Incapacidades y Ausentismo Laboral',
+    modulos: 'admin-requests,incapacidades',
+    permisos: 'admin-requests:read,admin-requests:write,incapacidades:read,incapacidades:write,requests:read,requests:write',
   },
   {
     username: 'luis.sanchez@boyaca.gov.co',
@@ -130,6 +179,8 @@ const INITIAL_USERS = [
     nombre: 'Luis Sanchez',
     rol: 'Incapacidades',
     cargo_laboral: 'Responsable de Incapacidades y Ausentismo Laboral',
+    modulos: 'admin-requests,incapacidades',
+    permisos: 'admin-requests:read,admin-requests:write,incapacidades:read,incapacidades:write,requests:read,requests:write',
   },
   {
     username: 'alejandro.leon@boyaca.edu.co',
@@ -137,6 +188,8 @@ const INITIAL_USERS = [
     nombre: 'Alejandro Leon',
     rol: 'Permisos',
     cargo_laboral: 'Responsable de Permisos Laborales',
+    modulos: 'admin-requests,permisos',
+    permisos: 'admin-requests:read,admin-requests:write,permisos:read,permisos:write,requests:read,requests:write',
   },
   {
     username: 'alejandro.leon@boyaca.gov.co',
@@ -144,6 +197,8 @@ const INITIAL_USERS = [
     nombre: 'Alejandro Leon',
     rol: 'Permisos',
     cargo_laboral: 'Responsable de Permisos Laborales',
+    modulos: 'admin-requests,permisos',
+    permisos: 'admin-requests:read,admin-requests:write,permisos:read,permisos:write,requests:read,requests:write',
   },
   {
     username: 'sebastian.rincon@boyaca.gov.co',
@@ -151,6 +206,8 @@ const INITIAL_USERS = [
     nombre: 'Sebastian Rincon',
     rol: 'Permisos y Licencias',
     cargo_laboral: 'Responsable de Permisos y Licencias Laborales',
+    modulos: 'admin-requests,permisos,licencias',
+    permisos: 'admin-requests:read,admin-requests:write,permisos:read,permisos:write,licencias:read,licencias:write,requests:read,requests:write',
   },
   {
     username: 'funcionario@boyaca.gov.co',
@@ -158,6 +215,8 @@ const INITIAL_USERS = [
     nombre: 'Iván Darío Romero Marín',
     rol: 'Funcionario',
     cargo_laboral: 'Profesional Universitario',
+    modulos: 'dashboard,requests',
+    permisos: 'dashboard:read,requests:read,requests:write',
   },
 ];
 
@@ -430,18 +489,22 @@ async function ensureAuditAndRbacSchema(pool) {
       await pool.query(SCHEMA_AUDIT_RBAC_SQL);
 
       // 1. Sembrar y sincronizar usuarios iniciales de responsables por módulo
+      await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos VARCHAR(255) DEFAULT '*'`);
+      await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT`);
       for (const u of INITIAL_USERS) {
         try {
           await pool.query(
-            `INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado)
-             VALUES ($1, $2, $3, $4, $5, 'ACTIVO')
+            `INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos)
+             VALUES ($1, $2, $3, $4, $5, 'ACTIVO', $6, $7)
              ON CONFLICT (username) DO UPDATE SET
                password = EXCLUDED.password,
                nombre = EXCLUDED.nombre,
                rol = EXCLUDED.rol,
                cargo_laboral = EXCLUDED.cargo_laboral,
+               modulos = EXCLUDED.modulos,
+               permisos = EXCLUDED.permisos,
                estado = 'ACTIVO'`,
-            [u.username, u.password, u.nombre, u.rol, u.cargo_laboral]
+            [u.username, u.password, u.nombre, u.rol, u.cargo_laboral, u.modulos || '*', u.permisos || '']
           );
         } catch (_) {
           // Ignorar si la tabla usuarios aún se está creando en otro contenedor

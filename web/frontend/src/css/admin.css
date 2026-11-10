@@ -1,0 +1,1186 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Talento 360 — Estilos del Panel de Administración Técnica (Errores y Backups)
+   Gobernación de Boyacá · Diseño Institucional Oficial
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Botones de Acción Deslizantes Circulares (Estilo Crear Servidor Público) ── */
+.btn-action-slide-admin,
+.btn-hdr-admin {
+  height: 52px;
+  min-width: 52px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0 14px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  border: 1px solid transparent;
+  outline: none;
+  /* Transición pausada y serena al replegarse */
+  transition: padding 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.32s ease,
+              border-color 0.32s ease,
+              transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.38s ease;
+}
+
+.btn-action-slide-admin svg {
+  width: 24px;
+  height: 24px;
+  stroke: #ffffff !important;
+  stroke-width: 2.3;
+  flex-shrink: 0;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Etiqueta animada que se desliza elegantemente al hacer hover */
+.btn-action-slide-admin .btn-slide-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 0.90rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  color: #ffffff !important;
+  line-height: 1;
+  user-select: none;
+  will-change: max-width, opacity, transform;
+  transition: max-width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.35s ease 0.05s,
+              margin-left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-action-slide-admin:hover,
+.btn-action-slide-admin:focus-visible {
+  padding: 0 24px 0 16px;
+  transform: translateY(-2px);
+}
+
+.btn-action-slide-admin:hover .btn-slide-label,
+.btn-action-slide-admin:focus-visible .btn-slide-label {
+  max-width: 300px;
+  opacity: 1;
+  margin-left: 10px;
+  transform: translateX(0);
+}
+
+.btn-action-slide-admin:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
+/* 1. Verde Institucional Boyacá (Actualizar y Generar Copia) — Tono Sereno */
+.btn-slide--green {
+  background: #254d32 !important;
+  border-color: #1a3827 !important;
+  box-shadow: 0 2px 8px rgba(26, 56, 39, 0.22) !important;
+}
+
+.btn-slide--green:hover {
+  background: #2e5d3c !important;
+  border-color: #254d32 !important;
+  box-shadow: 0 4px 12px rgba(26, 56, 39, 0.30) !important;
+}
+
+.btn-slide--green:hover svg {
+  transform: rotate(180deg);
+}
+
+/* 2. Azul Petróleo Mate / Pizarra (Depurar Resueltos) — No Fosforescente, Descanso Visual */
+.btn-slide--blue {
+  background: #234a65 !important;
+  border-color: #173549 !important;
+  box-shadow: 0 2px 8px rgba(23, 53, 73, 0.20) !important;
+}
+
+.btn-slide--blue:hover {
+  background: #2d5a7b !important;
+  border-color: #234a65 !important;
+  box-shadow: 0 4px 12px rgba(23, 53, 73, 0.28) !important;
+}
+
+.btn-slide--blue:hover svg {
+  transform: rotate(-10deg) scale(1.1);
+}
+
+/* 3. Rojo Vino / Borgoña Mate (Limpiar Todo) — No Fosforescente, Cálido y Sobrio */
+.btn-slide--red {
+  background: #7a2e2e !important;
+  border-color: #5c1f1f !important;
+  box-shadow: 0 2px 8px rgba(92, 31, 31, 0.20) !important;
+}
+
+.btn-slide--red:hover {
+  background: #8e3636 !important;
+  border-color: #7a2e2e !important;
+  box-shadow: 0 4px 12px rgba(92, 31, 31, 0.28) !important;
+}
+
+.btn-slide--red:hover svg {
+  transform: scale(1.12);
+}
+
+/* Clases de compatibilidad */
+.btn-hdr-admin {
+  height: 52px;
+  min-width: 52px;
+}
+
+/* ─── Botón Principal Tipo Pill (media_1794013826912_b0be86de.png) ────────── */
+.btn-backup-pill-now {
+  background: #254d32 !important;
+  color: #ffffff !important;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 9999px;
+  border: 1px solid #1a3827;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 3px 12px rgba(37, 77, 50, 0.35);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+  white-space: nowrap;
+}
+
+.btn-backup-pill-now:hover {
+  background: #2e5d3c !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 77, 50, 0.45);
+}
+
+.btn-backup-pill-now:active {
+  transform: translateY(0);
+}
+
+.btn-backup-pill-now:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── Ajustes a Tarjetas KPI (Permitir Texto Completo sin Truncar) ─────────── */
+.stat-card .stat-label {
+  white-space: normal !important;
+  line-height: 1.25 !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  color: var(--text-secondary, #64748b) !important;
+  margin-top: 2px !important;
+}
+
+.stat-card .stat-value {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  line-height: 1.1 !important;
+  color: var(--text-primary, #0f172a) !important;
+}
+
+/* ─── Selector Interactivo de Estado (Columna ESTADO) ──────────────────────── */
+.admin-status-dropdown-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 5px 26px 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.77rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none !important;
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 11px 11px;
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1.5px solid transparent;
+}
+
+.admin-status-select:focus,
+.admin-status-select:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(37, 77, 50, 0.3) !important;
+}
+
+.admin-status-select.status-pendiente {
+  background-color: rgba(234, 88, 12, 0.12);
+  border-color: rgba(234, 88, 12, 0.35);
+  color: #c2410c;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c2410c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.admin-status-select.status-revision {
+  background-color: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.35);
+  color: #0284c7;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230284c7' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.admin-status-select.status-resuelto {
+  background-color: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #15803d;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2315803d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.admin-status-select:hover {
+  transform: translateY(-1px);
+}
+
+/* ─── Tipo e Insignias de la Tabla ────────────────────────────────────────── */
+.admin-type-badge-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge-user-report-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  background: rgba(14, 116, 144, 0.12);
+  color: #0e7490;
+  border: 1px solid rgba(14, 116, 144, 0.28);
+}
+
+/* ─── Detalle del Incidente ───────────────────────────────────────────────── */
+.admin-error-detail-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-error-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-token-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  line-height: 1.3;
+}
+
+.admin-msg-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.admin-stack-hint-row {
+  margin-top: 2px;
+}
+
+.badge-stack-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.badge-stack-pill:hover {
+  background: rgba(2, 132, 199, 0.16);
+  transform: translateY(-1px);
+}
+
+/* ─── Ruta / URL Afectada ─────────────────────────────────────────────────── */
+.admin-url-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.80rem;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
+}
+
+.admin-url-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.65;
+  color: currentColor;
+}
+
+.admin-url-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Usuario con Avatar Circular (Alineación Estricta a la Izquierda) ────── */
+.td-user-col {
+  text-align: left !important;
+  padding-left: 16px !important;
+}
+
+.admin-user-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.admin-user-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.70rem !important;
+  font-weight: 800 !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.admin-user-name {
+  font-size: 0.83rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary, #1e293b) !important;
+  max-width: 130px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* ─── Fecha y Hora en Dos Líneas (Sin Truncamiento) ───────────────────────── */
+.admin-date-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.admin-date-day {
+  font-size: 0.80rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  white-space: nowrap;
+}
+
+.admin-date-time {
+  font-size: 0.70rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+}
+
+/* ─── Tabla Estandarizada ─────────────────────────────────────────────────── */
+.admin-table-styled {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+}
+
+.admin-table-styled thead th {
+  background: var(--bg-tertiary, #f8fafc);
+  color: var(--text-secondary, #475569);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.admin-table-styled tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  vertical-align: middle;
+}
+
+.admin-table-styled tbody tr {
+  transition: background 0.15s ease;
+}
+
+.admin-table-styled tbody tr:hover {
+  background: var(--bg-hover, rgba(241, 245, 249, 0.6));
+}
+
+.admin-table-styled tbody tr.row-resolved {
+  opacity: 0.85;
+}
+
+/* Botón Descargar Respaldo Estilo Gem Esmeralda */
+.admin-table-styled .btn-action-download {
+  background: rgba(21, 128, 61, 0.12) !important;
+  border: 1px solid rgba(21, 128, 61, 0.35) !important;
+  color: #15803d !important;
+}
+
+.admin-table-styled .btn-action-download svg {
+  stroke: #15803d !important;
+}
+
+.admin-table-styled .btn-action-download:hover {
+  background: #15803d !important;
+  color: #ffffff !important;
+  transform: translateY(-2px) scale(1.08) !important;
+}
+
+.admin-table-styled .btn-action-download:hover svg {
+  stroke: #ffffff !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Panel Modernizado de Programación y Automatización (3 Feature Cards)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.backup-automation-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-xl, 18px);
+  padding: 24px 26px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.backup-automation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+}
+
+.backup-header-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(37, 77, 50, 0.1);
+  color: #254d32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.backup-automation-title {
+  margin: 0;
+  font-size: 1.20rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.25;
+}
+
+.backup-automation-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+.badge-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-status-pill--active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  display: inline-block;
+}
+
+/* ─── Grid de 3 Tarjetas de Configuración ─────────────────────────────────── */
+.backup-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.backup-config-card {
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+}
+
+.backup-config-card:hover {
+  border-color: rgba(37, 77, 50, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.backup-config-card.is-disabled {
+  opacity: 0.55;
+}
+
+.backup-config-card.is-disabled .config-custom-select {
+  pointer-events: none;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.config-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.config-icon-box {
+  width: 36px;
+  height: 36px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.config-icon-box svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+
+.config-icon--interval {
+  background: transparent !important;
+  color: #0284c7;
+}
+
+.config-icon--interval svg {
+  stroke: #0284c7 !important;
+}
+
+.config-icon--daily {
+  background: transparent !important;
+  color: #15803d;
+}
+
+.config-icon--daily svg {
+  stroke: #15803d !important;
+}
+
+.config-icon--retention {
+  background: transparent !important;
+  color: #7e22ce;
+}
+
+.config-icon--retention svg {
+  stroke: #7e22ce !important;
+}
+
+.config-card-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.config-card-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.2;
+}
+
+.config-card-sub {
+  font-size: 0.74rem;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.config-card-switch {
+  flex-shrink: 0;
+}
+
+.badge-smart-retention {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  background: rgba(147, 51, 234, 0.12);
+  color: #7e22ce;
+  border: 1px solid rgba(147, 51, 234, 0.28);
+}
+
+.config-card-desc {
+  font-size: 0.81rem;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+  min-height: 38px;
+}
+
+.config-field-wrap {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.config-control-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.config-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.config-custom-select {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border, #cbd5e1);
+  background: #ffffff;
+  padding: 0 34px 0 14px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.config-custom-select:hover {
+  border-color: #254d32;
+}
+
+.config-custom-select:focus,
+.config-custom-select:focus-visible {
+  outline: none !important;
+  border-color: #254d32 !important;
+  box-shadow: 0 0 0 3px rgba(37, 77, 50, 0.15) !important;
+}
+
+/* ─── Footer de la Tarjeta de Automatización ──────────────────────────────── */
+.backup-automation-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border, #f1f5f9);
+}
+
+.footer-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.81rem;
+  color: var(--text-secondary, #64748b);
+  max-width: 620px;
+  line-height: 1.4;
+}
+
+.btn-save-schedule {
+  background: #254d32 !important;
+  color: #ffffff !important;
+  border: 1px solid #1a3827 !important;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 12px rgba(37, 77, 50, 0.28);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+}
+
+.btn-save-schedule:hover {
+  background: #2e5d3c !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 77, 50, 0.42);
+}
+
+.btn-save-schedule:active {
+  transform: translateY(0);
+}
+
+/* ─── Empty State ─────────────────────────────────────────────────────────── */
+.admin-empty-state {
+  text-align: center;
+  padding: 50px 20px;
+}
+
+.empty-icon-shield {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(37, 77, 50, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon-shield svg {
+  width: 32px;
+  height: 32px;
+}
+
+.empty-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 6px;
+}
+
+.empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* ─── Interruptores (Switches) de Automatización ───────────────────────────── */
+.admin-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.admin-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.admin-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color, #cbd5e1);
+  transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 24px;
+}
+
+.admin-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.admin-switch input:checked + .admin-slider {
+  background-color: #254d32;
+}
+
+.admin-switch input:checked + .admin-slider:before {
+  transform: translateX(20px);
+}
+
+/* ─── Modal de Detalle de Incidencias (Consola de Diagnóstico de Alta Gama) ─ */
+.admin-error-modal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-detail-header-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+}
+
+.admin-detail-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-detail-msg-card {
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.admin-detail-msg-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #dc2626;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.admin-detail-msg-content {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.5;
+  word-break: break-word;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-detail-metric-card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.admin-detail-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(37, 77, 50, 0.08);
+  color: #254d32;
+}
+
+.admin-detail-metric-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.admin-detail-metric-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-detail-metric-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+
+.admin-detail-metric-val {
+  font-size: 0.85rem;
+  color: var(--text-primary, #0f172a);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+/* ─── Terminal de Traza de Pila (macOS Console Styling) ──────────────────── */
+.admin-terminal-window {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  background: #090d16;
+}
+
+.admin-terminal-bar {
+  background: #131a29;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1e293b;
+}
+
+.admin-terminal-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot--red { background: #ef4444; }
+.dot--yellow { background: #f59e0b; }
+.dot--green { background: #10b981; }
+
+.admin-terminal-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.admin-terminal-copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f1f5f9;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-terminal-copy-btn:hover {
+  background: #254d32;
+  border-color: #355833;
+  color: #ffffff;
+}
+
+.admin-detail-stack {
+  background: transparent;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  max-height: 250px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+.admin-detail-json {
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: 'DM Mono', monospace, Consolas, sans-serif;
+  font-size: 0.78rem;
+  max-height: 160px;
+  overflow-y: auto;
+  color: var(--text-primary, #0f172a);
+}
+
+.admin-detail-resolved-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  color: #15803d;
+}
+
+/* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
+[data-theme="dark"] .btn-slide--green {
+  background: #1b3d26 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+[data-theme="dark"] .btn-slide--green:hover {
+  background: #254d32 !important;
+}
+
+[data-theme="dark"] .btn-slide--blue {
+  background: #1a3547 !important;
+  border-color: rgba(147, 197, 253, 0.25) !important;
+}
+[data-theme="dark"] .btn-slide--blue:hover {
+  background: #234a65 !important;
+}
+
+[data-theme="dark"] .btn-slide--red {
+  background: #522020 !important;
+  border-color: rgba(252, 165, 165, 0.25) !important;
+}
+[data-theme="dark"] .btn-slide--red:hover {
+  background: #6e2a2a !important;
+}
+
+[data-theme="dark"] .admin-detail-metric-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .admin-detail-header-badges {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="dark"] .admin-detail-msg-card {
+  background: rgba(220, 38, 38, 0.1) !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+[data-theme="dark"] .btn-backup-pill-now,
+[data-theme="dark"] .btn-save-schedule {
+  background: #1b3d26 !important;
+  border-color: #2e6b41 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .btn-backup-pill-now:hover,
+[data-theme="dark"] .btn-save-schedule:hover {
+  background: #254d32 !important;
+}
+
+[data-theme="dark"] .backup-automation-card {
+  background: var(--glass-bg-card, rgba(15, 23, 42, 0.65));
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .backup-automation-header,
+[data-theme="dark"] .backup-automation-footer {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .backup-config-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .backup-config-card:hover {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .config-custom-select {
+  background-color: rgba(15, 23, 42, 0.8);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .admin-table-styled thead th {
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .admin-table-styled tbody td {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .admin-table-styled tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .admin-detail-msg,
+[data-theme="dark"] .admin-detail-grid,
+[data-theme="dark"] .admin-detail-json {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .empty-icon-shield {
+  background: rgba(37, 77, 50, 0.25);
+}

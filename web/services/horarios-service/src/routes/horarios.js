@@ -18,7 +18,24 @@ const pool = new Pool(
       }
 );
 
-const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+function resolveJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDefaultOrInsecure = !secret || secret.trim() === '' || secret.includes('talento360_secret_2026');
+  if (isProd) {
+    if (isDefaultOrInsecure) {
+      console.error('[FATAL CIBERSEGURIDAD] En entorno de producción (NODE_ENV=production), la variable JWT_SECRET es obligatoria y no puede usar el secreto predeterminado o predecible (AUD-011).');
+      process.exit(1);
+    }
+    return secret;
+  }
+  if (isDefaultOrInsecure) {
+    console.warn('[AVISO DE SEGURIDAD] JWT_SECRET no configurado o usando valor por defecto en desarrollo.');
+    return secret || 'talento360_secret_2026';
+  }
+  return secret;
+}
+const JWT_SECRET = resolveJwtSecret();
 
 const VALID_MODALIDADES = ['Presencial', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
 const VALID_ESTADOS     = ['Activa', 'Pendiente', 'En revisión', 'Finalizada', 'Rechazada', 'Caducada'];
@@ -42,8 +59,12 @@ ensureHorariosColumns();
 
 // ─── Middleware de Autenticación ─────────────────────────────────────────────
 function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'No autorizado.' });
+  let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+  if (!token) return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
@@ -52,10 +73,42 @@ function auth(req, res, next) {
   }
 }
 
-function canEdit(role) {
-  if (!role) return false;
-  const r = role.toLowerCase();
-  return r.includes('administrador') || r.includes('coordinador') || r.includes('admin');
+function hasPermission(user, requiredPerm) {
+  if (!user) return false;
+  const role = String(typeof user === 'string' ? user : (user.role || user.rol || '')).toLowerCase();
+  const mods = (typeof user === 'object' && Array.isArray(user.modules))
+    ? user.modules
+    : (typeof user === 'object' && typeof user.modules === 'string' ? user.modules.split(',').map(m => m.trim().toLowerCase()) : []);
+  const perms = (typeof user === 'object' && Array.isArray(user.permissions)) ? user.permissions : [];
+
+  // 1. Acceso de Administrador General / Superusuario
+  if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all') || perms.includes('*')) {
+    return true;
+  }
+
+  // 2. Verificación estricta de permiso granular
+  if (requiredPerm) {
+    if (perms.includes(requiredPerm)) return true;
+    const [mod, action] = requiredPerm.split(':');
+    if (perms.includes(`${mod}:*`)) return true;
+    // Si la acción es lectura (read) y el módulo está asignado (sin restricción de solo escritura)
+    if (action === 'read' && mods.includes(mod)) return true;
+    // Para escritura (write/delete/import/export), NO basta tener el nombre del módulo en mods si perms existe
+    if (perms.length === 0 && mods.includes(mod)) return true;
+    if (action === 'write' && (mods.includes(`${mod}_write`) || mods.includes(`${mod}:write`))) return true;
+  }
+
+  return false;
+}
+
+function canEdit(roleOrUser) {
+  const user = typeof roleOrUser === 'object' ? roleOrUser : { role: roleOrUser };
+  return hasPermission(user, 'horarios:write');
+}
+
+function canRead(roleOrUser) {
+  const user = typeof roleOrUser === 'object' ? roleOrUser : { role: roleOrUser };
+  return hasPermission(user, 'horarios:read');
 }
 
 function excelSerialToIsoDate(serial) {
@@ -359,45 +412,8 @@ async function checkAndProcessExpirations() {
         ]
       );
 
-      // 3. Crear o asegurar un esquema Presencial activo para este funcionario
-      const presencialCheck = await pool.query(
-        `SELECT id_horario FROM horarios
-         WHERE documento = $1 AND modalidad = 'Presencial' AND estado = 'Activa'
-         LIMIT 1`,
-        [h.documento]
-      );
-
-      if (presencialCheck.rows.length === 0) {
-        const newPres = await pool.query(
-          `INSERT INTO horarios (
-             documento, apellidos_nombres, dependencia, cargo, modalidad, estado,
-             fecha_inicio, duracion_texto, duracion_dias, tipo_calculo,
-             numero_resolucion, aprobado_por, observaciones
-           ) VALUES (
-             $1, $2, $3, $4, 'Presencial', 'Activa',
-             CURRENT_DATE, 'Permanente', 365, 'Hábiles',
-             $5, 'Sistema Talento 360',
-             $6
-           ) RETURNING id_horario`,
-          [
-            h.documento,
-            h.apellidos_nombres,
-            h.dependencia,
-            h.cargo,
-            h.numero_resolucion ? `RET-${h.numero_resolucion}` : 'AUTO-RETORNO',
-            `Retorno automático a modalidad Presencial tras caducidad de ${h.modalidad} anterior (vigente hasta ${h.fecha_fin}).`,
-          ]
-        );
-
-        if (newPres.rows.length > 0) {
-          await pool.query(
-            `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-             VALUES ($1, 'Activación Presencial Automática', 'Activa',
-                     'Esquema presencial generado automáticamente por caducidad de modalidad especial anterior.', 'Sistema - Retorno Automático')`,
-            [newPres.rows[0].id_horario]
-          );
-        }
-      }
+      // 3. Regla institucional: Al caducar el acuerdo especial, el funcionario retorna a la presencialidad
+      // ordinaria legal por defecto. No se inserta tupla artificial en la tabla horarios (TSK-003 / AUD-003).
 
       // 4. Si la modalidad vencida era "Trabajo en casa", reanudar cualquier vacación que hubiera estado pausada
       if (h.modalidad === 'Trabajo en casa') {
@@ -475,11 +491,29 @@ async function handleVacationPauseForHomeOffice(documento, funcionarioNombre, re
 
 // ─── GET /api/horarios ───────────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
   const {
     q = '',
     modalidad = '',
     estado = '',
     dependencia = '',
+    cargo = '',
+    codigo = '',
+    grado = '',
+    subtipoTeletrabajo = '',
+    fechaInicioDesde = '',
+    fechaInicioHasta = '',
+    fechaFinDesde = '',
+    fechaFinHasta = '',
+    numeroResolucion = '',
+    diasSemana = '',
+    notificacionArl = '',
+    prorroga = '',
+    sortBy = '',
+    sort = '',
+    order = '',
     page = 1,
     limit = 20,
   } = req.query;
@@ -515,6 +549,68 @@ router.get('/', auth, async (req, res) => {
       idx++;
     }
 
+    // ── Filtros Avanzados Horarios ───────────────────────────────────────────
+    if (cargo && cargo.trim()) {
+      conditions.push(`TRANSLATE(LOWER(h.cargo), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
+      params.push(cargo.trim());
+    }
+    if (codigo && codigo.trim()) {
+      conditions.push(`h.codigo ILIKE $${idx++}`);
+      params.push(`%${codigo.trim()}%`);
+    }
+    if (grado && grado.trim()) {
+      conditions.push(`h.grado ILIKE $${idx++}`);
+      params.push(`%${grado.trim()}%`);
+    }
+    if (subtipoTeletrabajo && !['todos', 'todas', ''].includes(subtipoTeletrabajo.trim().toLowerCase())) {
+      conditions.push(`LOWER(h.subtipo_teletrabajo) = LOWER($${idx++})`);
+      params.push(subtipoTeletrabajo.trim());
+    }
+    if (numeroResolucion && numeroResolucion.trim()) {
+      conditions.push(`h.numero_resolucion ILIKE $${idx++}`);
+      params.push(`%${numeroResolucion.trim()}%`);
+    }
+    if (fechaInicioDesde) {
+      conditions.push(`h.fecha_inicio >= $${idx++}::date`);
+      params.push(fechaInicioDesde);
+    }
+    if (fechaInicioHasta) {
+      conditions.push(`h.fecha_inicio <= $${idx++}::date`);
+      params.push(fechaInicioHasta);
+    }
+    if (fechaFinDesde) {
+      conditions.push(`h.fecha_fin >= $${idx++}::date`);
+      params.push(fechaFinDesde);
+    }
+    if (fechaFinHasta) {
+      conditions.push(`h.fecha_fin <= $${idx++}::date`);
+      params.push(fechaFinHasta);
+    }
+    if (diasSemana && diasSemana.trim()) {
+      conditions.push(`(
+        TRANSLATE(LOWER(COALESCE(h.dias_teletrabajo, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR TRANSLATE(LOWER(COALESCE(h.dias_presencial, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`);
+      params.push(diasSemana.trim());
+      idx++;
+    }
+    if (notificacionArl) {
+      const v = notificacionArl.trim().toLowerCase();
+      if (v === 'si' || v === 'true') {
+        conditions.push(`h.notificacion_arl IS TRUE`);
+      } else if (v === 'no' || v === 'false') {
+        conditions.push(`(h.notificacion_arl IS FALSE OR h.notificacion_arl IS NULL)`);
+      }
+    }
+    if (prorroga) {
+      const v = prorroga.trim().toLowerCase();
+      if (v === 'si' || v === 'true') {
+        conditions.push(`h.prorroga IS TRUE`);
+      } else if (v === 'no' || v === 'false') {
+        conditions.push(`(h.prorroga IS FALSE OR h.prorroga IS NULL)`);
+      }
+    }
+
     const where = conditions.join(' AND ');
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM horarios h WHERE ${where}`,
@@ -527,12 +623,46 @@ router.get('/', auth, async (req, res) => {
     const limitNum = isAll ? 100000 : Math.max(1, parseInt(limit, 10) || 20);
     const offset = (pageNum - 1) * limitNum;
 
-    const orderDir = (req.query.order && String(req.query.order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
-    let orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
-    if (req.query.sort === 'nombre') {
-      orderByClause = `ORDER BY h.apellidos_nombres ${orderDir}`;
-    } else if (req.query.sort === 'fecha') {
-      orderByClause = `ORDER BY h.fecha_inicio ${orderDir}`;
+    let orderByClause = '';
+    const effectiveSort = sortBy || (sort ? `${sort}_${order || 'asc'}` : '');
+    switch (effectiveSort) {
+      case 'consecutivo_desc':
+        orderByClause = 'ORDER BY COALESCE(h.numero_consecutivo, 0) DESC, h.id_horario DESC';
+        break;
+      case 'consecutivo_asc':
+        orderByClause = 'ORDER BY COALESCE(h.numero_consecutivo, 999999) ASC, h.id_horario ASC';
+        break;
+      case 'fecha_inicio_desc':
+      case 'fecha_desc':
+        orderByClause = 'ORDER BY h.fecha_inicio DESC NULLS LAST, h.id_horario DESC';
+        break;
+      case 'fecha_inicio_asc':
+      case 'fecha_asc':
+        orderByClause = 'ORDER BY h.fecha_inicio ASC NULLS LAST, h.id_horario ASC';
+        break;
+      case 'fecha_fin_asc':
+        orderByClause = 'ORDER BY h.fecha_fin ASC NULLS LAST, h.id_horario ASC';
+        break;
+      case 'fecha_fin_desc':
+        orderByClause = 'ORDER BY h.fecha_fin DESC NULLS LAST, h.id_horario DESC';
+        break;
+      case 'nombre_asc':
+      case 'nombre':
+        orderByClause = 'ORDER BY h.apellidos_nombres ASC NULLS LAST';
+        break;
+      case 'nombre_desc':
+        orderByClause = 'ORDER BY h.apellidos_nombres DESC NULLS LAST';
+        break;
+      case 'cedula_asc':
+        orderByClause = 'ORDER BY h.documento ASC NULLS LAST';
+        break;
+      case 'cedula_desc':
+        orderByClause = 'ORDER BY h.documento DESC NULLS LAST';
+        break;
+      default: {
+        const orderDir = (order && String(order).toLowerCase() === 'desc') ? 'DESC' : 'ASC';
+        orderByClause = `ORDER BY COALESCE(h.numero_consecutivo, 999999) ${orderDir}, h.id_horario ${orderDir}`;
+      }
     }
 
     params.push(limitNum, offset);
@@ -593,6 +723,9 @@ router.get('/', auth, async (req, res) => {
 
 // ─── GET /api/horarios/next-consecutivo ───────────────────────────────────────
 router.get('/next-consecutivo', auth, async (req, res) => {
+  if (!canRead(req.user) && !canEdit(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos sobre el módulo de horarios.' });
+  }
   try {
     const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
     const maxVal = parseInt(maxQ.rows[0].max_val, 10) || 0;
@@ -605,19 +738,22 @@ router.get('/next-consecutivo', auth, async (req, res) => {
 
 // ─── GET /api/horarios/stats ─────────────────────────────────────────────────
 router.get('/stats', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
   try {
     await checkAndProcessExpirations();
 
     const statsQuery = await pool.query(`
       SELECT
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE modalidad = 'Presencial') AS presencial,
-        COUNT(*) FILTER (WHERE modalidad = 'Teletrabajo') AS teletrabajo,
-        COUNT(*) FILTER (WHERE modalidad = 'Trabajo en casa') AS trabajo_en_casa,
-        COUNT(*) FILTER (WHERE modalidad = 'Horario flexible') AS horario_flexible,
-        COUNT(*) FILTER (WHERE estado = 'Activa') AS activas,
-        COUNT(*) FILTER (WHERE estado = 'Caducada') AS caducadas,
-        COUNT(*) FILTER (WHERE estado = 'Activa' AND fecha_fin IS NOT NULL AND fecha_fin <= CURRENT_DATE + INTERVAL '30 days') AS por_vencer
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%presencial%') AS presencial,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%teletrabaj%') AS teletrabajo,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%casa%') AS trabajo_en_casa,
+        COUNT(*) FILTER (WHERE modalidad ILIKE '%flexib%') AS horario_flexible,
+        COUNT(*) FILTER (WHERE estado ILIKE '%activa%') AS activas,
+        COUNT(*) FILTER (WHERE estado ILIKE '%caducad%') AS caducadas,
+        COUNT(*) FILTER (WHERE estado ILIKE '%activa%' AND fecha_fin IS NOT NULL AND fecha_fin <= CURRENT_DATE + INTERVAL '30 days') AS por_vencer
       FROM horarios
     `);
 
@@ -694,8 +830,14 @@ router.post('/calculate-dates', auth, (req, res) => {
 
 // ─── GET /api/horarios/:id ───────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
+  if (!canRead(req.user)) {
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de lectura sobre el módulo de horarios.' });
+  }
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   try {
-    const { id } = req.params;
     const scheduleRes = await pool.query('SELECT * FROM horarios WHERE id_horario = $1', [id]);
     if (scheduleRes.rows.length === 0) {
       return res.status(404).json({ error: 'Esquema de horario no encontrado.' });
@@ -718,7 +860,7 @@ router.get('/:id', auth, async (req, res) => {
 
 // ─── POST /api/horarios/bulk (Carga Masiva Excel) ─────────────────────────────
 router.post('/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'Permisos insuficientes para carga masiva.' });
   }
 
@@ -776,7 +918,25 @@ router.post('/bulk', auth, async (req, res) => {
       }
 
       // Identificación y Nombres
-      let documento = (row.documento || row.cedula || row['NO DE CEDULA'] || row['NO. DE CEDULA'] || row['NO DE CÉDULA'] || row['Nro. De Identificación'] || row['Nro. De Identificacion'] || row['De Identificación'] || row['De Identificacion'] || row['Identificación'] || row['Identificacion'] || row['Documento'] || row['Cédula'] || '').toString().trim();
+      let documento = (
+        row.documento ||
+        row.cedula ||
+        row['Cédula'] ||
+        row['Cedula'] ||
+        row['CÉDULA'] ||
+        row['CEDULA'] ||
+        row['NO DE CEDULA'] ||
+        row['NO. DE CEDULA'] ||
+        row['NO DE CÉDULA'] ||
+        row['Nro. De Identificación'] ||
+        row['Nro. De Identificacion'] ||
+        row['De Identificación'] ||
+        row['De Identificacion'] ||
+        row['Identificación'] ||
+        row['Identificacion'] ||
+        row['Documento'] ||
+        ''
+      ).toString().trim();
       let apellidos_nombres = cleanString(row.apellidos_nombres || row.persona || row.nombreCompleto || row['Nombres y Apellidos'] || row['Nombre y Apellidos'] || row['Servidor Público'] || '');
       if (!apellidos_nombres && (row['APELLIDOS'] || row['NOMBRES'] || row.apellidos || row.nombres)) {
         apellidos_nombres = cleanString([row['APELLIDOS'] || row.apellidos, row['NOMBRES'] || row.nombres].filter(Boolean).join(' '));
@@ -822,6 +982,7 @@ router.post('/bulk', auth, async (req, res) => {
       const cargo = cleanString(row.cargo || row['CARGO'] || row['Cargo'] || 'PROFESIONAL UNIVERSITARIO');
       const dependencia = cleanString(row.dependencia || row['DEPENDENCIA'] || row['Dependencia'] || 'SECRETARÍA GENERAL');
       const secretaria = cleanString(row.secretaria || row['SECRETARIA'] || row['Secretaría'] || row['Secretaria'] || dependencia);
+      const telefono = cleanString(row.telefono || row['tel.'] || row['tel'] || row['Tel.'] || row['Teléfono'] || row['Telefono'] || row['CELULAR'] || row['Celular'] || '') || null;
 
       // Situación laboral / Modalidad
       const rawSituacion = cleanString(row.situacion || row['SITUACION'] || row['SITUACIÓN'] || row['Situación'] || row['Situacion'] || row.modalidad || row['Modalidad'] || '');
@@ -840,8 +1001,30 @@ router.post('/bulk', auth, async (req, res) => {
         modalidad = 'Teletrabajo';
       }
 
+      if (modalidad === 'Presencial') {
+        presencialCount++;
+        skipped++;
+        continue;
+      }
+
       // Días / Horario específico
-      const diasRaw = cleanString(row.dias_teletrabajo || row['DIAS DE TELETRABAJO'] || row['Dias Teletrabajo'] || row['Días Teletrabajo'] || row['Dias teletrabajo'] || row['Horario'] || row['Franja'] || '');
+      const diasRaw = cleanString(
+        row.horario ||
+        row['horario'] ||
+        row['Horario'] ||
+        row['HORARIO'] ||
+        row.dias_teletrabajo ||
+        row['DIAS DE TELETRABAJO'] ||
+        row['Dias Teletrabajo'] ||
+        row['Días Teletrabajo'] ||
+        row['Dias teletrabajo'] ||
+        row['Días teletrabajo'] ||
+        row['Dias'] ||
+        row['Días'] ||
+        row['Franja'] ||
+        row['Jornada'] ||
+        ''
+      );
       let dias_teletrabajo = diasRaw;
       let subtipo_teletrabajo = null;
       let franja_ingreso = null;
@@ -860,7 +1043,20 @@ router.post('/bulk', auth, async (req, res) => {
       estado = matchedEst || 'Activa';
 
       // Fecha del acto / solicitud con soporte para números de serie de Excel y Date objects
-      const rawFechaVal = row.fecha || row['FECHA'] || row['fecha'] || row['fecha '] || row['Fecha'] || row.fecha_inicio || row['Fecha Inicio'] || null;
+      const rawFechaVal = 
+        row.fecha ||
+        row['FECHA'] ||
+        row['fecha'] ||
+        row['fecha '] ||
+        row['Fecha'] ||
+        row.fecha_inicio ||
+        row['fecha_inicio'] ||
+        row['Fecha inicio'] ||
+        row['Fecha Inicio'] ||
+        row['FECHA INICIO'] ||
+        row['Fecha de Inicio'] ||
+        row['FECHA DE INICIO'] ||
+        null;
       let fecha_inicio = null;
       if (rawFechaVal != null && rawFechaVal !== '') {
         if (typeof rawFechaVal === 'number' && rawFechaVal > 30000 && rawFechaVal < 60000) {
@@ -900,6 +1096,7 @@ router.post('/bulk', auth, async (req, res) => {
         }
       }
 
+      if (!fecha_inicio) fecha_inicio = new Date().toISOString().split('T')[0];
       // Cómputo de duración realista basado estrictamente en los datos del archivo:
       // - Teletrabajo: contar los días de la semana autorizados (ej: martes y jueves = 2 días / semana)
       // - Horario flexible: jornada por horas pactada (ej: 8 horas / día)
@@ -932,7 +1129,69 @@ router.post('/bulk', auth, async (req, res) => {
         finalDuracionTexto = 'Jornada ordinaria';
       }
 
-      const finalFechaFin = row.fecha_fin || null;
+      // Fecha Fin con soporte para nombres oficiales de columna, seriales y texto
+      const rawFechaFinVal = 
+        row.fecha_fin ||
+        row.fecha_terminacion ||
+        row['Fecha terminación'] ||
+        row['Fecha terminacion'] ||
+        row['Fecha Terminación'] ||
+        row['Fecha Terminacion'] ||
+        row['FECHA TERMINACIÓN'] ||
+        row['FECHA TERMINACION'] ||
+        row['Terminación'] ||
+        row['Terminacion'] ||
+        row['TERMINACIÓN'] ||
+        row['TERMINACION'] ||
+        row['Fecha de Fin'] ||
+        row['Fecha Fin'] ||
+        row['FECHA DE FIN'] ||
+        row['FECHA FIN'] ||
+        row['Fecha Finalización'] ||
+        row['Fecha Finalizacion'] ||
+        row['FECHA FINALIZACIÓN'] ||
+        row['FECHA FINALIZACION'] ||
+        row['Vencimiento'] ||
+        row['VENCIMIENTO'] ||
+        null;
+      let finalFechaFin = null;
+      if (rawFechaFinVal != null && rawFechaFinVal !== '') {
+        if (typeof rawFechaFinVal === 'number' && rawFechaFinVal > 30000 && rawFechaFinVal < 60000) {
+          finalFechaFin = excelSerialToIsoDate(rawFechaFinVal);
+        } else if (rawFechaFinVal instanceof Date) {
+          const d = String(rawFechaFinVal.getUTCDate()).padStart(2, '0');
+          const m = String(rawFechaFinVal.getUTCMonth() + 1).padStart(2, '0');
+          const y = rawFechaFinVal.getUTCFullYear();
+          finalFechaFin = `${y}-${m}-${d}`;
+        } else {
+          const rawFechaFin = String(rawFechaFinVal).trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawFechaFin)) {
+            finalFechaFin = rawFechaFin;
+          } else if (rawFechaFin.includes('/')) {
+            const parts = rawFechaFin.split('/');
+            if (parts.length === 3) {
+              let yr = parts[2];
+              if (yr.length === 2) yr = '20' + yr;
+              finalFechaFin = `${yr}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          } else if (/^\d{5}$/.test(rawFechaFin)) {
+            const num = parseInt(rawFechaFin, 10);
+            if (num > 30000 && num < 60000) {
+              finalFechaFin = excelSerialToIsoDate(num);
+            }
+          } else {
+            const months = {
+              enero: '01', febrero: '02', marzo: '03', abril: '04',
+              mayo: '05', junio: '06', julio: '07', agosto: '08',
+              septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+            };
+            const match = rawFechaFin.toLowerCase().match(/(\d{1,2})\s*(?:de)?\s*([a-záéíóúñ]+)\s*(?:de)?\s*(\d{4})/i);
+            if (match && months[match[2].toLowerCase()]) {
+              finalFechaFin = `${match[3]}-${months[match[2].toLowerCase()]}-${match[1].padStart(2, '0')}`;
+            }
+          }
+        }
+      }
       const isBusiness = true;
 
       const rawRes = (
@@ -995,8 +1254,9 @@ router.post('/bulk', auth, async (req, res) => {
              justificacion_flex = COALESCE($20, justificacion_flex),
              observaciones      = $21,
              aprobado_por       = COALESCE($22, aprobado_por),
+             telefono           = COALESCE($23, telefono),
              actualizado_en     = NOW()
-           WHERE id_horario = $23`,
+           WHERE id_horario = $24`,
           [
             consecToUse,
             apellidos_nombres.toUpperCase(),
@@ -1020,6 +1280,7 @@ router.post('/bulk', auth, async (req, res) => {
             justificacion_flex || null,
             observaciones,
             aprobado_por || null,
+            telefono,
             finalId,
           ]
         );
@@ -1039,14 +1300,14 @@ router.post('/bulk', auth, async (req, res) => {
              fecha_inicio, fecha_fin, duracion_texto, duracion_dias, tipo_calculo,
              numero_resolucion, fecha_aprobacion, fecha_notificacion, aprobado_por, soporte_acto,
              subtipo_teletrabajo, dias_teletrabajo, franja_ingreso, justificacion_flex,
-             observaciones, creado_por
+             observaciones, creado_por, telefono
            ) VALUES (
              $1, $2, $3, $4, $5,
              $6, $7, $8, $9, $10,
              $11, $12, $13, $14, $15,
              $16, $17, $18, $19, $20,
              $21, $22, $23, $24,
-             $25, $26
+             $25, $26, $27
            ) RETURNING id_horario`,
           [
             numConsecutivo,
@@ -1075,6 +1336,7 @@ router.post('/bulk', auth, async (req, res) => {
             justificacion_flex || null,
             observaciones,
             req.user.name || 'Carga Masiva',
+            telefono,
           ]
         );
 
@@ -1145,7 +1407,7 @@ router.post('/bulk', auth, async (req, res) => {
 
 // ─── POST /api/horarios ──────────────────────────────────────────────────────
 router.post('/', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'No tienes permisos para crear esquemas de horarios.' });
   }
 
@@ -1158,6 +1420,7 @@ router.post('/', auth, async (req, res) => {
     apellidos_nombres,
     dependencia,
     cargo,
+    telefono,
     modalidad,
     estado = 'Activa',
     fecha_inicio,
@@ -1202,6 +1465,12 @@ router.post('/', auth, async (req, res) => {
     });
   }
 
+  if (modalidad === 'Presencial') {
+    return res.status(400).json({
+      error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial. Este módulo administra exclusivamente Teletrabajo, Trabajo en casa y Horario flexible.',
+    });
+  }
+
   if (!VALID_MODALIDADES.includes(modalidad)) {
     return res.status(400).json({
       error: `Modalidad inválida. Debe ser una de: ${VALID_MODALIDADES.join(', ')}`,
@@ -1212,7 +1481,7 @@ router.post('/', auth, async (req, res) => {
   const isBusiness = checkIsBusiness(tipo_calculo);
   let finalDuracionTexto = duracion_texto || '';
   let finalDuracionDias = 0;
-  let finalFechaFin = fecha_fin || null;
+  let finalFechaFin = fecha_fin || req.body.fecha_terminacion || null;
 
   if (duracion_texto) {
     const parseRes = parseFlexibleDuration(duracion_texto);
@@ -1241,7 +1510,70 @@ router.post('/', auth, async (req, res) => {
     }
   }
 
+  // Validación de orden de fechas de vigencia
+  if (fecha_inicio && finalFechaFin) {
+    if (new Date(finalFechaFin) < new Date(fecha_inicio)) {
+      return res.status(400).json({
+        error: 'La fecha de finalización no puede ser anterior a la fecha de inicio del acuerdo.'
+      });
+    }
+  }
+
+  // Validación de franjas horarias
+  if (franja_ingreso && franja_salida) {
+    const parseTime = (t) => {
+      const m = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    };
+    const tIngreso = parseTime(franja_ingreso);
+    const tSalida = parseTime(franja_salida);
+    if (tIngreso !== null && tSalida !== null && tSalida <= tIngreso) {
+      return res.status(400).json({
+        error: `La franja de salida (${franja_salida}) debe ser posterior a la franja de ingreso (${franja_ingreso}).`
+      });
+    }
+  }
+
   try {
+    // Validación de estado del funcionario: no permitir acuerdos a servidores inactivos o retirados
+    const empStatusQ = await pool.query(`
+      SELECT e.estado_servidor
+      FROM rel_principal r
+      JOIN personas p ON p.id_persona = r.id_persona
+      JOIN estados e ON e.id_estado = r.id_estado
+      WHERE p.cedula = $1
+      LIMIT 1
+    `, [upper(documento)]);
+    if (empStatusQ.rows.length > 0) {
+      const estadoServ = (empStatusQ.rows[0].estado_servidor || '').trim().toLowerCase();
+      if (estadoServ === 'inactivo' || estadoServ === 'retirado') {
+        return res.status(400).json({
+          error: 'No se puede registrar un acuerdo para un servidor público inactivo o retirado. Debe realizar primero la revinculación del funcionario.'
+        });
+      }
+    }
+
+    // Validación de traslapes: un servidor público no puede tener dos acuerdos activos simultáneos
+    if (['activa', 'pendiente', 'en revisión', 'aprobada'].includes((estado || 'Activa').toLowerCase()) && fecha_inicio) {
+      const overlapQ = await pool.query(`
+        SELECT id_horario, numero_consecutivo, modalidad, fecha_inicio, fecha_fin, estado
+        FROM horarios
+        WHERE documento = $1
+          AND estado IN ('Activa', 'Pendiente', 'En revisión', 'Aprobada')
+          AND ($2::date <= COALESCE(fecha_fin, '9999-12-31'::date))
+          AND (COALESCE($3::date, '9999-12-31'::date) >= fecha_inicio)
+        LIMIT 1
+      `, [upper(documento), fecha_inicio, finalFechaFin || null]);
+
+      if (overlapQ.rows.length > 0) {
+        const ov = overlapQ.rows[0];
+        const fechaFinText = ov.fecha_fin ? `al ${ov.fecha_fin}` : 'indefinida';
+        return res.status(400).json({
+          error: `El servidor público ya cuenta con un acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
+        });
+      }
+    }
     const maxQ = await pool.query('SELECT COALESCE(MAX(numero_consecutivo), 0) AS max_val FROM horarios');
     const maxConsecutivo = parseInt(maxQ.rows[0]?.max_val || 0, 10);
     const minPermitido = maxConsecutivo + 1;
@@ -1264,7 +1596,7 @@ router.post('/', auth, async (req, res) => {
          subtipo_teletrabajo, dias_teletrabajo, dias_presencial, domicilio_laboral, notificacion_arl, fecha_reporte_arl,
          motivo_trabajo_casa, direccion_trabajo_casa, herramientas_tic, prorroga,
          franja_ingreso, franja_salida, horas_semanales, tiempo_almuerzo, justificacion_flex,
-         observaciones, creado_por
+         observaciones, creado_por, telefono
        ) VALUES (
          $1, $2, $3, $4,
          $5, $6, $7, $8, $9, $10,
@@ -1273,7 +1605,7 @@ router.post('/', auth, async (req, res) => {
          $21, $22, $23, $24, $25, $26,
          $27, $28, $29, $30,
          $31, $32, $33, $34, $35,
-         $36, $37
+         $36, $37, $38
        ) RETURNING *`,
       [
         finalConsecutivo,
@@ -1313,6 +1645,7 @@ router.post('/', auth, async (req, res) => {
         justificacion_flex || null,
         observaciones || null,
         req.user.username || 'admin',
+        telefono ? String(telefono).trim() : null,
       ]
     );
 
@@ -1349,17 +1682,23 @@ router.post('/', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('[horarios-service] Error creando horario:', err);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
     res.status(500).json({ error: 'Error al registrar horario: ' + err.message });
   }
 });
 
 // ─── PUT /api/horarios/:id ───────────────────────────────────────────────────
 router.put('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'No tienes permisos para modificar esquemas.' });
   }
 
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   const currentQ = await pool.query('SELECT * FROM horarios WHERE id_horario = $1', [id]);
   if (currentQ.rows.length === 0) {
     return res.status(404).json({ error: 'Esquema de horario no encontrado.' });
@@ -1375,6 +1714,7 @@ router.put('/:id', auth, async (req, res) => {
     secretaria = current.secretaria,
     dependencia = current.dependencia,
     cargo = current.cargo,
+    telefono = current.telefono,
     modalidad = current.modalidad,
     estado = current.estado,
     fecha_inicio = current.fecha_inicio,
@@ -1409,11 +1749,19 @@ router.put('/:id', auth, async (req, res) => {
     observaciones = current.observaciones,
   } = req.body;
 
+  if (modalidad === 'Presencial') {
+    return res.status(400).json({
+      error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial.',
+    });
+  }
+
   try {
     const isBusiness = checkIsBusiness(tipo_calculo);
     let finalDuracionTexto = duracion_texto;
     let finalDuracionDias = current.duracion_dias;
-    let finalFechaFin = fecha_fin;
+    let finalFechaFin = req.body.fecha_fin !== undefined 
+      ? req.body.fecha_fin 
+      : (req.body.fecha_terminacion !== undefined ? req.body.fecha_terminacion : fecha_fin);
 
     if (duracion_texto && duracion_texto !== current.duracion_texto) {
       const parseRes = parseFlexibleDuration(duracion_texto);
@@ -1427,6 +1775,55 @@ router.put('/:id', auth, async (req, res) => {
       }
     }
 
+    const effectiveFechaInicio = fecha_inicio || current.fecha_inicio;
+    if (effectiveFechaInicio && finalFechaFin) {
+      if (new Date(finalFechaFin) < new Date(effectiveFechaInicio)) {
+        return res.status(400).json({
+          error: 'La fecha de finalización no puede ser anterior a la fecha de inicio del acuerdo.'
+        });
+      }
+    }
+
+    const effectiveFranjaIngreso = franja_ingreso !== undefined ? franja_ingreso : current.franja_ingreso;
+    const effectiveFranjaSalida = franja_salida !== undefined ? franja_salida : current.franja_salida;
+    if (effectiveFranjaIngreso && effectiveFranjaSalida) {
+      const parseTime = (t) => {
+        const m = String(t).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return null;
+        return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      };
+      const tIngreso = parseTime(effectiveFranjaIngreso);
+      const tSalida = parseTime(effectiveFranjaSalida);
+      if (tIngreso !== null && tSalida !== null && tSalida <= tIngreso) {
+        return res.status(400).json({
+          error: `La franja de salida (${effectiveFranjaSalida}) debe ser posterior a la franja de ingreso (${effectiveFranjaIngreso}).`
+        });
+      }
+    }
+
+    const targetDoc = documento !== undefined ? upper(documento) : current.documento;
+    const targetEstado = estado !== undefined ? estado : current.estado;
+    if (['activa', 'pendiente', 'en revisión', 'aprobada'].includes((targetEstado || 'Activa').toLowerCase()) && effectiveFechaInicio) {
+      const overlapQ = await pool.query(`
+        SELECT id_horario, numero_consecutivo, modalidad, fecha_inicio, fecha_fin, estado
+        FROM horarios
+        WHERE documento = $1
+          AND estado IN ('Activa', 'Pendiente', 'En revisión', 'Aprobada')
+          AND ($2::date <= COALESCE(fecha_fin, '9999-12-31'::date))
+          AND (COALESCE($3::date, '9999-12-31'::date) >= fecha_inicio)
+          AND id_horario <> $4
+        LIMIT 1
+      `, [targetDoc, effectiveFechaInicio, finalFechaFin || null, id]);
+
+      if (overlapQ.rows.length > 0) {
+        const ov = overlapQ.rows[0];
+        const fechaFinText = ov.fecha_fin ? `al ${ov.fecha_fin}` : 'indefinida';
+        return res.status(400).json({
+          error: `El servidor público ya cuenta con otro acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
+        });
+      }
+    }
+
     const updateRes = await pool.query(
       `UPDATE horarios SET
          numero_consecutivo = $1, codigo = $2, grado = $3, secretaria = $4,
@@ -1436,8 +1833,8 @@ router.put('/:id', auth, async (req, res) => {
          subtipo_teletrabajo = $19, dias_teletrabajo = $20, dias_presencial = $21, domicilio_laboral = $22, notificacion_arl = $23, fecha_reporte_arl = $24,
          motivo_trabajo_casa = $25, direccion_trabajo_casa = $26, herramientas_tic = $27, prorroga = $28,
          franja_ingreso = $29, franja_salida = $30, horas_semanales = $31, tiempo_almuerzo = $32, justificacion_flex = $33,
-         observaciones = $34, documento = $35, apellidos_nombres = $36, actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_horario = $37
+         observaciones = $34, documento = $35, apellidos_nombres = $36, telefono = $37, actualizado_en = CURRENT_TIMESTAMP
+       WHERE id_horario = $38
        RETURNING *`,
       [
         numero_consecutivo !== undefined && numero_consecutivo !== null && String(numero_consecutivo).trim() !== ''
@@ -1478,6 +1875,7 @@ router.put('/:id', auth, async (req, res) => {
         observaciones,
         upper(documento),
         upper(apellidos_nombres),
+        telefono !== undefined ? (telefono ? String(telefono).trim() : null) : current.telefono,
         id,
       ]
     );
@@ -1504,13 +1902,16 @@ router.put('/:id', auth, async (req, res) => {
     res.json({ message: 'Horario actualizado correctamente.', data: updated });
   } catch (err) {
     console.error('[horarios-service] Error actualizando horario:', err);
+    if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
+      return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
     res.status(500).json({ error: 'Error al actualizar horario: ' + err.message });
   }
 });
 
 // ─── PATCH /api/horarios/:id/soporte ─────────────────────────────────────────
 router.patch('/:id/soporte', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'No tienes permisos para modificar soportes.' });
   }
 
@@ -1552,7 +1953,7 @@ router.patch('/:id/soporte', auth, async (req, res) => {
 
 // ─── PATCH /api/horarios/:id/status ──────────────────────────────────────────
 router.patch('/:id/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'No tienes permisos para modificar estados.' });
   }
 
@@ -1608,11 +2009,14 @@ router.patch('/:id/status', auth, async (req, res) => {
 
 // ─── DELETE /api/horarios/:id ────────────────────────────────────────────────
 router.delete('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role || req.user.rol)) {
+  if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'No tienes permisos para eliminar horarios.' });
   }
 
-  const { id } = req.params;
+  const id = parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
   try {
     const del = await pool.query('DELETE FROM horarios WHERE id_horario = $1 RETURNING id_horario', [id]);
     if (del.rows.length === 0) return res.status(404).json({ error: 'Horario no encontrado.' });

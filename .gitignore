@@ -13,6 +13,8 @@ web/scratch/
 # Database dumps and backups
 database/backups/
 database/backup_*.sql
+web/database/backups/
+**/backups/
 *.sql.bak
 
 # IDE and Editor configs
@@ -25,3 +27,4 @@ Thumbs.db
 
 # Documentos locales
 documentos/
+documentosParaAnalisis/

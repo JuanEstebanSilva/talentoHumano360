@@ -182,7 +182,7 @@ function parseSituacionYDiscapacidad(rawSituacion, rawDiscapacidad = null) {
   };
 }
 
-const ESTADOS_SERVIDOR = ['Activo', 'Inactivo', 'Pensionado'];
+const ESTADOS_SERVIDOR = ['Activo', 'Retirado', 'Inactivo', 'Pensionado'];
 
 const SEXOS_VALIDOS = ['Femenino', 'Masculino', 'Prefiero no decirlo'];
 
@@ -349,18 +349,23 @@ function formatCedulaVisual(val) {
 }
 
 /**
- * Regla 9: Generador atómico de ID temporal PROV-00001 secuencial consultando la BD.
+ * Regla 9: Generador atómico de ID temporal PROV-00001 secuencial mediante secuencia nativa PostgreSQL.
  */
 async function generarIdTemporalSecuencial(clientOrPool) {
-  const query = `
-    SELECT COALESCE(MAX(SUBSTRING(cedula FROM '^PROV-([0-9]+)')::integer), 0) AS max_prov
-    FROM personas
-    WHERE cedula ~ '^PROV-[0-9]+';
-  `;
-  const res = await clientOrPool.query(query);
-  const currentMax = parseInt(res.rows[0]?.max_prov, 10) || 0;
-  const nextNumber = currentMax + 1;
-  return `PROV-${String(nextNumber).padStart(5, '0')}`;
+  try {
+    const res = await clientOrPool.query("SELECT nextval('seq_prov_cedula') AS num;");
+    const nextNumber = parseInt(res.rows[0]?.num, 10);
+    return `PROV-${String(nextNumber).padStart(5, '0')}`;
+  } catch (_) {
+    const query = `
+      SELECT COALESCE(MAX(SUBSTRING(cedula FROM '^PROV-([0-9]+)')::integer), 0) AS max_prov
+      FROM personas
+      WHERE cedula ~ '^PROV-[0-9]+';
+    `;
+    const res = await clientOrPool.query(query);
+    const currentMax = parseInt(res.rows[0]?.max_prov, 10) || 0;
+    return `PROV-${String(currentMax + 1).padStart(5, '0')}`;
+  }
 }
 
 /**

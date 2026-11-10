@@ -107,6 +107,9 @@ const FX = (() => {
       _tone({ freq: 700, type: 'sine', volume: 0.02, duration: 0.05, attack: 0.002 });
     },
     // Delete / danger action
+    deleted() {
+      this.danger();
+    },
     danger() {
       _tone({ freq: 220, freq2: 160, type: 'sawtooth', volume: 0.08, duration: 0.20 });
     },
@@ -461,10 +464,10 @@ const FX = (() => {
     Sound.sidebarToggle();
 
     anime({
-      targets: '.sidebar-toggle svg',
-      rotate: isCollapsing ? [0, 180] : [180, 0],
-      duration: 380,
-      easing: 'easeInOutBack',
+      targets: '.sidebar-toggle',
+      scale: [0.92, 1],
+      duration: 320,
+      easing: 'easeOutCubic',
     });
   }
 

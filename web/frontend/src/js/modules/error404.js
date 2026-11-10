@@ -106,7 +106,7 @@ const Error404Module = (() => {
       if (uStr) currentUser = JSON.parse(uStr);
     } catch (_) { }
 
-    const userName = currentUser ? (currentUser.nombre || currentUser.name || currentUser.username || 'Usuario') : 'Angela Ussa';
+    const userName = currentUser ? (currentUser.nombre || currentUser.name || currentUser.username || 'Usuario') : 'Usuario';
     const cleanRoute = String(requestedModule || '404').replace(/^#\/?/, '');
 
     return `
@@ -117,22 +117,27 @@ const Error404Module = (() => {
 
           <!-- Columna Izquierda: Escudo Oficial de Boyacá, Logos y Marca de Agua 404 -->
           <div class="error-404-left-section">
-            <!-- Marca de agua 404 gigante -->
-            <div class="error-404-huge-watermark" aria-hidden="true">404</div>
+            
+            <!-- Escenario Visual 404 + Cóndor (Caja visual autocontenida que nunca se solapa) -->
+            <div class="error-404-visual-stage">
+              <!-- Marca de agua 404 gigante -->
+              <div class="error-404-huge-watermark" aria-hidden="true">404</div>
 
-            <!-- Escudo Oficial de Boyacá (Asset Oficial Limpio) -->
-            <div class="error-404-escudo-wrapper" title="Escudo Oficial del Departamento de Boyacá">
-              <img src="imgs/logoCondor.png" alt="Escudo de Boyacá" class="error-404-escudo-img logo-light-theme" />
-              <img src="imgs/logoCondorBlanco.png" alt="Escudo de Boyacá" class="error-404-escudo-img logo-dark-theme" />
+              <!-- Escudo Oficial de Boyacá (Asset Oficial Limpio centrado en el 0) -->
+              <div class="error-404-escudo-wrapper" title="Escudo Oficial del Departamento de Boyacá">
+                <img src="imgs/logoCondor.png" alt="Escudo de Boyacá" class="error-404-escudo-img logo-light-theme" />
+                <img src="imgs/logoCondorBlanco.png" alt="Escudo de Boyacá" class="error-404-escudo-img logo-dark-theme" />
+              </div>
             </div>
 
-            <!-- Identidad Secretaría General y Talento 360 -->
+            <!-- Identidad Secretaría General y Talento 360 (Ubicada limpiamente DEBAJO del 404 sin tocarlo) -->
             <div class="error-404-identity-box">
               <img src="imgs/secretariaGral.png" alt="Gobernación de Boyacá | General" class="error-404-secgen-brand" />
               <div class="error-404-talento-title">
                 <span class="talento-word">Talento</span> <span class="num-word">360</span>
               </div>
             </div>
+
           </div>
 
           <!-- Columna Derecha: Tarjeta Flotante Limpia con Mensaje y Botones -->
@@ -171,10 +176,25 @@ const Error404Module = (() => {
               <!-- Botones de Acción Funcionales -->
               <div class="error-404-actions">
                 <button id="error-404-btn-dashboard" class="error-404-btn-primary" type="button" onclick="Error404Module.goDashboard()" title="Volver al Dashboard principal">
-                  Volver al Dashboard
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:8px; display:inline-block; vertical-align:middle;">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                  </svg>
+                  <span>Volver al Dashboard</span>
                 </button>
                 <button id="error-404-btn-history-back" class="error-404-btn-secondary" type="button" onclick="Error404Module.goBack()" title="Regresar a la página previa">
-                  Página Anterior
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:8px; display:inline-block; vertical-align:middle;">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                  <span>Página Anterior</span>
+                </button>
+                <button id="error-404-btn-report" class="error-404-btn-report" type="button" onclick="Error404Module.report()" title="Reportar este incidente al administrador del sistema">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:8px; display:inline-block; vertical-align:middle;">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                    <line x1="4" y1="22" x2="4" y2="15"></line>
+                  </svg>
+                  <span id="error-404-report-text">Reportar</span>
                 </button>
               </div>
 
@@ -190,6 +210,55 @@ const Error404Module = (() => {
 
       </div>
     `;
+  }
+
+  async function report() {
+    safeFxClick();
+    const btn = document.getElementById('error-404-btn-report');
+    const textEl = document.getElementById('error-404-report-text');
+    if (btn) btn.disabled = true;
+    if (textEl) textEl.textContent = 'Reportando...';
+
+    try {
+      let currentUsername = 'Anónimo';
+      try {
+        const uStr = localStorage.getItem('h360_user');
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          currentUsername = u.username || u.name || 'Usuario';
+        }
+      } catch (_) {}
+
+      const currentRoute = (window.location.hash || '').replace(/^#\/?/, '').trim() || '404';
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        await API.reportError({
+          tipo: 'PAGE_404',
+          mensaje: `Reporte voluntario de usuario: Ruta o recurso no encontrado en #${currentRoute}`,
+          url: window.location.href,
+          usuario: currentUsername,
+          reportadoPorUsuario: true
+        });
+      }
+
+      if (textEl) textEl.textContent = '¡Reportado!';
+      if (btn) {
+        btn.classList.add('reported-success');
+        btn.style.setProperty('background-color', '#355833', 'important');
+        btn.style.setProperty('color', '#ffffff', 'important');
+        btn.style.setProperty('border-color', '#355833', 'important');
+      }
+
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('Incidencia reportada con éxito a la administración.', 'success');
+      }
+    } catch (e) {
+      if (textEl) textEl.textContent = 'Reportar';
+      if (btn) btn.disabled = false;
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('No se pudo enviar el reporte.', 'error');
+      }
+    }
   }
 
   function bindEvents(rootEl) {
@@ -209,11 +278,41 @@ const Error404Module = (() => {
         goBack();
       };
     }
+
+    const btnReport = rootEl.querySelector('#error-404-btn-report');
+    if (btnReport) {
+      btnReport.onclick = (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        report();
+      };
+    }
   }
 
   function show(requestedModule = '404', errorMessage = '') {
     const overlay = document.getElementById('error-screen-404');
     if (!overlay) return;
+
+    // Reporte automático al administrador en segundo plano
+    try {
+      let currentUsername = 'Anónimo';
+      try {
+        const uStr = localStorage.getItem('h360_user');
+        if (uStr) {
+          const u = JSON.parse(uStr);
+          currentUsername = u.username || u.name || 'Usuario';
+        }
+      } catch (_) {}
+
+      if (typeof API !== 'undefined' && API.reportError) {
+        API.reportError({
+          tipo: 'PAGE_404',
+          mensaje: `Acceso a ruta inexistente o no disponible: #${requestedModule || '404'}${errorMessage ? ` - ${errorMessage}` : ''}`,
+          url: window.location.href,
+          usuario: currentUsername,
+          reportadoPorUsuario: false
+        });
+      }
+    } catch (_) {}
 
     // 1. Ocultar completamente el layout de la app y la pantalla de login para evitar cualquier superposición
     const appEl = document.getElementById('app');
@@ -284,6 +383,7 @@ const Error404Module = (() => {
     render,
     goDashboard,
     goBack,
+    report,
     hideFullScreen: hide
   };
 })();
