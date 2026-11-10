@@ -2254,23 +2254,23 @@ const App = (() => {
         const iconEl = unlockBtn.querySelector('.nav-icon');
         if (isElevated) {
           unlockBtn.classList.add('is-unlocked');
-          unlockBtn.setAttribute('title', 'Módulos Operativos (Desbloqueados - Clic para opciones)');
-          unlockBtn.setAttribute('data-tooltip', 'Módulos Operativos');
+          unlockBtn.setAttribute('title', 'Módulos del Sistema (Desbloqueados - Clic para opciones)');
+          unlockBtn.setAttribute('data-tooltip', 'Módulos Desbloqueados');
           if (iconEl) {
             iconEl.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`;
           }
           if (lockStatusEl) {
-            lockStatusEl.textContent = 'Acceso Total';
+            lockStatusEl.innerHTML = `<span class="lock-status-dot"></span><span class="lock-status-text">Desbloqueado</span>`;
           }
         } else {
           unlockBtn.classList.remove('is-unlocked');
-          unlockBtn.setAttribute('title', 'Módulos Operativos (Bloqueados - Ingrese contraseña para desbloquear)');
+          unlockBtn.setAttribute('title', 'Módulos del Sistema (Bloqueados - Ingrese contraseña para desbloquear)');
           unlockBtn.setAttribute('data-tooltip', 'Desbloquear Módulos');
           if (iconEl) {
             iconEl.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`;
           }
           if (lockStatusEl) {
-            lockStatusEl.textContent = 'Bloqueado';
+            lockStatusEl.innerHTML = `<span class="lock-status-dot"></span><span class="lock-status-text">Bloqueado</span>`;
           }
         }
       }
