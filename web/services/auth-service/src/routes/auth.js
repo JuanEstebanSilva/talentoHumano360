@@ -178,14 +178,21 @@ router.put('/profile', authMiddleware, async (req, res) => {
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';
   const r = role.toLowerCase();
+  if (r === 'sst' || r.includes('sst')) return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
+  if (r === 'incapacidades' || r.includes('incapacidad')) return 'Responsable de Incapacidades y Ausentismo Laboral';
+  if (r.includes('permiso') && r.includes('licencia')) return 'Responsable de Permisos y Licencias Laborales';
+  if (r === 'permisos' || r.includes('permiso')) return 'Responsable de Permisos Laborales';
   if (r.includes('coordinador')) return 'Coordinador de Solicitudes';
-  if (r.includes('consulta'))    return 'Usuario de Consulta';
+  if (r.includes('consulta') || r.includes('funcionario')) return 'Servidor Público';
   return 'Administrador del Sistema';
 }
 
 function resolveDepartment(role) {
   if (!role) return 'Dirección de Talento Humano';
   const r = role.toLowerCase();
+  if (r === 'sst' || r.includes('sst') || r === 'incapacidades' || r.includes('incapacidad')) {
+    return 'Subdirección de Seguridad y Salud en el Trabajo';
+  }
   if (r.includes('consulta')) return 'Secretaría General';
   return 'Dirección de Talento Humano';
 }

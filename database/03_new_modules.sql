@@ -124,3 +124,74 @@ CREATE TABLE IF NOT EXISTS historial_viaticos (
 );
 
 -- Tablas transaccionales de viaticos y solicitudes_admin inician vacías para producción.
+
+-- ─── Tablas de Gobernanza, Responsables por Módulo, Auditoría Inmutable y Documentos Institucionales ───
+CREATE TABLE IF NOT EXISTS modulo_responsables (
+    id_asignacion         SERIAL PRIMARY KEY,
+    modulo                VARCHAR(60)  NOT NULL,
+    username              VARCHAR(120) NOT NULL,
+    nombre_responsable    VARCHAR(200) NOT NULL,
+    cargo_responsable     VARCHAR(200) DEFAULT 'Profesional / Responsable de Módulo',
+    correo_notificacion   VARCHAR(200),
+    documento_responsable VARCHAR(60),
+    activo                BOOLEAN      NOT NULL DEFAULT TRUE,
+    puede_aprobar         BOOLEAN      NOT NULL DEFAULT TRUE,
+    puede_importar        BOOLEAN      NOT NULL DEFAULT TRUE,
+    puede_exportar        BOOLEAN      NOT NULL DEFAULT TRUE,
+    asignado_por          VARCHAR(120) DEFAULT 'Sistema',
+    actualizado_en        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (modulo, username)
+);
+CREATE INDEX IF NOT EXISTS idx_mod_resp_modulo ON modulo_responsables(modulo);
+CREATE INDEX IF NOT EXISTS idx_mod_resp_user   ON modulo_responsables(LOWER(username));
+
+CREATE TABLE IF NOT EXISTS auditoria_modulos (
+    id_auditoria         SERIAL PRIMARY KEY,
+    modulo               VARCHAR(60)  NOT NULL,
+    id_registro          VARCHAR(80)  NOT NULL,
+    radicado             VARCHAR(100),
+    usuario_responsable  VARCHAR(160) NOT NULL,
+    nombre_usuario       VARCHAR(200),
+    rol_usuario          VARCHAR(80),
+    tipo_operacion       VARCHAR(60)  NOT NULL,
+    valores_anteriores   JSONB,
+    valores_nuevos       JSONB,
+    observaciones        TEXT,
+    fecha_hora           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_aud_mod_modulo ON auditoria_modulos(modulo);
+CREATE INDEX IF NOT EXISTS idx_aud_mod_reg    ON auditoria_modulos(modulo, id_registro);
+CREATE INDEX IF NOT EXISTS idx_aud_mod_fecha  ON auditoria_modulos(fecha_hora DESC);
+
+CREATE TABLE IF NOT EXISTS documentos_institucionales (
+    id_documento         SERIAL PRIMARY KEY,
+    modulo               VARCHAR(60)  NOT NULL,
+    codigo_formato       VARCHAR(80),
+    nombre               VARCHAR(255) NOT NULL,
+    descripcion          TEXT,
+    categoria            VARCHAR(100) DEFAULT 'Formato Institucional',
+    version_actual       VARCHAR(30)  NOT NULL DEFAULT '1.0',
+    nombre_archivo       VARCHAR(255) NOT NULL,
+    tipo_mime            VARCHAR(120) NOT NULL,
+    tamano_bytes         INTEGER      NOT NULL DEFAULT 0,
+    contenido            BYTEA        NOT NULL,
+    subido_por           VARCHAR(160) DEFAULT 'Sistema',
+    fecha_carga          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activo               BOOLEAN      NOT NULL DEFAULT TRUE
+);
+CREATE INDEX IF NOT EXISTS idx_doc_inst_modulo ON documentos_institucionales(modulo);
+
+CREATE TABLE IF NOT EXISTS documentos_institucionales_versiones (
+    id_version           SERIAL PRIMARY KEY,
+    id_documento         INTEGER      NOT NULL REFERENCES documentos_institucionales(id_documento) ON DELETE CASCADE,
+    version              VARCHAR(30)  NOT NULL,
+    nombre_archivo       VARCHAR(255) NOT NULL,
+    tipo_mime            VARCHAR(120) NOT NULL,
+    tamano_bytes         INTEGER      NOT NULL DEFAULT 0,
+    contenido            BYTEA        NOT NULL,
+    observacion_cambio   TEXT,
+    subido_por           VARCHAR(160) DEFAULT 'Sistema',
+    fecha_version        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_doc_ver_doc ON documentos_institucionales_versiones(id_documento);

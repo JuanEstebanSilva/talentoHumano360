@@ -8,6 +8,12 @@ const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
 const cat    = require('../catalogs/incapacidades');
+const {
+  ensureAuditAndRbacSchema,
+  getModulePermission,
+  isSelfRequest,
+  logAudit,
+} = require('../utils/audit-rbac');
 
 const pool = new Pool(
   process.env.DATABASE_URL
@@ -31,10 +37,6 @@ function auth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'No autorizado.' });
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Token inválido.' }); }
-}
-
-function canEdit(role) {
-  return role && (role.toLowerCase().includes('administrador') || role.toLowerCase().includes('coordinador'));
 }
 
 function clean(v) {
@@ -169,7 +171,9 @@ const SCHEMA_SQL = `
     ADD COLUMN IF NOT EXISTS codigo_cie10        VARCHAR(40),
     ADD COLUMN IF NOT EXISTS salario             NUMERIC(15,2),
     ADD COLUMN IF NOT EXISTS descuento           NUMERIC(15,2),
-    ADD COLUMN IF NOT EXISTS acto_administrativo VARCHAR(120);
+    ADD COLUMN IF NOT EXISTS acto_administrativo VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS registrado_por      VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS correo_solicitante  VARCHAR(200);
   CREATE TABLE IF NOT EXISTS solicitudes_admin_soportes (
     id_soporte     SERIAL PRIMARY KEY,
     id_solicitud   INTEGER NOT NULL REFERENCES solicitudes_admin(id_solicitud) ON DELETE CASCADE,
@@ -317,6 +321,7 @@ function ensureSchema() {
   if (!schemaPromise) {
     schemaPromise = (async () => {
       await pool.query(SCHEMA_SQL);
+      await ensureAuditAndRbacSchema(pool);
       // Normalizar filas antiguas de Incapacidad que aún no tengan campos SST
       await pool.query(`
         UPDATE solicitudes_admin
@@ -404,9 +409,26 @@ function mapRow(r) {
     estado: normalizeStatus(r.estado),
     aprobadoPor: clean(r.aprobado_por),
     notaGestion: clean(r.nota_gestion),
-    soportesCount: r.soportes_count == null ? 0 : parseInt(r.soportes_count)
+    soportesCount: r.soportes_count == null ? 0 : parseInt(r.soportes_count),
+    creadoEn: r.creado_en
   };
 }
+
+// Expresión SQL para convertir fecha_inicio (DD/MM/YYYY o YYYY-MM-DD) a DATE
+const SQL_FECHA_INICIO_DATE = `
+  CASE
+    WHEN s.fecha_inicio ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(s.fecha_inicio, 'DD/MM/YYYY')
+    WHEN s.fecha_inicio ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'  THEN TO_DATE(SUBSTRING(s.fecha_inicio, 1, 10), 'YYYY-MM-DD')
+    ELSE s.creado_en::date
+  END
+`;
+const SQL_FECHA_FIN_DATE = `
+  CASE
+    WHEN s.fecha_fin ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(s.fecha_fin, 'DD/MM/YYYY')
+    WHEN s.fecha_fin ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'  THEN TO_DATE(SUBSTRING(s.fecha_fin, 1, 10), 'YYYY-MM-DD')
+    ELSE s.creado_en::date
+  END
+`;
 
 // ─── GET /api/incapacidades/catalogs ──────────────────────────────────────────
 router.get('/catalogs', auth, (_req, res) => {
@@ -422,31 +444,140 @@ router.get('/catalogs', auth, (_req, res) => {
   });
 });
 
-// ─── GET /api/incapacidades/stats ─────────────────────────────────────────────
-router.get('/stats', auth, async (_req, res) => {
+// ─── GET /api/incapacidades/stats (Dashboard 6.3 Incapacidades) ───────────────
+router.get('/stats', auth, async (req, res) => {
   try {
+    const { anio = '', mes = '', fechaInicio = '', fechaFin = '', dependencia = '' } = req.query;
+    const perm = await getModulePermission(pool, req.user, 'incapacidades');
+
+    const conds = [`s.tipo = 'Incapacidad'`];
+    const vals = [];
+    let i = 1;
+
+    if (!perm.canManage) {
+      const uname = String(req.user.username || '').trim().toLowerCase();
+      const fullName = String(req.user.name || '').trim().toLowerCase();
+      const userDoc = String(req.user.documento || '').trim();
+      conds.push(`(
+        LOWER(COALESCE(s.apellidos_nombres, '')) = $${i}
+        OR LOWER(COALESCE(s.registrado_por, '')) = $${i + 1}
+        OR LOWER(COALESCE(s.correo_solicitante, '')) = $${i + 1}
+        OR ($${i + 2} <> '' AND s.documento = $${i + 2})
+      )`);
+      vals.push(fullName, uname, userDoc);
+      i += 3;
+    }
+
+    if (anio && anio !== 'Todos') {
+      conds.push(`EXTRACT(YEAR FROM (${SQL_FECHA_INICIO_DATE}))::text = $${i++}`);
+      vals.push(String(anio));
+    }
+    if (mes && mes !== 'Todos') {
+      conds.push(`EXTRACT(MONTH FROM (${SQL_FECHA_INICIO_DATE}))::int = $${i++}`);
+      vals.push(parseInt(mes, 10));
+    }
+    if (fechaInicio) {
+      conds.push(`(${SQL_FECHA_INICIO_DATE}) >= $${i++}::date`);
+      vals.push(fechaInicio);
+    }
+    if (fechaFin) {
+      conds.push(`(${SQL_FECHA_INICIO_DATE}) <= $${i++}::date`);
+      vals.push(fechaFin);
+    }
+    if (dependencia && dependencia !== 'Todas') {
+      conds.push(`LOWER(s.dependencia) LIKE LOWER($${i++})`);
+      vals.push(`%${dependencia}%`);
+    }
+
+    const where = conds.join(' AND ');
+
     const r = await pool.query(`
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE estado = 'Pendiente')::int AS pendientes,
-        COUNT(*) FILTER (WHERE estado = 'En revisión')::int AS revision,
-        COUNT(*) FILTER (WHERE estado IN ('Aprobada', 'Finalizada'))::int AS aprobadas,
-        COUNT(*) FILTER (WHERE estado = 'Rechazada')::int AS rechazadas,
-        COALESCE(SUM(dias_solicitados), 0)::int AS total_dias,
-        COALESCE(SUM(descuento), 0)::numeric AS total_descuento,
-        COUNT(*) FILTER (WHERE UPPER(COALESCE(prorroga, 'NO')) = 'SI')::int AS prorrogas
-      FROM solicitudes_admin
-      WHERE tipo = 'Incapacidad'
-    `);
+        COUNT(*) FILTER (WHERE s.estado = 'Pendiente')::int AS pendientes,
+        COUNT(*) FILTER (WHERE s.estado = 'En revisión')::int AS revision,
+        COUNT(*) FILTER (WHERE s.estado IN ('Aprobada', 'Finalizada'))::int AS aprobadas,
+        COUNT(*) FILTER (WHERE s.estado = 'Rechazada')::int AS rechazadas,
+        COUNT(*) FILTER (
+          WHERE s.estado IN ('Pendiente', 'En revisión')
+             OR (s.estado = 'Aprobada' AND (${SQL_FECHA_FIN_DATE}) >= CURRENT_DATE)
+        )::int AS activas,
+        COUNT(*) FILTER (
+          WHERE s.estado = 'Finalizada'
+             OR (s.estado = 'Aprobada' AND (${SQL_FECHA_FIN_DATE}) < CURRENT_DATE)
+        )::int AS finalizadas,
+        COALESCE(SUM(s.dias_solicitados), 0)::int AS total_dias,
+        COALESCE(SUM(s.descuento), 0)::numeric AS total_descuento,
+        COUNT(*) FILTER (WHERE UPPER(COALESCE(s.prorroga, 'NO')) = 'SI')::int AS prorrogas
+      FROM solicitudes_admin s
+      WHERE ${where}
+    `, vals);
+
+    const porCausaQ = await pool.query(`
+      SELECT
+        COALESCE(NULLIF(TRIM(s.causa_motivo), ''), 'Enfermedad general') AS causa,
+        COUNT(*)::int AS cantidad,
+        COALESCE(SUM(s.dias_solicitados), 0)::int AS dias,
+        COALESCE(SUM(s.descuento), 0)::numeric(15,2) AS descuento
+      FROM solicitudes_admin s
+      WHERE ${where}
+      GROUP BY 1
+      ORDER BY cantidad DESC, dias DESC
+    `, vals);
+
+    const porDepQ = await pool.query(`
+      SELECT
+        COALESCE(NULLIF(TRIM(s.dependencia), ''), 'SIN DEPENDENCIA') AS dependencia,
+        COUNT(*)::int AS cantidad,
+        COALESCE(SUM(s.dias_solicitados), 0)::int AS dias
+      FROM solicitudes_admin s
+      WHERE ${where}
+      GROUP BY 1
+      ORDER BY dias DESC, cantidad DESC
+      LIMIT 10
+    `, vals);
+
+    const porEpsQ = await pool.query(`
+      SELECT
+        COALESCE(NULLIF(TRIM(s.eps), ''), 'SIN EPS') AS eps,
+        COUNT(*)::int AS cantidad,
+        COALESCE(SUM(s.dias_solicitados), 0)::int AS dias
+      FROM solicitudes_admin s
+      WHERE ${where}
+      GROUP BY 1
+      ORDER BY cantidad DESC
+      LIMIT 8
+    `, vals);
+
+    const evolucionQ = await pool.query(`
+      SELECT
+        TO_CHAR((${SQL_FECHA_INICIO_DATE}), 'YYYY-MM') AS mes,
+        COUNT(*)::int AS cantidad,
+        COALESCE(SUM(s.dias_solicitados), 0)::int AS dias,
+        COALESCE(SUM(s.descuento), 0)::numeric(15,2) AS descuento
+      FROM solicitudes_admin s
+      WHERE ${where}
+      GROUP BY 1
+      ORDER BY 1 ASC
+      LIMIT 12
+    `, vals);
+
     const row = r.rows[0] || {};
     res.json({
       total: row.total || 0,
       pendientes: (row.pendientes || 0) + (row.revision || 0),
+      revision: row.revision || 0,
       aprobadas: row.aprobadas || 0,
       rechazadas: row.rechazadas || 0,
+      activas: row.activas || 0,
+      finalizadas: row.finalizadas || 0,
       totalDias: row.total_dias || 0,
       totalDescuento: parseFloat(row.total_descuento) || 0,
-      prorrogas: row.prorrogas || 0
+      prorrogas: row.prorrogas || 0,
+      porCausa: porCausaQ.rows,
+      porDependencia: porDepQ.rows,
+      porEps: porEpsQ.rows,
+      evolucionMensual: evolucionQ.rows,
     });
   } catch (err) {
     console.error('[incapacidades] stats error:', err.message);
@@ -456,11 +587,28 @@ router.get('/stats', auth, async (_req, res) => {
 
 // ─── GET /api/incapacidades ───────────────────────────────────────────────────
 router.get('/', auth, async (req, res) => {
-  const { q = '', estado = '', causaMotivo = '', eps = '', prorroga = '', page = 1, limit = 20 } = req.query;
+  const { q = '', estado = '', causaMotivo = '', eps = '', prorroga = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
   try {
+    const perm = await getModulePermission(pool, req.user, 'incapacidades');
     const conditions = [`s.tipo = 'Incapacidad'`];
     const params = [];
     let idx = 1;
+
+    // Protección de datos sensibles (Ley 1581 / Sección 12 y RBAC Sección 7.1):
+    // Un Funcionario solo consulta sus propias incapacidades; Luis Sánchez y Admin consultan todo el módulo.
+    if (!perm.canManage) {
+      const uname = String(req.user.username || '').trim().toLowerCase();
+      const fullName = String(req.user.name || '').trim().toLowerCase();
+      const userDoc = String(req.user.documento || '').trim();
+      conditions.push(`(
+        LOWER(COALESCE(s.apellidos_nombres, '')) = $${idx}
+        OR LOWER(COALESCE(s.registrado_por, '')) = $${idx + 1}
+        OR LOWER(COALESCE(s.correo_solicitante, '')) = $${idx + 1}
+        OR ($${idx + 2} <> '' AND s.documento = $${idx + 2})
+      )`);
+      params.push(fullName, uname, userDoc);
+      idx += 3;
+    }
 
     if (estado && estado !== 'Todos') {
       conditions.push(`s.estado = $${idx++}`);
@@ -477,6 +625,18 @@ router.get('/', auth, async (req, res) => {
     if (prorroga && prorroga !== 'Todos' && prorroga !== 'Todas') {
       conditions.push(`UPPER(COALESCE(s.prorroga, 'NO')) = UPPER($${idx++})`);
       params.push(clean(prorroga));
+    }
+    if (dependencia && dependencia !== 'Todas') {
+      conditions.push(`LOWER(COALESCE(s.dependencia, '')) LIKE LOWER($${idx++})`);
+      params.push(`%${clean(dependencia)}%`);
+    }
+    if (fechaInicio) {
+      conditions.push(`(${SQL_FECHA_INICIO_DATE}) >= $${idx++}::date`);
+      params.push(fechaInicio);
+    }
+    if (fechaFin) {
+      conditions.push(`(${SQL_FECHA_INICIO_DATE}) <= $${idx++}::date`);
+      params.push(fechaFin);
     }
     if (q && clean(q)) {
       const qClean = clean(q);
@@ -516,7 +676,8 @@ router.get('/', auth, async (req, res) => {
       data: rows.rows.map(mapRow),
       total,
       page: pg,
-      totalPages: Math.max(1, Math.ceil(total / lim))
+      totalPages: Math.max(1, Math.ceil(total / lim)),
+      permission: perm
     });
   } catch (err) {
     console.error('[incapacidades] list error:', err.message);
@@ -524,9 +685,9 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ─── POST /api/incapacidades ──────────────────────────────────────────────────
+// ─── POST /api/incapacidades (Radicación de Incapacidad) ──────────────────────
 router.post('/', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'incapacidades');
 
   const b = req.body || {};
   const persona = upper(b.persona || b.apellidosNombres);
@@ -546,11 +707,11 @@ router.post('/', auth, async (req, res) => {
   const descuento = b.descuento !== undefined && b.descuento !== '' && b.descuento !== null
     ? Math.max(0, parseFloat(b.descuento) || 0)
     : calcularDescuento(salario, dias, prorroga, causaMotivo);
-  const actoAdministrativo = clean(b.actoAdministrativo);
+  const actoAdministrativo = perm.canManage ? clean(b.actoAdministrativo) : '';
   const motivo = clean(b.motivo) || `${causaMotivo}${codigoCie10 ? ` (CIE-10: ${codigoCie10})` : ''}`;
   const observaciones = clean(b.observaciones);
-  const estado = normalizeStatus(b.estado || 'Pendiente');
-  const aprobadoPor = clean(b.aprobadoPor);
+  const estado = perm.canApprove ? normalizeStatus(b.estado || 'Pendiente') : 'Pendiente';
+  const aprobadoPor = perm.canApprove ? clean(b.aprobadoPor) : '';
 
   if (!persona || persona.length < 3) return res.status(400).json({ error: 'Los nombres y apellidos del servidor son obligatorios.' });
   if (!documento) return res.status(400).json({ error: 'El número de cédula es obligatorio.' });
@@ -569,18 +730,21 @@ router.post('/', auth, async (req, res) => {
          tipo, fecha_radicacion, fecha_solicitud, apellidos_nombres, documento,
          dependencia, sede, cargo, eps, fecha_inicio, fecha_fin, prorroga,
          causa_motivo, codigo_cie10, dias_solicitados, salario, descuento,
-         acto_administrativo, motivo, observaciones, estado, aprobado_por, nota_gestion
+         acto_administrativo, motivo, observaciones, estado, aprobado_por, nota_gestion,
+         registrado_por, correo_solicitante
        ) VALUES (
          'Incapacidad', $1, $1, $2, $3,
          $4, $5, $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15,
-         $16, $17, $18, $19, $20, $18
-       ) RETURNING id_solicitud`,
+         $16, $17, $18, $19, $20, $18,
+         $21, $22
+       ) RETURNING *`,
       [
         fechaRadicacion, persona, documento,
         dependencia, sede, cargo, eps, fechaInicio, fechaFin, prorroga,
         causaMotivo, codigoCie10, dias, salario, descuento,
-        actoAdministrativo, motivo, observaciones, estado, aprobadoPor
+        actoAdministrativo, motivo, observaciones, estado, aprobadoPor,
+        username, b.correoSolicitante || username
       ]
     );
     const newId = r.rows[0].id_solicitud;
@@ -590,6 +754,18 @@ router.post('/', auth, async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [newId, estado, 'Incapacidad registrada en el módulo SST', username]
     );
+
+    await logAudit(client, {
+      modulo: 'incapacidades',
+      idRegistro: newId,
+      radicado: `INC-2026-${String(newId).padStart(5, '0')}`,
+      user: req.user,
+      tipoOperacion: 'CREACION',
+      valoresAnteriores: null,
+      valoresNuevos: mapRow(r.rows[0]),
+      observaciones: `Radicación de incapacidad (${causaMotivo} - ${dias} días) para ${persona}`,
+    });
+
     await client.query('COMMIT');
 
     res.status(201).json({
@@ -606,21 +782,48 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// ─── POST /api/incapacidades/bulk ─────────────────────────────────────────────
+// ─── POST /api/incapacidades/bulk (Importación Masiva Transaccional - 9.3) ────
 router.post('/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'incapacidades');
+  if (!perm.canImport) {
+    return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden realizar importaciones masivas.' });
+  }
+
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });
 
   const client = await pool.connect();
   let inserted = 0;
+  let skipped = 0;
+  const errors = [];
+
   try {
     await client.query('BEGIN');
-    for (const row of rows) {
+
+    // Consultar claves existentes para evitar duplicados (documento + fecha_inicio + fecha_fin)
+    const existingRes = await client.query(
+      `SELECT documento, fecha_inicio, fecha_fin FROM solicitudes_admin WHERE tipo = 'Incapacidad'`
+    );
+    const seenKeys = new Set(
+      existingRes.rows.map(r => `${clean(r.documento)}|${formatDateDMY(r.fecha_inicio)}|${formatDateDMY(r.fecha_fin)}`)
+    );
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const filaExcel = row._rowNum || (i + 2);
       const persona = upper(row.persona || row.apellidosNombres || row['NOMBRES Y APELLIDOS']);
       const documento = clean(row.documento || row['CÉDULA']).replace(/[.\s]/g, '');
       const dependencia = clean(row.dependencia || row['DEPENDENCIA EN LA QUE TRABAJA']);
-      if (!persona || !documento || !dependencia) continue;
+
+      if (!persona || !documento || !dependencia) {
+        errors.push({
+          fila: filaExcel,
+          columna: !documento ? 'CÉDULA' : !persona ? 'NOMBRES Y APELLIDOS' : 'DEPENDENCIA EN LA QUE TRABAJA',
+          motivo: 'Campos obligatorios faltantes (Nombre, Cédula o Dependencia).'
+        });
+        skipped++;
+        continue;
+      }
 
       const fechaRadicacion = formatDateDMY(row.fechaRadicacion || row['FECHA DE RADICACIÓN']) || todayDMY();
       const sede = clean(row.sede || row['SEDE EN LA QUE TRABAJA']);
@@ -628,6 +831,19 @@ router.post('/bulk', auth, async (req, res) => {
       const eps = upper(row.eps || row['EPS'] || 'SANITAS');
       const fechaInicio = formatDateDMY(row.fechaInicio || row['FECHA INICIAL DE LA INCAPACIDAD']) || todayDMY();
       const fechaFin = formatDateDMY(row.fechaFin || row['FECHA FINAL DE LA INCAPACIDAD']) || fechaInicio;
+
+      const dupKey = `${documento}|${fechaInicio}|${fechaFin}`;
+      if (seenKeys.has(dupKey)) {
+        errors.push({
+          fila: filaExcel,
+          columna: 'CÉDULA / FECHAS',
+          motivo: `Registro duplicado para documento ${documento} en el periodo ${fechaInicio} - ${fechaFin}.`
+        });
+        skipped++;
+        continue;
+      }
+      seenKeys.add(dupKey);
+
       const prorroga = upper(row.prorroga || row['PRORROGA'] || 'NO') === 'SI' ? 'SI' : 'NO';
       const causaMotivo = clean(row.causaMotivo || row['CAUSA O MOTIVO'] || 'Enfermedad general');
       const codigoCie10 = upper(row.codigoCie10 || row['CÓDIGO CIE 10']);
@@ -646,31 +862,45 @@ router.post('/bulk', auth, async (req, res) => {
            tipo, fecha_radicacion, fecha_solicitud, apellidos_nombres, documento,
            dependencia, sede, cargo, eps, fecha_inicio, fecha_fin, prorroga,
            causa_motivo, codigo_cie10, dias_solicitados, salario, descuento,
-           acto_administrativo, motivo, observaciones, estado
+           acto_administrativo, motivo, observaciones, estado, registrado_por
          ) VALUES (
            'Incapacidad', $1, $1, $2, $3,
            $4, $5, $6, $7, $8, $9, $10,
            $11, $12, $13, $14, $15,
-           $16, $17, $18, $19
+           $16, $17, $18, $19, $20
          )`,
         [
           fechaRadicacion, persona, documento,
           dependencia, sede, cargo, eps, fechaInicio, fechaFin, prorroga,
           causaMotivo, codigoCie10, dias, salario, descuento,
-          actoAdministrativo, motivo, observaciones, estado
+          actoAdministrativo, motivo, observaciones, estado, req.user.username || 'web'
         ]
       );
       inserted++;
     }
+
+    await logAudit(client, {
+      modulo: 'incapacidades',
+      idRegistro: `BULK-${Date.now()}`,
+      radicado: 'IMPORT-INC',
+      user: req.user,
+      tipoOperacion: 'IMPORTACION_MASIVA',
+      valoresAnteriores: null,
+      valoresNuevos: { totalRecibidos: rows.length, insertados: inserted, omitidos: skipped },
+      observaciones: `Importación masiva Formato E-DO-ST-F-002: ${inserted} insertados, ${skipped} omitidos/duplicados.`,
+    });
+
     await client.query('COMMIT');
     res.status(201).json({
       inserted,
-      message: `Se importaron ${inserted} registros de incapacidad exitosamente.`
+      skipped,
+      errors,
+      message: `Se importaron ${inserted} registros de incapacidad exitosamente (${skipped} omitidos/duplicados).`
     });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('[incapacidades] bulk error:', err.message);
-    res.status(500).json({ error: 'Error en la importación masiva de incapacidades.' });
+    res.status(500).json({ error: 'Error en la importación masiva de incapacidades. Se revirtió la transacción para proteger la integridad de los datos.' });
   } finally {
     client.release();
   }
@@ -678,9 +908,17 @@ router.post('/bulk', auth, async (req, res) => {
 
 // ─── PUT /api/incapacidades/:id ───────────────────────────────────────────────
 router.put('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id, 10);
   if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+  const perm = await getModulePermission(pool, req.user, 'incapacidades');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden editar registros.' });
+  }
+
+  const prevRes = await pool.query(`SELECT * FROM solicitudes_admin WHERE id_solicitud = $1 AND tipo = 'Incapacidad'`, [id]);
+  if (!prevRes.rows.length) return res.status(404).json({ error: 'Incapacidad no encontrada.' });
+  const prevRow = prevRes.rows[0];
 
   const b = req.body || {};
   const persona = upper(b.persona || b.apellidosNombres);
@@ -703,8 +941,18 @@ router.put('/:id', auth, async (req, res) => {
   const actoAdministrativo = clean(b.actoAdministrativo);
   const motivo = clean(b.motivo) || `${causaMotivo}${codigoCie10 ? ` (CIE-10: ${codigoCie10})` : ''}`;
   const observaciones = clean(b.observaciones);
-  const estado = normalizeStatus(b.estado || 'Pendiente');
-  const aprobadoPor = clean(b.aprobadoPor);
+  const estado = normalizeStatus(b.estado || prevRow.estado || 'Pendiente');
+  const prevEstado = normalizeStatus(prevRow.estado);
+  const aprobadoPor = clean(b.aprobadoPor || prevRow.aprobado_por);
+
+  if (estado !== prevEstado && (estado === 'Aprobada' || estado === 'Rechazada')) {
+    if (!perm.canApprove) {
+      return res.status(403).json({ error: 'No tiene permisos para aprobar o rechazar incapacidades.' });
+    }
+    if (!perm.isAdmin && isSelfRequest(req.user, prevRow)) {
+      return res.status(403).json({ error: 'Por control interno, no puede aprobar ni rechazar su propia incapacidad.' });
+    }
+  }
 
   if (!persona || !documento || !dependencia) {
     return res.status(400).json({ error: 'Nombre, cédula y dependencia son obligatorios.' });
@@ -747,7 +995,7 @@ router.put('/:id', auth, async (req, res) => {
          aprobado_por = $20,
          nota_gestion = $18
        WHERE id_solicitud = $21 AND tipo = 'Incapacidad'
-       RETURNING id_solicitud`,
+       RETURNING *`,
       [
         fechaRadicacion, persona, documento,
         dependencia, sede, cargo, eps, fechaInicio, fechaFin, prorroga,
@@ -756,10 +1004,6 @@ router.put('/:id', auth, async (req, res) => {
         id
       ]
     );
-    if (!r.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Incapacidad no encontrada.' });
-    }
     if (aEliminar.length) {
       await client.query(
         'DELETE FROM solicitudes_admin_soportes WHERE id_solicitud=$1 AND id_soporte = ANY($2::int[])',
@@ -772,6 +1016,22 @@ router.put('/:id', auth, async (req, res) => {
        VALUES ($1, $2, $3, $4)`,
       [id, estado, observaciones || 'Actualizado desde módulo de Incapacidades', username]
     );
+
+    const opType = estado !== prevEstado
+      ? (estado === 'Aprobada' ? 'APROBACION' : estado === 'Rechazada' ? 'RECHAZO' : 'CAMBIO_ESTADO')
+      : 'MODIFICACION';
+
+    await logAudit(client, {
+      modulo: 'incapacidades',
+      idRegistro: id,
+      radicado: `INC-2026-${String(id).padStart(5, '0')}`,
+      user: req.user,
+      tipoOperacion: opType,
+      valoresAnteriores: mapRow(prevRow),
+      valoresNuevos: mapRow(r.rows[0]),
+      observaciones: observaciones || `Actualización de incapacidad (${prevEstado} -> ${estado})`,
+    });
+
     await client.query('COMMIT');
     res.json({ message: 'Incapacidad actualizada correctamente.' });
   } catch (err) {
@@ -785,26 +1045,55 @@ router.put('/:id', auth, async (req, res) => {
 
 // ─── PATCH /api/incapacidades/:id/status ──────────────────────────────────────
 router.patch('/:id/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+  const perm = await getModulePermission(pool, req.user, 'incapacidades');
+  if (!perm.canApprove) {
+    return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden cambiar el estado.' });
+  }
+
   const newStatus = normalizeStatus(req.body?.estado);
   const note = clean(req.body?.observaciones || req.body?.notaGestion || '');
   try {
+    const prevRes = await pool.query(`SELECT * FROM solicitudes_admin WHERE id_solicitud = $1 AND tipo = 'Incapacidad'`, [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Incapacidad no encontrada.' });
+    const prevRow = prevRes.rows[0];
+    const prevEstado = normalizeStatus(prevRow.estado);
+
+    if (!perm.isAdmin && isSelfRequest(req.user, prevRow)) {
+      return res.status(403).json({ error: 'Por control interno, no puede aprobar ni rechazar su propia incapacidad.' });
+    }
+
     const r = await pool.query(
       `UPDATE solicitudes_admin
        SET estado = $1,
+           aprobado_por = CASE WHEN $1 = 'Aprobada' THEN $4 ELSE aprobado_por END,
            observaciones = CASE WHEN $2 <> '' THEN $2 ELSE observaciones END,
            nota_gestion  = CASE WHEN $2 <> '' THEN $2 ELSE nota_gestion END
        WHERE id_solicitud = $3 AND tipo = 'Incapacidad'
-       RETURNING id_solicitud`,
-      [newStatus, note, id]
+       RETURNING *`,
+      [newStatus, note, id, req.user.name || req.user.username || 'Responsable']
     );
-    if (!r.rows.length) return res.status(404).json({ error: 'Incapacidad no encontrada.' });
+
     await pool.query(
       `INSERT INTO historial_solicitudes_admin(id_solicitud, estado_nuevo, nota, actualizado_por)
        VALUES ($1, $2, $3, $4)`,
       [id, newStatus, note || `Cambio rápido de estado a ${newStatus}`, req.user.username || 'web']
     );
+
+    const opType = newStatus === 'Aprobada' ? 'APROBACION' : newStatus === 'Rechazada' ? 'RECHAZO' : 'CAMBIO_ESTADO';
+    await logAudit(pool, {
+      modulo: 'incapacidades',
+      idRegistro: id,
+      radicado: `INC-2026-${String(id).padStart(5, '0')}`,
+      user: req.user,
+      tipoOperacion: opType,
+      valoresAnteriores: { estado: prevEstado, observaciones: prevRow.observaciones },
+      valoresNuevos: { estado: newStatus, observaciones: r.rows[0].observaciones },
+      observaciones: note || `Cambio de estado de ${prevEstado} a ${newStatus}`,
+    });
+
     res.json({ message: `Estado actualizado a ${newStatus}.` });
   } catch (err) {
     res.status(500).json({ error: 'Error al cambiar estado de la incapacidad.' });
@@ -813,15 +1102,32 @@ router.patch('/:id/status', auth, async (req, res) => {
 
 // ─── DELETE /api/incapacidades/:id ────────────────────────────────────────────
 router.delete('/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+  const perm = await getModulePermission(pool, req.user, 'incapacidades');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden eliminar registros.' });
+  }
+
   try {
-    await pool.query('DELETE FROM historial_solicitudes_admin WHERE id_solicitud = $1', [id]);
-    const r = await pool.query(
-      `DELETE FROM solicitudes_admin WHERE id_solicitud = $1 AND tipo = 'Incapacidad' RETURNING id_solicitud`,
-      [id]
-    );
-    if (!r.rows.length) return res.status(404).json({ error: 'Incapacidad no encontrada.' });
+    const prevRes = await pool.query(`SELECT * FROM solicitudes_admin WHERE id_solicitud = $1 AND tipo = 'Incapacidad'`, [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Incapacidad no encontrada.' });
+    const prevRow = prevRes.rows[0];
+
+    await pool.query(`DELETE FROM solicitudes_admin WHERE id_solicitud = $1 AND tipo = 'Incapacidad'`, [id]);
+
+    await logAudit(pool, {
+      modulo: 'incapacidades',
+      idRegistro: id,
+      radicado: `INC-2026-${String(id).padStart(5, '0')}`,
+      user: req.user,
+      tipoOperacion: 'ELIMINACION',
+      valoresAnteriores: mapRow(prevRow),
+      valoresNuevos: null,
+      observaciones: `Eliminación de registro de incapacidad INC-2026-${String(id).padStart(5, '0')} (${upper(prevRow.apellidos_nombres)})`,
+    });
+
     res.json({ message: 'Incapacidad eliminada.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar la incapacidad.' });
@@ -866,4 +1172,3 @@ router.get('/:id/soportes/:sid', auth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -8,9 +8,33 @@ const AdminRequestsModule = (() => {
   const TIPOS = { permisos: 'Permiso Laboral', licencias: 'Licencia' };
   const ESTADOS = ['Todos', 'Pendiente', 'En revisión', 'Aprobada', 'Finalizada', 'Rechazada'];
 
-  let state = { tipo: 'Permiso Laboral', data: [], total: 0, page: 1, totalPages: 1, filters: {} };
+  let state = {
+    tipo: 'Permiso Laboral',
+    data: [],
+    total: 0,
+    page: 1,
+    totalPages: 1,
+    filters: {},
+    permission: null,
+    stats: null,
+    dashVisible: true,
+    dashFilters: { anio: 'Todos', mes: 'Todos' }
+  };
   let permisosCatalogs = null;
   let licenciasCatalogs = null;
+  let chartInstances = { dist: null, dep: null, evo: null };
+
+  function currentModuloKey(tipo = state.tipo) {
+    return tipo === 'Licencia' ? 'licencias' : 'permisos';
+  }
+
+  function canManageCurrent() {
+    if (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin()) return true;
+    if (state.permission && typeof state.permission.canManage === 'boolean') {
+      return state.permission.canManage;
+    }
+    return typeof Auth !== 'undefined' && Auth.canEdit ? Auth.canEdit() : false;
+  }
 
   const DEFAULT_LICENCIAS = [
     {
@@ -363,7 +387,7 @@ const AdminRequestsModule = (() => {
           <div class="skeleton-actions-wrap">
             <div class="skeleton skeleton-btn"></div>
             <div class="skeleton skeleton-btn"></div>
-            ${Auth.canEdit() ? '<div class="skeleton skeleton-btn"></div>' : ''}
+            ${canManageCurrent() ? '<div class="skeleton skeleton-btn"></div>' : ''}
           </div>
         </td>
       </tr>
@@ -383,15 +407,275 @@ const AdminRequestsModule = (() => {
     renderSkeletonTable();
     try {
       const params = { tipo: state.tipo, page: state.page, limit: 20, ...state.filters };
-      const res = await API.getAdminRequests(params);
+      const [res] = await Promise.all([
+        API.getAdminRequests(params),
+        loadDashboardStats()
+      ]);
       state.data = res.data || [];
       state.total = res.total || 0;
       state.totalPages = res.totalPages || 1;
+      if (res.permission) state.permission = res.permission;
+      updateRoleBadgeAndButtons();
       renderTable();
       renderPagination();
       const countEl = document.getElementById('adm-count');
       if (countEl) countEl.textContent = `${state.total.toLocaleString('es-CO')} registros`;
     } catch (err) { App.showToast('Error al cargar solicitudes: ' + err.message, 'error'); }
+  }
+
+  function updateRoleBadgeAndButtons() {
+    const canManage = canManageCurrent();
+    const isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
+    const currentUser = (typeof Auth !== 'undefined' && Auth.getUser) ? (Auth.getUser() || {}) : {};
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(currentUser) : 'all';
+    const badgeEl = document.getElementById('adm-role-badge');
+    if (badgeEl) {
+      if (isAdmin) {
+        badgeEl.textContent = '🛡️ Rol: Administrador General';
+        badgeEl.style.background = '#fef3c7';
+        badgeEl.style.color = '#92400e';
+      } else if (canManage) {
+        const displayUser = currentUser.name || (state.tipo === 'Licencia' ? 'Sebastian Rincon' : 'Alejandro Leon / Sebastian Rincon');
+        const displayRole = currentUser.role || `Responsable de ${tipoPlural(state.tipo)}`;
+        badgeEl.textContent = `✅ Rol: ${displayRole} (${displayUser})`;
+        badgeEl.style.background = '#dcfce7';
+        badgeEl.style.color = '#166534';
+      } else {
+        badgeEl.textContent = '👤 Rol: Funcionario (Radicación y Consulta Propia)';
+        badgeEl.style.background = '#e0f2fe';
+        badgeEl.style.color = '#075985';
+      }
+    }
+    const licTabBtn = document.getElementById('adm-tab-licencias');
+    if (licTabBtn) {
+      licTabBtn.style.display = scope === 'permisos' ? 'none' : '';
+    }
+    const auditBtn = document.getElementById('adm-btn-audit');
+    if (auditBtn) auditBtn.style.display = canManage ? 'inline-flex' : 'none';
+    const respBtn = document.getElementById('adm-btn-resp');
+    if (respBtn) respBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+  async function loadDashboardStats() {
+    try {
+      const statsRes = await API.getAdminRequestsStats({
+        anio: state.dashFilters.anio,
+        mes: state.dashFilters.mes
+      });
+      state.stats = statsRes;
+      renderDashboard();
+    } catch (e) {
+      console.warn('[AdminRequests] Error cargando estadísticas del dashboard:', e);
+    }
+  }
+
+  function toggleDashboard() {
+    state.dashVisible = !state.dashVisible;
+    const panel = document.getElementById('adm-dashboard-body');
+    const btn = document.getElementById('adm-dash-toggle-btn');
+    if (panel) panel.style.display = state.dashVisible ? 'block' : 'none';
+    if (btn) btn.textContent = state.dashVisible ? 'Ocultar Dashboard' : 'Mostrar Dashboard';
+    if (state.dashVisible) renderDashboard();
+  }
+
+  function applyDashFilters() {
+    state.dashFilters.anio = document.getElementById('adm-dash-anio')?.value || 'Todos';
+    state.dashFilters.mes = document.getElementById('adm-dash-mes')?.value || 'Todos';
+    loadDashboardStats();
+  }
+
+  function destroyCharts() {
+    Object.keys(chartInstances).forEach(k => {
+      if (chartInstances[k]) {
+        try { chartInstances[k].destroy(); } catch (_) {}
+        chartInstances[k] = null;
+      }
+    });
+  }
+
+  function renderDashboard() {
+    const kpiContainer = document.getElementById('adm-dash-kpis');
+    if (!kpiContainer || !state.stats) return;
+
+    const isLic = state.tipo === 'Licencia';
+    const s = isLic ? (state.stats.licencias || {}) : (state.stats.permisos || {});
+
+    if (!isLic) {
+      // 6.1 PERMISOS LABORALES
+      const total = s.total || 0;
+      const pendRaw = s.pendientes ?? s.pendiente ?? 0;
+      const revRaw = s.revision ?? s.enRevision ?? 0;
+      const aprobRaw = s.aprobadas ?? s.aprobada ?? 0;
+      const finRaw = s.finalizadas ?? s.finalizada ?? 0;
+      const pendientes = pendRaw + revRaw;
+      const aprobadas = aprobRaw + finRaw;
+      const rechazadas = s.rechazadas ?? s.rechazada ?? 0;
+
+      kpiContainer.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Solicitudes de Permiso</div>
+          <div style="font-size:1.85rem;font-weight:800;margin:4px 0;">${total.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;opacity:0.85;">Registros reales en base de datos</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Solicitudes Pendientes / En Revisión</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#b45309;margin:4px 0;">${pendientes.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">Pendientes: ${pendRaw} · En revisión: ${revRaw}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Solicitudes Aprobadas / Finalizadas</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#15803d;margin:4px 0;">${aprobadas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">Aprobadas: ${aprobRaw} · Finalizadas: ${finRaw}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fecaca;border-left:4px solid #dc2626;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#991b1b;font-weight:700;">Solicitudes Rechazadas</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#dc2626;margin:4px 0;">${rechazadas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">Tasa de aprobación: ${total > 0 ? Math.round((aprobadas / total) * 100) : 0}%</div>
+        </div>
+      `;
+    } else {
+      // 6.2 LICENCIAS
+      const total = s.total || 0;
+      const activas = s.activas ?? s.aprobadas ?? 0;
+      const finalizadas = s.finalizadas ?? s.finalizada ?? 0;
+      const pendientes = (s.pendientes ?? s.pendiente ?? 0) + (s.revision ?? s.enRevision ?? 0);
+      const rechazadas = s.rechazadas ?? s.rechazada ?? 0;
+
+      kpiContainer.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total de Licencias</div>
+          <div style="font-size:1.85rem;font-weight:800;margin:4px 0;">${total.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;opacity:0.85;">Licencias radicadas en el sistema</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Licencias Activas</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#15803d;margin:4px 0;">${activas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">En curso / Aprobadas vigentes</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #cbd5e1;border-left:4px solid #475569;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#334155;font-weight:700;">Licencias Finalizadas</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#0f172a;margin:4px 0;">${finalizadas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">Periodo culminado</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Licencias Pendientes</div>
+          <div style="font-size:1.85rem;font-weight:800;color:#b45309;margin:4px 0;">${pendientes.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.74rem;color:#64748b;">Rechazadas: ${rechazadas}</div>
+        </div>
+      `;
+    }
+
+    const titleDist = document.getElementById('adm-chart-dist-title');
+    const titleDep = document.getElementById('adm-chart-dep-title');
+    const titleEvo = document.getElementById('adm-chart-evo-title');
+    if (titleDist) titleDist.textContent = isLic ? 'Distribución por Tipo de Licencia' : 'Distribución por Tipo / Motivo de Permiso';
+    if (titleDep) titleDep.textContent = isLic ? 'Licencias por Dependencia (Top 8)' : 'Solicitudes de Permiso por Dependencia (Top 8)';
+    if (titleEvo) titleEvo.textContent = isLic ? 'Evolución Mensual de Licencias' : 'Evolución Mensual de Permisos';
+
+    if (!state.dashVisible || typeof Chart === 'undefined') return;
+    destroyCharts();
+
+    const palette = ['#1b4f32', '#287522', '#0284c7', '#d97706', '#7c3aed', '#dc2626', '#0d9488', '#475569'];
+
+    // 1. Distribución por Tipo/Motivo
+    const distData = Array.isArray(s.porTipoMotivo) ? s.porTipoMotivo : [];
+    const ctxDist = document.getElementById('adm-chart-dist');
+    const emptyDist = document.getElementById('adm-empty-dist');
+    if (ctxDist) {
+      if (!distData.length) {
+        ctxDist.style.display = 'none';
+        if (emptyDist) emptyDist.style.display = 'flex';
+      } else {
+        ctxDist.style.display = 'block';
+        if (emptyDist) emptyDist.style.display = 'none';
+        chartInstances.dist = new Chart(ctxDist, {
+          type: 'doughnut',
+          data: {
+            labels: distData.map(x => String(x.etiqueta || x.label || 'Otro').substring(0, 28)),
+            datasets: [{
+              data: distData.map(x => x.cantidad ?? x.count ?? 0),
+              backgroundColor: palette,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { boxWidth: 11, font: { size: 11 } } }
+            }
+          }
+        });
+      }
+    }
+
+    // 2. Por Dependencia
+    const depData = Array.isArray(s.porDependencia) ? s.porDependencia.slice(0, 8) : [];
+    const ctxDep = document.getElementById('adm-chart-dep');
+    const emptyDep = document.getElementById('adm-empty-dep');
+    if (ctxDep) {
+      if (!depData.length) {
+        ctxDep.style.display = 'none';
+        if (emptyDep) emptyDep.style.display = 'flex';
+      } else {
+        ctxDep.style.display = 'block';
+        if (emptyDep) emptyDep.style.display = 'none';
+        chartInstances.dep = new Chart(ctxDep, {
+          type: 'bar',
+          data: {
+            labels: depData.map(x => cleanName(x.dependencia || x.label || 'Sin dep.').substring(0, 26)),
+            datasets: [{
+              label: 'Solicitudes',
+              data: depData.map(x => x.cantidad ?? x.count ?? 0),
+              backgroundColor: isLic ? '#2563eb' : '#1b4f32',
+              borderRadius: 5
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      }
+    }
+
+    // 3. Evolución Mensual
+    const evoData = Array.isArray(s.evolucionMensual) ? s.evolucionMensual : [];
+    const ctxEvo = document.getElementById('adm-chart-evo');
+    const emptyEvo = document.getElementById('adm-empty-evo');
+    if (ctxEvo) {
+      if (!evoData.length) {
+        ctxEvo.style.display = 'none';
+        if (emptyEvo) emptyEvo.style.display = 'flex';
+      } else {
+        ctxEvo.style.display = 'block';
+        if (emptyEvo) emptyEvo.style.display = 'none';
+        chartInstances.evo = new Chart(ctxEvo, {
+          type: 'line',
+          data: {
+            labels: evoData.map(x => x.mes),
+            datasets: [{
+              label: isLic ? 'Licencias' : 'Permisos',
+              data: evoData.map(x => x.cantidad ?? x.count ?? 0),
+              borderColor: isLic ? '#2563eb' : '#15803d',
+              backgroundColor: isLic ? 'rgba(37,99,235,0.12)' : 'rgba(21,128,61,0.12)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      }
+    }
   }
 
   function renderTable() {
@@ -407,6 +691,7 @@ const AdminRequestsModule = (() => {
         </div></td></tr>`;
       return;
     }
+    const canManage = canManageCurrent();
     tbody.innerHTML = state.data.map(r => {
       const durLabel = r.duracion || (r.diasSolicitados != null ? `${r.diasSolicitados} d` : '—');
       return `
@@ -427,20 +712,21 @@ const AdminRequestsModule = (() => {
           </span>
         </td>
         <td>
+          ${canManage ? `
           <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="AdminRequestsModule.openStatusPicker(${r.id})" title="Clic para cambiar estado de esta solicitud" aria-label="Cambiar estado: ${r.estado}">
             <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
+          </button>` : `<span class="badge ${badgeClass(r.estado)}">${escHtml(r.estado)}</span>`}
         </td>
         <td class="td-actions">
           <div class="td-actions-wrap">
             <button class="btn-action-view" onclick="AdminRequestsModule.openView(${r.id})" title="Ver Detalles de Solicitud">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            <button class="btn-action-edit" onclick="AdminRequestsModule.openEdit(${r.id})" title="Editar Solicitud">
+            ${canManage ? `<button class="btn-action-edit" onclick="AdminRequestsModule.openEdit(${r.id})" title="Editar Solicitud">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            ${Auth.canEdit() ? `<button class="btn-action-delete" onclick="AdminRequestsModule.confirmDelete(${r.id},'${escHtml(r.persona)}')" title="Eliminar Solicitud">
+            </button>` : ''}
+            ${canManage ? `<button class="btn-action-delete" onclick="AdminRequestsModule.confirmDelete(${r.id},'${escHtml(r.persona)}')" title="Eliminar Solicitud">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
           </div>
@@ -1750,12 +2036,12 @@ const AdminRequestsModule = (() => {
             </div>
             <div style="font-size:0.86rem;color:var(--text-primary);">${escHtml(r.jefeNombre || 'No registrado')} &lt;${escHtml(r.jefeCorreo || 'Sin correo')}&gt;</div>
             ${r.notificacionDetalle ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;word-break:break-word;"><strong>Estado del envío:</strong> ${escHtml(r.notificacionDetalle)}</div>` : ''}
-            <div style="margin-top:8px;">
+            ${canManageCurrent() ? `<div style="margin-top:8px;">
               <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:4px 10px;" onclick="AdminRequestsModule.reenviarNotificacion(${r.id})">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 Reenviar Notificación por Correo
               </button>
-            </div>
+            </div>` : ''}
           </div>
 
           <!-- Soportes -->
@@ -1770,7 +2056,7 @@ const AdminRequestsModule = (() => {
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
-    if (Auth.canEdit()) {
+    if (canManageCurrent()) {
       actions.push({
         text: 'Editar Permiso',
         cls: 'btn-gold',
@@ -1956,7 +2242,7 @@ const AdminRequestsModule = (() => {
 
             <div class="form-group">
               <label class="form-label">Estado de la Solicitud</label>
-              <select id="lic-f-estado" class="filter-select">
+              <select id="lic-f-estado" class="filter-select" ${canManageCurrent() ? '' : 'disabled'}>
                 ${ESTADOS.filter(e => e !== 'Todos').map(e => `<option value="${e}" ${(r.estado || 'Pendiente') === e ? 'selected' : ''}>${e}</option>`).join('')}
               </select>
             </div>
@@ -2400,7 +2686,7 @@ const AdminRequestsModule = (() => {
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
     ];
-    if (Auth.canEdit()) {
+    if (canManageCurrent()) {
       actions.push({
         text: 'Editar Licencia',
         cls: 'btn-gold',
@@ -2608,160 +2894,79 @@ const AdminRequestsModule = (() => {
 
   function goPage(p) { if (p < 1 || p > state.totalPages) return; state.page = p; load(); }
 
-  // ─── Dropdown de Acciones Secundarias ────────────────────────────────────────
-  function toggleActionsDropdown(event) {
-    if (event) event.stopPropagation();
-    const menu = document.getElementById('adm-dropdown-menu');
-    const toggleBtn = document.getElementById('adm-dropdown-toggle');
-    if (!menu || !toggleBtn) return;
-    const isHidden = menu.hasAttribute('hidden');
-    if (isHidden) {
-      menu.removeAttribute('hidden');
-      toggleBtn.setAttribute('aria-expanded', 'true');
-      const firstItem = menu.querySelector('.actions-dropdown-item');
-      if (firstItem) firstItem.focus();
-    } else {
-      closeActionsDropdown();
-    }
-  }
-
-  function closeActionsDropdown() {
-    const menu = document.getElementById('adm-dropdown-menu');
-    const toggleBtn = document.getElementById('adm-dropdown-toggle');
-    if (menu) menu.setAttribute('hidden', '');
-    if (toggleBtn) {
-      toggleBtn.setAttribute('aria-expanded', 'false');
-      toggleBtn.focus();
-    }
-  }
-
-  function handleDropdownKeydown(event) {
-    if (event.key === 'Escape') {
-      closeActionsDropdown();
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      const menu = document.getElementById('adm-dropdown-menu');
-      if (menu && menu.hasAttribute('hidden')) {
-        toggleActionsDropdown(event);
-      } else if (menu) {
-        const first = menu.querySelector('.actions-dropdown-item');
-        if (first) first.focus();
-      }
-    }
-  }
-
-  function bindDropdownOutsideClick() {
-    document.addEventListener('click', (e) => {
-      const wrap = document.querySelector('.actions-dropdown-wrap');
-      const menu = document.getElementById('adm-dropdown-menu');
-      if (menu && !menu.hasAttribute('hidden') && wrap && !wrap.contains(e.target)) {
-        menu.setAttribute('hidden', '');
-        const toggleBtn = document.getElementById('adm-dropdown-toggle');
-        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
-      }
+  // ─── Gobernanza, Documentos Institucionales y Auditoría (Secciones 7, 8 y 11) ──
+  function openInstitutionalDocuments() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const modKey = currentModuloKey();
+    GovernanceAndReports.openInstitutionalDocumentsModal({
+      modulo: modKey,
+      moduloLabel: tipoPlural(state.tipo),
+      service: 'admin-requests',
+      canManage: canManageCurrent()
     });
+  }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const menu = document.getElementById('adm-dropdown-menu');
-        if (menu && !menu.hasAttribute('hidden')) {
-          closeActionsDropdown();
-        }
-      }
+  function openAuditHistory() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const modKey = currentModuloKey();
+    GovernanceAndReports.openAuditModal({
+      modulo: modKey,
+      moduloLabel: tipoPlural(state.tipo),
+      service: 'admin-requests'
+    });
+  }
+
+  function openResponsablesManager() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const modKey = currentModuloKey();
+    GovernanceAndReports.openResponsablesModal({
+      modulo: modKey,
+      moduloLabel: tipoPlural(state.tipo),
+      service: 'admin-requests'
     });
   }
 
   // ─── Renderizado Principal del Módulo ────────────────────────────────────────
   async function render(container, tipoKey, navItem) {
     const tipoLabel = TIPOS[tipoKey] || 'Permiso Laboral';
+    const isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
 
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
           <div class="page-header-info">
-            <h1 class="page-heading" id="adm-heading">${tipoPlural(tipoLabel)}</h1>
-            <p class="page-desc">Gestione solicitudes administrativas del personal con validaciones oficiales y notificación automática</p>
-          </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown Acciones Secundarias -->
-            <div class="actions-dropdown-wrap">
-              <button
-                type="button"
-                class="btn btn-secondary actions-dropdown-btn"
-                id="adm-dropdown-toggle"
-                aria-haspopup="true"
-                aria-expanded="false"
-                aria-controls="adm-dropdown-menu"
-                onclick="AdminRequestsModule.toggleActionsDropdown(event)"
-                onkeydown="AdminRequestsModule.handleDropdownKeydown(event)"
-                title="Opciones secundarias (Excel y plantillas)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
-                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div
-                class="actions-dropdown-menu"
-                id="adm-dropdown-menu"
-                role="menu"
-                aria-labelledby="adm-dropdown-toggle"
-                hidden
-              >
-                <!-- 1. Exportar a Excel -->
-                <button
-                  type="button"
-                  role="menuitem"
-                  tabindex="-1"
-                  class="actions-dropdown-item"
-                  onclick="AdminRequestsModule.closeActionsDropdown(); AdminRequestsModule.exportExcel();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  <div>
-                    <strong>Exportar Solicitudes a Excel</strong>
-                    <small>Descarga el listado filtrado actual en formato .xlsx</small>
-                  </div>
-                </button>
-
-                <!-- 2. Descargar Plantilla Oficial en Blanco -->
-                <button
-                  type="button"
-                  role="menuitem"
-                  tabindex="-1"
-                  class="actions-dropdown-item"
-                  onclick="AdminRequestsModule.closeActionsDropdown(); AdminRequestsModule.downloadTemplate();"
-                  title="Descargar archivo Excel oficial en blanco para diligenciar"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                  <div>
-                    <strong>Descargar Plantilla Oficial (.xlsx)</strong>
-                    <small>Archivo Excel vacío con encabezados requeridos y listas oficiales</small>
-                  </div>
-                </button>
-
-                <!-- 3. Carga Masiva Excel -->
-                ${Auth.canEdit() ? `
-                <button
-                  type="button"
-                  role="menuitem"
-                  tabindex="-1"
-                  class="actions-dropdown-item"
-                  onclick="AdminRequestsModule.closeActionsDropdown(); AdminRequestsModule.openImportModal();"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                  <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde plantilla institucional</small>
-                  </div>
-                </button>` : ''}
-              </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h1 class="page-heading" id="adm-heading" style="margin:0;">${tipoPlural(tipoLabel)}</h1>
+              <span id="adm-role-badge" class="badge" style="font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;background:#e0f2fe;color:#075985;">
+                Cargando permisos...
+              </span>
             </div>
+            <p class="page-desc">Gestione solicitudes administrativas del personal con validaciones oficiales, trazabilidad inmutable y notificación automática</p>
+          </div>
+          <div class="page-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- Formatos y Documentos Institucionales (Sección 11) -->
+            <button type="button" class="btn btn-secondary" onclick="AdminRequestsModule.openInstitutionalDocuments()" title="Consultar y descargar formatos oficiales institucionales">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Formatos Institucionales</span>
+            </button>
 
-            <!-- Botón de Acción Principal -->
-            ${Auth.canEdit() ? `
+            <!-- Historial de Operaciones y Auditoría (Sección 8) -->
+            <button type="button" id="adm-btn-audit" class="btn btn-secondary" style="display:none;" onclick="AdminRequestsModule.openAuditHistory()" title="Ver bitácora inmutable de operaciones del módulo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Auditoría e Historial</span>
+            </button>
+
+            <!-- Gestión de Responsables del Módulo (Sección 7 - Admin) -->
+            <button type="button" id="adm-btn-resp" class="btn btn-secondary" style="display:${isAdmin ? 'inline-flex' : 'none'};" onclick="AdminRequestsModule.openResponsablesManager()" title="Asignar responsables del submódulo (RBAC)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Responsables</span>
+            </button>
+
+            <!-- Botón de Acción Principal (Disponible para Funcionarios, Responsables y Administradores) -->
             <button class="btn btn-primary btn-primary-cta" onclick="AdminRequestsModule.openCreate()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span>Nueva Solicitud</span>
-            </button>` : ''}
+            </button>
           </div>
         </div>
 
@@ -2774,10 +2979,66 @@ const AdminRequestsModule = (() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Incapacidades
           </button>
-          <button class="tab-btn ${tipoLabel==='Licencia'?'active':''}" onclick="AdminRequestsModule.setTipo('Licencia',this)">
+          <button class="tab-btn ${tipoLabel==='Licencia'?'active':''}" id="adm-tab-licencias" onclick="AdminRequestsModule.setTipo('Licencia',this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             Licencias
           </button>
+        </div>
+
+        <!-- PANEL DE DASHBOARD DINÁMICO E INTERACTIVO (SECCIÓN 6.1 Y 6.2) -->
+        <div class="table-card" style="margin-bottom:16px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div>
+              <strong style="font-size:0.95rem;color:var(--text-primary);">Panel de Indicadores y Estadísticas en Tiempo Real</strong>
+              <span style="font-size:0.78rem;color:var(--text-muted);margin-left:8px;">Conectado directamente a la base de datos</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <select id="adm-dash-anio" class="filter-select" style="min-width:110px;padding:5px 10px;font-size:0.8rem;" onchange="AdminRequestsModule.applyDashFilters()">
+                <option value="Todos">Año: Todos</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <select id="adm-dash-mes" class="filter-select" style="min-width:125px;padding:5px 10px;font-size:0.8rem;" onchange="AdminRequestsModule.applyDashFilters()">
+                <option value="Todos">Mes: Todos</option>
+                <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+                <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+                <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+              <button type="button" id="adm-dash-toggle-btn" class="btn btn-secondary" style="padding:5px 12px;font-size:0.78rem;" onclick="AdminRequestsModule.toggleDashboard()">
+                Ocultar Dashboard
+              </button>
+            </div>
+          </div>
+
+          <div id="adm-dashboard-body">
+            <div id="adm-dash-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:14px;"></div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div id="adm-chart-dist-title" style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Distribución por Tipo / Motivo</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="adm-chart-dist"></canvas>
+                  <div id="adm-empty-dist" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros para este periodo</div>
+                </div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div id="adm-chart-dep-title" style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Solicitudes por Dependencia (Top 8)</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="adm-chart-dep"></canvas>
+                  <div id="adm-empty-dep" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros para este periodo</div>
+                </div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div id="adm-chart-evo-title" style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Evolución Mensual</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="adm-chart-evo"></canvas>
+                  <div id="adm-empty-evo" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros para este periodo</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="filters-card">
@@ -2818,7 +3079,6 @@ const AdminRequestsModule = (() => {
       </div>`;
 
     document.getElementById('adm-q')?.addEventListener('keypress', e => { if (e.key === 'Enter') applyFilters(); });
-    bindDropdownOutsideClick();
 
     state.tipo = tipoLabel; state.page = 1; state.filters = {};
     ensureCatalogs();
@@ -2855,8 +3115,8 @@ const AdminRequestsModule = (() => {
   ];
 
   function openStatusPicker(id) {
-    if (!Auth.canEdit()) {
-      App.showToast('No tienes permisos de edición para cambiar estados.', 'warning');
+    if (!canManageCurrent()) {
+      App.showToast('Solo el responsable asignado del módulo o el administrador puede cambiar estados.', 'warning');
       return;
     }
     const r = state.data.find(x => x.id === id);
@@ -2924,134 +3184,13 @@ const AdminRequestsModule = (() => {
     }
   }
 
-  // ─── Exportación e Importación de Excel ──────────────────────────────────────
-  const EXCEL_COLUMNS = [
-    { header: 'Radicado', key: 'radicado', width: 18, sample: 'PL-2026-00045' },
-    { header: 'Tipo', key: 'tipo', width: 18, sample: 'Permiso Laboral' },
-    { header: 'Cédula', key: 'documento', width: 15, sample: '1049601234' },
-    { header: 'Servidor Público', key: 'persona', width: 32, sample: 'GARCIA MARTINEZ LUIS FERNANDO' },
-    { header: 'Código', key: 'codigo', width: 12, sample: '219' },
-    { header: 'Grado', key: 'grado', width: 10, sample: '01' },
-    { header: 'Sectorial', key: 'sectorial', width: 28, sample: 'SECRETARIA DE HACIENDA' },
-    { header: 'Dependencia', key: 'dependencia', width: 30, sample: 'DIRECCION FINANCIERA Y FISCAL' },
-    { header: 'Cargo', key: 'cargo', width: 26, sample: 'PROFESIONAL UNIVERSITARIO' },
-    { header: 'Fecha Inicio', key: 'fechaInicio', width: 16, sample: '15/05/2026' },
-    { header: 'Fecha Fin', key: 'fechaFin', width: 16, sample: '15/05/2026' },
-    { header: 'Duración', key: 'duracion', width: 16, sample: '1 día' },
-    { header: 'Motivo o Diagnóstico', key: 'motivo', width: 32, sample: 'Diligencia personal urgente' },
-    { header: 'Estado', key: 'estado', width: 16, sample: 'Aprobada' },
-    { header: 'Observaciones', key: 'observaciones', width: 30, sample: 'Soporte recibido' },
-  ];
-
-  async function exportExcel() {
-    try {
-      App.showToast('Generando archivo Excel...', 'info');
-      const res = await API.getAdminRequests({ tipo: state.tipo, ...state.filters, page: 1, limit: 10000 });
-      const records = res.data || state.data;
-      ExcelService.exportToExcel({
-        filename: `Talento360_${(state.tipo || 'Solicitudes_Admin').replace(/\s+/g, '_')}`,
-        sheetName: tipoPlural(state.tipo),
-        columns: EXCEL_COLUMNS,
-        data: records
-      });
-      App.showToast(`Se exportaron ${records.length} registros de ${tipoPlural(state.tipo)} exitosamente.`, 'success');
-    } catch (err) {
-      App.showToast('Error al exportar: ' + err.message, 'error');
-    }
-  }
-
-  function downloadTemplate() {
-    try {
-      ExcelService.downloadTemplate({
-        filename: `Plantilla_Oficial_${(state.tipo || 'Solicitudes_Admin').replace(/\s+/g, '_')}`,
-        sheetName: tipoPlural(state.tipo).substring(0, 30),
-        columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
-        sampleRows: [
-          {
-            'Tipo': state.tipo || 'Permiso Laboral',
-            'Cédula': '1049601234',
-            'Servidor Público': 'GARCIA MARTINEZ LUIS FERNANDO',
-            'Código': '219',
-            'Grado': '01',
-            'Sectorial': 'SECRETARIA GENERAL',
-            'Dependencia': 'SGEN - SECRETARIA GENERAL (Despacho)',
-            'Cargo': 'PROFESIONAL UNIVERSITARIO',
-            'Fecha Inicio': '15/05/2026',
-            'Fecha Fin': '15/05/2026',
-            'Duración': '1 día',
-            'Motivo o Diagnóstico': 'Diligencia personal urgente',
-            'Estado': 'Pendiente',
-            'Observaciones': 'Solicitud radicada con visto bueno'
-          }
-        ]
-      });
-      App.showToast(`Plantilla oficial en blanco de ${tipoPlural(state.tipo)} descargada exitosamente.`, 'success');
-    } catch (err) {
-      App.showToast('Error al descargar plantilla: ' + err.message, 'error');
-    }
-  }
-
-  function openImportModal() {
-    ExcelService.openImportModal({
-      title: `Carga Masiva de Solicitudes Administrativas (${tipoPlural(state.tipo)})`,
-      subtitle: `Importe registros masivos de ${tipoPlural(state.tipo).toLowerCase()} mediante un archivo Excel (.xlsx / .xls)`,
-      moduleName: tipoPlural(state.tipo).toLowerCase(),
-      columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
-      sampleRows: [
-        {
-          'Tipo': state.tipo || 'Permiso Laboral',
-          'Cédula': '1049612345',
-          'Servidor Público': 'GOMEZ PEREZ ANDREA PAOLA',
-          'Código': '219',
-          'Grado': '02',
-          'Dependencia': 'SECRETARÍA DE EDUCACIÓN',
-          'Cargo': 'AUXILIAR ADMINISTRATIVO',
-          'Fecha Inicio': '01/06/2026',
-          'Fecha Fin': '01/06/2026',
-          'Días': '1',
-          'Motivo o Diagnóstico': 'Cita médica especializada EPS',
-          'Estado': 'Pendiente',
-          'Observaciones': 'Anexa orden médica'
-        }
-      ],
-      validateRow: (row) => {
-        const documento = (row['Cédula'] || row.documento || row.cedula || row['Documento'] || '').toString().trim();
-        const persona = (row['Servidor Público'] || row.persona || row.nombreCompleto || row['Nombre Completo'] || '').toString().trim();
-        const dependencia = cleanName((row['Dependencia'] || row.dependencia || '').toString().trim());
-        if (!documento || !persona || !dependencia) {
-          return { valid: false, error: 'Cédula, Servidor y Dependencia son requeridos.' };
-        }
-        return {
-          valid: true,
-          cleanRow: {
-            tipo: (row['Tipo'] || row.tipo || state.tipo || 'Permiso Laboral').toString().trim(),
-            documento, persona, dependencia,
-            codigo: (row['Código'] || row.codigo || '').toString().trim(),
-            grado: (row['Grado'] || row.grado || '').toString().trim(),
-            cargo: (row['Cargo'] || row.cargo || '').toString().trim(),
-            fechaInicio: (row['Fecha Inicio'] || row.fechaInicio || '').toString().trim(),
-            fechaFin: (row['Fecha Fin'] || row.fechaFin || '').toString().trim(),
-            diasSolicitados: parseInt(row['Días'] || row.diasSolicitados || row.dias || 1) || 1,
-            motivo: (row['Motivo o Diagnóstico'] || row.motivo || row.diagnostico || '').toString().trim(),
-            estado: (row['Estado'] || row.estado || 'Pendiente').toString().trim(),
-            observaciones: (row['Observaciones'] || row.observaciones || '').toString().trim()
-          }
-        };
-      },
-      onImport: async (rows) => {
-        const res = await API.bulkCreateAdminRequests(rows);
-        App.showToast(res.message || `${res.inserted} solicitudes importadas.`, 'success');
-        await load();
-      }
-    });
-  }
-
   return {
     render, openCreate, openView, openEdit, openStatusPicker, selectQuickStatus, confirmDelete,
-    applyFilters, clearFilters, goPage, setTipo, exportExcel, openImportModal, downloadTemplate,
-    toggleActionsDropdown, closeActionsDropdown, handleDropdownKeydown,
+    applyFilters, clearFilters, goPage, setTipo,
+    toggleDashboard, applyDashFilters,
+    openInstitutionalDocuments, openAuditHistory, openResponsablesManager,
     // Métodos del formulario de Permisos
-    setModalidad, onSectorialChange, onNivelChange, onMotivoCatChange, onMotivoIncChange,
+    setModalidad, onSectorialChange, onMotivoCatChange, onMotivoIncChange, onNivelChange,
     calcHorasPermiso, calcDiasHabiles, validateJefeEmailLive,
     selectEmployee, handleFileSelect, removeNewSoporte, removeExistingSoporte, restoreExistingSoporte,
     reenviarNotificacion,

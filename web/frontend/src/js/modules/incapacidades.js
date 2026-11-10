@@ -13,6 +13,10 @@ const IncapacidadesModule = (() => {
     totalPages: 1,
     filters: { q: '', estado: 'Todos', causaMotivo: 'Todas', eps: 'Todas' },
     stats: null,
+    permission: null,
+    selectedIds: new Set(),
+    dashVisible: true,
+    dashFilters: { anio: 'Todos', mes: 'Todos' }
   };
 
   let catalogsCache = null;
@@ -20,6 +24,15 @@ const IncapacidadesModule = (() => {
   let existingSoportes = [];
   let searchDebounceTimer = null;
   let discountManuallyEdited = false;
+  let chartInstances = { causa: null, dep: null, evo: null };
+
+  function canManageCurrent() {
+    if (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin()) return true;
+    if (state.permission && typeof state.permission.canManage === 'boolean') {
+      return state.permission.canManage;
+    }
+    return typeof Auth !== 'undefined' && Auth.canEdit ? Auth.canEdit() : false;
+  }
 
   // Catálogos oficiales exactos de la Hoja 2 de «9. INCAPACIDADES SST - SEPTIEMBRE 2026.xlsx»
   const FALLBACK_CATALOGS = {
@@ -320,6 +333,7 @@ const IncapacidadesModule = (() => {
   function renderSkeletonRows(count = 6) {
     return Array.from({ length: count }).map((_, i) => `
       <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.08}s">
+        <td><div class="skeleton skeleton-line" style="width: 18px; height: 18px; border-radius: 4px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 90px; height: 16px; border-radius: 4px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
@@ -342,7 +356,7 @@ const IncapacidadesModule = (() => {
           <div class="skeleton-actions-wrap">
             <div class="skeleton skeleton-btn"></div>
             <div class="skeleton skeleton-btn"></div>
-            ${Auth.canEdit() ? '<div class="skeleton skeleton-btn"></div>' : ''}
+            ${canManageCurrent() ? '<div class="skeleton skeleton-btn"></div>' : ''}
           </div>
         </td>
       </tr>
@@ -352,16 +366,46 @@ const IncapacidadesModule = (() => {
   // ─── Render Principal del Módulo ────────────────────────────────────────────
   async function render(container) {
     const cat = await ensureCatalogs();
+    const isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
 
     container.innerHTML = `
       <div class="module-enter">
         <div class="page-header">
           <div class="page-header-info">
-            <h1 class="page-heading">Incapacidades y Ausentismo Laboral</h1>
-            <p class="page-desc">Gestione el registro, seguimiento y liquidación de incapacidades médicas y ausentismo laboral · Gobernación de Boyacá</p>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h1 class="page-heading" style="margin:0;">Incapacidades y Ausentismo Laboral</h1>
+              <span id="inc-role-badge" class="badge" style="font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;background:#e0f2fe;color:#075985;">
+                Cargando permisos...
+              </span>
+            </div>
+            <p class="page-desc">Gestione el registro, seguimiento, liquidación y trazabilidad de incapacidades médicas y ausentismo laboral (Formato E-DO-ST-F-002 V2 · Ley 1581)</p>
           </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown Acciones Secundarias -->
+          <div class="page-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- Formatos y Documentos Institucionales (Sección 11) -->
+            <button type="button" class="btn btn-secondary" onclick="IncapacidadesModule.openInstitutionalDocuments()" title="Consultar y descargar formatos oficiales institucionales">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Formatos</span>
+            </button>
+
+            <!-- Generador de Reportes PDF / Excel (Sección 9.4 - 7 Criterios A-G) -->
+            <button type="button" class="btn btn-secondary" onclick="IncapacidadesModule.openReportGenerator()" title="Generar reportes PDF y Excel por los 7 criterios institucionales">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span>Reportes PDF / Excel</span>
+            </button>
+
+            <!-- Auditoría e Historial (Sección 8) -->
+            <button type="button" id="inc-btn-audit" class="btn btn-secondary" style="display:none;" onclick="IncapacidadesModule.openAuditHistory()" title="Ver bitácora inmutable de operaciones">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Auditoría</span>
+            </button>
+
+            <!-- Responsables del Módulo (Sección 7 - Admin) -->
+            <button type="button" id="inc-btn-resp" class="btn btn-secondary" style="display:${isAdmin ? 'inline-flex' : 'none'};" onclick="IncapacidadesModule.openResponsablesManager()" title="Gestionar responsables del módulo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <span>Responsables</span>
+            </button>
+
+            <!-- Dropdown Acciones Excel (Sección 9.1, 9.2, 9.3, 9.4) -->
             <div class="actions-dropdown-wrap">
               <button
                 type="button"
@@ -372,10 +416,10 @@ const IncapacidadesModule = (() => {
                 aria-controls="inc-dropdown-menu"
                 onclick="IncapacidadesModule.toggleActionsDropdown(event)"
                 onkeydown="IncapacidadesModule.handleDropdownKeydown(event)"
-                title="Opciones de exportación e importación Excel"
+                title="Plantillas oficiales, exportación e importación masiva Excel"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
+                <span>Plantillas y Excel</span>
                 <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div
@@ -385,6 +429,7 @@ const IncapacidadesModule = (() => {
                 aria-labelledby="inc-dropdown-toggle"
                 hidden
               >
+                <!-- 9.1 Exportar a Plantilla Oficial -->
                 <button
                   type="button"
                   role="menuitem"
@@ -394,10 +439,11 @@ const IncapacidadesModule = (() => {
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <div>
-                    <strong>Exportar Incapacidades a Excel</strong>
-                    <small>Descarga el listado de incapacidades en formato .xlsx</small>
+                    <strong>9.1 Exportar a Plantilla Oficial (.xlsx)</strong>
+                    <small>Exporta los registros al formato oficial E-DO-ST-F-002 V2</small>
                   </div>
                 </button>
+                <!-- 9.2 Descargar Plantilla Vacía -->
                 <button
                   type="button"
                   role="menuitem"
@@ -408,24 +454,40 @@ const IncapacidadesModule = (() => {
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                   <div>
-                    <strong>Descargar Plantilla Oficial (.xlsx)</strong>
-                    <small>Archivo Excel vacío oficial con formato y columnas de la Matriz SST</small>
+                    <strong>9.2 Descargar Plantilla Oficial Vacía (.xlsx)</strong>
+                    <small>Estructura oficial E-DO-ST-F-002 V2 lista para diligenciar</small>
                   </div>
                 </button>
-                ${Auth.canEdit() ? `
+                <!-- 9.3 Carga Masiva Excel -->
+                <button
+                  type="button"
+                  id="inc-menu-import"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  style="display:none;"
+                  onclick="IncapacidadesModule.closeActionsDropdown(); IncapacidadesModule.openImportModal();"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <div>
+                    <strong>9.3 Carga Masiva desde Excel</strong>
+                    <small>Importar con validación de duplicados y reporte de errores</small>
+                  </div>
+                </button>
+                <!-- 9.4 Generador de Reportes PDF y Excel -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
-                  onclick="IncapacidadesModule.closeActionsDropdown(); IncapacidadesModule.openImportModal();"
+                  onclick="IncapacidadesModule.closeActionsDropdown(); IncapacidadesModule.openReportGenerator();"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde la matriz de ausentismo laboral</small>
+                    <strong>9.4 Generar Reportes PDF / Excel (7 Criterios)</strong>
+                    <small>Individual, seleccionados, dependencia, fechas, consolidado y estadístico</small>
                   </div>
-                </button>` : ''}
+                </button>
               </div>
             </div>
 
@@ -436,8 +498,63 @@ const IncapacidadesModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjetas de Resumen / KPIs -->
-        <div class="stats-grid" id="inc-stats-row" style="grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: var(--space-5);"></div>
+        <!-- PANEL DE DASHBOARD DINÁMICO E INTERACTIVO (SECCIÓN 6.3) -->
+        <div class="table-card" style="margin-bottom:16px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div>
+              <strong style="font-size:0.95rem;color:var(--text-primary);">Dashboard de Ausentismo Laboral e Incapacidades (Tiempo Real)</strong>
+              <span style="font-size:0.78rem;color:var(--text-muted);margin-left:8px;">Indicadores y gráficas actualizados desde la base de datos</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <select id="inc-dash-anio" class="filter-select" style="min-width:110px;padding:5px 10px;font-size:0.8rem;" onchange="IncapacidadesModule.applyDashFilters()">
+                <option value="Todos">Año: Todos</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <select id="inc-dash-mes" class="filter-select" style="min-width:125px;padding:5px 10px;font-size:0.8rem;" onchange="IncapacidadesModule.applyDashFilters()">
+                <option value="Todos">Mes: Todos</option>
+                <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+                <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+                <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+              <button type="button" id="inc-dash-toggle-btn" class="btn btn-secondary" style="padding:5px 12px;font-size:0.78rem;" onclick="IncapacidadesModule.toggleDashboard()">
+                Ocultar Dashboard
+              </button>
+            </div>
+          </div>
+
+          <div id="inc-dashboard-body">
+            <!-- Tarjetas de Resumen / KPIs -->
+            <div class="stats-grid" id="inc-stats-row" style="grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 12px; margin-bottom: 14px;"></div>
+
+            <!-- Gráficas Interactivas (Sección 6.3) -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Distribución por Causa u Origen</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="inc-chart-causa"></canvas>
+                  <div id="inc-empty-causa" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros en este periodo</div>
+                </div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Incapacidades por Dependencia (Top 8)</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="inc-chart-dep"></canvas>
+                  <div id="inc-empty-dep" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros en este periodo</div>
+                </div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+                <div style="font-size:0.8rem;font-weight:700;color:#1e293b;margin-bottom:8px;">Evolución Mensual del Ausentismo (Casos y Días)</div>
+                <div style="height:210px;position:relative;">
+                  <canvas id="inc-chart-evo"></canvas>
+                  <div id="inc-empty-evo" style="display:none;height:100%;align-items:center;justify-content:center;color:#64748b;font-size:0.82rem;">Sin registros en este periodo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Filtros -->
         <div class="filters-card">
@@ -473,14 +590,20 @@ const IncapacidadesModule = (() => {
 
         <!-- Tabla Formato 9. INCAPACIDADES SST -->
         <div class="table-card">
-          <div class="table-header">
-            <span class="table-title">Matriz de Ausentismo Laboral · Incapacidades SST</span>
+          <div class="table-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="table-title">Matriz de Ausentismo Laboral · Incapacidades SST</span>
+              <span id="inc-selected-badge" class="badge badge--revision" style="display:none;font-size:0.75rem;">0 seleccionados</span>
+            </div>
             <span class="table-count" id="inc-count"><span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
+                  <th style="width:36px;text-align:center;">
+                    <input type="checkbox" id="inc-select-all" onchange="IncapacidadesModule.toggleSelectAll(this.checked)" title="Seleccionar todos los registros de la página" />
+                  </th>
                   <th>Radicado / Fecha</th>
                   <th>Servidor Público</th>
                   <th>Dependencia / Sede</th>
@@ -510,55 +633,216 @@ const IncapacidadesModule = (() => {
     bindDropdownOutsideClick();
 
     state.page = 1;
+    state.selectedIds = new Set();
     await Promise.all([loadStats(), load()]);
+  }
+
+  function updateRoleBadgeAndButtons() {
+    const canManage = canManageCurrent();
+    const isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
+    const badgeEl = document.getElementById('inc-role-badge');
+    if (badgeEl) {
+      if (isAdmin) {
+        badgeEl.textContent = '🛡️ Rol: Administrador General';
+        badgeEl.style.background = '#fef3c7';
+        badgeEl.style.color = '#92400e';
+      } else if (canManage) {
+        badgeEl.textContent = '✅ Rol: Responsable de Incapacidades (Luis Sánchez)';
+        badgeEl.style.background = '#dcfce7';
+        badgeEl.style.color = '#166534';
+      } else {
+        badgeEl.textContent = '🔒 Rol: Funcionario (Radicación y Consulta Propia · Ley 1581)';
+        badgeEl.style.background = '#e0f2fe';
+        badgeEl.style.color = '#075985';
+      }
+    }
+    const auditBtn = document.getElementById('inc-btn-audit');
+    if (auditBtn) auditBtn.style.display = canManage ? 'inline-flex' : 'none';
+    const importBtn = document.getElementById('inc-menu-import');
+    if (importBtn) importBtn.style.display = canManage ? 'flex' : 'none';
+    const respBtn = document.getElementById('inc-btn-resp');
+    if (respBtn) respBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+  function toggleDashboard() {
+    state.dashVisible = !state.dashVisible;
+    const body = document.getElementById('inc-dashboard-body');
+    const btn = document.getElementById('inc-dash-toggle-btn');
+    if (body) body.style.display = state.dashVisible ? 'block' : 'none';
+    if (btn) btn.textContent = state.dashVisible ? 'Ocultar Dashboard' : 'Mostrar Dashboard';
+    if (state.dashVisible && state.stats) renderStatsCards(state.stats);
+  }
+
+  function applyDashFilters() {
+    state.dashFilters.anio = document.getElementById('inc-dash-anio')?.value || 'Todos';
+    state.dashFilters.mes = document.getElementById('inc-dash-mes')?.value || 'Todos';
+    loadStats();
+  }
+
+  function destroyCharts() {
+    Object.keys(chartInstances).forEach(k => {
+      if (chartInstances[k]) {
+        try { chartInstances[k].destroy(); } catch (_) {}
+        chartInstances[k] = null;
+      }
+    });
   }
 
   function renderStatsCards(s = {}) {
     const row = document.getElementById('inc-stats-row');
     if (!row) return;
+    const total = s.total || 0;
+    const activas = s.activas != null ? s.activas : (s.aprobadas || 0);
+    const finalizadas = s.finalizadas || 0;
+    const pendientes = s.pendientes || 0;
+    const totalDias = s.totalDias || 0;
+    const totalDescuento = s.totalDescuento || 0;
+    const prorrogas = s.prorrogas || 0;
+
     row.innerHTML = `
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(40,117,34,0.12);color:#287522;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">${(s.total || 0).toLocaleString('es-CO')}</span>
-          <span class="stat-label">Total Incapacidades (${s.prorrogas || 0} prórrogas)</span>
-        </div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+        <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Incapacidades Registradas</div>
+        <div style="font-size:1.85rem;font-weight:800;margin:4px 0;">${total.toLocaleString('es-CO')}</div>
+        <div style="font-size:0.74rem;opacity:0.9;">Prórrogas registradas: <strong>${prorrogas}</strong></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(59,130,246,0.12);color:#2563eb;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">${(s.totalDias || 0).toLocaleString('es-CO')}</span>
-          <span class="stat-label">Días Totales de Ausentismo</span>
-        </div>
+      <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;">
+        <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Incapacidades Activas y Finalizadas</div>
+        <div style="font-size:1.65rem;font-weight:800;color:#15803d;margin:4px 0;">${activas} Activas · ${finalizadas} Finalizadas</div>
+        <div style="font-size:0.74rem;color:#64748b;">Pendientes / En revisión: ${pendientes}</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(217,119,6,0.12);color:#d97706;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value">${(s.pendientes || 0).toLocaleString('es-CO')}</span>
-          <span class="stat-label">Por Gestionar / En Revisión</span>
-        </div>
+      <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;padding:14px 16px;border-radius:12px;">
+        <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#1e40af;font-weight:700;">Días Acumulados de Incapacidad</div>
+        <div style="font-size:1.85rem;font-weight:800;color:#1d4ed8;margin:4px 0;">${totalDias.toLocaleString('es-CO')} días</div>
+        <div style="font-size:0.74rem;color:#64748b;">Promedio: ${total > 0 ? (totalDias / total).toFixed(1) : '0'} días / caso</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:#059669;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-value" style="font-size:1.15rem;">${formatCOP(s.totalDescuento || 0)}</span>
-          <span class="stat-label">Total Descuento Calculado SST</span>
-        </div>
+      <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+        <div style="font-size:0.74rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Liquidación / Descuento SST</div>
+        <div style="font-size:1.45rem;font-weight:800;color:#b45309;margin:6px 0;">${formatCOP(totalDescuento)}</div>
+        <div style="font-size:0.74rem;color:#64748b;">Cálculo oficial E-DO-ST-F-002 V2</div>
       </div>
     `;
+
+    if (!state.dashVisible || typeof Chart === 'undefined') return;
+    destroyCharts();
+
+    const palette = ['#1b4f32', '#2563eb', '#d97706', '#dc2626', '#7c3aed', '#0d9488', '#475569'];
+
+    // 1. Por Causa u Origen
+    const causaList = Array.isArray(s.porCausa) ? s.porCausa : [];
+    const ctxCausa = document.getElementById('inc-chart-causa');
+    const emptyCausa = document.getElementById('inc-empty-causa');
+    if (ctxCausa) {
+      if (!causaList.length) {
+        ctxCausa.style.display = 'none';
+        if (emptyCausa) emptyCausa.style.display = 'flex';
+      } else {
+        ctxCausa.style.display = 'block';
+        if (emptyCausa) emptyCausa.style.display = 'none';
+        chartInstances.causa = new Chart(ctxCausa, {
+          type: 'doughnut',
+          data: {
+            labels: causaList.map(x => String(x.label || 'Otra').substring(0, 26)),
+            datasets: [{
+              data: causaList.map(x => x.count || 0),
+              backgroundColor: palette,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 11, font: { size: 11 } } } }
+          }
+        });
+      }
+    }
+
+    // 2. Por Dependencia
+    const depList = Array.isArray(s.porDependencia) ? s.porDependencia.slice(0, 8) : [];
+    const ctxDep = document.getElementById('inc-chart-dep');
+    const emptyDep = document.getElementById('inc-empty-dep');
+    if (ctxDep) {
+      if (!depList.length) {
+        ctxDep.style.display = 'none';
+        if (emptyDep) emptyDep.style.display = 'flex';
+      } else {
+        ctxDep.style.display = 'block';
+        if (emptyDep) emptyDep.style.display = 'none';
+        chartInstances.dep = new Chart(ctxDep, {
+          type: 'bar',
+          data: {
+            labels: depList.map(x => cleanName(x.label || 'Sin dep.').substring(0, 25)),
+            datasets: [{
+              label: 'Casos',
+              data: depList.map(x => x.count || 0),
+              backgroundColor: '#1b4f32',
+              borderRadius: 5
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+          }
+        });
+      }
+    }
+
+    // 3. Evolución del Ausentismo Laboral
+    const evoList = Array.isArray(s.evolucionMensual) ? s.evolucionMensual : [];
+    const ctxEvo = document.getElementById('inc-chart-evo');
+    const emptyEvo = document.getElementById('inc-empty-evo');
+    if (ctxEvo) {
+      if (!evoList.length) {
+        ctxEvo.style.display = 'none';
+        if (emptyEvo) emptyEvo.style.display = 'flex';
+      } else {
+        ctxEvo.style.display = 'block';
+        if (emptyEvo) emptyEvo.style.display = 'none';
+        chartInstances.evo = new Chart(ctxEvo, {
+          type: 'bar',
+          data: {
+            labels: evoList.map(x => x.mes),
+            datasets: [
+              {
+                type: 'line',
+                label: 'Días de Ausentismo',
+                data: evoList.map(x => x.dias || 0),
+                borderColor: '#dc2626',
+                backgroundColor: 'rgba(220,38,38,0.12)',
+                yAxisID: 'y1',
+                tension: 0.3
+              },
+              {
+                type: 'bar',
+                label: 'Casos Registrados',
+                data: evoList.map(x => x.count || 0),
+                backgroundColor: '#2563eb',
+                borderRadius: 4,
+                yAxisID: 'y'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { beginAtZero: true, position: 'left', ticks: { precision: 0 } },
+              y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+            }
+          }
+        });
+      }
+    }
   }
 
   async function loadStats() {
     try {
-      const s = typeof API.getIncapacidadesStats === 'function' ? await API.getIncapacidadesStats() : null;
+      const s = typeof API.getIncapacidadesStats === 'function'
+        ? await API.getIncapacidadesStats({ anio: state.dashFilters.anio, mes: state.dashFilters.mes })
+        : null;
       if (s && typeof s.total === 'number') {
         state.stats = s;
         renderStatsCards(s);
@@ -584,7 +868,6 @@ const IncapacidadesModule = (() => {
         eps: state.filters.eps || 'Todas',
       };
       let res = typeof API.getIncapacidades === 'function' ? await API.getIncapacidades(params) : null;
-      // Fallback transparente a /admin-requests?tipo=Incapacidad si el contenedor antiguo aún no recargó /api/incapacidades
       if (!res || !Array.isArray(res.data)) {
         res = await API.getAdminRequests({
           tipo: 'Incapacidad',
@@ -594,6 +877,9 @@ const IncapacidadesModule = (() => {
           estado: state.filters.estado || 'Todos',
         });
       }
+      if (res.permission) state.permission = res.permission;
+      updateRoleBadgeAndButtons();
+
       state.data = (res.data || []).map(normalizeRow);
       state.total = res.total || state.data.length;
       state.totalPages = res.totalPages || 1;
@@ -605,6 +891,8 @@ const IncapacidadesModule = (() => {
       if (!state.stats || typeof state.stats.total !== 'number') {
         renderStatsCards({
           total: state.total,
+          activas: state.data.filter(x => x.estado === 'Aprobada').length,
+          finalizadas: state.data.filter(x => x.estado === 'Finalizada').length,
           totalDias: state.data.reduce((a, b) => a + (Number(b.diasSolicitados) || 0), 0),
           pendientes: state.data.filter(x => x.estado === 'Pendiente' || x.estado === 'En revisión').length,
           totalDescuento: state.data.reduce((a, b) => a + (Number(b.descuento) || 0), 0),
@@ -616,6 +904,33 @@ const IncapacidadesModule = (() => {
     }
   }
 
+  function updateSelectedBadge() {
+    const badge = document.getElementById('inc-selected-badge');
+    if (!badge) return;
+    const count = state.selectedIds.size;
+    if (count > 0) {
+      badge.style.display = 'inline-flex';
+      badge.textContent = `${count} seleccionado(s)`;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function toggleSelectRow(id, checked) {
+    if (checked) state.selectedIds.add(id);
+    else state.selectedIds.delete(id);
+    updateSelectedBadge();
+  }
+
+  function toggleSelectAll(checked) {
+    state.data.forEach(r => {
+      if (checked) state.selectedIds.add(r.id);
+      else state.selectedIds.delete(r.id);
+    });
+    document.querySelectorAll('.inc-row-check').forEach(cb => { cb.checked = checked; });
+    updateSelectedBadge();
+  }
+
   function renderTable() {
     const tbody = document.getElementById('inc-tbody');
     if (!tbody) return;
@@ -623,7 +938,7 @@ const IncapacidadesModule = (() => {
     tbody.setAttribute('aria-busy', 'false');
 
     if (!state.data.length) {
-      tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="12"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         <span class="empty-state-title">No hay registros de incapacidades</span>
         <span class="empty-state-desc">No se encontraron incapacidades con los filtros actuales.</span>
@@ -631,8 +946,13 @@ const IncapacidadesModule = (() => {
       return;
     }
 
+    const canManage = canManageCurrent();
+
     tbody.innerHTML = state.data.map(r => `
       <tr>
+        <td style="text-align:center;">
+          <input type="checkbox" class="inc-row-check" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="IncapacidadesModule.toggleSelectRow(${r.id}, this.checked)" />
+        </td>
         <td>
           <div class="td-radicado">${escHtml(r.radicado)}</div>
           <div style="font-size:0.72rem;color:var(--text-muted);">Rad: ${escHtml(r.fechaRadicacion || r.fechaSolicitud || '—')}</div>
@@ -670,20 +990,24 @@ const IncapacidadesModule = (() => {
           <div style="font-weight:700;color:${Number(r.descuento) > 0 ? '#d97706' : 'var(--text-secondary)'};">Desc: ${formatCOP(r.descuento)}</div>
         </td>
         <td>
+          ${canManage ? `
           <button type="button" class="badge badge--interactive ${badgeClass(r.estado)}" onclick="IncapacidadesModule.openStatusPicker(${r.id})" title="Clic para cambiar estado">
             <span>${escHtml(r.estado)}</span>
             <svg class="badge-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
+          </button>` : `<span class="badge ${badgeClass(r.estado)}">${escHtml(r.estado)}</span>`}
         </td>
         <td class="td-actions">
           <div class="td-actions-wrap">
             <button class="btn-action-view" onclick="IncapacidadesModule.openView(${r.id})" title="Ver Detalles Formato SST">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+            <button class="btn-action-view" onclick="IncapacidadesModule.exportSinglePdf(${r.id})" title="Descargar Ficha Individual en PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </button>
+            ${canManage ? `
             <button class="btn-action-edit" onclick="IncapacidadesModule.openEdit(${r.id})" title="Editar Incapacidad">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            ${Auth.canEdit() ? `
             <button class="btn-action-delete" onclick="IncapacidadesModule.confirmDelete(${r.id}, '${escHtml(r.apellidosNombres)}')" title="Eliminar Incapacidad">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>` : ''}
@@ -913,12 +1237,12 @@ const IncapacidadesModule = (() => {
               <textarea id="inc-f-motivo" class="form-input" rows="2" placeholder="Detalle el motivo o diagnóstico de la incapacidad..." required>${escHtml(r.motivo || '')}</textarea>
             </div>
 
-            <div class="form-group ${Auth.canEdit() ? '' : 'span-2'}">
+            <div class="form-group ${canManageCurrent() ? '' : 'span-2'}">
               <label class="form-label">Observaciones</label>
               <textarea id="inc-f-obs" class="form-input" rows="2" placeholder="Observaciones adicionales, entidad médica, seguimiento SST...">${escHtml(r.observaciones || '')}</textarea>
             </div>
 
-            ${Auth.canEdit() ? `
+            ${canManageCurrent() ? `
             <div class="form-group">
               <label class="form-label">Estado de la Solicitud</label>
               <select id="inc-f-estado" class="filter-select">
@@ -1554,8 +1878,9 @@ const IncapacidadesModule = (() => {
 
     const actions = [
       { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Descargar PDF Individual', cls: 'btn-secondary', action: () => exportSinglePdf(r.id) },
     ];
-    if (Auth.canEdit()) {
+    if (canManageCurrent()) {
       actions.push({
         text: 'Editar Incapacidad',
         cls: 'btn-gold',
@@ -1596,8 +1921,8 @@ const IncapacidadesModule = (() => {
   ];
 
   function openStatusPicker(id) {
-    if (!Auth.canEdit()) {
-      App.showToast('No tienes permisos de edición para cambiar estados.', 'warning');
+    if (!canManageCurrent()) {
+      App.showToast('Solo el responsable asignado del módulo o el administrador puede cambiar estados.', 'warning');
       return;
     }
     const r = state.data.find(x => x.id === id);
@@ -1806,20 +2131,31 @@ const IncapacidadesModule = (() => {
     { header: 'ESTADO', key: 'estado', width: 16, sample: 'Aprobada' },
   ];
 
+  async function fetchAllRecords() {
+    try {
+      const res = typeof API.getIncapacidades === 'function'
+        ? await API.getIncapacidades({ page: 1, limit: 10000 })
+        : null;
+      return ((res && res.data) || state.data).map(normalizeRow);
+    } catch {
+      return state.data;
+    }
+  }
+
   async function exportExcel() {
     try {
-      App.showToast('Generando archivo Excel de incapacidades...', 'info');
+      App.showToast('Exportando a plantilla oficial E-DO-ST-F-002 V2...', 'info');
       const res = typeof API.getIncapacidades === 'function'
         ? await API.getIncapacidades({ ...state.filters, page: 1, limit: 10000 })
         : null;
       const records = ((res && res.data) || state.data).map(normalizeRow);
       ExcelService.exportToExcel({
-        filename: '9_INCAPACIDADES_SST_Talento360',
+        filename: '9_INCAPACIDADES_SST_E-DO-ST-F-002_V2',
         sheetName: 'Incapacidades SST',
         columns: EXCEL_COLUMNS,
         data: records,
       });
-      App.showToast(`Se exportaron ${records.length} registros de incapacidades exitosamente.`, 'success');
+      App.showToast(`Se exportaron ${records.length} registros a la plantilla oficial E-DO-ST-F-002 V2.`, 'success');
     } catch (err) {
       App.showToast('Error al exportar: ' + err.message, 'error');
     }
@@ -1828,7 +2164,7 @@ const IncapacidadesModule = (() => {
   function downloadTemplate() {
     try {
       ExcelService.downloadTemplate({
-        filename: 'Plantilla_Oficial_9_INCAPACIDADES_SST',
+        filename: 'Plantilla_Oficial_9_INCAPACIDADES_SST_E-DO-ST-F-002_V2',
         sheetName: 'Incapacidades SST',
         columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
         sampleRows: [
@@ -1855,18 +2191,30 @@ const IncapacidadesModule = (() => {
           }
         ]
       });
-      App.showToast('Plantilla oficial en blanco de Incapacidades SST descargada exitosamente.', 'success');
+      App.showToast('Plantilla oficial vacía E-DO-ST-F-002 V2 descargada exitosamente.', 'success');
     } catch (err) {
       App.showToast('Error al descargar plantilla: ' + err.message, 'error');
     }
   }
 
-  function openImportModal() {
+  async function openImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo el responsable de Incapacidades o el Administrador puede realizar cargas masivas.', 'warning');
+      return;
+    }
+    const existingRecords = await fetchAllRecords();
     ExcelService.openImportModal({
-      title: 'Carga Masiva de Incapacidades',
-      subtitle: 'Importe registros masivos de incapacidades desde un archivo Excel (.xlsx / .xls)',
+      title: 'Carga Masiva de Incapacidades (Formato E-DO-ST-F-002 V2)',
+      subtitle: 'Importe registros masivos con validación de columnas, detección de duplicados y reporte de errores',
       moduleName: 'incapacidades SST',
       columns: EXCEL_COLUMNS.filter(c => c.key !== 'radicado'),
+      existingRecords,
+      duplicateKeyFn: (r) => {
+        const doc = String(r.documento || r.cedula || '').trim();
+        const fi = String(r.fechaInicio || r.fecha_inicio || '').trim();
+        const ff = String(r.fechaFin || r.fecha_fin || '').trim();
+        return doc && fi ? `${doc}|${fi}|${ff}` : '';
+      },
       sampleRows: [
         {
           'FECHA DE RADICACIÓN': '01/09/2026',
@@ -1894,8 +2242,16 @@ const IncapacidadesModule = (() => {
         const documento = String(row['CÉDULA'] || row['CEDULA'] || row.documento || row.cedula || '').trim();
         const apellidosNombres = String(row['NOMBRES Y APELLIDOS'] || row['APELLIDOS Y NOMBRES'] || row.apellidosNombres || row.persona || '').trim();
         const dependencia = cleanName(String(row['DEPENDENCIA EN LA QUE TRABAJA'] || row['DEPENDENCIA'] || row.dependencia || '').trim());
-        if (!documento || !apellidosNombres) {
-          return { valid: false, error: 'Cédula y Nombres y Apellidos son requeridos.' };
+        const fechaInicio = String(row['FECHA INICIAL DE LA INCAPACIDAD'] || row['FECHA INICIO'] || row.fechaInicio || '').trim();
+        const fechaFin = String(row['FECHA FINAL DE LA INCAPACIDAD'] || row['FECHA FIN'] || row.fechaFin || '').trim();
+        if (!documento) {
+          return { valid: false, column: 'CÉDULA', error: 'El número de cédula del servidor es obligatorio.' };
+        }
+        if (!apellidosNombres) {
+          return { valid: false, column: 'NOMBRES Y APELLIDOS', error: 'El nombre completo del servidor es obligatorio.' };
+        }
+        if (!fechaInicio) {
+          return { valid: false, column: 'FECHA INICIAL DE LA INCAPACIDAD', error: 'La fecha inicial de la incapacidad es obligatoria.' };
         }
         return {
           valid: true,
@@ -1909,8 +2265,8 @@ const IncapacidadesModule = (() => {
             sede: String(row['SEDE EN LA QUE TRABAJA'] || row['SEDE'] || row.sede || 'EDIFICIO LOTERÍA DE BOYACÁ').trim(),
             cargo: String(row['CARGO'] || row.cargo || '').trim(),
             eps: String(row['EPS'] || row.eps || 'SANITAS').trim(),
-            fechaInicio: String(row['FECHA INICIAL DE LA INCAPACIDAD'] || row['FECHA INICIO'] || row.fechaInicio || '').trim(),
-            fechaFin: String(row['FECHA FINAL DE LA INCAPACIDAD'] || row['FECHA FIN'] || row.fechaFin || '').trim(),
+            fechaInicio,
+            fechaFin: fechaFin || fechaInicio,
             prorroga: String(row['PRORROGA'] || row['PRÓRROGA'] || row.prorroga || 'NO').trim().toUpperCase(),
             causaMotivo: String(row['CAUSA O MOTIVO'] || row.causaMotivo || 'Enfermedad general').trim(),
             codigoCie10: String(row['CÓDIGO CIE 10 (Código del diagnóstico)'] || row['CODIGO CIE 10'] || row.codigoCie10 || '').trim(),
@@ -1928,9 +2284,80 @@ const IncapacidadesModule = (() => {
         const res = typeof API.bulkCreateIncapacidades === 'function'
           ? await API.bulkCreateIncapacidades(rows)
           : await API.bulkCreateAdminRequests(rows);
-        App.showToast(`Se importaron ${res.inserted} incapacidades correctamente.`, 'success');
+        if (res.duplicatesSkipped > 0) {
+          App.showToast(`Se importaron ${res.inserted} incapacidades (${res.duplicatesSkipped} duplicados omitidos).`, 'warning');
+        } else {
+          App.showToast(`Se importaron ${res.inserted} incapacidades correctamente.`, 'success');
+        }
         await Promise.all([loadStats(), load()]);
       },
+    });
+  }
+
+  // ─── Reportes PDF / Excel (Sección 9.4) y Gobernanza (Secciones 7, 8 y 11) ─
+  async function openReportGenerator() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const allRecords = await fetchAllRecords();
+    const selectedRecords = allRecords.filter(r => state.selectedIds.has(r.id));
+    GovernanceAndReports.openReportGeneratorModal({
+      moduleName: 'Incapacidades y Ausentismo Laboral (E-DO-ST-F-002 V2)',
+      filenameBase: 'Reporte_Incapacidades_SST_Boyaca',
+      columns: EXCEL_COLUMNS,
+      allRecords,
+      filteredRecords: state.data,
+      selectedRecords,
+      dateField: 'fechaInicio',
+      depField: 'dependencia',
+      statsSummary: [
+        { label: 'Total Incapacidades', value: (state.stats?.total ?? allRecords.length) },
+        { label: 'Activas / Finalizadas', value: `${state.stats?.activas ?? 0} / ${state.stats?.finalizadas ?? 0}` },
+        { label: 'Total Días Ausentismo', value: (state.stats?.totalDias ?? 0) },
+        { label: 'Liquidación Descuento SST', value: formatCOP(state.stats?.totalDescuento ?? 0) }
+      ]
+    });
+  }
+
+  function exportSinglePdf(id) {
+    const r = state.data.find(x => x.id === id);
+    if (!r || typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.generateInstitutionalPdf({
+      title: `FICHA INDIVIDUAL DE INCAPACIDAD (${r.radicado || ''})`,
+      subtitle: `${r.apellidosNombres || r.persona || ''} · C.C. ${r.documento || ''}`,
+      moduleName: 'Incapacidades y Ausentismo Laboral (E-DO-ST-F-002 V2)',
+      criterionLabel: 'A. Reporte individual de un registro específico',
+      columns: EXCEL_COLUMNS,
+      records: [r],
+      filename: `Ficha_Incapacidad_${r.radicado || r.documento || id}`,
+      orientation: 'portrait'
+    });
+    App.showToast(`Ficha PDF de ${r.radicado || 'incapacidad'} generada exitosamente.`, 'success');
+  }
+
+  function openInstitutionalDocuments() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openInstitutionalDocumentsModal({
+      modulo: 'incapacidades',
+      moduloLabel: 'Incapacidades y Ausentismo Laboral',
+      service: 'admin-requests',
+      canManage: canManageCurrent()
+    });
+  }
+
+  function openAuditHistory() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openAuditModal({
+      modulo: 'incapacidades',
+      moduloLabel: 'Incapacidades y Ausentismo Laboral',
+      service: 'admin-requests'
+    });
+  }
+
+  function openResponsablesManager() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openResponsablesModal({
+      modulo: 'incapacidades',
+      moduloLabel: 'Incapacidades y Ausentismo Laboral',
+      service: 'admin-requests'
     });
   }
 
@@ -1945,12 +2372,21 @@ const IncapacidadesModule = (() => {
     applyFilters,
     clearFilters,
     goPage,
+    toggleDashboard,
+    applyDashFilters,
+    toggleSelectRow,
+    toggleSelectAll,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown,
     exportExcel,
     openImportModal,
     downloadTemplate,
+    openReportGenerator,
+    exportSinglePdf,
+    openInstitutionalDocuments,
+    openAuditHistory,
+    openResponsablesManager,
     onDatesOrCalcChange,
     onProrrogaOrCausaChange,
     onDiasOrSalarioChange,

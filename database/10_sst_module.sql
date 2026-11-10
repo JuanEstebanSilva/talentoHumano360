@@ -216,3 +216,18 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM sst_perfil_sociodemografico LIMIT 1);
 
 ALTER TABLE sst_entrega_epp ADD COLUMN IF NOT EXISTS firma_digital TEXT;
+
+-- ─── 6. Tabla de Inventario y Existencias de Elementos de Protección Personal (EPP) ───
+CREATE TABLE IF NOT EXISTS sst_inventario_epp (
+    id_inventario        SERIAL PRIMARY KEY,
+    codigo_elemento      VARCHAR(20)  UNIQUE NOT NULL,
+    elemento_epp         VARCHAR(200) NOT NULL,
+    categoria_epp        VARCHAR(120) DEFAULT 'Protección Personal',
+    unidad_medida        VARCHAR(40)  DEFAULT 'UNIDAD',
+    stock_total          INTEGER      NOT NULL DEFAULT 40,
+    stock_minimo         INTEGER      NOT NULL DEFAULT 8,
+    ubicacion_bodega     VARCHAR(160) DEFAULT 'Almacén SST - Casa de la Torre',
+    observaciones        TEXT,
+    actualizado_por      VARCHAR(120) DEFAULT 'Sistema',
+    actualizado_en       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

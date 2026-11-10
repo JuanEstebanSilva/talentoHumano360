@@ -297,10 +297,80 @@ const App = (() => {
     'accesibilidad'
   ]);
 
+  function getDefaultLandingRoute(user) {
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
+    if (scope === 'sst') return { module: 'sst', options: { tab: 'epidemiologico' } };
+    if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
+    if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+    if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+    return { module: 'dashboard', options: {} };
+  }
+
+  function applyRoleSidebarAccess(user) {
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
+    const showLi = (id, visible) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const li = el.closest('li') || el;
+      li.style.display = visible ? '' : 'none';
+    };
+
+    if (scope === 'all') {
+      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      return;
+    }
+
+    // Ocultar módulos generales por defecto para roles específicos de submódulo
+    ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group'].forEach(id => showLi(id, false));
+
+    if (scope === 'sst') {
+      showLi('nav-sst-group', true);
+      showLi('nav-sst-epidemiologico', true);
+      showLi('nav-sst-epp', true);
+      showLi('nav-sst-sociodemografico', true);
+      const sstGroupBtn = document.getElementById('nav-sst-group');
+      const sstMenu = document.getElementById('sst-submenu');
+      if (sstGroupBtn) sstGroupBtn.setAttribute('aria-expanded', 'true');
+      if (sstMenu) sstMenu.setAttribute('aria-hidden', 'false');
+    } else if (scope === 'incapacidades') {
+      showLi('nav-incapacidades', true);
+    } else if (scope === 'permisos') {
+      showLi('nav-admin-group', true);
+      showLi('nav-permisos', true);
+      showLi('nav-licencias', false);
+      expandAdminGroup();
+    } else if (scope === 'permisos_licencias') {
+      showLi('nav-admin-group', true);
+      showLi('nav-permisos', true);
+      showLi('nav-licencias', true);
+      expandAdminGroup();
+    }
+  }
+
   async function navigate(module, options = {}) {
-    const rawModule = String(module || '').replace(/^#\/?/, '').trim();
+    let rawModule = String(module || '').replace(/^#\/?/, '').trim();
     if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
       return navigate('incapacidades');
+    }
+
+    // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
+    const alwaysAllowed = new Set(['settings', 'privacidad', 'terminos', 'accesibilidad']);
+    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn() && !alwaysAllowed.has(rawModule)) {
+      const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
+      if (scope === 'sst' && rawModule !== 'sst') {
+        return navigate('sst', { tab: options.tab || 'epidemiologico' });
+      }
+      if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
+        return navigate('incapacidades');
+      }
+      if (scope === 'permisos') {
+        if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
+          return navigate('admin-requests', { tipo: 'permisos' });
+        }
+      }
+      if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
+        return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+      }
     }
 
     // 1. Si la ruta o módulo NO existe en las rutas válidas:
@@ -570,6 +640,19 @@ const App = (() => {
     }
     const username = String(user.username || '').toLowerCase();
     const name = String(user.name || '').toLowerCase();
+    const role = String(user.role || '').toLowerCase();
+    if (username.includes('sandra') || role === 'sst' || role.includes('sst')) {
+      return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
+    }
+    if (username.includes('luis') || role === 'incapacidades' || role.includes('incapacidad')) {
+      return 'Responsable de Incapacidades y Ausentismo Laboral';
+    }
+    if (username.includes('sebastian') || (role.includes('permiso') && role.includes('licencia'))) {
+      return 'Responsable de Permisos y Licencias Laborales';
+    }
+    if (username.includes('alejandro') || role === 'permisos') {
+      return 'Responsable de Permisos Laborales';
+    }
     if (username.includes('angela') || name.includes('angela') || name.includes('ussa')) {
       return 'Directora de Talento Humano';
     }
@@ -590,6 +673,7 @@ const App = (() => {
     }
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'grid';
+    applyRoleSidebarAccess(user);
     updateUserDisplay(user);
     updateTopbarDateTime();
     updateTopbarQuickControls();
@@ -1045,10 +1129,11 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
+          const landing = getDefaultLandingRoute(res.user);
           
           const proceedToDashboard = () => {
             showApp();
-            navigate('dashboard');
+            navigate(landing.module, landing.options);
           };
 
           // FX: success animation then transition with legal consent gate
@@ -1056,7 +1141,7 @@ const App = (() => {
             FX.animateLoginSuccess(() => {
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
                 showApp();
-                LegalModule.requireConsentModal(() => navigate('dashboard'));
+                LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
               } else {
                 proceedToDashboard();
               }
@@ -1064,7 +1149,7 @@ const App = (() => {
           } else {
             if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
               showApp();
-              LegalModule.requireConsentModal(() => navigate('dashboard'));
+              LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
             } else {
               proceedToDashboard();
             }
@@ -1219,6 +1304,7 @@ const App = (() => {
         Settings.loadForUser(storedUser.username);
       }
       showApp();
+      const landing = getDefaultLandingRoute(storedUser);
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
       const [initMod, initQuery] = initialHash.split('?');
 
@@ -1230,9 +1316,9 @@ const App = (() => {
         navigate(initMod, options);
       } else {
         if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-          LegalModule.requireConsentModal(() => navigate('dashboard'));
+          LegalModule.requireConsentModal(() => navigate(landing.module, landing.options));
         } else {
-          navigate('dashboard');
+          navigate(landing.module, landing.options);
         }
       }
     } else {

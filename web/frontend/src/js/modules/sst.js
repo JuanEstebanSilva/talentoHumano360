@@ -36,11 +36,24 @@ const SstModule = (() => {
     totalPages: 1,
     filters: { q: '', subFilter1: 'Todos', subFilter2: 'Todos' },
     stats: {},
-    catalogs: null
+    catalogs: null,
+    permission: null,
+    selectedIds: new Set(),
+    dashVisible: true,
+    dashFilters: { anio: 'Todos', mes: 'Todos' }
   };
 
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+  let chartInstances = { c1: null, c2: null, c3: null };
+
+  function canManageCurrent() {
+    if (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin()) return true;
+    if (state.permission && typeof state.permission.canManage === 'boolean') {
+      return state.permission.canManage;
+    }
+    return typeof Auth !== 'undefined' && Auth.canEdit ? Auth.canEdit() : false;
+  }
 
   function escHtml(str) {
     if (str === null || str === undefined) return '';
@@ -52,160 +65,261 @@ const SstModule = (() => {
       .replace(/'/g, '&#039;');
   }
 
-  function loadStats() {
-    API.getSstStats().then(stats => {
-      state.stats = stats || {};
-      const grid = document.getElementById('sst-stats-grid');
-      if (!grid) return;
-
-      if (state.tab === 'epp') {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalEpp) || 0}</span>
-              <span class="stat-label">Total Dotaciones</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.servidoresDotados) || 0}</span>
-              <span class="stat-label">Servidores Dotados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.eppEntregados) || 0}</span>
-              <span class="stat-label">EPP Entregados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${Math.max(0, (parseInt(stats.totalEpp) || 0) - (parseInt(stats.eppEntregados) || 0))}</span>
-              <span class="stat-label">En Reposición / Pendiente</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">Verificado</span>
-              <span class="stat-label">Firma en Entrega</span>
-            </div>
-          </div>
-        `;
-      } else if (state.tab === 'sociodemografico') {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalSociodemografico) || 0}</span>
-              <span class="stat-label">Perfiles Registrados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.dependenciasCubiertas) || 0}</span>
-              <span class="stat-label">Dependencias Cubiertas</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">Activo</span>
-              <span class="stat-label">Censo y Caracterización</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">100%</span>
-              <span class="stat-label">Confidencialidad Ley 1581</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">Vigencia 2026</span>
-              <span class="stat-label">Actualización Periódica</span>
-            </div>
-          </div>
-        `;
-      } else {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalEmo) || 0}</span>
-              <span class="stat-label">Total Exámenes EMO</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.emoVigentes) || 0}</span>
-              <span class="stat-label">EMO Vigentes</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.emoAlertas) || 0}</span>
-              <span class="stat-label">Alertas / Vencidos</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.casosSeguimiento) || 0}</span>
-              <span class="stat-label">En Seguimiento</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.direccionadosPve) || 0}</span>
-              <span class="stat-label">Direccionados PVE</span>
-            </div>
-          </div>
-        `;
+  function destroyCharts() {
+    Object.keys(chartInstances).forEach(k => {
+      if (chartInstances[k]) {
+        try { chartInstances[k].destroy(); } catch (_) {}
+        chartInstances[k] = null;
       }
+    });
+  }
+
+  function toggleDashboard() {
+    state.dashVisible = !state.dashVisible;
+    const wrap = document.getElementById('sst-charts-wrap');
+    const lbl = document.getElementById('sst-dash-toggle-lbl');
+    if (wrap) wrap.style.display = state.dashVisible ? 'grid' : 'none';
+    if (lbl) lbl.textContent = state.dashVisible ? 'Ocultar Gráficos' : 'Mostrar Gráficos';
+    if (state.dashVisible) renderDashboard(state.stats || {});
+  }
+
+  function applyDashFilters() {
+    state.dashFilters.anio = document.getElementById('sst-dash-anio')?.value || '';
+    state.dashFilters.mes = document.getElementById('sst-dash-mes')?.value || '';
+    loadStats();
+  }
+
+  function loadStats() {
+    API.getSstStats({ anio: state.dashFilters.anio, mes: state.dashFilters.mes }).then(stats => {
+      state.stats = stats || {};
+      renderDashboard(state.stats);
     }).catch(err => {
       console.error('[SstModule] Error cargando estadísticas SST:', err);
     });
+  }
+
+  function renderDashboard(stats = state.stats || {}) {
+    const grid = document.getElementById('sst-stats-grid');
+    if (!grid) return;
+
+    if (state.tab === 'epp') {
+      const ep = stats.epp || stats || {};
+      const totalEpp = parseInt(ep.totalEpp ?? stats.totalEpp) || 0;
+      const totalUnidades = parseInt(ep.unidadesEntregadasTotal ?? stats.unidadesEntregadasTotal ?? stats.totalUnidadesEntregadas) || totalEpp;
+      const dotados = parseInt(ep.servidoresDotados ?? stats.servidoresDotados) || 0;
+      const disp = (ep.stockDisponibleTotal ?? stats.stockDisponibleTotal) != null ? parseInt(ep.stockDisponibleTotal ?? stats.stockDisponibleTotal) : 0;
+      const bajas = parseInt(ep.existenciasBajasCount ?? stats.existenciasBajasCount) || 0;
+      const firmados = parseInt(ep.eppFirmados ?? stats.eppFirmados) || 0;
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Entregas Registradas</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalEpp.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">Unidades suministradas: <strong>${totalUnidades}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#1e40af;font-weight:700;">Funcionarios Dotados</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8;margin:4px 0;">${dotados.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Entregas en estado Entregado: ${parseInt(ep.eppEntregados ?? stats.eppEntregados) || 0}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;cursor:pointer;" onclick="SstModule.openEppInventoryModal()" title="Clic para ver y gestionar el inventario de EPP">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Elementos Disponibles (Stock)</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#15803d;margin:4px 0;">${disp.toLocaleString('es-CO')} u.</div>
+          <div style="font-size:0.73rem;color:#166534;text-decoration:underline;">Gestionar inventario A–AB →</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid ${bajas > 0 ? '#fecaca' : '#e2e8f0'};border-left:4px solid ${bajas > 0 ? '#dc2626' : '#64748b'};padding:14px 16px;border-radius:12px;cursor:pointer;" onclick="SstModule.openEppInventoryModal()" title="Clic para revisar existencias bajas de EPP">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:${bajas > 0 ? '#991b1b' : '#475569'};font-weight:700;">Alertas Existencias Bajas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${bajas > 0 ? '#dc2626' : '#334155'};margin:4px 0;">${bajas} ítem(s)</div>
+          <div style="font-size:0.73rem;color:#64748b;">${bajas > 0 ? 'Bajo stock mínimo configurado' : 'Todo el stock sobre el mínimo'}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Firmas Digitales Verificadas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#b45309;margin:4px 0;">${firmados} / ${totalEpp}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Cobertura firma: ${totalEpp > 0 ? Math.round((firmados / totalEpp) * 100) : 0}%</div>
+        </div>
+      `;
+    } else if (state.tab === 'sociodemografico') {
+      const sc = stats.sociodemografico || stats.socioCharts || stats || {};
+      const totalSocio = parseInt(sc.totalSociodemografico ?? stats.totalSociodemografico) || 0;
+      const deps = parseInt(sc.dependenciasCubiertas ?? stats.dependenciasCubiertas) || 0;
+      const sedes = parseInt(sc.sedesCubiertas ?? stats.sedesCubiertas) || 0;
+      const edadProm = sc.edadPromedio ?? stats.edadPromedio ?? 0;
+      const genList = sc.porSexo || sc.porGenero || [];
+      const genText = genList.length ? genList.map(g => `${g.sexo || g.label}: ${g.cantidad ?? g.count}`).join(' · ') : 'Sin registros';
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Funcionarios Caracterizados</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalSocio.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">Censo sociodemográfico real</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Edad Promedio de la Planta</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#15803d;margin:4px 0;">${edadProm} años</div>
+          <div style="font-size:0.73rem;color:#64748b;">Calculado sobre registros activos</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #0284c7;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#0369a1;font-weight:700;">Dependencias Cubiertas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#0284c7;margin:4px 0;">${deps}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Sedes cubiertas: <strong>${sedes}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #e9d5ff;border-left:4px solid #7c3aed;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#6d28d9;font-weight:700;">Distribución por Sexo</div>
+          <div style="font-size:1.15rem;font-weight:800;color:#5b21b6;margin:8px 0;">${escHtml(genText)}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Formato oficial E-DO-ST-F-011 V5</div>
+        </div>
+      `;
+    } else {
+      const ep = stats.epidemiologico || stats || {};
+      const totalEmo = parseInt(ep.totalEmo ?? stats.totalEmo) || 0;
+      const vigentes = parseInt(ep.emoVigentes ?? stats.emoVigentes) || 0;
+      const alertas = parseInt(ep.emoAlertas ?? stats.emoAlertas) || 0;
+      const seg = parseInt(ep.casosSeguimiento ?? stats.casosSeguimiento) || 0;
+      const pve = parseInt(ep.direccionadosPve ?? stats.direccionadosPve) || 0;
+      const rest = parseInt(ep.conCondicionesSalud ?? stats.conCondicionesSalud ?? stats.conRestricciones) || 0;
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Evaluaciones EMO</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalEmo.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">EMO Vigentes: <strong>${vigentes}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Con Condiciones / Restricciones</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#b45309;margin:4px 0;">${rest.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Casos AT: ${ep.accidentesTrabajo ?? stats.accidentesTrabajo ?? 0} · Casos EL: ${ep.enfermedadesLaborales ?? stats.enfermedadesLaborales ?? 0}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #e9d5ff;border-left:4px solid #7c3aed;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#6d28d9;font-weight:700;">Direccionados a PVE</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#5b21b6;margin:4px 0;">${pve.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Programas de Vigilancia Epidemiológica</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#1e40af;font-weight:700;">Casos en Seguimiento</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8;margin:4px 0;">${seg.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">En seguimiento o rehabilitación</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid ${alertas > 0 ? '#fecaca' : '#bbf7d0'};border-left:4px solid ${alertas > 0 ? '#dc2626' : '#16a34a'};padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:${alertas > 0 ? '#991b1b' : '#166534'};font-weight:700;">Alertas EMO / Vencidos</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${alertas > 0 ? '#dc2626' : '#15803d'};margin:4px 0;">${alertas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Próximos a vencer o vencidos</div>
+        </div>
+      `;
+    }
+
+    renderDashboardCharts(stats);
+  }
+
+  function renderDashboardCharts(stats = state.stats || {}) {
+    if (!state.dashVisible || typeof Chart === 'undefined') return;
+    destroyCharts();
+
+    const t1 = document.getElementById('sst-chart-1-title') || document.getElementById('sst-chart-title-1');
+    const t2 = document.getElementById('sst-chart-2-title') || document.getElementById('sst-chart-title-2');
+    const t3 = document.getElementById('sst-chart-3-title') || document.getElementById('sst-chart-title-3');
+    const c1 = document.getElementById('sst-chart-1');
+    const c2 = document.getElementById('sst-chart-2');
+    const c3 = document.getElementById('sst-chart-3');
+    const e1 = document.getElementById('sst-empty-1');
+    const e2 = document.getElementById('sst-empty-2');
+    const e3 = document.getElementById('sst-empty-3');
+    if (!c1 || !c2 || !c3) return;
+
+    const palette = ['#1b4f32', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0d9488', '#475569', '#0284c7'];
+
+    const drawChart = (key, canvas, emptyEl, type, labels, data, options = {}, datasetExtra = {}) => {
+      if (!labels || !labels.length) {
+        canvas.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'flex';
+        return;
+      }
+      canvas.style.display = 'block';
+      if (emptyEl) emptyEl.style.display = 'none';
+      chartInstances[key] = new Chart(canvas, {
+        type,
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: type === 'doughnut' || type === 'pie' ? palette : (datasetExtra.backgroundColor || '#1b4f32'),
+            borderColor: datasetExtra.borderColor || '#1b4f32',
+            borderRadius: type === 'bar' ? 4 : 0,
+            fill: datasetExtra.fill || false,
+            tension: 0.3,
+            ...datasetExtra
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: type === 'doughnut' || type === 'pie',
+              position: 'right',
+              labels: { boxWidth: 11, font: { size: 10.5 } }
+            }
+          },
+          ...options
+        }
+      });
+    };
+
+    if (state.tab === 'epidemiologico') {
+      const ec = stats.epidemiologico || stats.epiCharts || {};
+      if (t1) t1.textContent = 'Distribución por Programa PVE / Riesgo';
+      if (t2) t2.textContent = 'Estado Actual de los Casos EMO';
+      if (t3) t3.textContent = 'Casos Epidemiológicos por Dependencia (Top 8)';
+
+      const pve = ec.porPve || [];
+      drawChart('c1', c1, e1, 'doughnut', pve.map(x => String(x.pve || x.label || 'N/A').substring(0, 26)), pve.map(x => x.cantidad ?? x.count ?? 0));
+
+      const est = ec.porEstadoCaso || [];
+      drawChart('c2', c2, e2, 'doughnut', est.map(x => String(x.estado || x.label || 'N/A').substring(0, 24)), est.map(x => x.cantidad ?? x.count ?? 0));
+
+      const dep = (ec.porDependencia || []).slice(0, 8);
+      drawChart('c3', c3, e3, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#1b4f32' });
+    } else if (state.tab === 'sociodemografico') {
+      const sc = stats.sociodemografico || stats.socioCharts || {};
+      if (t1) t1.textContent = 'Distribución por Rango de Edad';
+      if (t2) t2.textContent = 'Distribución por Nivel Educativo';
+      if (t3) t3.textContent = 'Funcionarios Caracterizados por Dependencia';
+
+      const edad = sc.porRangoEdad || [];
+      drawChart('c1', c1, e1, 'bar', edad.map(x => x.rango || x.label || 'N/A'), edad.map(x => x.cantidad ?? x.count ?? 0), {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#2563eb' });
+
+      const esc = sc.porEscolaridad || [];
+      drawChart('c2', c2, e2, 'doughnut', esc.map(x => String(x.escolaridad || x.label || 'N/A').substring(0, 24)), esc.map(x => x.cantidad ?? x.count ?? 0));
+
+      const dep = (sc.porDependencia || []).slice(0, 8);
+      drawChart('c3', c3, e3, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#0284c7' });
+    } else {
+      const epc = stats.epp || stats.eppCharts || {};
+      if (t1) t1.textContent = 'Entregas por Tipo de Elemento EPP';
+      if (t2) t2.textContent = 'Entregas de EPP por Secretaría / Dependencia';
+      if (t3) t3.textContent = 'Evolución Mensual de Entregas de EPP';
+
+      const elem = (epc.porElemento || []).slice(0, 8);
+      drawChart('c1', c1, e1, 'doughnut', elem.map(x => String(x.elemento || x.label || 'N/A').substring(0, 25)), elem.map(x => x.entregas ?? x.cantidad ?? x.count ?? 0));
+
+      const dep = (epc.porDependencia || []).slice(0, 8);
+      drawChart('c2', c2, e2, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#15803d' });
+
+      const evo = epc.evolucionMensual || [];
+      drawChart('c3', c3, e3, 'line', evo.map(x => x.mes), evo.map(x => x.cantidad ?? x.count ?? 0), {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { borderColor: '#1b4f32', backgroundColor: 'rgba(27,79,50,0.14)', fill: true });
+    }
   }
 
   // ─── Catálogos Fallback Locales ────────────────────────────────────────────
@@ -1116,13 +1230,28 @@ const SstModule = (() => {
   }
 
   // ─── Render Principal del Módulo SST ──────────────────────────────────────
+  function getModuleCode(tabKey = state.tab) {
+    if (tabKey === 'epidemiologico') return 'epidemiologico';
+    if (tabKey === 'epp') return 'epp';
+    return 'sociodemografico';
+  }
+
   async function render(container, initialTab = 'epidemiologico') {
     if (TABS[initialTab]) state.tab = initialTab;
     state.page = 1;
-    state.filters = { q: '', subFilter1: 'Todos', subFilter2: 'Todos' };
+    state.selectedIds = new Set();
+    state.filters = { q: '', subFilter1: state.tab === 'sociodemografico' ? 'Todas' : 'Todos', subFilter2: 'Todos' };
+    state.dashFilters = { anio: '', mes: '' };
+
+    try {
+      state.permission = await API.checkGovernancePermission(getModuleCode(state.tab));
+    } catch {
+      state.permission = { canManage: Auth.canEdit(), isResponsable: false, isAdmin: Auth.isAdmin() };
+    }
 
     const tabCfg = TABS[state.tab];
-    const canManage = Auth.canEdit();
+    const canManage = canManageCurrent();
+    const isAdmin = Auth.isAdmin();
 
     container.innerHTML = `
       <div class="module-enter">
@@ -1130,11 +1259,38 @@ const SstModule = (() => {
           <div class="page-header-info">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <h1 class="page-heading" id="sst-heading">${escHtml(tabCfg.title)}</h1>
+              <span class="badge ${canManage ? 'badge--aprobada' : 'badge--pendiente'}" id="sst-role-badge" style="font-size:11px;">
+                ${state.permission?.isResponsable ? 'Sandra Roa / Responsable' : (canManage ? 'Administrador' : 'Funcionario — Solo Consulta')}
+              </span>
             </div>
             <p class="page-desc" id="sst-desc">${escHtml(tabCfg.desc)}</p>
           </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown de Opciones Secundarias (Hick's Law) -->
+          <div class="page-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- Gobernanza, Formatos, Reportes, Inventario EPP y Auditoría -->
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openInstitutionalDocuments()" title="Repositorio de Formatos y Documentos Institucionales SST">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Formatos
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openReportGenerator()" title="9.4 Generador de Reportes en PDF y Excel (7 Criterios A-G)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>
+              Reportes PDF / Excel
+            </button>
+            <button type="button" class="btn btn-secondary" id="sst-btn-epp-inv" style="${state.tab === 'epp' && canManage ? '' : 'display:none'}" onclick="SstModule.openEppInventoryModal()" title="Administrar Stock e Inventario de Elementos EPP (Catálogo A-AB)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Inventario EPP
+            </button>
+            ${canManage ? `
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openAuditHistory()" title="Historial de Operaciones y Auditoría Inmutable">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Auditoría
+            </button>` : ''}
+            ${isAdmin ? `
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openResponsablesManager()" title="Gestión de Responsables por Submódulo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Responsables
+            </button>` : ''}
+
+            <!-- Dropdown de Opciones Secundarias (Sección 9: las 4 funciones diferenciadas) -->
             <div class="actions-dropdown-wrap">
               <button
                 type="button"
@@ -1145,10 +1301,10 @@ const SstModule = (() => {
                 aria-controls="sst-dropdown-menu"
                 onclick="SstModule.toggleActionsDropdown(event)"
                 onkeydown="SstModule.handleDropdownKeydown(event)"
-                title="Opciones secundarias (Excel y plantillas)"
+                title="Operaciones con Plantillas Excel y Reportes (Sección 9)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
+                <span>Plantillas y Excel</span>
                 <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div
@@ -1158,90 +1314,100 @@ const SstModule = (() => {
                 aria-labelledby="sst-dropdown-toggle"
                 hidden
               >
-                <!-- 1. Exportar a Excel -->
+                <!-- 9.1 Exportar a Plantilla Oficial -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
                   onclick="SstModule.closeActionsDropdown(); SstModule.openExportProfileModal();"
-                  title="Exportar perfil seleccionado a plantilla oficial o listado completo"
+                  title="9.1 Exportar información del sistema a la plantilla oficial Excel"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <div>
-                    <strong>Exportar a Excel</strong>
-                    <small>Descargar perfil en plantilla oficial (.xlsx) o tabla actual</small>
+                    <strong>9.1 Exportar a Plantilla Oficial</strong>
+                    <small>Descargar registros del sistema en formato institucional (.xlsx)</small>
                   </div>
                 </button>
 
-                <!-- 2. Descargar la Plantilla Oficial -->
+                <!-- 9.2 Descargar la Plantilla Oficial Vacía -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
                   onclick="SstModule.closeActionsDropdown(); SstModule.downloadOfficialTemplate();"
-                  title="Descargar archivo Excel oficial en blanco para diligenciar"
+                  title="9.2 Descargar archivo Excel oficial en blanco para diligenciar"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                   <div>
-                    <strong>Descargar la Plantilla Oficial</strong>
-                    <small>Archivo Excel vacío oficial con columnas y listas de validación</small>
+                    <strong>9.2 Descargar Plantilla Vacía</strong>
+                    <small>Formato Excel institucional en blanco con listas de validación</small>
                   </div>
                 </button>
 
-                <!-- 3. Cargue Masivo de un Excel -->
-                ${canManage ? `
+                <!-- 9.3 Cargue Masivo de un Excel -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
+                  id="sst-dropdown-import-btn"
+                  style="${canManage ? '' : 'display:none'}"
                   onclick="SstModule.closeActionsDropdown(); SstModule.openImportModal();"
-                  title="Cargar archivo Excel con perfiles y guardar en el sistema"
+                  title="9.3 Cargar archivo Excel con validación de duplicados y reporte de errores"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <div>
-                    <strong>Cargue Masivo de un Excel</strong>
-                    <small>Importar múltiples perfiles registrados desde archivo Excel</small>
+                    <strong>9.3 Carga Masiva desde Excel</strong>
+                    <small>Importar registros con detección de duplicados y reporte de errores</small>
                   </div>
-                </button>` : ''}
+                </button>
 
-                <!-- 4. Descargar Reporte Anual -->
+                <!-- 9.4 Generador de Reportes PDF / Excel (7 Criterios) + Reporte Anual -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.openReportGenerator();"
+                  style="border-top: 1px solid var(--border-color, #e2e8f0); margin-top: 4px; padding-top: 8px;"
+                  title="9.4 Generar reportes PDF y Excel por los 7 criterios (A-G)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-500, #3b82f6);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>
+                  <div>
+                    <strong>9.4 Generar Reportes (PDF y Excel)</strong>
+                    <small>Por seleccionados, empleado, dependencia, estado, rango de fechas o todo</small>
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
                   onclick="SstModule.closeActionsDropdown(); SstModule.generateAnnualReport();"
-                  style="border-top: 1px solid var(--border-color, #e2e8f0); margin-top: 4px; padding-top: 8px;"
-                  title="Generar y descargar informe anual con estadísticas y base completa"
+                  title="Generar y descargar informe anual consolidado con gráficas en Excel"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-400, #16a34a);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-400, #16a34a);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   <div>
-                    <strong style="color:var(--color-primary-400, #16a34a);">Descargar Reporte Anual</strong>
-                    <small>Consolidado anual con estadísticas, gráficos e indicadores SST</small>
+                    <strong style="color:var(--color-primary-400, #16a34a);">Descargar Consolidado Anual (.xlsx)</strong>
+                    <small>Libro Excel anual con estadísticas, gráficos e indicadores SST</small>
                   </div>
                 </button>
               </div>
             </div>
 
             <!-- Acción Primaria (CTA - Visual Salience) -->
-            ${canManage ? `
-            <button class="btn btn-primary btn-primary-cta" id="sst-create-btn" onclick="SstModule.openCreate()">
+            <button class="btn btn-primary btn-primary-cta" id="sst-create-btn" style="${canManage ? '' : 'display:none'}" onclick="SstModule.openCreate()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span id="sst-create-btn-text">${escHtml(tabCfg.btnCreate)}</span>
-            </button>` : ''}
+            </button>
           </div>
         </div>
 
-        <!-- KPIs SST -->
-        <div class="stats-grid" id="sst-stats-grid" style="margin-bottom:var(--space-5);">
-          ${renderStatsSkeletons()}
-        </div>
-
         <!-- Pestañas de Submódulos SST -->
-        <div class="module-tabs">
+        <div class="module-tabs" style="margin-bottom:14px;">
           <button class="tab-btn ${state.tab === 'epidemiologico' ? 'active' : ''}" onclick="SstModule.setTab('epidemiologico', this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Perfil Epidemiológico y EMO
@@ -1256,6 +1422,53 @@ const SstModule = (() => {
           </button>
         </div>
 
+        <!-- Dashboard Dinámico e Interactivo SST (Sección 6.4, 6.5 y 6.6) -->
+        <div class="table-card" style="margin-bottom:var(--space-5);padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-500, #3b82f6)" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <strong style="font-size:14px;" id="sst-dash-title">Panel Analítico e Indicadores en Tiempo Real — ${escHtml(tabCfg.title)}</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <select id="sst-dash-anio" class="filter-select" style="height:32px;font-size:12px;padding:0 24px 0 8px;" onchange="SstModule.applyDashFilters()">
+                <option value="">Todos los años</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <select id="sst-dash-mes" class="filter-select" style="height:32px;font-size:12px;padding:0 24px 0 8px;" onchange="SstModule.applyDashFilters()">
+                <option value="">Todos los meses</option>
+                <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+                <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+                <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+              <button type="button" class="btn btn-secondary" style="height:32px;padding:0 10px;font-size:12px;" onclick="SstModule.toggleDashboard()">
+                <span id="sst-dash-toggle-lbl">${state.dashVisible ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="sst-stats-grid" style="margin-bottom:${state.dashVisible ? '16px' : '0'};">
+            ${renderStatsSkeletons()}
+          </div>
+
+          <div id="sst-charts-wrap" style="display:${state.dashVisible ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-1-title">Indicador 1</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-1"></canvas></div>
+            </div>
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-2-title">Indicador 2</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-2"></canvas></div>
+            </div>
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-3-title">Indicador 3</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-3"></canvas></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Filtros Dinámicos -->
         <div class="filters-card" id="sst-filters-container">
           ${renderFiltersHtml()}
@@ -1264,14 +1477,19 @@ const SstModule = (() => {
         <!-- Tabla Principal -->
         <div class="table-card">
           <div class="table-header table-header--horarios">
-            <span class="table-title" id="sst-table-title">${escHtml(tabCfg.title)}</span>
-            <button type="button" id="sst-btn-vencimientos" class="btn-check-vencimientos" style="${state.tab === 'epidemiologico' ? '' : 'display:none'}" onclick="SstModule.checkEmoVencimientos()" title="Verificar Exámenes Médicos Ocupacionales próximos a vencer o vencidos">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              <span>Verificar Vencimientos EMO</span>
-            </button>
-            <span class="table-count" id="sst-count">
-              <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
-            </span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span class="table-title" id="sst-table-title">${escHtml(tabCfg.title)}</span>
+              <span id="sst-selected-badge" class="badge badge--aprobada" style="display:none;font-size:11px;">0 seleccionados</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button type="button" id="sst-btn-vencimientos" class="btn-check-vencimientos" style="${state.tab === 'epidemiologico' && canManage ? '' : 'display:none'}" onclick="SstModule.checkEmoVencimientos()" title="Verificar Exámenes Médicos Ocupacionales próximos a vencer o vencidos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                <span>Verificar Vencimientos EMO</span>
+              </button>
+              <span class="table-count" id="sst-count">
+                <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+              </span>
+            </div>
           </div>
           <div class="table-wrap">
             <table aria-label="Registros de Seguridad y Salud en el Trabajo">
@@ -1291,6 +1509,29 @@ const SstModule = (() => {
     API.getSstCatalogs().then(c => { state.catalogs = c; }).catch(() => {});
     loadStats();
     await load();
+  }
+
+  function updateSelectedBadge() {
+    const badge = document.getElementById('sst-selected-badge');
+    if (!badge) return;
+    const count = state.selectedIds.size;
+    badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    badge.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+  }
+
+  function toggleSelectAll(checked) {
+    state.data.forEach(r => {
+      if (checked) state.selectedIds.add(r.id);
+      else state.selectedIds.delete(r.id);
+    });
+    document.querySelectorAll('.sst-row-chk').forEach(chk => { chk.checked = checked; });
+    updateSelectedBadge();
+  }
+
+  function toggleSelectRow(id, checked) {
+    if (checked) state.selectedIds.add(id);
+    else state.selectedIds.delete(id);
+    updateSelectedBadge();
   }
 
   function renderFiltersHtml() {
@@ -1373,6 +1614,7 @@ const SstModule = (() => {
   function renderTheadHtml() {
     if (state.tab === 'epidemiologico') {
       return `<tr>
+        <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
         <th>Código</th>
         <th>Servidor Público</th>
         <th>Dependencia & Sede</th>
@@ -1385,6 +1627,7 @@ const SstModule = (() => {
     }
     if (state.tab === 'epp') {
       return `<tr>
+        <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
         <th>Radicado</th>
         <th>Servidor Público</th>
         <th>Dependencia & Cargo</th>
@@ -1396,6 +1639,7 @@ const SstModule = (() => {
       </tr>`;
     }
     return `<tr>
+      <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
       <th>Código</th>
       <th>Servidor Público</th>
       <th>Sexo & Edad</th>
@@ -1411,7 +1655,17 @@ const SstModule = (() => {
     if (!TABS[tabKey]) return;
     state.tab = tabKey;
     state.page = 1;
+    state.selectedIds = new Set();
+    updateSelectedBadge();
     state.filters = { q: '', subFilter1: tabKey === 'sociodemografico' ? 'Todas' : 'Todos', subFilter2: 'Todos' };
+
+    try {
+      state.permission = await API.checkGovernancePermission(getModuleCode(tabKey));
+    } catch {
+      state.permission = { canManage: Auth.canEdit(), isResponsable: false, isAdmin: Auth.isAdmin() };
+    }
+
+    const canManage = canManageCurrent();
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
@@ -1429,16 +1683,27 @@ const SstModule = (() => {
     const tabCfg = TABS[tabKey];
     const heading = document.getElementById('sst-heading');
     if (heading) heading.textContent = tabCfg.title;
-    const codeBadge = document.getElementById('sst-format-code');
-    if (codeBadge) codeBadge.style.display = 'none';
+    const roleBadge = document.getElementById('sst-role-badge');
+    if (roleBadge) {
+      roleBadge.className = `badge ${canManage ? 'badge--aprobada' : 'badge--pendiente'}`;
+      roleBadge.textContent = state.permission?.isResponsable ? 'Sandra Roa / Responsable' : (canManage ? 'Administrador' : 'Funcionario — Solo Consulta');
+    }
+    const dashTitle = document.getElementById('sst-dash-title');
+    if (dashTitle) dashTitle.textContent = `Panel Analítico e Indicadores en Tiempo Real — ${tabCfg.title}`;
     const desc = document.getElementById('sst-desc');
     if (desc) desc.textContent = tabCfg.desc;
     const tableTitle = document.getElementById('sst-table-title');
     if (tableTitle) tableTitle.textContent = tabCfg.title;
+    const createBtn = document.getElementById('sst-create-btn');
+    if (createBtn) createBtn.style.display = canManage ? '' : 'none';
     const createBtnTxt = document.getElementById('sst-create-btn-text');
     if (createBtnTxt) createBtnTxt.textContent = tabCfg.btnCreate;
+    const importBtn = document.getElementById('sst-dropdown-import-btn');
+    if (importBtn) importBtn.style.display = canManage ? '' : 'none';
     const btnVenc = document.getElementById('sst-btn-vencimientos');
-    if (btnVenc) btnVenc.style.display = tabKey === 'epidemiologico' ? '' : 'none';
+    if (btnVenc) btnVenc.style.display = (tabKey === 'epidemiologico' && canManage) ? '' : 'none';
+    const btnEppInv = document.getElementById('sst-btn-epp-inv');
+    if (btnEppInv) btnEppInv.style.display = (tabKey === 'epp' && canManage) ? '' : 'none';
 
     const filtersContainer = document.getElementById('sst-filters-container');
     if (filtersContainer) filtersContainer.innerHTML = renderFiltersHtml();
@@ -1463,100 +1728,9 @@ const SstModule = (() => {
   }
 
   function renderSkeletonRows(tabKey = 'epidemiologico', count = 7) {
-    if (tabKey === 'epp') {
-      return Array.from({ length: count }).map((_, i) => `
-        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
-          <td>
-            <div class="skeleton-user-cell">
-              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
-              <div class="skeleton-text-group">
-                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
-                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
-              <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
-            </div>
-          </td>
-          <td><div class="skeleton skeleton-line" style="width: 140px; height: 13px;"></div></td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-badge" style="width: 65px; height: 18px;"></div>
-              <div class="skeleton skeleton-line" style="width: 45px; height: 10px;"></div>
-            </div>
-          </td>
-          <td><div class="skeleton skeleton-line" style="width: 80px; height: 13px;"></div></td>
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 22px;"></div></td>
-          <td>
-            <div class="skeleton-actions-wrap">
-              <div class="skeleton skeleton-btn"></div>
-              <div class="skeleton skeleton-btn"></div>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    if (tabKey === 'sociodemografico') {
-      return Array.from({ length: count }).map((_, i) => `
-        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
-          <td>
-            <div class="skeleton-user-cell">
-              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
-              <div class="skeleton-text-group">
-                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
-                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 70px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 45px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 80px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '90%' : '80%'}; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 60px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 85px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 70px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 55px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-actions-wrap">
-              <div class="skeleton skeleton-btn"></div>
-              <div class="skeleton skeleton-btn"></div>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    // epidemiologico (default)
     return Array.from({ length: count }).map((_, i) => `
       <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+        <td><div class="skeleton" style="width:16px;height:16px;border-radius:4px;"></div></td>
         <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
@@ -1567,19 +1741,9 @@ const SstModule = (() => {
             </div>
           </div>
         </td>
-        <td>
-          <div class="skeleton-text-group">
-            <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
-            <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
-          </div>
-        </td>
-        <td>
-          <div class="skeleton-text-group">
-            <div class="skeleton skeleton-badge" style="width: 75px; height: 18px;"></div>
-            <div class="skeleton skeleton-line" style="width: 65px; height: 11px;"></div>
-          </div>
-        </td>
         <td><div class="skeleton skeleton-line" style="width: 110px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-badge" style="width: 80px; height: 22px;"></div></td>
         <td>
@@ -1657,7 +1821,7 @@ const SstModule = (() => {
     tbody.setAttribute('aria-busy', 'false');
 
     if (!state.data.length) {
-      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span class="empty-state-title">No hay registros en ${escHtml(TABS[state.tab].title)}</span>
         <span class="empty-state-desc">Crea un nuevo registro o realiza una carga masiva desde Excel.</span>
@@ -1665,9 +1829,12 @@ const SstModule = (() => {
       return;
     }
 
+    const canManage = canManageCurrent();
+
     if (state.tab === 'epidemiologico') {
       tbody.innerHTML = state.data.map(r => `
         <tr>
+          <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
           <td class="td-radicado">${escHtml(r.radicado)}</td>
           <td>
             <div class="user-table-cell">
@@ -1709,7 +1876,7 @@ const SstModule = (() => {
               <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha Médica EMO (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
-              ${Auth.canEdit() ? `
+              ${canManage ? `
               <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Registro">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -1725,6 +1892,7 @@ const SstModule = (() => {
     if (state.tab === 'epp') {
       tbody.innerHTML = state.data.map(r => `
         <tr>
+          <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
           <td class="td-radicado">${escHtml(r.radicado)}</td>
           <td>
             <div class="user-table-cell">
@@ -1768,7 +1936,7 @@ const SstModule = (() => {
               <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega EPP (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
-              ${Auth.canEdit() ? `
+              ${canManage ? `
               <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Entrega">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -1784,6 +1952,7 @@ const SstModule = (() => {
     // Sociodemográfico
     tbody.innerHTML = state.data.map(r => `
       <tr>
+        <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
         <td class="td-radicado">${escHtml(r.radicado)}</td>
         <td>
           <div class="user-table-cell">
@@ -1829,7 +1998,7 @@ const SstModule = (() => {
             <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Perfil en Plantilla Oficial Excel (.xlsx)" style="color:#16a34a;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
             </button>
-            ${Auth.canEdit() ? `
+            ${canManage ? `
             <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Perfil">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
@@ -2993,7 +3162,7 @@ const SstModule = (() => {
         }
       }
     ];
-    if (Auth.canEdit()) {
+    if (canManageCurrent()) {
       actions.push({
         text: 'Editar Registro',
         cls: 'btn-gold',
@@ -4732,8 +4901,12 @@ const SstModule = (() => {
     }
   }
 
-  // ─── 5. Carga Masiva de Archivos Excel por Submódulo ─────────────────────────
+  // ─── 5. Carga Masiva de Archivos Excel por Submódulo (9.3) ────────────────────
   function openEppImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
     const cols = [
       { header: 'No. De Identificación', key: 'documento', width: 18 },
       { header: 'Nombres y apellidos', key: 'nombreCompleto', width: 28 },
@@ -4752,10 +4925,12 @@ const SstModule = (() => {
     ];
 
     ExcelService.openImportModal({
-      title: 'Carga Masiva SST — Entregas de EPP',
-      subtitle: 'Importe el archivo oficial FORMATO ENTREGA DE EPP o planilla con las entregas de dotación',
+      title: '9.3 Carga Masiva SST — Entregas de EPP',
+      subtitle: 'Importe el archivo oficial FORMATO ENTREGA DE EPP con detección de duplicados y reporte de errores',
       moduleName: 'entrega_epp',
       columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}|${r.elementoEpp || ''}|${(r.fechaEntrega || '').slice(0, 10)}`,
       onDownloadTemplate: () => downloadOfficialTemplate(),
       sampleRows: [
         {
@@ -4798,7 +4973,7 @@ const SstModule = (() => {
         ).trim();
 
         if (!documento || !nombreCompleto) {
-          return { valid: false, error: 'Documento y Nombres y apellidos del servidor son obligatorios.' };
+          return { valid: false, error: 'Documento y Nombres y apellidos del servidor son obligatorios.', column: !documento ? 'No. De Identificación' : 'Nombres y apellidos' };
         }
 
         const elementoRaw = String(
@@ -4855,8 +5030,11 @@ const SstModule = (() => {
     });
   }
 
-  // ─── 5. Carga Masiva de Archivos Excel por Submódulo ─────────────────────────
   function openSociodemograficoImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
     const cols = [
       { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 20 },
       { header: 'Documento', key: 'documento', width: 16 },
@@ -4880,10 +5058,12 @@ const SstModule = (() => {
     ];
 
     ExcelService.openImportModal({
-      title: 'Carga Masiva SST — Perfil Sociodemográfico',
-      subtitle: 'Importe el archivo oficial E-DO-ST-F-011 V5 o una base de datos con los 24 campos sociodemográficos',
+      title: '9.3 Carga Masiva SST — Perfil Sociodemográfico',
+      subtitle: 'Importe el archivo oficial E-DO-ST-F-011 V5 con detección de duplicados y reporte de errores',
       moduleName: 'perfil_sociodemografico',
       columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}`,
       onDownloadTemplate: () => downloadOfficialTemplate(),
       sampleRows: [
         {
@@ -4944,7 +5124,7 @@ const SstModule = (() => {
         }
 
         if (!documento || (!apellidos && !nombreCompleto)) {
-          return { valid: false, error: 'Documento y Apellidos/Nombre del servidor son obligatorios.' };
+          return { valid: false, error: 'Documento y Apellidos/Nombre del servidor son obligatorios.', column: !documento ? 'Documento' : 'Apellidos/Nombres' };
         }
 
         const currentYear = new Date().getFullYear();
@@ -5001,6 +5181,10 @@ const SstModule = (() => {
   }
 
   function openImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
     if (state.tab === 'sociodemografico') {
       openSociodemograficoImportModal();
       return;
@@ -5014,10 +5198,13 @@ const SstModule = (() => {
     const cols = getExcelColumns().filter(c => c.key !== 'radicado');
 
     ExcelService.openImportModal({
-      title: `Carga Masiva SST — ${tabCfg.title}`,
-      subtitle: 'Importe registros desde archivo Excel o respuestas de Microsoft Forms',
+      title: `9.3 Carga Masiva SST — ${tabCfg.title}`,
+      subtitle: 'Importe registros desde archivo Excel o respuestas de Microsoft Forms con detección de duplicados',
       moduleName: tabCfg.title.toLowerCase(),
       columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}|${r.tipoEmo || ''}|${(r.fechaEmo || '').slice(0, 10)}`,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
       sampleRows: [
         {
           'Documento': '1003481573',
@@ -5035,7 +5222,7 @@ const SstModule = (() => {
         ).trim();
 
         if (!documento || !nombreCompleto) {
-          return { valid: false, error: 'Documento y nombre del servidor son obligatorios.' };
+          return { valid: false, error: 'Documento y nombre del servidor son obligatorios.', column: !documento ? 'Documento' : 'Servidor Público' };
         }
         return {
           valid: true,
@@ -5064,9 +5251,205 @@ const SstModule = (() => {
     });
   }
 
+  // ─── 6. Gestión de Inventario / Stock de Elementos EPP (Catálogo A-AB) ─────────
+  async function openEppInventoryModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden gestionar el inventario EPP.', 'error');
+      return;
+    }
+    try {
+      const res = await API.getSstEppInventario();
+      const items = res.data || [];
+
+      const html = `
+        <div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+            Administre las unidades totales en inventario y el umbral de alerta mínima para cada elemento del catálogo EPP (A–AB). Los indicadores de <strong>Elementos disponibles</strong> y <strong>Existencias bajas</strong> del dashboard se calculan dinámicamente descontando las entregas reales.
+          </p>
+          <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Elemento EPP</th>
+                  <th style="text-align:center;">Stock Total</th>
+                  <th style="text-align:center;">Entregados</th>
+                  <th style="text-align:center;">Disponibles</th>
+                  <th style="text-align:center;">Mínimo Alerta</th>
+                  <th style="text-align:right;">Guardar</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(it => {
+                  const cod = it.codigo_elemento || it.codigoElemento || '';
+                  const nom = it.elemento_epp || it.nombreElemento || '';
+                  const stk = Number(it.stock_total ?? it.stockTotal ?? 0);
+                  const ent = Number(it.entregados ?? 0);
+                  const disp = Number(it.disponibles ?? 0);
+                  const min = Number(it.stock_minimo ?? it.minimoAlerta ?? 8);
+                  const low = Boolean(it.bajo_stock ?? (disp <= min));
+                  return `
+                    <tr>
+                      <td class="font-mono" style="font-weight:700;">${escHtml(cod)}</td>
+                      <td style="font-size:12px;">${escHtml(nom)}</td>
+                      <td style="text-align:center;">
+                        <input type="number" id="epp-stock-${escHtml(cod)}" class="form-input" style="width:82px;height:30px;text-align:center;padding:2px 6px;" value="${stk}" min="0" />
+                      </td>
+                      <td style="text-align:center;font-weight:600;">${ent}</td>
+                      <td style="text-align:center;">
+                        <span class="badge ${low ? 'badge--rechazada' : 'badge--aprobada'}">${disp}</span>
+                      </td>
+                      <td style="text-align:center;">
+                        <input type="number" id="epp-min-${escHtml(cod)}" class="form-input" style="width:72px;height:30px;text-align:center;padding:2px 6px;" value="${min}" min="0" />
+                      </td>
+                      <td style="text-align:right;">
+                        <button type="button" class="btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="SstModule.saveEppInventoryRow('${escHtml(cod)}', '${escHtml(nom)}')">
+                          Actualizar
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Inventario y Stock de Elementos EPP (Catálogo A–AB)', html, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      ]);
+    } catch (err) {
+      App.showToast('Error al cargar inventario EPP: ' + err.message, 'error');
+    }
+  }
+
+  async function saveEppInventoryRow(codigo, nombreElemento) {
+    const stockTotal = parseInt(document.getElementById(`epp-stock-${codigo}`)?.value || '0', 10);
+    const stockMinimo = parseInt(document.getElementById(`epp-min-${codigo}`)?.value || '8', 10);
+    try {
+      await API.updateSstEppInventario(codigo, { nombreElemento, stockTotal, stockMinimo });
+      App.showToast(`Inventario actualizado para ${codigo}.`, 'success');
+      loadStats();
+      openEppInventoryModal();
+    } catch (err) {
+      App.showToast('Error al actualizar stock: ' + err.message, 'error');
+    }
+  }
+
+  // ─── 7. Generador de Reportes (9.4) y Gobernanza (Secciones 10, 11 y 12) ─────
+  function openReportGenerator() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const selectedRecords = state.data.filter(r => state.selectedIds.has(r.id));
+    let columns = [];
+    let dateField = 'createdAt';
+    let statusField = 'estadoFinalCaso';
+    let statuses = ['Seguimiento', 'Abierto', 'Cerrado', 'Controlado'];
+
+    if (state.tab === 'epidemiologico') {
+      dateField = 'fechaEmo';
+      statusField = 'estadoFinalCaso';
+      statuses = getCats().estadosCaso || ['Seguimiento', 'Abierto', 'Cerrado'];
+      columns = [
+        { header: 'Código', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Sede', key: 'sedeTrabajo', width: 20 },
+        { header: 'Tipo EMO', key: 'tipoEmo', width: 16 },
+        { header: 'Fecha EMO', key: 'fechaEmo', width: 14 },
+        { header: 'PVE', key: 'direccionadoPve', width: 22 },
+        { header: 'Estado Caso', key: 'estadoFinalCaso', width: 16 }
+      ];
+    } else if (state.tab === 'epp') {
+      dateField = 'fechaEntrega';
+      statusField = 'estadoEntrega';
+      statuses = ['Entregado', 'Reposición Programada', 'Pendiente Firma', 'Devuelto'];
+      columns = [
+        { header: 'Radicado', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Cargo', key: 'cargo', width: 22 },
+        { header: 'Elemento EPP', key: 'elementoEpp', width: 26 },
+        { header: 'Talla', key: 'talla', width: 10 },
+        { header: 'Cantidad', key: 'cantidad', width: 12 },
+        { header: 'Fecha Entrega', key: 'fechaEntrega', width: 14 },
+        { header: 'Estado', key: 'estadoEntrega', width: 16 }
+      ];
+    } else {
+      dateField = 'createdAt';
+      statusField = 'escolaridad';
+      statuses = getCats().escolaridades || ['Profesional', 'Especialización', 'Maestría', 'Técnico', 'Tecnólogo'];
+      columns = [
+        { header: 'Código', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Sexo', key: 'sexo', width: 12 },
+        { header: 'Edad', key: 'edad', width: 10 },
+        { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+        { header: 'Vinculación', key: 'tipoVinculacion', width: 20 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Estrato', key: 'estrato', width: 10 }
+      ];
+    }
+
+    GovernanceAndReports.openReportGeneratorModal({
+      title: TABS[state.tab].title,
+      moduleCode: getModuleCode(state.tab),
+      columns,
+      currentData: state.data,
+      selectedRecords,
+      statuses,
+      dateField,
+      statusField,
+      fetchAllFn: async () => {
+        if (state.tab === 'epidemiologico') {
+          const res = await API.getSstEpidemiologico({ page: 1, limit: 5000 });
+          return res.data || [];
+        }
+        if (state.tab === 'epp') {
+          const res = await API.getSstEpp({ page: 1, limit: 5000 });
+          return res.data || [];
+        }
+        const res = await API.getSstSociodemografico({ page: 1, limit: 5000 });
+        return res.data || [];
+      }
+    });
+  }
+
+  function openInstitutionalDocuments() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openInstitutionalDocumentsModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title,
+      canManage: canManageCurrent()
+    });
+  }
+
+  function openAuditHistory() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openAuditModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title
+    });
+  }
+
+  function openResponsablesManager() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openResponsablesModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title
+    });
+  }
+
   return {
     render,
     setTab,
+    toggleDashboard,
+    applyDashFilters,
+    toggleSelectAll,
+    toggleSelectRow,
     openCreate,
     openEdit,
     openView,
@@ -5085,6 +5468,12 @@ const SstModule = (() => {
     generateAnnualReport,
     exportExcel,
     openImportModal,
+    openEppInventoryModal,
+    saveEppInventoryRow,
+    openReportGenerator,
+    openInstitutionalDocuments,
+    openAuditHistory,
+    openResponsablesManager,
     onFechaEmoChange,
     onTipoEmoChange,
     onAtToggle,

@@ -1,6 +1,13 @@
 const router   = require('express').Router();
 const jwt      = require('jsonwebtoken');
 const { Pool } = require('pg');
+const {
+  ensureAuditAndRbacSchema,
+  isAdminUser,
+  getModulePermission,
+  logAudit,
+  mountGovernanceRoutes,
+} = require('../utils/audit-rbac');
 
 const pool = new Pool(
   process.env.DATABASE_URL
@@ -528,7 +535,8 @@ async function ensureSstSchema() {
         );
       `);
     }
-    console.log('[sst-service] Tablas SST verificadas correctamente.');
+    await ensureAuditAndRbacSchema(pool);
+    console.log('[sst-service] Tablas SST, Auditoría y RBAC verificadas correctamente.');
   } catch (err) {
     console.error('[sst-service] Error verificando esquema SST:', err.message);
   }
@@ -538,7 +546,7 @@ ensureSstSchema();
 
 // ─── Middleware de Autenticación y Utilidades ────────────────────────────────
 function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const token = (req.headers.authorization || req.query.token || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No autorizado.' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
@@ -547,6 +555,9 @@ function auth(req, res, next) {
     res.status(401).json({ error: 'Token inválido o sesión expirada.' });
   }
 }
+
+// Montar rutas compartidas de Gobernanza (Permisos, Responsables, Auditoría y Documentos Institucionales)
+mountGovernanceRoutes(router, pool, auth);
 
 function canEdit(role) {
   if (!role) return false;
@@ -816,59 +827,407 @@ router.get('/catalogs', auth, async (_, res) => {
   }
 });
 
-// ─── GET /api/sst/stats ──────────────────────────────────────────────────────
-router.get('/stats', auth, async (_, res) => {
+// ─── Helpers de Mapeo de Registros SST ───────────────────────────────────────
+function mapEpiRow(r) {
+  return {
+    id: r.id_epidemiologico,
+    radicado: `EMO-2026-${String(r.id_epidemiologico).padStart(4, '0')}`,
+    tipoIdentificacion: r.tipo_identificacion,
+    documento: r.documento,
+    apellidos: r.apellidos,
+    nombres: r.nombres,
+    nombreCompleto: r.nombre_completo,
+    telefono: r.telefono,
+    edad: r.edad,
+    fechaIngreso: r.fecha_ingreso,
+    dependencia: r.dependencia,
+    sedeTrabajo: r.sede_trabajo,
+    cargo: r.cargo,
+    fechaEmo: r.fecha_emo ? (r.fecha_emo instanceof Date ? r.fecha_emo.toISOString().split('T')[0] : String(r.fecha_emo).slice(0, 10)) : '',
+    tipoEmo: r.tipo_emo,
+    restricciones: r.restricciones,
+    recomendaciones: r.recomendaciones,
+    direccionadoPve: r.direccionado_pve,
+    direccionadoEps: r.direccionado_eps,
+    fechaProximoEmo: r.fecha_proximo_emo ? (r.fecha_proximo_emo instanceof Date ? r.fecha_proximo_emo.toISOString().split('T')[0] : String(r.fecha_proximo_emo).slice(0, 10)) : '',
+    accidenteTrabajo: r.accidente_trabajo,
+    fechaAccidente: r.fecha_accidente ? (r.fecha_accidente instanceof Date ? r.fecha_accidente.toISOString().split('T')[0] : String(r.fecha_accidente).slice(0, 10)) : '',
+    estadoActualAccidente: r.estado_actual_accidente,
+    cumplioRehabilitacion: r.cumplio_rehabilitacion,
+    enfermedadLaboral: r.enfermedad_laboral,
+    fechaEnfermedad: r.fecha_enfermedad ? (r.fecha_enfermedad instanceof Date ? r.fecha_enfermedad.toISOString().split('T')[0] : String(r.fecha_enfermedad).slice(0, 10)) : '',
+    estadoActualEnfermedad: r.estado_actual_enfermedad,
+    estadoFinalCaso: r.estado_final_caso,
+    actividadesPendientes: r.actividades_pendientes,
+    soporte: r.soporte,
+    creadoEn: r.creado_en
+  };
+}
+
+function mapEppRow(r) {
+  return {
+    id: r.id_entrega_epp,
+    radicado: `EPP-2026-${String(r.id_entrega_epp).padStart(4, '0')}`,
+    documento: r.documento,
+    nombreCompleto: r.nombre_completo,
+    telefono: r.telefono,
+    secretaria: r.secretaria,
+    dependencia: r.dependencia,
+    sedeTrabajo: r.sede_trabajo,
+    cargo: r.cargo,
+    tipoVinculacion: r.tipo_vinculacion,
+    restriccionesRecomendaciones: r.restricciones_recomendaciones,
+    codigoElemento: r.codigo_elemento,
+    elementoEpp: r.elemento_epp,
+    talla: r.talla,
+    cantidad: r.cantidad,
+    fechaEntrega: r.fecha_entrega ? (r.fecha_entrega instanceof Date ? r.fecha_entrega.toISOString().split('T')[0] : String(r.fecha_entrega).slice(0, 10)) : '',
+    estadoEntrega: r.estado_entrega,
+    firmadoFuncionario: r.firmado_funcionario,
+    firmaDigital: r.firma_digital || null,
+    observaciones: r.observaciones,
+    soporte: r.soporte,
+    creadoEn: r.creado_en
+  };
+}
+
+function mapSocioRow(r) {
+  return {
+    id: r.id_sociodemografico,
+    radicado: `SOC-2026-${String(r.id_sociodemografico).padStart(4, '0')}`,
+    tipoIdentificacion: r.tipo_identificacion,
+    documento: r.documento,
+    apellidos: r.apellidos,
+    nombres: r.nombres,
+    nombreCompleto: r.nombre_completo,
+    sexo: r.sexo,
+    anioNacimiento: r.anio_nacimiento,
+    edad: r.edad,
+    razaEtnia: r.raza_etnia,
+    estadoCivil: r.estado_civil,
+    composicionFamiliar: r.composicion_familiar,
+    tipoVivienda: r.tipo_vivienda,
+    estrato: r.estrato,
+    municipioResidencia: r.municipio_residencia,
+    municipioTrabajo: r.municipio_trabajo,
+    escolaridad: r.escolaridad,
+    ocupacionProfesion: r.ocupacion_profesion,
+    rangoIngresos: r.rango_ingresos,
+    denominacionCargo: r.denominacion_cargo,
+    tipoCargo: r.tipo_cargo,
+    tipoVinculacion: r.tipo_vinculacion,
+    antiguedadCargo: r.antiguedad_cargo,
+    antiguedadEntidad: r.antiguedad_entidad,
+    dependencia: r.dependencia,
+    sedeTrabajo: r.sede_trabajo,
+    creadoEn: r.creado_en
+  };
+}
+
+// ─── GET /api/sst/stats (Dashboards 6.4 Epidemiológico, 6.5 Sociodemográfico, 6.6 EPP) ───
+router.get('/stats', auth, async (req, res) => {
   try {
-    const [epiStats, eppStats, socStats] = await Promise.all([
+    const { anio = '', mes = '', fechaInicio = '', fechaFin = '', dependencia = '' } = req.query;
+
+    // Filtros dinámicos para Epidemiológico (fecha_emo / dependencia)
+    const epiConds = ['1=1'];
+    const epiVals = [];
+    let ei = 1;
+    if (anio && anio !== 'Todos') { epiConds.push(`EXTRACT(YEAR FROM COALESCE(fecha_emo, creado_en::date))::text = $${ei++}`); epiVals.push(String(anio)); }
+    if (mes && mes !== 'Todos')   { epiConds.push(`EXTRACT(MONTH FROM COALESCE(fecha_emo, creado_en::date))::int = $${ei++}`); epiVals.push(parseInt(mes, 10)); }
+    if (fechaInicio)              { epiConds.push(`COALESCE(fecha_emo, creado_en::date) >= $${ei++}::date`); epiVals.push(fechaInicio); }
+    if (fechaFin)                 { epiConds.push(`COALESCE(fecha_emo, creado_en::date) <= $${ei++}::date`); epiVals.push(fechaFin); }
+    if (dependencia && dependencia !== 'Todas') { epiConds.push(`LOWER(dependencia) LIKE LOWER($${ei++})`); epiVals.push(`%${dependencia}%`); }
+    const epiWhere = epiConds.join(' AND ');
+
+    // Filtros dinámicos para EPP (fecha_entrega / dependencia)
+    const eppConds = ['1=1'];
+    const eppVals = [];
+    let pi = 1;
+    if (anio && anio !== 'Todos') { eppConds.push(`EXTRACT(YEAR FROM COALESCE(fecha_entrega, creado_en::date))::text = $${pi++}`); eppVals.push(String(anio)); }
+    if (mes && mes !== 'Todos')   { eppConds.push(`EXTRACT(MONTH FROM COALESCE(fecha_entrega, creado_en::date))::int = $${pi++}`); eppVals.push(parseInt(mes, 10)); }
+    if (fechaInicio)              { eppConds.push(`COALESCE(fecha_entrega, creado_en::date) >= $${pi++}::date`); eppVals.push(fechaInicio); }
+    if (fechaFin)                 { eppConds.push(`COALESCE(fecha_entrega, creado_en::date) <= $${pi++}::date`); eppVals.push(fechaFin); }
+    if (dependencia && dependencia !== 'Todas') { eppConds.push(`LOWER(dependencia) LIKE LOWER($${pi++})`); eppVals.push(`%${dependencia}%`); }
+    const eppWhere = eppConds.join(' AND ');
+
+    // Filtros dinámicos para Sociodemográfico (dependencia)
+    const socConds = ['1=1'];
+    const socVals = [];
+    let si = 1;
+    if (dependencia && dependencia !== 'Todas') { socConds.push(`LOWER(dependencia) LIKE LOWER($${si++})`); socVals.push(`%${dependencia}%`); }
+    const socWhere = socConds.join(' AND ');
+
+    const [
+      epiStats,
+      epiPorTipo,
+      epiPorEstado,
+      epiPorPve,
+      epiPorDep,
+      epiPorMes,
+      eppStats,
+      eppPorElem,
+      eppPorDep,
+      eppPorMes,
+      eppInventario,
+      socStats,
+      socPorEdad,
+      socPorSexo,
+      socPorEsc,
+      socPorDep,
+      socPorVinculacion,
+      socPorEstadoCivil
+    ] = await Promise.all([
       pool.query(`
         SELECT
-          COUNT(*) AS total_emo,
-          COUNT(*) FILTER (WHERE estado_final_caso = 'Vigente') AS emo_vigentes,
+          COUNT(*)::int AS total_emo,
+          COUNT(*) FILTER (WHERE estado_final_caso = 'Vigente')::int AS emo_vigentes,
           COUNT(*) FILTER (
             WHERE estado_final_caso IN ('Vencido', 'Próximo a Vencer')
                OR (fecha_proximo_emo IS NOT NULL AND fecha_proximo_emo <= CURRENT_DATE + INTERVAL '30 days')
-          ) AS emo_alertas,
+          )::int AS emo_alertas,
           COUNT(*) FILTER (
             WHERE UPPER(COALESCE(accidente_trabajo, 'NO')) = 'SI'
                OR UPPER(COALESCE(enfermedad_laboral, 'NO')) = 'SI'
                OR estado_final_caso IN ('En Seguimiento', 'En Rehabilitación')
-          ) AS casos_seguimiento,
+          )::int AS casos_seguimiento,
           COUNT(*) FILTER (
             WHERE direccionado_pve IS NOT NULL
               AND LOWER(TRIM(direccionado_pve)) NOT IN ('', 'no aplica', 'ninguno', 'n/a')
-          ) AS direccionados_pve
+          )::int AS direccionados_pve,
+          COUNT(*) FILTER (
+            WHERE restricciones IS NOT NULL
+              AND UPPER(TRIM(restricciones)) NOT IN ('', 'NINGUNA', 'NINGUNO', 'N/A', 'NO APLICA')
+          )::int AS con_condiciones_salud,
+          COUNT(*) FILTER (WHERE UPPER(COALESCE(accidente_trabajo, 'NO')) = 'SI')::int AS accidentes_trabajo,
+          COUNT(*) FILTER (WHERE UPPER(COALESCE(enfermedad_laboral, 'NO')) = 'SI')::int AS enfermedades_laborales
         FROM sst_perfil_epidemiologico
-      `),
+        WHERE ${epiWhere}
+      `, epiVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(tipo_emo),''), 'Periódico') AS tipo, COUNT(*)::int AS cantidad
+        FROM sst_perfil_epidemiologico WHERE ${epiWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, epiVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(estado_final_caso),''), 'Vigente') AS estado, COUNT(*)::int AS cantidad
+        FROM sst_perfil_epidemiologico WHERE ${epiWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, epiVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(direccionado_pve),''), 'No aplica') AS programa, COUNT(*)::int AS cantidad
+        FROM sst_perfil_epidemiologico WHERE ${epiWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, epiVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(dependencia),''), 'SIN DEPENDENCIA') AS dependencia, COUNT(*)::int AS cantidad
+        FROM sst_perfil_epidemiologico WHERE ${epiWhere}
+        GROUP BY 1 ORDER BY cantidad DESC LIMIT 10
+      `, epiVals),
+      pool.query(`
+        SELECT TO_CHAR(COALESCE(fecha_emo, creado_en::date), 'YYYY-MM') AS mes, COUNT(*)::int AS cantidad
+        FROM sst_perfil_epidemiologico WHERE ${epiWhere}
+        GROUP BY 1 ORDER BY 1 ASC LIMIT 12
+      `, epiVals),
       pool.query(`
         SELECT
-          COUNT(*) AS total_epp,
-          COUNT(DISTINCT documento) AS servidores_dotados,
-          COUNT(*) FILTER (WHERE estado_entrega = 'Entregado') AS entregados
+          COUNT(*)::int AS total_epp,
+          COUNT(DISTINCT documento)::int AS servidores_dotados,
+          COUNT(*) FILTER (WHERE estado_entrega = 'Entregado')::int AS entregados,
+          COUNT(*) FILTER (WHERE estado_entrega <> 'Entregado')::int AS pendientes_reposicion,
+          COUNT(*) FILTER (WHERE firmado_funcionario = TRUE)::int AS firmados,
+          COALESCE(SUM(GREATEST(1, NULLIF(REGEXP_REPLACE(COALESCE(cantidad,'1'), '[^0-9]', '', 'g'), '')::int)), 0)::int AS unidades_entregadas
         FROM sst_entrega_epp
+        WHERE ${eppWhere}
+      `, eppVals),
+      pool.query(`
+        SELECT
+          COALESCE(NULLIF(TRIM(codigo_elemento),''), 'A') AS codigo,
+          COALESCE(NULLIF(TRIM(elemento_epp),''), 'Elemento EPP') AS elemento,
+          COUNT(*)::int AS entregas,
+          COALESCE(SUM(GREATEST(1, NULLIF(REGEXP_REPLACE(COALESCE(cantidad,'1'), '[^0-9]', '', 'g'), '')::int)), 0)::int AS unidades
+        FROM sst_entrega_epp
+        WHERE ${eppWhere}
+        GROUP BY 1, 2
+        ORDER BY unidades DESC, entregas DESC
+        LIMIT 12
+      `, eppVals),
+      pool.query(`
+        SELECT
+          COALESCE(NULLIF(TRIM(dependencia),''), 'SIN DEPENDENCIA') AS dependencia,
+          COUNT(*)::int AS entregas,
+          COUNT(DISTINCT documento)::int AS servidores
+        FROM sst_entrega_epp
+        WHERE ${eppWhere}
+        GROUP BY 1
+        ORDER BY entregas DESC
+        LIMIT 10
+      `, eppVals),
+      pool.query(`
+        SELECT
+          TO_CHAR(COALESCE(fecha_entrega, creado_en::date), 'YYYY-MM') AS mes,
+          COUNT(*)::int AS entregas,
+          COUNT(DISTINCT documento)::int AS servidores
+        FROM sst_entrega_epp
+        WHERE ${eppWhere}
+        GROUP BY 1
+        ORDER BY 1 ASC
+        LIMIT 12
+      `, eppVals),
+      pool.query(`
+        SELECT
+          i.id_inventario,
+          i.codigo_elemento,
+          i.elemento_epp,
+          i.categoria_epp,
+          i.unidad_medida,
+          i.stock_total,
+          i.stock_minimo,
+          i.ubicacion_bodega,
+          COALESCE(e.unidades_entregadas, 0)::int AS entregados,
+          GREATEST(0, i.stock_total - COALESCE(e.unidades_entregadas, 0))::int AS disponibles,
+          (GREATEST(0, i.stock_total - COALESCE(e.unidades_entregadas, 0)) <= i.stock_minimo) AS bajo_stock
+        FROM sst_inventario_epp i
+        LEFT JOIN (
+          SELECT
+            codigo_elemento,
+            SUM(GREATEST(1, NULLIF(REGEXP_REPLACE(COALESCE(cantidad,'1'), '[^0-9]', '', 'g'), '')::int))::int AS unidades_entregadas
+          FROM sst_entrega_epp
+          WHERE estado_entrega = 'Entregado'
+          GROUP BY codigo_elemento
+        ) e ON e.codigo_elemento = i.codigo_elemento
+        ORDER BY i.id_inventario ASC
       `),
       pool.query(`
         SELECT
-          COUNT(*) AS total_sociodemografico,
-          COUNT(DISTINCT dependencia) AS dependencias_cubiertas
+          COUNT(*)::int AS total_sociodemografico,
+          COUNT(DISTINCT dependencia)::int AS dependencias_cubiertas,
+          COUNT(DISTINCT sede_trabajo)::int AS sedes_cubiertas,
+          ROUND(AVG(edad)::numeric, 1) AS edad_promedio
         FROM sst_perfil_sociodemografico
-      `)
+        WHERE ${socWhere}
+      `, socVals),
+      pool.query(`
+        SELECT
+          CASE
+            WHEN edad IS NULL THEN 'Sin dato'
+            WHEN edad < 30 THEN '18 a 29 años'
+            WHEN edad BETWEEN 30 AND 39 THEN '30 a 39 años'
+            WHEN edad BETWEEN 40 AND 49 THEN '40 a 49 años'
+            WHEN edad BETWEEN 50 AND 59 THEN '50 a 59 años'
+            ELSE '60 años o más'
+          END AS rango,
+          COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico
+        WHERE ${socWhere}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `, socVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(sexo),''), 'No especificado') AS sexo, COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico WHERE ${socWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, socVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(escolaridad),''), 'Profesional') AS escolaridad, COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico WHERE ${socWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, socVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(dependencia),''), 'SIN DEPENDENCIA') AS dependencia, COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico WHERE ${socWhere}
+        GROUP BY 1 ORDER BY cantidad DESC LIMIT 10
+      `, socVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(tipo_vinculacion),''), 'Carrera Administrativa') AS vinculacion, COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico WHERE ${socWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, socVals),
+      pool.query(`
+        SELECT COALESCE(NULLIF(TRIM(estado_civil),''), 'Soltero (a)') AS estado_civil, COUNT(*)::int AS cantidad
+        FROM sst_perfil_sociodemografico WHERE ${socWhere}
+        GROUP BY 1 ORDER BY cantidad DESC
+      `, socVals),
     ]);
 
     const ep = epiStats.rows[0] || {};
     const pp = eppStats.rows[0] || {};
     const sc = socStats.rows[0] || {};
+    const invRows = eppInventario.rows || [];
+
+    const stockTotalRegistrado = invRows.reduce((s, r) => s + (r.stock_total || 0), 0);
+    const stockDisponibleTotal = invRows.reduce((s, r) => s + (r.disponibles || 0), 0);
+    const existenciasBajasCount = invRows.filter(r => r.bajo_stock).length;
 
     res.json({
-      totalEmo: parseInt(ep.total_emo) || 0,
-      emoVigentes: parseInt(ep.emo_vigentes) || 0,
-      emoAlertas: parseInt(ep.emo_alertas) || 0,
-      casosSeguimiento: parseInt(ep.casos_seguimiento) || 0,
-      direccionadosPve: parseInt(ep.direccionados_pve) || 0,
-      totalEpp: parseInt(pp.total_epp) || 0,
-      servidoresDotados: parseInt(pp.servidores_dotados) || 0,
-      eppEntregados: parseInt(pp.entregados) || 0,
-      totalSociodemografico: parseInt(sc.total_sociodemografico) || 0,
-      dependenciasCubiertas: parseInt(sc.dependencias_cubiertas) || 0
+      // Indicadores planos compatibles con llamadas existentes
+      totalEmo: ep.total_emo || 0,
+      emoVigentes: ep.emo_vigentes || 0,
+      emoAlertas: ep.emo_alertas || 0,
+      casosSeguimiento: ep.casos_seguimiento || 0,
+      direccionadosPve: ep.direccionados_pve || 0,
+      conCondicionesSalud: ep.con_condiciones_salud || 0,
+      accidentesTrabajo: ep.accidentes_trabajo || 0,
+      enfermedadesLaborales: ep.enfermedades_laborales || 0,
+
+      totalEpp: pp.total_epp || 0,
+      servidoresDotados: pp.servidores_dotados || 0,
+      eppEntregados: pp.entregados || 0,
+      eppPendientesReposicion: pp.pendientes_reposicion || 0,
+      eppFirmados: pp.firmados || 0,
+      unidadesEntregadasTotal: pp.unidades_entregadas || 0,
+      stockTotalRegistrado,
+      stockDisponibleTotal,
+      existenciasBajasCount,
+
+      totalSociodemografico: sc.total_sociodemografico || 0,
+      dependenciasCubiertas: sc.dependencias_cubiertas || 0,
+      sedesCubiertas: sc.sedes_cubiertas || 0,
+      edadPromedio: Number(sc.edad_promedio || 0),
+
+      // Objetos detallados para los 3 Dashboards interactivos (6.4, 6.5, 6.6)
+      epidemiologico: {
+        totalEmo: ep.total_emo || 0,
+        emoVigentes: ep.emo_vigentes || 0,
+        emoAlertas: ep.emo_alertas || 0,
+        casosSeguimiento: ep.casos_seguimiento || 0,
+        direccionadosPve: ep.direccionados_pve || 0,
+        conCondicionesSalud: ep.con_condiciones_salud || 0,
+        accidentesTrabajo: ep.accidentes_trabajo || 0,
+        enfermedadesLaborales: ep.enfermedades_laborales || 0,
+        porTipoEmo: epiPorTipo.rows,
+        porEstadoCaso: epiPorEstado.rows,
+        porPve: epiPorPve.rows,
+        porDependencia: epiPorDep.rows,
+        evolucionMensual: epiPorMes.rows,
+      },
+      epp: {
+        totalEpp: pp.total_epp || 0,
+        servidoresDotados: pp.servidores_dotados || 0,
+        eppEntregados: pp.entregados || 0,
+        eppPendientesReposicion: pp.pendientes_reposicion || 0,
+        eppFirmados: pp.firmados || 0,
+        unidadesEntregadasTotal: pp.unidades_entregadas || 0,
+        stockTotalRegistrado,
+        stockDisponibleTotal,
+        existenciasBajasCount,
+        inventarioDetalle: invRows,
+        porElemento: eppPorElem.rows,
+        porDependencia: eppPorDep.rows,
+        evolucionMensual: eppPorMes.rows,
+      },
+      sociodemografico: {
+        totalSociodemografico: sc.total_sociodemografico || 0,
+        dependenciasCubiertas: sc.dependencias_cubiertas || 0,
+        sedesCubiertas: sc.sedes_cubiertas || 0,
+        edadPromedio: Number(sc.edad_promedio || 0),
+        porRangoEdad: socPorEdad.rows,
+        porSexo: socPorSexo.rows,
+        porEscolaridad: socPorEsc.rows,
+        porDependencia: socPorDep.rows,
+        porVinculacion: socPorVinculacion.rows,
+        porEstadoCivil: socPorEstadoCivil.rows,
+      },
     });
   } catch (err) {
     console.error('[sst-service] stats error:', err.message);
@@ -881,11 +1240,28 @@ router.get('/stats', auth, async (_, res) => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 router.get('/epidemiologico', auth, async (req, res) => {
-  const { q = '', tipoEmo = '', estadoCaso = '', dependencia = '', page = 1, limit = 20 } = req.query;
+  const { q = '', tipoEmo = '', estadoCaso = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
   try {
+    const perm = await getModulePermission(pool, req.user, 'epidemiologico');
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;
+
+    // Protección de datos sensibles (Ley 1581 de 2012 / Sección 12 y RBAC Sección 7):
+    // Sandra Roa (Responsable SST) y Administrador consultan todos los perfiles;
+    // el Funcionario solo consulta su propio registro epidemiológico/EMO.
+    if (!perm.canManage) {
+      const fullName = String(req.user.name || '').trim().toLowerCase();
+      const userDoc = String(req.user.documento || '').trim();
+      const uname = String(req.user.username || '').trim().toLowerCase();
+      conditions.push(`(
+        LOWER(COALESCE(nombre_completo, '')) = $${idx}
+        OR ($${idx + 1} <> '' AND documento = $${idx + 1})
+        OR LOWER(COALESCE(creado_por, '')) = $${idx + 2}
+      )`);
+      params.push(fullName, userDoc, uname);
+      idx += 3;
+    }
 
     if (tipoEmo && tipoEmo !== 'Todos') {
       conditions.push(`LOWER(tipo_emo) = LOWER($${idx++})`);
@@ -898,6 +1274,14 @@ router.get('/epidemiologico', auth, async (req, res) => {
     if (dependencia && dependencia !== 'Todas') {
       conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
       params.push(`%${dependencia.trim()}%`);
+    }
+    if (fechaInicio) {
+      conditions.push(`COALESCE(fecha_emo, creado_en::date) >= $${idx++}::date`);
+      params.push(fechaInicio);
+    }
+    if (fechaFin) {
+      conditions.push(`COALESCE(fecha_emo, creado_en::date) <= $${idx++}::date`);
+      params.push(fechaFin);
     }
     if (q && q.trim()) {
       conditions.push(`(
@@ -926,41 +1310,11 @@ router.get('/epidemiologico', auth, async (req, res) => {
     );
 
     res.json({
-      data: rows.rows.map(r => ({
-        id: r.id_epidemiologico,
-        radicado: `EMO-2026-${String(r.id_epidemiologico).padStart(4, '0')}`,
-        tipoIdentificacion: r.tipo_identificacion,
-        documento: r.documento,
-        apellidos: r.apellidos,
-        nombres: r.nombres,
-        nombreCompleto: r.nombre_completo,
-        telefono: r.telefono,
-        edad: r.edad,
-        fechaIngreso: r.fecha_ingreso,
-        dependencia: r.dependencia,
-        sedeTrabajo: r.sede_trabajo,
-        cargo: r.cargo,
-        fechaEmo: r.fecha_emo ? r.fecha_emo.toISOString().split('T')[0] : '',
-        tipoEmo: r.tipo_emo,
-        restricciones: r.restricciones,
-        recomendaciones: r.recomendaciones,
-        direccionadoPve: r.direccionado_pve,
-        direccionadoEps: r.direccionado_eps,
-        fechaProximoEmo: r.fecha_proximo_emo ? r.fecha_proximo_emo.toISOString().split('T')[0] : '',
-        accidenteTrabajo: r.accidente_trabajo,
-        fechaAccidente: r.fecha_accidente ? r.fecha_accidente.toISOString().split('T')[0] : '',
-        estadoActualAccidente: r.estado_actual_accidente,
-        cumplioRehabilitacion: r.cumplio_rehabilitacion,
-        enfermedadLaboral: r.enfermedad_laboral,
-        fechaEnfermedad: r.fecha_enfermedad ? r.fecha_enfermedad.toISOString().split('T')[0] : '',
-        estadoActualEnfermedad: r.estado_actual_enfermedad,
-        estadoFinalCaso: r.estado_final_caso,
-        actividadesPendientes: r.actividades_pendientes,
-        soporte: r.soporte
-      })),
+      data: rows.rows.map(mapEpiRow),
       total,
       page: pageNum,
-      totalPages: Math.max(1, Math.ceil(total / limitNum))
+      totalPages: Math.max(1, Math.ceil(total / limitNum)),
+      permission: perm
     });
   } catch (err) {
     console.error('[sst-service] list epidemiologico error:', err.message);
@@ -969,7 +1323,10 @@ router.get('/epidemiologico', auth, async (req, res) => {
 });
 
 router.post('/epidemiologico', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico (Sandra Roa) o el Administrador pueden crear registros.' });
+  }
   const b = req.body;
   if (!b.documento || (!b.nombreCompleto && (!b.apellidos || !b.nombres))) {
     return res.status(400).json({ error: 'El documento y nombre del servidor público son obligatorios.' });
@@ -993,7 +1350,7 @@ router.post('/epidemiologico', auth, async (req, res) => {
         estado_final_caso, actividades_pendientes, soporte, creado_por
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
-      ) RETURNING id_epidemiologico`,
+      ) RETURNING *`,
       [
         b.tipoIdentificacion || 'Cédula de Ciudadanía',
         String(b.documento).trim(),
@@ -1028,16 +1385,28 @@ router.post('/epidemiologico', auth, async (req, res) => {
     );
 
     const newId = r.rows[0].id_epidemiologico;
+    const radicado = `EMO-2026-${String(newId).padStart(4, '0')}`;
     await pool.query(
       `INSERT INTO sst_historial (submodulo, id_registro, accion, detalle, realizado_por)
        VALUES ('epidemiologico', $1, 'Creación EMO', $2, $3)`,
       [newId, `Registro de EMO (${tipoEmo}) para ${nombreCompleto}`, req.user.username || 'admin']
     );
 
+    await logAudit(pool, {
+      modulo: 'epidemiologico',
+      idRegistro: newId,
+      radicado,
+      user: req.user,
+      tipoOperacion: 'CREACION',
+      valoresAnteriores: null,
+      valoresNuevos: mapEpiRow(r.rows[0]),
+      observaciones: `Creación de registro EMO (${tipoEmo}) para ${nombreCompleto}`,
+    });
+
     res.status(201).json({
       message: 'Registro epidemiológico creado exitosamente.',
       id: newId,
-      radicado: `EMO-2026-${String(newId).padStart(4, '0')}`
+      radicado
     });
   } catch (err) {
     console.error('[sst-service] create epidemiologico error:', err.message);
@@ -1046,8 +1415,17 @@ router.post('/epidemiologico', auth, async (req, res) => {
 });
 
 router.put('/epidemiologico/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico (Sandra Roa) o el Administrador pueden editar registros.' });
+  }
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+  const prevRes = await pool.query('SELECT * FROM sst_perfil_epidemiologico WHERE id_epidemiologico=$1', [id]);
+  if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+  const prevRow = prevRes.rows[0];
+
   const b = req.body;
   const apellidos = upper(b.apellidos || (b.nombreCompleto || '').split(' ').slice(0, 2).join(' '));
   const nombres = upper(b.nombres || (b.nombreCompleto || '').split(' ').slice(2).join(' ') || b.nombreCompleto);
@@ -1066,7 +1444,7 @@ router.put('/epidemiologico/:id', auth, async (req, res) => {
         cumplio_rehabilitacion=$22, enfermedad_laboral=$23, fecha_enfermedad=$24,
         estado_actual_enfermedad=$25, estado_final_caso=$26, actividades_pendientes=$27,
         soporte=COALESCE($28, soporte), actualizado_en=CURRENT_TIMESTAMP
-       WHERE id_epidemiologico=$29 RETURNING id_epidemiologico`,
+       WHERE id_epidemiologico=$29 RETURNING *`,
       [
         b.tipoIdentificacion || 'Cédula de Ciudadanía',
         String(b.documento || '').trim(),
@@ -1100,12 +1478,22 @@ router.put('/epidemiologico/:id', auth, async (req, res) => {
       ]
     );
 
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
     await pool.query(
       `INSERT INTO sst_historial (submodulo, id_registro, accion, detalle, realizado_por)
        VALUES ('epidemiologico', $1, 'Actualización', $2, $3)`,
       [id, `Actualizado estado: ${b.estadoFinalCaso || 'Vigente'}`, req.user.username || 'admin']
     );
+
+    await logAudit(pool, {
+      modulo: 'epidemiologico',
+      idRegistro: id,
+      radicado: `EMO-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: prevRow.estado_final_caso !== r.rows[0].estado_final_caso ? 'CAMBIO_ESTADO' : 'MODIFICACION',
+      valoresAnteriores: mapEpiRow(prevRow),
+      valoresNuevos: mapEpiRow(r.rows[0]),
+      observaciones: `Actualización de Perfil Epidemiológico (${nombreCompleto})`,
+    });
 
     res.json({ message: 'Registro epidemiológico actualizado correctamente.' });
   } catch (err) {
@@ -1115,26 +1503,48 @@ router.put('/epidemiologico/:id', auth, async (req, res) => {
 });
 
 router.patch('/epidemiologico/:id/status', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico o el Administrador pueden cambiar estados.' });
+  }
+  const id = parseInt(req.params.id, 10);
   const { estadoFinalCaso, actividadesPendientes } = req.body;
   try {
+    const prevRes = await pool.query('SELECT * FROM sst_perfil_epidemiologico WHERE id_epidemiologico=$1', [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRow = prevRes.rows[0];
+
     const r = await pool.query(
       `UPDATE sst_perfil_epidemiologico
        SET estado_final_caso = $1,
            actividades_pendientes = CASE WHEN $2 <> '' THEN $2 ELSE actividades_pendientes END,
            actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_epidemiologico = $3 RETURNING id_epidemiologico`,
+       WHERE id_epidemiologico = $3 RETURNING *`,
       [estadoFinalCaso || 'Vigente', (actividadesPendientes || '').trim(), id]
     );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
+
+    await logAudit(pool, {
+      modulo: 'epidemiologico',
+      idRegistro: id,
+      radicado: `EMO-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: 'CAMBIO_ESTADO',
+      valoresAnteriores: { estadoFinalCaso: prevRow.estado_final_caso, actividadesPendientes: prevRow.actividades_pendientes },
+      valoresNuevos: { estadoFinalCaso: r.rows[0].estado_final_caso, actividadesPendientes: r.rows[0].actividades_pendientes },
+      observaciones: `Cambio de estado del caso EMO de "${prevRow.estado_final_caso}" a "${r.rows[0].estado_final_caso}"`,
+    });
+
     res.json({ message: 'Estado del caso SST actualizado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al actualizar estado del caso.' });
   }
 });
 
-router.post('/epidemiologico/check-vencimientos', auth, async (_, res) => {
+router.post('/epidemiologico/check-vencimientos', auth, async (req, res) => {
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable de SST o el Administrador pueden ejecutar la verificación de vencimientos.' });
+  }
   try {
     const expired = await pool.query(`
       UPDATE sst_perfil_epidemiologico
@@ -1166,19 +1576,56 @@ router.post('/epidemiologico/check-vencimientos', auth, async (_, res) => {
 });
 
 router.post('/epidemiologico/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canImport) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico (Sandra Roa) o el Administrador pueden importar registros masivamente.' });
+  }
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron filas para importar.' });
 
   const client = await pool.connect();
   let inserted = 0;
+  let skipped = 0;
+  const errors = [];
   try {
     await client.query('BEGIN');
-    for (const r of rows) {
+
+    const existingRes = await client.query(
+      `SELECT documento, COALESCE(TO_CHAR(fecha_emo, 'YYYY-MM-DD'), '') AS f_emo, LOWER(COALESCE(tipo_emo, '')) AS t_emo
+         FROM sst_perfil_epidemiologico`
+    );
+    const seenKeys = new Set(
+      existingRes.rows.map(r => `${String(r.documento).trim()}|${r.f_emo}|${r.t_emo}`)
+    );
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const filaExcel = r._rowNum || (i + 2);
       const doc = String(r.documento || r['NÚMERO DOCUMENTO DE IDENTIFICACIÓN'] || r['Cédula'] || '').trim();
       const nom = upper(r.nombreCompleto || `${r.apellidos || ''} ${r.nombres || ''}`.trim());
-      if (!doc || !nom) continue;
+      if (!doc || !nom) {
+        errors.push({
+          fila: filaExcel,
+          columna: !doc ? 'NÚMERO DOCUMENTO DE IDENTIFICACIÓN' : 'APELLIDOS Y NOMBRES',
+          motivo: 'El documento y nombre completo son obligatorios.'
+        });
+        skipped++;
+        continue;
+      }
       const fechaEmo = toIsoDateOrNull(r.fechaEmo) || new Date().toISOString().split('T')[0];
+      const tipoEmo = r.tipoEmo || 'Periódico';
+      const dupKey = `${doc}|${fechaEmo}|${String(tipoEmo).toLowerCase()}`;
+      if (seenKeys.has(dupKey)) {
+        errors.push({
+          fila: filaExcel,
+          columna: 'DOCUMENTO / FECHA EMO',
+          motivo: `Registro duplicado para documento ${doc} con fecha EMO ${fechaEmo} (${tipoEmo}).`
+        });
+        skipped++;
+        continue;
+      }
+      seenKeys.add(dupKey);
+
       const fechaProx = toIsoDateOrNull(r.fechaProximoEmo) || addOneYear(fechaEmo);
 
       await client.query(
@@ -1205,7 +1652,7 @@ router.post('/epidemiologico/bulk', auth, async (req, res) => {
           r.sedeTrabajo || 'CASA DE LA TORRE',
           upper(r.cargo || 'PROFESIONAL UNIVERSITARIO'),
           fechaEmo,
-          r.tipoEmo || 'Periódico',
+          tipoEmo,
           r.restricciones || 'NINGUNA',
           r.recomendaciones || 'Pausas activas e higiene postural',
           r.direccionadoPve || 'No aplica',
@@ -1225,8 +1672,25 @@ router.post('/epidemiologico/bulk', auth, async (req, res) => {
       );
       inserted++;
     }
+
+    await logAudit(client, {
+      modulo: 'epidemiologico',
+      idRegistro: `BULK-${Date.now()}`,
+      radicado: 'IMPORT-EMO',
+      user: req.user,
+      tipoOperacion: 'IMPORTACION_MASIVA',
+      valoresAnteriores: null,
+      valoresNuevos: { totalRecibidos: rows.length, insertados: inserted, omitidos: skipped },
+      observaciones: `Importación masiva Formato E-DO-ST-F-024: ${inserted} insertados, ${skipped} omitidos/duplicados.`,
+    });
+
     await client.query('COMMIT');
-    res.json({ message: `Se importaron ${inserted} registros al Perfil Epidemiológico.`, inserted });
+    res.json({
+      message: `Se importaron ${inserted} registros al Perfil Epidemiológico (${skipped} omitidos/duplicados).`,
+      inserted,
+      skipped,
+      errors
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: 'Error en carga masiva de Perfil Epidemiológico.' });
@@ -1236,11 +1700,29 @@ router.post('/epidemiologico/bulk', auth, async (req, res) => {
 });
 
 router.delete('/epidemiologico/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico o el Administrador pueden eliminar registros.' });
+  }
+  const id = parseInt(req.params.id, 10);
   try {
-    const r = await pool.query('DELETE FROM sst_perfil_epidemiologico WHERE id_epidemiologico=$1', [id]);
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRes = await pool.query('SELECT * FROM sst_perfil_epidemiologico WHERE id_epidemiologico=$1', [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRow = prevRes.rows[0];
+
+    await pool.query('DELETE FROM sst_perfil_epidemiologico WHERE id_epidemiologico=$1', [id]);
+
+    await logAudit(pool, {
+      modulo: 'epidemiologico',
+      idRegistro: id,
+      radicado: `EMO-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: 'ELIMINACION',
+      valoresAnteriores: mapEpiRow(prevRow),
+      valoresNuevos: null,
+      observaciones: `Eliminación de registro EMO-2026-${String(id).padStart(4, '0')} (${prevRow.nombre_completo})`,
+    });
+
     res.json({ message: 'Registro eliminado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar registro.' });
@@ -1248,15 +1730,116 @@ router.delete('/epidemiologico/:id', auth, async (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SUBMÓDULO 2: ENTREGA DE EPP (Formato E-DO-ST-F-028 V4)
+// SUBMÓDULO 2: ENTREGA DE EPP E INVENTARIO (Formato E-DO-ST-F-028 V4)
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.get('/epp', auth, async (req, res) => {
-  const { q = '', elemento = '', estado = '', dependencia = '', page = 1, limit = 20 } = req.query;
+// Consultar inventario y existencias de los 28 elementos de EPP (Sección 6.6)
+router.get('/epp/inventario', auth, async (req, res) => {
   try {
+    const perm = await getModulePermission(pool, req.user, 'epp');
+    const r = await pool.query(`
+      SELECT
+        i.id_inventario,
+        i.codigo_elemento,
+        i.elemento_epp,
+        i.categoria_epp,
+        i.unidad_medida,
+        i.stock_total,
+        i.stock_minimo,
+        i.ubicacion_bodega,
+        i.observaciones,
+        i.actualizado_por,
+        i.actualizado_en,
+        COALESCE(e.unidades_entregadas, 0)::int AS entregados,
+        GREATEST(0, i.stock_total - COALESCE(e.unidades_entregadas, 0))::int AS disponibles,
+        (GREATEST(0, i.stock_total - COALESCE(e.unidades_entregadas, 0)) <= i.stock_minimo) AS bajo_stock
+      FROM sst_inventario_epp i
+      LEFT JOIN (
+        SELECT
+          codigo_elemento,
+          SUM(GREATEST(1, NULLIF(REGEXP_REPLACE(COALESCE(cantidad,'1'), '[^0-9]', '', 'g'), '')::int))::int AS unidades_entregadas
+        FROM sst_entrega_epp
+        WHERE estado_entrega = 'Entregado'
+        GROUP BY codigo_elemento
+      ) e ON e.codigo_elemento = i.codigo_elemento
+      ORDER BY i.id_inventario ASC
+    `);
+    res.json({ data: r.rows, permission: perm });
+  } catch (err) {
+    console.error('[sst-service] get inventario epp error:', err.message);
+    res.status(500).json({ error: 'Error al consultar inventario de EPP.' });
+  }
+});
+
+// Actualizar stock total y umbral de alerta de un elemento EPP (Solo Sandra Roa / Admin)
+router.put('/epp/inventario/:codigo', auth, async (req, res) => {
+  const perm = await getModulePermission(pool, req.user, 'epp');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de EPP (Sandra Roa) o el Administrador pueden actualizar el inventario de existencias.' });
+  }
+  const codigo = String(req.params.codigo || '').trim().toUpperCase();
+  const { stockTotal, stockMinimo, ubicacionBodega, observaciones } = req.body;
+
+  try {
+    const prevRes = await pool.query('SELECT * FROM sst_inventario_epp WHERE codigo_elemento = $1', [codigo]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Elemento EPP no encontrado en el inventario.' });
+    const prev = prevRes.rows[0];
+
+    const nuevoTotal = Math.max(0, parseInt(stockTotal, 10) || 0);
+    const nuevoMin = Math.max(0, parseInt(stockMinimo, 10) || 0);
+
+    const upd = await pool.query(
+      `UPDATE sst_inventario_epp
+          SET stock_total = $1,
+              stock_minimo = $2,
+              ubicacion_bodega = COALESCE($3, ubicacion_bodega),
+              observaciones = COALESCE($4, observaciones),
+              actualizado_por = $5,
+              actualizado_en = CURRENT_TIMESTAMP
+        WHERE codigo_elemento = $6
+        RETURNING *`,
+      [nuevoTotal, nuevoMin, ubicacionBodega || null, observaciones !== undefined ? observaciones : null, req.user.username || 'sandra.roa', codigo]
+    );
+
+    await logAudit(pool, {
+      modulo: 'epp',
+      idRegistro: upd.rows[0].id_inventario,
+      radicado: `INV-EPP-${codigo}`,
+      user: req.user,
+      tipoOperacion: 'INVENTARIO_EPP',
+      valoresAnteriores: { stock_total: prev.stock_total, stock_minimo: prev.stock_minimo },
+      valoresNuevos: { stock_total: nuevoTotal, stock_minimo: nuevoMin },
+      observaciones: `Actualización de existencias de "${prev.elemento_epp}": Stock Total ${prev.stock_total} -> ${nuevoTotal}, Mínimo ${prev.stock_minimo} -> ${nuevoMin}`,
+    });
+
+    res.json({ message: 'Existencias de EPP actualizadas correctamente.', data: upd.rows[0] });
+  } catch (err) {
+    console.error('[sst-service] update inventario epp error:', err.message);
+    res.status(500).json({ error: 'Error al actualizar existencias de EPP.' });
+  }
+});
+
+router.get('/epp', auth, async (req, res) => {
+  const { q = '', elemento = '', estado = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
+  try {
+    const perm = await getModulePermission(pool, req.user, 'epp');
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;
+
+    // RBAC: Funcionario solo consulta sus propias entregas de EPP; Sandra Roa y Admin gestionan todo el módulo.
+    if (!perm.canManage) {
+      const fullName = String(req.user.name || '').trim().toLowerCase();
+      const userDoc = String(req.user.documento || '').trim();
+      const uname = String(req.user.username || '').trim().toLowerCase();
+      conditions.push(`(
+        LOWER(COALESCE(nombre_completo, '')) = $${idx}
+        OR ($${idx + 1} <> '' AND documento = $${idx + 1})
+        OR LOWER(COALESCE(creado_por, '')) = $${idx + 2}
+      )`);
+      params.push(fullName, userDoc, uname);
+      idx += 3;
+    }
 
     if (elemento && elemento !== 'Todos') {
       conditions.push(`(codigo_elemento = $${idx} OR LOWER(elemento_epp) LIKE LOWER($${idx + 1}))`);
@@ -1270,6 +1853,14 @@ router.get('/epp', auth, async (req, res) => {
     if (dependencia && dependencia !== 'Todas') {
       conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
       params.push(`%${dependencia.trim()}%`);
+    }
+    if (fechaInicio) {
+      conditions.push(`COALESCE(fecha_entrega, creado_en::date) >= $${idx++}::date`);
+      params.push(fechaInicio);
+    }
+    if (fechaFin) {
+      conditions.push(`COALESCE(fecha_entrega, creado_en::date) <= $${idx++}::date`);
+      params.push(fechaFin);
     }
     if (q && q.trim()) {
       conditions.push(`(
@@ -1297,32 +1888,11 @@ router.get('/epp', auth, async (req, res) => {
     );
 
     res.json({
-      data: rows.rows.map(r => ({
-        id: r.id_entrega_epp,
-        radicado: `EPP-2026-${String(r.id_entrega_epp).padStart(4, '0')}`,
-        documento: r.documento,
-        nombreCompleto: r.nombre_completo,
-        telefono: r.telefono,
-        secretaria: r.secretaria,
-        dependencia: r.dependencia,
-        sedeTrabajo: r.sede_trabajo,
-        cargo: r.cargo,
-        tipoVinculacion: r.tipo_vinculacion,
-        restriccionesRecomendaciones: r.restricciones_recomendaciones,
-        codigoElemento: r.codigo_elemento,
-        elementoEpp: r.elemento_epp,
-        talla: r.talla,
-        cantidad: r.cantidad,
-        fechaEntrega: r.fecha_entrega ? r.fecha_entrega.toISOString().split('T')[0] : '',
-        estadoEntrega: r.estado_entrega,
-        firmadoFuncionario: r.firmado_funcionario,
-        firmaDigital: r.firma_digital || null,
-        observaciones: r.observaciones,
-        soporte: r.soporte
-      })),
+      data: rows.rows.map(mapEppRow),
       total,
       page: pageNum,
-      totalPages: Math.max(1, Math.ceil(total / limitNum))
+      totalPages: Math.max(1, Math.ceil(total / limitNum)),
+      permission: perm
     });
   } catch (err) {
     console.error('[sst-service] list epp error:', err.message);
@@ -1331,7 +1901,10 @@ router.get('/epp', auth, async (req, res) => {
 });
 
 router.post('/epp', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'epp');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Entrega de EPP (Sandra Roa) o el Administrador pueden registrar entregas.' });
+  }
   const b = req.body;
   if (!b.documento || !b.nombreCompleto) {
     return res.status(400).json({ error: 'Documento y nombre completo son obligatorios.' });
@@ -1352,7 +1925,7 @@ router.post('/epp', auth, async (req, res) => {
         elemento_epp, talla, cantidad, fecha_entrega, estado_entrega,
         firmado_funcionario, observaciones, soporte, firma_digital, creado_por
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
-      RETURNING id_entrega_epp`,
+      RETURNING *`,
       [
         String(b.documento).trim(),
         upper(b.nombreCompleto),
@@ -1378,10 +1951,23 @@ router.post('/epp', auth, async (req, res) => {
     );
 
     const newId = r.rows[0].id_entrega_epp;
+    const radicado = `EPP-2026-${String(newId).padStart(4, '0')}`;
+
+    await logAudit(pool, {
+      modulo: 'epp',
+      idRegistro: newId,
+      radicado,
+      user: req.user,
+      tipoOperacion: 'CREACION',
+      valoresAnteriores: null,
+      valoresNuevos: mapEppRow(r.rows[0]),
+      observaciones: `Entrega de EPP (${elementoFinal}) a ${upper(b.nombreCompleto)}`,
+    });
+
     res.status(201).json({
       message: 'Entrega de EPP registrada exitosamente.',
       id: newId,
-      radicado: `EPP-2026-${String(newId).padStart(4, '0')}`
+      radicado
     });
   } catch (err) {
     console.error('[sst-service] create epp error:', err.message);
@@ -1390,8 +1976,15 @@ router.post('/epp', auth, async (req, res) => {
 });
 
 router.put('/epp/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'epp');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Entrega de EPP (Sandra Roa) o el Administrador pueden editar entregas.' });
+  }
+  const id = parseInt(req.params.id, 10);
+  const prevRes = await pool.query('SELECT * FROM sst_entrega_epp WHERE id_entrega_epp=$1', [id]);
+  if (!prevRes.rows.length) return res.status(404).json({ error: 'Entrega de EPP no encontrada.' });
+  const prevRow = prevRes.rows[0];
+
   const b = req.body;
   const resolved = resolveEppItem(b.elementoEpp || b.codigoElemento);
   const elementoFinal = b.elementoEpp ? String(b.elementoEpp).trim() : resolved.nombre;
@@ -1406,7 +1999,7 @@ router.put('/epp/:id', auth, async (req, res) => {
         estado_entrega=$15, firmado_funcionario=$16, observaciones=$17,
         soporte=COALESCE($18, soporte),
         firma_digital=CASE WHEN $19 IS NOT NULL AND $19 != '' THEN $19 ELSE firma_digital END
-       WHERE id_entrega_epp=$20 RETURNING id_entrega_epp`,
+       WHERE id_entrega_epp=$20 RETURNING *`,
       [
         String(b.documento || '').trim(),
         upper(b.nombreCompleto),
@@ -1430,7 +2023,18 @@ router.put('/epp/:id', auth, async (req, res) => {
         id
       ]
     );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Entrega de EPP no encontrada.' });
+
+    await logAudit(pool, {
+      modulo: 'epp',
+      idRegistro: id,
+      radicado: `EPP-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: prevRow.estado_entrega !== r.rows[0].estado_entrega ? 'CAMBIO_ESTADO' : 'MODIFICACION',
+      valoresAnteriores: mapEppRow(prevRow),
+      valoresNuevos: mapEppRow(r.rows[0]),
+      observaciones: `Actualización de entrega de EPP (${elementoFinal}) para ${upper(b.nombreCompleto)}`,
+    });
+
     res.json({ message: 'Entrega de EPP actualizada exitosamente.' });
   } catch (err) {
     console.error('[sst-service] update epp error:', err.message);
@@ -1439,21 +2043,57 @@ router.put('/epp/:id', auth, async (req, res) => {
 });
 
 router.post('/epp/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'epp');
+  if (!perm.canImport) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Entrega de EPP (Sandra Roa) o el Administrador pueden importar entregas masivamente.' });
+  }
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });
 
   const client = await pool.connect();
   let inserted = 0;
+  let skipped = 0;
+  const errors = [];
   try {
     await client.query('BEGIN');
-    for (const r of rows) {
+
+    const existingRes = await client.query(
+      `SELECT documento, codigo_elemento, COALESCE(TO_CHAR(fecha_entrega, 'YYYY-MM-DD'), '') AS f_ent
+         FROM sst_entrega_epp`
+    );
+    const seenKeys = new Set(
+      existingRes.rows.map(r => `${String(r.documento).trim()}|${r.codigo_elemento}|${r.f_ent}`)
+    );
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const filaExcel = r._rowNum || (i + 2);
       const doc = String(r.documento || '').trim();
       const nom = upper(r.nombreCompleto || '');
-      if (!doc || !nom) continue;
+      if (!doc || !nom) {
+        errors.push({
+          fila: filaExcel,
+          columna: !doc ? 'CÉDULA' : 'FUNCIONARIO',
+          motivo: 'El número de cédula y el nombre del funcionario son obligatorios.'
+        });
+        skipped++;
+        continue;
+      }
       const resolved = resolveEppItem(r.elementoEpp || r.codigoElemento);
       const elementoFinal = r.elementoEpp ? String(r.elementoEpp).trim() : resolved.nombre;
       const fechaEntrega = toIsoDateOrNull(r.fechaEntrega) || new Date().toISOString().split('T')[0];
+
+      const dupKey = `${doc}|${resolved.codigo}|${fechaEntrega}`;
+      if (seenKeys.has(dupKey)) {
+        errors.push({
+          fila: filaExcel,
+          columna: 'CÉDULA / ELEMENTO EPP / FECHA',
+          motivo: `Entrega duplicada del elemento ${resolved.codigo} (${elementoFinal}) para documento ${doc} en fecha ${fechaEntrega}.`
+        });
+        skipped++;
+        continue;
+      }
+      seenKeys.add(dupKey);
 
       await client.query(
         `INSERT INTO sst_entrega_epp (
@@ -1472,8 +2112,25 @@ router.post('/epp/bulk', auth, async (req, res) => {
       );
       inserted++;
     }
+
+    await logAudit(client, {
+      modulo: 'epp',
+      idRegistro: `BULK-${Date.now()}`,
+      radicado: 'IMPORT-EPP',
+      user: req.user,
+      tipoOperacion: 'IMPORTACION_MASIVA',
+      valoresAnteriores: null,
+      valoresNuevos: { totalRecibidos: rows.length, insertados: inserted, omitidos: skipped },
+      observaciones: `Importación masiva Formato E-DO-ST-F-028: ${inserted} insertados, ${skipped} omitidos/duplicados.`,
+    });
+
     await client.query('COMMIT');
-    res.json({ message: `Se importaron ${inserted} entregas de EPP exitosamente.`, inserted });
+    res.json({
+      message: `Se importaron ${inserted} entregas de EPP exitosamente (${skipped} omitidas/duplicadas).`,
+      inserted,
+      skipped,
+      errors
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: 'Error en carga masiva de EPP.' });
@@ -1483,11 +2140,29 @@ router.post('/epp/bulk', auth, async (req, res) => {
 });
 
 router.delete('/epp/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'epp');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Entrega de EPP o el Administrador pueden eliminar registros.' });
+  }
+  const id = parseInt(req.params.id, 10);
   try {
-    const r = await pool.query('DELETE FROM sst_entrega_epp WHERE id_entrega_epp=$1', [id]);
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRes = await pool.query('SELECT * FROM sst_entrega_epp WHERE id_entrega_epp=$1', [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRow = prevRes.rows[0];
+
+    await pool.query('DELETE FROM sst_entrega_epp WHERE id_entrega_epp=$1', [id]);
+
+    await logAudit(pool, {
+      modulo: 'epp',
+      idRegistro: id,
+      radicado: `EPP-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: 'ELIMINACION',
+      valoresAnteriores: mapEppRow(prevRow),
+      valoresNuevos: null,
+      observaciones: `Eliminación de entrega EPP-2026-${String(id).padStart(4, '0')} (${prevRow.elemento_epp} - ${prevRow.nombre_completo})`,
+    });
+
     res.json({ message: 'Registro de EPP eliminado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar entrega de EPP.' });
@@ -1499,11 +2174,26 @@ router.delete('/epp/:id', auth, async (req, res) => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 router.get('/sociodemografico', auth, async (req, res) => {
-  const { q = '', escolaridad = '', tipoVinculacion = '', dependencia = '', page = 1, limit = 20 } = req.query;
+  const { q = '', escolaridad = '', tipoVinculacion = '', dependencia = '', sexo = '', page = 1, limit = 20 } = req.query;
   try {
+    const perm = await getModulePermission(pool, req.user, 'sociodemografico');
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;
+
+    // RBAC: Funcionario solo consulta su propio registro individual en la tabla; Sandra Roa y Admin gestionan todo el módulo.
+    if (!perm.canManage) {
+      const fullName = String(req.user.name || '').trim().toLowerCase();
+      const userDoc = String(req.user.documento || '').trim();
+      const uname = String(req.user.username || '').trim().toLowerCase();
+      conditions.push(`(
+        LOWER(COALESCE(nombre_completo, '')) = $${idx}
+        OR ($${idx + 1} <> '' AND documento = $${idx + 1})
+        OR LOWER(COALESCE(creado_por, '')) = $${idx + 2}
+      )`);
+      params.push(fullName, userDoc, uname);
+      idx += 3;
+    }
 
     if (escolaridad && escolaridad !== 'Todas' && escolaridad !== 'Todos') {
       conditions.push(`LOWER(escolaridad) = LOWER($${idx++})`);
@@ -1512,6 +2202,10 @@ router.get('/sociodemografico', auth, async (req, res) => {
     if (tipoVinculacion && tipoVinculacion !== 'Todos' && tipoVinculacion !== 'Todas') {
       conditions.push(`LOWER(tipo_vinculacion) = LOWER($${idx++})`);
       params.push(tipoVinculacion.trim());
+    }
+    if (sexo && sexo !== 'Todos' && sexo !== 'Todas') {
+      conditions.push(`LOWER(sexo) = LOWER($${idx++})`);
+      params.push(sexo.trim());
     }
     if (dependencia && dependencia !== 'Todas' && dependencia !== 'Todos') {
       conditions.push(`LOWER(dependencia) LIKE LOWER($${idx++})`);
@@ -1543,38 +2237,11 @@ router.get('/sociodemografico', auth, async (req, res) => {
     );
 
     res.json({
-      data: rows.rows.map(r => ({
-        id: r.id_sociodemografico,
-        radicado: `SOC-2026-${String(r.id_sociodemografico).padStart(4, '0')}`,
-        tipoIdentificacion: r.tipo_identificacion,
-        documento: r.documento,
-        apellidos: r.apellidos,
-        nombres: r.nombres,
-        nombreCompleto: r.nombre_completo,
-        sexo: r.sexo,
-        anioNacimiento: r.anio_nacimiento,
-        edad: r.edad,
-        razaEtnia: r.raza_etnia,
-        estadoCivil: r.estado_civil,
-        composicionFamiliar: r.composicion_familiar,
-        tipoVivienda: r.tipo_vivienda,
-        estrato: r.estrato,
-        municipioResidencia: r.municipio_residencia,
-        municipioTrabajo: r.municipio_trabajo,
-        escolaridad: r.escolaridad,
-        ocupacionProfesion: r.ocupacion_profesion,
-        rangoIngresos: r.rango_ingresos,
-        denominacionCargo: r.denominacion_cargo,
-        tipoCargo: r.tipo_cargo,
-        tipoVinculacion: r.tipo_vinculacion,
-        antiguedadCargo: r.antiguedad_cargo,
-        antiguedadEntidad: r.antiguedad_entidad,
-        dependencia: r.dependencia,
-        sedeTrabajo: r.sede_trabajo
-      })),
+      data: rows.rows.map(mapSocioRow),
       total,
       page: pageNum,
-      totalPages: Math.max(1, Math.ceil(total / limitNum))
+      totalPages: Math.max(1, Math.ceil(total / limitNum)),
+      permission: perm
     });
   } catch (err) {
     console.error('[sst-service] list sociodemografico error:', err.message);
@@ -1583,7 +2250,10 @@ router.get('/sociodemografico', auth, async (req, res) => {
 });
 
 router.post('/sociodemografico', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'sociodemografico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Sociodemográfico (Sandra Roa) o el Administrador pueden crear registros.' });
+  }
   const b = req.body;
   if (!b.documento || (!b.nombreCompleto && (!b.apellidos || !b.nombres))) {
     return res.status(400).json({ error: 'Documento y nombre son obligatorios.' });
@@ -1607,7 +2277,7 @@ router.post('/sociodemografico', auth, async (req, res) => {
         dependencia, sede_trabajo, creado_por
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
-      ) RETURNING id_sociodemografico`,
+      ) RETURNING *`,
       [
         b.tipoIdentificacion || 'Cédula de Ciudadanía',
         String(b.documento).trim(),
@@ -1639,10 +2309,23 @@ router.post('/sociodemografico', auth, async (req, res) => {
     );
 
     const newId = r.rows[0].id_sociodemografico;
+    const radicado = `SOC-2026-${String(newId).padStart(4, '0')}`;
+
+    await logAudit(pool, {
+      modulo: 'sociodemografico',
+      idRegistro: newId,
+      radicado,
+      user: req.user,
+      tipoOperacion: 'CREACION',
+      valoresAnteriores: null,
+      valoresNuevos: mapSocioRow(r.rows[0]),
+      observaciones: `Creación de Perfil Sociodemográfico para ${nombreCompleto}`,
+    });
+
     res.status(201).json({
       message: 'Perfil Sociodemográfico registrado exitosamente.',
       id: newId,
-      radicado: `SOC-2026-${String(newId).padStart(4, '0')}`
+      radicado
     });
   } catch (err) {
     console.error('[sst-service] create sociodemografico error:', err.message);
@@ -1651,8 +2334,15 @@ router.post('/sociodemografico', auth, async (req, res) => {
 });
 
 router.put('/sociodemografico/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'sociodemografico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Sociodemográfico (Sandra Roa) o el Administrador pueden editar registros.' });
+  }
+  const id = parseInt(req.params.id, 10);
+  const prevRes = await pool.query('SELECT * FROM sst_perfil_sociodemografico WHERE id_sociodemografico=$1', [id]);
+  if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+  const prevRow = prevRes.rows[0];
+
   const b = req.body;
   const apellidos = upper(b.apellidos || (b.nombreCompleto || '').split(' ').slice(0, 2).join(' '));
   const nombres = upper(b.nombres || (b.nombreCompleto || '').split(' ').slice(2).join(' ') || b.nombreCompleto);
@@ -1670,7 +2360,7 @@ router.put('/sociodemografico/:id', auth, async (req, res) => {
         municipio_trabajo=$15, escolaridad=$16, ocupacion_profesion=$17, rango_ingresos=$18,
         denominacion_cargo=$19, tipo_cargo=$20, tipo_vinculacion=$21, antiguedad_cargo=$22,
         antiguedad_entidad=$23, dependencia=$24, sede_trabajo=$25, actualizado_en=CURRENT_TIMESTAMP
-       WHERE id_sociodemografico=$26 RETURNING id_sociodemografico`,
+       WHERE id_sociodemografico=$26 RETURNING *`,
       [
         b.tipoIdentificacion || 'Cédula de Ciudadanía',
         String(b.documento || '').trim(),
@@ -1700,7 +2390,18 @@ router.put('/sociodemografico/:id', auth, async (req, res) => {
         id
       ]
     );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
+
+    await logAudit(pool, {
+      modulo: 'sociodemografico',
+      idRegistro: id,
+      radicado: `SOC-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: 'MODIFICACION',
+      valoresAnteriores: mapSocioRow(prevRow),
+      valoresNuevos: mapSocioRow(r.rows[0]),
+      observaciones: `Actualización de Perfil Sociodemográfico (${nombreCompleto})`,
+    });
+
     res.json({ message: 'Perfil Sociodemográfico actualizado.' });
   } catch (err) {
     console.error('[sst-service] update sociodemografico error:', err.message);
@@ -1709,19 +2410,48 @@ router.put('/sociodemografico/:id', auth, async (req, res) => {
 });
 
 router.post('/sociodemografico/bulk', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const perm = await getModulePermission(pool, req.user, 'sociodemografico');
+  if (!perm.canImport) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Sociodemográfico (Sandra Roa) o el Administrador pueden realizar importaciones masivas.' });
+  }
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });
 
   const client = await pool.connect();
   let inserted = 0;
+  let skipped = 0;
+  const errors = [];
   try {
     await client.query('BEGIN');
+    const existingRes = await client.query('SELECT documento FROM sst_perfil_sociodemografico');
+    const seenDocs = new Set(existingRes.rows.map(r => String(r.documento).trim()));
+
     const currentYear = new Date().getFullYear();
-    for (const r of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const filaExcel = r._rowNum || (i + 2);
       const doc = String(r.documento || '').trim();
       const nom = upper(r.nombreCompleto || `${r.apellidos || ''} ${r.nombres || ''}`.trim());
-      if (!doc || !nom) continue;
+      if (!doc || !nom) {
+        errors.push({
+          fila: filaExcel,
+          columna: !doc ? 'NÚMERO DOCUMENTO DE IDENTIFICACIÓN' : 'APELLIDOS Y NOMBRES',
+          motivo: 'El número de documento y el nombre completo son obligatorios.'
+        });
+        skipped++;
+        continue;
+      }
+      if (seenDocs.has(doc)) {
+        errors.push({
+          fila: filaExcel,
+          columna: 'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+          motivo: `El servidor con documento ${doc} ya cuenta con un perfil sociodemográfico registrado.`
+        });
+        skipped++;
+        continue;
+      }
+      seenDocs.add(doc);
+
       const anioNac = parseInt(r.anioNacimiento) || null;
       const edad = parseInt(r.edad) || (anioNac ? currentYear - anioNac : null);
 
@@ -1765,8 +2495,25 @@ router.post('/sociodemografico/bulk', auth, async (req, res) => {
       );
       inserted++;
     }
+
+    await logAudit(client, {
+      modulo: 'sociodemografico',
+      idRegistro: `BULK-${Date.now()}`,
+      radicado: 'IMPORT-SOC',
+      user: req.user,
+      tipoOperacion: 'IMPORTACION_MASIVA',
+      valoresAnteriores: null,
+      valoresNuevos: { totalRecibidos: rows.length, insertados: inserted, omitidos: skipped },
+      observaciones: `Importación masiva Formato E-DO-ST-F-011: ${inserted} insertados, ${skipped} omitidos/duplicados.`,
+    });
+
     await client.query('COMMIT');
-    res.json({ message: `Se importaron ${inserted} registros al Perfil Sociodemográfico.`, inserted });
+    res.json({
+      message: `Se importaron ${inserted} registros al Perfil Sociodemográfico (${skipped} omitidos/duplicados).`,
+      inserted,
+      skipped,
+      errors
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: 'Error en carga masiva de Perfil Sociodemográfico.' });
@@ -1776,11 +2523,29 @@ router.post('/sociodemografico/bulk', auth, async (req, res) => {
 });
 
 router.delete('/sociodemografico/:id', auth, async (req, res) => {
-  if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const id = parseInt(req.params.id);
+  const perm = await getModulePermission(pool, req.user, 'sociodemografico');
+  if (!perm.canManage) {
+    return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Sociodemográfico o el Administrador pueden eliminar registros.' });
+  }
+  const id = parseInt(req.params.id, 10);
   try {
-    const r = await pool.query('DELETE FROM sst_perfil_sociodemografico WHERE id_sociodemografico=$1', [id]);
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRes = await pool.query('SELECT * FROM sst_perfil_sociodemografico WHERE id_sociodemografico=$1', [id]);
+    if (!prevRes.rows.length) return res.status(404).json({ error: 'Registro no encontrado.' });
+    const prevRow = prevRes.rows[0];
+
+    await pool.query('DELETE FROM sst_perfil_sociodemografico WHERE id_sociodemografico=$1', [id]);
+
+    await logAudit(pool, {
+      modulo: 'sociodemografico',
+      idRegistro: id,
+      radicado: `SOC-2026-${String(id).padStart(4, '0')}`,
+      user: req.user,
+      tipoOperacion: 'ELIMINACION',
+      valoresAnteriores: mapSocioRow(prevRow),
+      valoresNuevos: null,
+      observaciones: `Eliminación de Perfil Sociodemográfico SOC-2026-${String(id).padStart(4, '0')} (${prevRow.nombre_completo})`,
+    });
+
     res.json({ message: 'Registro sociodemográfico eliminado.' });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar registro sociodemográfico.' });
