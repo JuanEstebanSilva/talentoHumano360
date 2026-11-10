@@ -18,3 +18,9 @@ app.get('/health', (_, res) => res.json({ status: 'ok', service: 'reports-servic
 app.listen(PORT, () => {
   console.log(`[reports-service] Listening on port ${PORT}`);
 });
+
+// Crea las tablas nuevas también en bases que ya tenían datos. Un fallo se registra
+// y no detiene el servicio; se reintenta en el siguiente arranque.
+require('./migrate').runMigrations(require('./db'))
+  .then(files => files.length && console.log(`[reports-service] Migraciones aplicadas: ${files.join(', ')}`))
+  .catch(err => console.error('[reports-service] Error al aplicar migraciones:', err.message));
