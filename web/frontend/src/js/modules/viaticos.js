@@ -850,7 +850,7 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Valor Total Registrado ($ COP)</label>
-              <input id="vf-vtotal" class="form-input" placeholder="Calculado a partir de días y valor diario" readonly style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal ? formatCOP(r.valorTotal) : ''}" />
+              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="this.dataset.autoCalculated = 'false'" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
             </div>
 
             <div class="form-group">
@@ -1353,9 +1353,13 @@ const ViaticosModule = (() => {
   function calcTotal() {
     const dias = parseFloat(document.getElementById('vf-dias')?.value) || 0;
     const daily = parseFloat(document.getElementById('vf-vdiario')?.value) || 0;
-    const total = dias * daily;
     const el = document.getElementById('vf-vtotal');
-    if (el) el.value = (dias > 0 && daily > 0) ? formatCOP(total) : '';
+    if (el && (!el.value || el.dataset.autoCalculated === 'true')) {
+      if (dias > 0 && daily > 0) {
+        el.value = Math.round(dias * daily);
+        el.dataset.autoCalculated = 'true';
+      }
+    }
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
@@ -1960,6 +1964,10 @@ const ViaticosModule = (() => {
       fechaFin: ff || '',
       dias: parseInt(document.getElementById('vf-dias')?.value) || 1,
       valorDiario: parseFloat(document.getElementById('vf-vdiario')?.value) || 0,
+      valorTotal: (function() {
+        const v = document.getElementById('vf-vtotal')?.value;
+        return (v !== undefined && v !== null && String(v).trim() !== '') ? (parseFloat(v) || null) : null;
+      })(),
       pernocta: document.getElementById('vf-pernocta')?.value !== 'false',
       estado: document.getElementById('vf-estado')?.value || 'Radicado',
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',

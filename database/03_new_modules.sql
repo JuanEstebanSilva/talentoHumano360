@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS viaticos (
     fecha_fin         VARCHAR(80),
     dias              INTEGER       NOT NULL DEFAULT 1,
     valor_diario      NUMERIC(15,2) NOT NULL DEFAULT 0,
-    valor_total       NUMERIC(15,2) GENERATED ALWAYS AS (dias * valor_diario) STORED,
+    valor_total       NUMERIC(15,2),
     estado            VARCHAR(80)   NOT NULL DEFAULT 'Pendiente',
     observaciones     VARCHAR(500),
     fecha_solicitud   VARCHAR(80),

@@ -1141,10 +1141,16 @@ router.post('/', auth, async (req, res) => {
   }
 
   let finalValorDiario = parseFloat(valorDiario);
-  const finalValorTotalInput = parseFloat(req.body.valorTotal);
-  if ((isNaN(finalValorDiario) || finalValorDiario <= 0) && !isNaN(finalValorTotalInput) && finalValorTotalInput > 0) {
-    finalValorDiario = Math.round(finalValorTotalInput / finalDias);
-  } else if (isNaN(finalValorDiario) || finalValorDiario < 0) {
+  let finalValorTotal = null;
+  if (req.body.valorTotal !== undefined && req.body.valorTotal !== null && req.body.valorTotal !== '') {
+    const parsed = parseFloat(req.body.valorTotal);
+    if (!isNaN(parsed)) finalValorTotal = parsed;
+  } else if (req.body.valor_total !== undefined && req.body.valor_total !== null && req.body.valor_total !== '') {
+    const parsed = parseFloat(req.body.valor_total);
+    if (!isNaN(parsed)) finalValorTotal = parsed;
+  }
+
+  if (isNaN(finalValorDiario) || finalValorDiario < 0) {
     finalValorDiario = 0;
   }
 
@@ -1177,10 +1183,10 @@ router.post('/', auth, async (req, res) => {
     }
 
     const r = await pool.query(
-      `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo,id_paquete)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id_viatico`,
+      `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,valor_total,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo,id_paquete)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id_viatico`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo)||'FUNCIONARIO PÚBLICO', upper(destino), motivo||'',
-       fechaInicio||today, fechaFin||today, finalDias, finalValorDiario,
+       fechaInicio||today, fechaFin||today, finalDias, finalValorDiario, finalValorTotal,
        estadoFinal, obsFinal, today, aprobadoPorVal, tipoDestino||'Nacional', soporte||null,
        (numeroResolucion||'').trim()||null, parseFloat(saldo)||null, pkgId]);
 
@@ -1312,9 +1318,21 @@ router.post('/bulk', auth, async (req, res) => {
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
       const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
       const saldo = parseFloat(row.saldo || row['SALDO']) || null;
-      const rowValorTotal = parseFloat(row.valorTotal != null ? row.valorTotal : (row.valor_total != null ? row.valor_total : (row.valor != null ? row.valor : 0))) || 0;
-      const valorDiario = dias > 0 && rowValorTotal > 0 ? parseFloat((rowValorTotal / dias).toFixed(2)) : (parseFloat(row.valorDiario || row['Valor Diario'] || 0) || 0);
-      totalValor += rowValorTotal;
+      const rawTotal = row.valorTotal != null ? row.valorTotal : (row.valor_total != null ? row.valor_total : (row['Valor Total'] != null ? row['Valor Total'] : (row['VALOR TOTAL'] != null ? row['VALOR TOTAL'] : (row.Total != null ? row.Total : (row.TOTAL != null ? row.TOTAL : (row.valor != null ? row.valor : (row.VALOR != null ? row.VALOR : null)))))));
+      let rowValorTotal = null;
+      if (rawTotal !== null && rawTotal !== undefined && String(rawTotal).trim() !== '') {
+        const parsed = parseFloat(rawTotal);
+        if (!isNaN(parsed)) rowValorTotal = parsed;
+      }
+
+      // valorDiario es opcional e informativo, no determina ni sobrescribe el valor total
+      let valorDiario = 0;
+      const rawDiario = row.valorDiario != null ? row.valorDiario : (row.valor_diario != null ? row.valor_diario : (row['Valor Diario'] != null ? row['Valor Diario'] : (row['VALOR DIARIO'] != null ? row['VALOR DIARIO'] : null)));
+      if (rawDiario !== null && rawDiario !== undefined && String(rawDiario).trim() !== '') {
+        const parsed = parseFloat(rawDiario);
+        if (!isNaN(parsed)) valorDiario = parsed;
+      }
+      if (rowValorTotal !== null) totalValor += rowValorTotal;
 
       if (!persona) {
         errors.push(`Fila ${i + 1}: Nombre de servidor no especificado.`);
@@ -1371,29 +1389,30 @@ router.post('/bulk', auth, async (req, res) => {
                fecha_fin = $8,
                dias = $9,
                valor_diario = $10,
-               estado = $11,
-               observaciones = $12,
-               tipo_destino = $13,
-               numero_resolucion = COALESCE($14, numero_resolucion),
-               saldo = COALESCE($15, saldo),
-               id_paquete = COALESCE(id_paquete, $16)
-             WHERE id_viatico = $17`,
+               valor_total = COALESCE($11, valor_total),
+               estado = $12,
+               observaciones = $13,
+               tipo_destino = $14,
+               numero_resolucion = COALESCE($15, numero_resolucion),
+               saldo = COALESCE($16, saldo),
+               id_paquete = COALESCE(id_paquete, $17)
+             WHERE id_viatico = $18`,
             [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
              destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
-             estado, finalObservaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
+             rowValorTotal, estado, finalObservaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
              numeroResolucion || null, saldo, targetPackageId, existingId]
           );
           updated++;
         } else {
           const r = await client.query(
             `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
-                                  fecha_inicio, fecha_fin, dias, valor_diario, estado, observaciones,
+                                  fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, observaciones,
                                   fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo, id_paquete)
-             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
              RETURNING id_viatico`,
             [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
              destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
-             estado, finalObservaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
+             rowValorTotal, estado, finalObservaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
              numeroResolucion || null, saldo, targetPackageId]
           );
           const newId = r.rows[0].id_viatico;
@@ -1514,10 +1533,16 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     let finalValorDiario = parseFloat(valorDiario);
-    const finalValorTotalInput = parseFloat(req.body.valorTotal);
-    if ((isNaN(finalValorDiario) || finalValorDiario <= 0) && !isNaN(finalValorTotalInput) && finalValorTotalInput > 0) {
-      finalValorDiario = Math.round(finalValorTotalInput / finalDias);
-    } else if (isNaN(finalValorDiario) || finalValorDiario < 0) {
+    let finalValorTotal = null;
+    if (req.body.valorTotal !== undefined && req.body.valorTotal !== null && req.body.valorTotal !== '') {
+      const parsed = parseFloat(req.body.valorTotal);
+      if (!isNaN(parsed)) finalValorTotal = parsed;
+    } else if (req.body.valor_total !== undefined && req.body.valor_total !== null && req.body.valor_total !== '') {
+      const parsed = parseFloat(req.body.valor_total);
+      if (!isNaN(parsed)) finalValorTotal = parsed;
+    }
+
+    if (isNaN(finalValorDiario) || finalValorDiario < 0) {
       finalValorDiario = parseFloat(currentViatico.valor_diario) || 0;
     }
 
@@ -1530,13 +1555,14 @@ router.put('/:id', auth, async (req, res) => {
 
     await client.query(
       `UPDATE viaticos SET dependencia=$1, apellidos_nombres=$2, documento=$3, cargo=$4, destino=$5, motivo=$6,
-        fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, estado=$11, observaciones=$12, aprobado_por=$13,
-        tipo_destino=COALESCE($14, tipo_destino), soporte=COALESCE($15, soporte),
-        numero_resolucion=COALESCE($16, numero_resolucion), saldo=COALESCE($17, saldo),
-        id_paquete=COALESCE($18, id_paquete)
-       WHERE id_viatico=$19`,
+        fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, valor_total=COALESCE($11, valor_total),
+        estado=$12, observaciones=$13, aprobado_por=$14,
+        tipo_destino=COALESCE($15, tipo_destino), soporte=COALESCE($16, soporte),
+        numero_resolucion=COALESCE($17, numero_resolucion), saldo=COALESCE($18, saldo),
+        id_paquete=COALESCE($19, id_paquete)
+       WHERE id_viatico=$20`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo), upper(destino), motivo||'',
-       fechaInicio||'', fechaFin||'', finalDias, finalValorDiario,
+       fechaInicio||'', fechaFin||'', finalDias, finalValorDiario, finalValorTotal,
        targetStatus, obsFinal, finalAprobadoPor, tipoDestino||'Nacional', soporte||null,
        numeroResolucion||null, parseFloat(saldo)||null, id_paquete ? parseInt(id_paquete) : null, numId]
     );
