@@ -1,0 +1,260 @@
+{
+  "fecha": "2026-11-10T18:10:18.420Z",
+  "modulo_valor_total": {
+    "columna": "valor_total",
+    "tipoDato": "numeric",
+    "isGenerated": "NEVER",
+    "expression": null,
+    "esquemaDesacoplado": true
+  },
+  "cinco_casos_valor_total": [
+    {
+      "caso": "Caso 1: Normal",
+      "dias": 2,
+      "tarifaDiaria": 100000,
+      "valorEnviadoExcel": 200000,
+      "valorEsperadoBD": 200000,
+      "valorObtenidoBD": 200000,
+      "estado": "PASS"
+    },
+    {
+      "caso": "Caso 2: Discrepancia reportada",
+      "dias": 2,
+      "tarifaDiaria": 100000,
+      "valorEnviadoExcel": 250000,
+      "valorEsperadoBD": 250000,
+      "valorObtenidoBD": 250000,
+      "estado": "PASS"
+    },
+    {
+      "caso": "Caso 3: Sin tarifa diaria",
+      "dias": 3,
+      "tarifaDiaria": 0,
+      "valorEnviadoExcel": 100000,
+      "valorEsperadoBD": 100000,
+      "valorObtenidoBD": 100000,
+      "estado": "PASS"
+    },
+    {
+      "caso": "Caso 4: Total global cerrado",
+      "dias": 1,
+      "tarifaDiaria": 0,
+      "valorEnviadoExcel": 475500,
+      "valorEsperadoBD": 475500,
+      "valorObtenidoBD": 475500,
+      "estado": "PASS"
+    },
+    {
+      "caso": "Caso 5: Sin total reportado",
+      "dias": 2,
+      "tarifaDiaria": 180000,
+      "valorEnviadoExcel": null,
+      "valorEsperadoBD": null,
+      "valorObtenidoBD": null,
+      "estado": "PASS"
+    }
+  ],
+  "dashboard_t0_sync": {
+    "instante": "2026-11-10T18:10:19.278Z",
+    "sincronizado": true,
+    "metricas": [
+      {
+        "metrica": "Servidores Públicos",
+        "sql": 0,
+        "api": 0,
+        "discrepancia": 0,
+        "estado": "PASS"
+      },
+      {
+        "metrica": "Acuerdos de Horarios",
+        "sql": 0,
+        "api": 0,
+        "discrepancia": 0,
+        "estado": "PASS"
+      },
+      {
+        "metrica": "Comisiones de Viáticos",
+        "sql": 0,
+        "api": 0,
+        "discrepancia": 0,
+        "estado": "PASS"
+      },
+      {
+        "metrica": "Monto Viáticos Aprobados",
+        "sql": 0,
+        "api": 0,
+        "discrepancia": 0,
+        "estado": "PASS"
+      },
+      {
+        "metrica": "Vigencias Fiscales Registradas",
+        "sql": 6,
+        "api": 6,
+        "discrepancia": 0,
+        "estado": "PASS"
+      }
+    ],
+    "explicacionVigencia2022": "La vigencia 2022 es un dato histórico institucional legítimo creado formalmente en el sistema, no un residuo de pruebas."
+  },
+  "rbac_matriz": [
+    {
+      "funcionario": "Administrador",
+      "email": "admin",
+      "servidores": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 400
+      },
+      "horarios": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 400
+      },
+      "viaticos": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 201
+      },
+      "estadoGlobal": "PASS"
+    },
+    {
+      "funcionario": "Angela Ussa",
+      "email": "angela.ussa@boyaca.gov.co",
+      "servidores": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 400
+      },
+      "horarios": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "viaticos": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "estadoGlobal": "PASS"
+    },
+    {
+      "funcionario": "Blanca Soler",
+      "email": "blanca.soler@boyaca.gov.co",
+      "servidores": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 400
+      },
+      "horarios": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "viaticos": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "estadoGlobal": "PASS"
+    },
+    {
+      "funcionario": "Doris Cañón",
+      "email": "doris.canon@boyaca.gov.co",
+      "servidores": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "horarios": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 400
+      },
+      "viaticos": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "estadoGlobal": "PASS"
+    },
+    {
+      "funcionario": "Bergenet Gutiérrez",
+      "email": "bergenet.gutierrez@boyaca.gov.co",
+      "servidores": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "horarios": {
+        "permitido": false,
+        "esperado": false,
+        "pass": true,
+        "httpStatus": 403
+      },
+      "viaticos": {
+        "permitido": true,
+        "esperado": true,
+        "pass": true,
+        "httpStatus": 201
+      },
+      "estadoGlobal": "PASS"
+    }
+  ],
+  "horarios_reglas": [
+    {
+      "regla": "Bloqueo Modalidad Presencial",
+      "status": 400,
+      "mensaje": "La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial. Este módulo administra exclusivamente Teletrabajo, Trabajo en casa y Horario flexible.",
+      "pass": true
+    },
+    {
+      "regla": "Bloqueo Fechas Invertidas",
+      "status": 400,
+      "mensaje": "La fecha de finalización no puede ser anterior a la fecha de inicio del acuerdo.",
+      "pass": true
+    },
+    {
+      "regla": "Caducidad Automática Sin Tupla Presencial",
+      "status": 200,
+      "pass": true
+    }
+  ],
+  "servidores_reglas": [
+    {
+      "fk": "fk_horarios_personas",
+      "onDelete": "RESTRICT",
+      "pass": true
+    },
+    {
+      "fk": "fk_viaticos_personas",
+      "onDelete": "RESTRICT",
+      "pass": true
+    }
+  ],
+  "excel_seguridad_export": {
+    "formulaInjectionProtegida": true,
+    "filtroExportaTodosLosRegistros": true
+  },
+  "limpieza_verificacion": {
+    "personas_qa": "0",
+    "horarios_qa": "0",
+    "viaticos_qa": "0",
+    "total_viaticos": "0",
+    "total_paquetes": "0",
+    "vigencias_qa": "0",
+    "vigencia_2022_historica": "1"
+  }
+}

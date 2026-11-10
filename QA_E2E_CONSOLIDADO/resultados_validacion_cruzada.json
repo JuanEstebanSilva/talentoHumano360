@@ -1,5 +1,5 @@
 {
-  "durationSec": 61,
+  "durationSec": 58,
   "totalTests": 26,
   "passTests": 26,
   "failTests": 0,
@@ -65,7 +65,7 @@
       "name": "Vinculación de Acuerdo de Horario a Servidor",
       "phase": "Fase 2",
       "status": "PASS",
-      "details": "Acuerdo Teletrabajo ID 18 asociado exitosamente a C.C. 999000501",
+      "details": "Acuerdo Teletrabajo ID 19 asociado exitosamente a C.C. 999000501",
       "evidence": ""
     },
     {
@@ -97,7 +97,7 @@
       "name": "Vinculación de Comisión de Viáticos a Servidor",
       "phase": "Fase 3",
       "status": "PASS",
-      "details": "Viático ID 16 vinculado a C.C. 999000501. Columna generada valor_total: $570000.00",
+      "details": "Viático ID 44 vinculado a C.C. 999000501. Columna generada valor_total: $null",
       "evidence": ""
     },
     {
