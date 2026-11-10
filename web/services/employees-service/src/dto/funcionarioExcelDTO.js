@@ -158,9 +158,17 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   const cargoPrincipal = cargoTitularText;
 
   // 5. Nombres y Apellidos (Regla 7)
-  let primerApellido = sanitizeString(row['PRIMER APELLIDO']) || '';
-  let segundoApellido = sanitizeString(row['SEGUNDO APELLIDO']) || '';
-  let nombres = sanitizeString(row['NOMBRES']) || '';
+  const cleanNameField = (val) => {
+    if (!val) return '';
+    const s = sanitizeString(val);
+    if (!s) return '';
+    // Limpia asteriscos de llamada de pie de página y símbolos de anotación (ej. "SANDRA YOLIMA *" -> "SANDRA YOLIMA")
+    return s.replace(/[\*\#\†\‡]/g, '').replace(/\s+/g, ' ').trim();
+  };
+
+  let primerApellido = cleanNameField(row['PRIMER APELLIDO']);
+  let segundoApellido = cleanNameField(row['SEGUNDO APELLIDO']);
+  let nombres = cleanNameField(row['NOMBRES']);
   let nombreCompleto = [primerApellido, segundoApellido, nombres].filter(Boolean).join(' ').trim();
 
   if (esVacante) {
@@ -170,9 +178,12 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     segundoApellido = cargoPrincipal;
   } else if (!nombreCompleto) {
     nombreCompleto = sanitizeString(row['NOMBRE COMPLETO'] || row['FUNCIONARIO']) || `SERVIDOR SIN CÉDULA #${rowNumber}`;
+    if (nombreCompleto) {
+      nombreCompleto = nombreCompleto.replace(/[\*\#\†\‡]/g, '').replace(/\s+/g, ' ').trim();
+    }
   } else {
-    // Validación estricta de formato: nombres y apellidos solo admiten letras, acentos y espacios
-    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'-]+$/;
+    // Validación de formato: nombres y apellidos admiten letras, acentos, espacios, puntos, comas, guiones, asteriscos y paréntesis
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'\-\*\(\)]+$/;
     if (primerApellido && !nameRegex.test(primerApellido)) {
       const err = new Error(`El Primer Apellido "${primerApellido}" contiene caracteres o números no permitidos.`);
       err.campo = 'PRIMER APELLIDO';
