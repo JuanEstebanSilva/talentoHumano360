@@ -2472,8 +2472,9 @@ const App = (() => {
               showApp();
               navigate(defaultMod);
               try { checkAndRestoreDraft(); } catch (_) {}
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                LegalModule.requireConsentModal();
+              const userIdentifier = (res.user && res.user.username) || null;
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
+                LegalModule.requireConsentModal(null, userIdentifier);
               }
             } catch (transitionErr) {
               console.error('[Login Transition Error]:', transitionErr);
@@ -2484,8 +2485,9 @@ const App = (() => {
               const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
               try { navigate(defaultMod); } catch (_) {}
               try { checkAndRestoreDraft(); } catch (_) {}
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                LegalModule.requireConsentModal();
+              const userIdentifier = (res.user && res.user.username) || null;
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
+                LegalModule.requireConsentModal(null, userIdentifier);
               }
             }
           };
@@ -2666,8 +2668,9 @@ const App = (() => {
         Settings.loadForUser(storedUser.username);
       }
       showApp();
-      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-        LegalModule.requireConsentModal();
+      const storedUsername = (storedUser && storedUser.username) || null;
+      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(storedUsername)) {
+        LegalModule.requireConsentModal(null, storedUsername);
       }
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
       const [initMod, initQuery] = initialHash.split('?');

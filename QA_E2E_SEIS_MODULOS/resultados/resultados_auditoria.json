@@ -1,0 +1,450 @@
+{
+  "permisos": [
+    {
+      "id": "PL-CALC-001",
+      "title": "Cálculo día hábil normal (Miércoles 02/09/2026)",
+      "role": "Sistema",
+      "expected": "isBusinessDay: true",
+      "actual": "isBusinessDay: true",
+      "status": "PASS",
+      "evidence": "colombia-calendar.js unit check"
+    },
+    {
+      "id": "PL-CALC-002",
+      "title": "Exclusión de sábado (05/09/2026)",
+      "role": "Sistema",
+      "expected": "isBusinessDay: false",
+      "actual": "isBusinessDay: false",
+      "status": "PASS",
+      "evidence": "colombia-calendar.js saturday check"
+    },
+    {
+      "id": "PL-CALC-003",
+      "title": "Exclusión de domingo (06/09/2026)",
+      "role": "Sistema",
+      "expected": "isBusinessDay: false",
+      "actual": "isBusinessDay: false",
+      "status": "PASS",
+      "evidence": "colombia-calendar.js sunday check"
+    },
+    {
+      "id": "PL-CALC-004",
+      "title": "Exclusión de festivo oficial Ley Emiliani (17/08/2026)",
+      "role": "Sistema",
+      "expected": "isBusinessDay: false (festivo detectado)",
+      "actual": "isBusinessDay: false, isFestivo: true",
+      "status": "PASS",
+      "evidence": "colombia-calendar.js holiday check"
+    },
+    {
+      "id": "PL-CALC-005",
+      "title": "Conteo de días hábiles atravesando fin de semana (04/09 a 08/09/2026)",
+      "role": "Sistema",
+      "expected": "3 días hábiles",
+      "actual": "3 días hábiles",
+      "status": "PASS",
+      "evidence": "countBusinessDays test"
+    },
+    {
+      "id": "PL-CRUD-001",
+      "title": "Creación de permiso laboral por horas con soporte PDF (Alejandro León)",
+      "role": "Alejandro León (Permisos)",
+      "expected": "HTTP 201 Created + Radicado generado + horas_solicitadas: 2.0",
+      "actual": "HTTP 201: {\"message\":\"Solicitud de permiso radicada.\",\"id\":63,\"radicado\":\"PL-2026-00063\",\"notificacion\":{\"estado\":\"simulada\",\"detalle\":\"Jefe: Correo simulado para carlos.torres@boyaca.gov.co (SMTP sin configurar en .env). | Solicitante: Correo simulado para juan.perez@boyaca.gov.co (SMTP sin configurar en .env).\"},\"advertencias\":[]}",
+      "status": "PASS",
+      "evidence": "id: 63"
+    },
+    {
+      "id": "PL-CRUD-002",
+      "title": "Creación de permiso laboral varios días (3 días hábiles - Sebastián Rincón)",
+      "role": "Sebastián Rincón (Permisos y Licencias)",
+      "expected": "HTTP 201 Created + dias_solicitados: 3",
+      "actual": "HTTP 201: {\"message\":\"Solicitud de permiso radicada.\",\"id\":64,\"radicado\":\"PL-2026-00064\",\"notificacion\":{\"estado\":\"simulada\",\"detalle\":\"Jefe: Correo simulado para carlos.torres@boyaca.gov.co (SMTP sin configurar en .env). | Solicitante: Correo simulado para maria.rojas@boyaca.gov.co (SMTP sin configurar en .env).\"},\"advertencias\":[]}",
+      "status": "PASS",
+      "evidence": "id: 64"
+    },
+    {
+      "id": "PL-NOTIF-001",
+      "title": "Procesamiento y registro de notificación por correo en solicitudes_admin",
+      "role": "Sistema",
+      "expected": "notificacion_estado en [\"simulada\", \"enviada\"] sin fallo catastrófico",
+      "actual": "estado: simulada, detalle: Jefe: Correo simulado para carlos.torres@boyaca.gov.co (SMTP sin configurar en .env). | Solicitante: Correo simulado para juan.perez@boyaca.gov.co (SMTP sin configurar en .env).",
+      "status": "PASS",
+      "evidence": "id_solicitud: 63"
+    },
+    {
+      "id": "PL-ENLACE-001",
+      "title": "Aprobación / Rechazo directo mediante token de un solo uso en enlace de correo",
+      "role": "Jefe Inmediato",
+      "expected": "Enlace con token firmado de un solo uso para aprobar/rechazar sin requerir credenciales internas",
+      "actual": "mailer.js genera enlace genérico al aplicativo (APP_PUBLIC_URL). No existe endpoint de decisión directa por token unívoco.",
+      "status": "NOT IMPLEMENTED",
+      "evidence": "mailer.js:106-107 y admin-requests.js"
+    },
+    {
+      "id": "PL-SEC-001",
+      "title": "Restricción de control interno: bloqueo de auto-aprobación por quien radica la solicitud",
+      "role": "Sebastián Rincón",
+      "expected": "HTTP 403 Forbidden por control interno",
+      "actual": "HTTP 403: {\"error\":\"Por control interno, no puede aprobar ni rechazar su propia solicitud.\"}",
+      "status": "PASS",
+      "evidence": "admin-requests.js:isSelfRequest"
+    },
+    {
+      "id": "PL-CRUD-003",
+      "title": "Aprobación legítima de solicitud por Administrador",
+      "role": "Administrador",
+      "expected": "HTTP 200 OK + estado: Aprobada",
+      "actual": "HTTP 200: {\"message\":\"Solicitud actualizada.\"}",
+      "status": "PASS",
+      "evidence": "id: 64"
+    }
+  ],
+  "licencias": [
+    {
+      "id": "LIC-CRUD-001",
+      "title": "Creación de Licencia por Luto (Ley 1280/2009) con soporte PDF",
+      "role": "Sebastián Rincón (Permisos y Licencias)",
+      "expected": "HTTP 201 Created + radicado LIC-2026-XXXXX",
+      "actual": "HTTP 201: {\"message\":\"Solicitud creada.\",\"id\":66,\"radicado\":\"LIC-2026-00066\"}",
+      "status": "PASS",
+      "evidence": "id: 66"
+    },
+    {
+      "id": "LIC-SEC-001",
+      "title": "Rechazo de archivo con extensión no permitida o MIME inválido (sniffing de magic bytes)",
+      "role": "Sebastián Rincón",
+      "expected": "HTTP 400 Bad Request por formato de soporte inválido",
+      "actual": "HTTP 201: {\"message\":\"Solicitud creada.\",\"id\":67,\"radicado\":\"LIC-2026-00067\"}",
+      "status": "FAIL",
+      "evidence": "permisos-validator.js:sniffMime"
+    },
+    {
+      "id": "LIC-SOP-001",
+      "title": "Descarga y persistencia del soporte documental en PostgreSQL (BYTEA)",
+      "role": "Sebastián Rincón",
+      "expected": "HTTP 200 OK + Content-Type: application/pdf",
+      "actual": "Descarga exitosa: true",
+      "status": "PASS",
+      "evidence": "id_solicitud: 66"
+    }
+  ],
+  "incapacidades": [
+    {
+      "id": "INC-CRUD-001",
+      "title": "Creación manual de incapacidad con liquidación de auxilio (Luis Sánchez)",
+      "role": "Luis Sánchez (Incapacidades)",
+      "expected": "HTTP 201 Created + radicado INC-2026-XXXXX",
+      "actual": "HTTP 201: {\"message\":\"Incapacidad registrada exitosamente.\",\"id\":68,\"radicado\":\"INC-2026-00068\"}",
+      "status": "PASS",
+      "evidence": "id: 68"
+    },
+    {
+      "id": "INC-AUX-001",
+      "title": "Distribución matemática de auxilio económico en enfermedad general (Días 1-2 entidad / 3+ EPS)",
+      "role": "Sistema",
+      "expected": "Descuento exacto: $200.000",
+      "actual": "Descuento almacenado: $200.000",
+      "status": "PASS",
+      "evidence": "PostgreSQL solicitudes_admin.descuento"
+    },
+    {
+      "id": "INC-ALRT-001",
+      "title": "Umbral 90 días: Acumulación de 89 días no debe disparar alerta de 90 días",
+      "role": "Luis Sánchez",
+      "expected": "Alerta inactiva (89 días)",
+      "actual": "Alerta detectada: false",
+      "status": "PASS",
+      "evidence": "stats endpoint con 89 días"
+    },
+    {
+      "id": "INC-ALRT-002",
+      "title": "Umbral 90 días: Acumulación exacta de 90 días acumulados",
+      "role": "Luis Sánchez",
+      "expected": "totalDiasAcum = 90 días y detección de prórroga EPS",
+      "actual": "totalDiasAcum: 180",
+      "status": "FAIL",
+      "evidence": "PostgreSQL sum(dias_solicitados) = 90"
+    }
+  ],
+  "epidemiologico": [
+    {
+      "id": "EPI-CRUD-001",
+      "title": "Creación de perfil epidemiológico y examen médico ocupacional EMO (Sandra Roa)",
+      "role": "Sandra Roa (SST)",
+      "expected": "HTTP 201 Created + registro persistido",
+      "actual": "HTTP 201: {\"message\":\"Registro epidemiológico creado exitosamente.\",\"id\":14,\"radicado\":\"EMO-2026-0014\"}",
+      "status": "PASS",
+      "evidence": "id: 14"
+    },
+    {
+      "id": "EPI-SEM-001",
+      "title": "Control de semáforo de vigencias médicas (Vigente / Próximo a vencer / Vencido)",
+      "role": "Sandra Roa",
+      "expected": "Detección de estados en estadísticas oficiales",
+      "actual": "vigentes: undefined, porVencer: undefined, vencidos: undefined",
+      "status": "FAIL",
+      "evidence": "stats endpoint epidemiologico"
+    },
+    {
+      "id": "EPI-SEC-001",
+      "title": "Consulta del funcionario de su propio perfil epidemiológico",
+      "role": "Funcionario (Iván Romero)",
+      "expected": "HTTP 200 OK con datos propios",
+      "actual": "HTTP 200: 1 registros",
+      "status": "PASS",
+      "evidence": "documento: 1003481573"
+    },
+    {
+      "id": "EPI-SEC-002",
+      "title": "Bloqueo de modificación de perfil epidemiológico a usuario con rol Funcionario",
+      "role": "Funcionario",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 403: {\"error\":\"Solo la responsable asignada al módulo de Perfil Epidemiológico (Sandra Roa) o el Administrador pueden editar registros.\"}",
+      "status": "PASS",
+      "evidence": "sst.js RBAC middleware"
+    }
+  ],
+  "sociodemografico": [
+    {
+      "id": "SOC-CRUD-001",
+      "title": "Creación de perfil sociodemográfico con caracterización completa (Sandra Roa)",
+      "role": "Sandra Roa (SST)",
+      "expected": "HTTP 201 Created + datos completos persistidos",
+      "actual": "HTTP 201: {\"message\":\"Perfil Sociodemográfico registrado exitosamente.\",\"id\":6,\"radicado\":\"SOC-2026-0006\"}",
+      "status": "PASS",
+      "evidence": "id: 6"
+    },
+    {
+      "id": "SOC-INT-001",
+      "title": "Persistencia exacta de campos sociodemográficos (vivienda, educación, estrato) en PostgreSQL",
+      "role": "Sistema",
+      "expected": "estrato: 3, escolaridad: Especialización",
+      "actual": "estrato: 3, escolaridad: Especialización",
+      "status": "PASS",
+      "evidence": "sst_perfil_sociodemografico row check"
+    },
+    {
+      "id": "SOC-SEC-001",
+      "title": "Bloqueo de eliminación de perfil sociodemográfico a rol Funcionario",
+      "role": "Funcionario",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 403: {\"error\":\"Solo la responsable asignada al módulo de Perfil Sociodemográfico o el Administrador pueden eliminar registros.\"}",
+      "status": "PASS",
+      "evidence": "sst.js:delete sociodemografico RBAC"
+    }
+  ],
+  "epp": [
+    {
+      "id": "EPP-INV-001",
+      "title": "Consulta de existencias de almacén EPP en tiempo real (Código A: Casco)",
+      "role": "Sandra Roa (SST)",
+      "expected": "Stock inicial detectado (actual: 55)",
+      "actual": "stock_total: 55, stock_minimo: 0",
+      "status": "PASS",
+      "evidence": "codigo: A, stock: 55"
+    },
+    {
+      "id": "EPP-INV-002",
+      "title": "Actualización y entrada de existencias al almacén de EPP (+10 unidades)",
+      "role": "Sandra Roa",
+      "expected": "Nuevo stock = 65",
+      "actual": "HTTP 200: {\"message\":\"Existencias de EPP actualizadas correctamente.\",\"data\":{\"id_inventario\":1,\"codigo_elemento\":\"A\",\"elemento_epp\":\"A. Casco de seguridad\",\"categoria_epp\":\"Protección Cabeza\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":65,\"stock_minimo\":0,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"observaciones\":\"Entrada de compra almacén 10 unidades QA\",\"actualizado_por\":\"sandra.roa@boyaca.gov.co\",\"actualizado_en\":\"2026-11-10T03:39:44.557Z\"}}",
+      "status": "PASS",
+      "evidence": "sst_inventario_epp A stock: 65"
+    },
+    {
+      "id": "EPP-ENT-001",
+      "title": "Registro de entrega de EPP con captura y preservación de firma digital",
+      "role": "Sandra Roa",
+      "expected": "HTTP 201 Created + firmaDigital conservada",
+      "actual": "HTTP 201: {\"message\":\"Entrega de EPP registrada exitosamente.\",\"id\":10,\"radicado\":\"EPP-2026-0010\"}",
+      "status": "PASS",
+      "evidence": "id: 10"
+    },
+    {
+      "id": "EPP-ENT-002",
+      "title": "Persistencia inmutable de la firma digital en PostgreSQL",
+      "role": "Sistema",
+      "expected": "firma_digital no vacía con formato data:image/png;base64",
+      "actual": "firma_digital guardada: true",
+      "status": "PASS",
+      "evidence": "sst_entrega_epp.firma_digital"
+    },
+    {
+      "id": "EPP-INV-003",
+      "title": "Trazabilidad de almacén EPP: Descuento de stock tras registro de entrega",
+      "role": "Sandra Roa",
+      "expected": "Stock posterior <= 65",
+      "actual": "Stock actual: 65",
+      "status": "PASS",
+      "evidence": "Stock: 65"
+    },
+    {
+      "id": "EPP-ENT-003",
+      "title": "Validación de política de firma en entrega de EPP",
+      "role": "Sandra Roa",
+      "expected": "Gestión controlada de estado cuando falta la firma del servidor",
+      "actual": "HTTP 201: {\"message\":\"Entrega de EPP registrada exitosamente.\",\"id\":11,\"radicado\":\"EPP-2026-0011\"}",
+      "status": "PASS",
+      "evidence": "sst.js:post epp"
+    }
+  ],
+  "transversal_rbac": [
+    {
+      "id": "RBAC-001",
+      "title": "Luis Sánchez (Incapacidades) intentando crear Permiso Laboral",
+      "role": "Luis Sánchez (Incapacidades)",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 400: {\"error\":\"El correo del servidor público es requerido.\",\"campo\":\"correoSolicitante\"}",
+      "status": "FAIL",
+      "evidence": "admin-requests.js RBAC check"
+    },
+    {
+      "id": "RBAC-002",
+      "title": "Alejandro León (Permisos) intentando crear Licencia Laboral",
+      "role": "Alejandro León (Permisos)",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 201: {\"message\":\"Solicitud creada.\",\"id\":81,\"radicado\":\"LIC-2026-00081\"}",
+      "status": "FAIL",
+      "evidence": "admin-requests.js RBAC check"
+    },
+    {
+      "id": "RBAC-003",
+      "title": "Sandra Roa (SST) consultando Almacén e Inventario EPP",
+      "role": "Sandra Roa (SST)",
+      "expected": "HTTP 200 OK con datos de inventario",
+      "actual": "HTTP 200",
+      "status": "PASS",
+      "evidence": "sst.js /epp/inventario"
+    },
+    {
+      "id": "RBAC-004",
+      "title": "Sandra Roa (SST) intentando consultar módulo administrativo de Permisos",
+      "role": "Sandra Roa (SST)",
+      "expected": "HTTP 403 Forbidden o 0 registros no autorizados",
+      "actual": "HTTP 200: data.length=0",
+      "status": "PASS",
+      "evidence": "admin-requests.js getModulePermission"
+    },
+    {
+      "id": "RBAC-005",
+      "title": "Funcionario intentando consultar dashboard gerencial de SST",
+      "role": "Funcionario",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 200: {\"totalEmo\":12,\"emoVigentes\":7,\"emoAlertas\":5,\"casosSeguimiento\":1,\"direccionadosPve\":5,\"conCondicionesSalud\":6,\"accidentesTrabajo\":1,\"enfermedadesLaborales\":0,\"totalEpp\":9,\"servidoresDotados\":4,\"eppEntregados\":9,\"eppPendientesReposicion\":0,\"eppFirmados\":7,\"unidadesEntregadasTotal\":11,\"stockTotalRegistrado\":1533,\"stockDisponibleTotal\":1522,\"existenciasBajasCount\":0,\"totalSociodemografico\":5,\"dependenciasCubiertas\":4,\"sedesCubiertas\":1,\"edadPromedio\":534.5,\"epidemiologico\":{\"totalEmo\":12,\"emoVigentes\":7,\"emoAlertas\":5,\"casosSeguimiento\":1,\"direccionadosPve\":5,\"conCondicionesSalud\":6,\"accidentesTrabajo\":1,\"enfermedadesLaborales\":0,\"porTipoEmo\":[{\"tipo\":\"Periódico\",\"cantidad\":10},{\"tipo\":\"Ingreso\",\"cantidad\":1},{\"tipo\":\"Post Incapacidad\",\"cantidad\":1}],\"porEstadoCaso\":[{\"estado\":\"Vigente\",\"cantidad\":7},{\"estado\":\"Vencido\",\"cantidad\":2},{\"estado\":\"Próximo a vencer\",\"cantidad\":2},{\"estado\":\"En Seguimiento\",\"cantidad\":1}],\"porPve\":[{\"programa\":\"No aplica\",\"cantidad\":7},{\"programa\":\"PVE Biomecánico / Osteomuscular\",\"cantidad\":5}],\"porDependencia\":[{\"dependencia\":\"SGEN\",\"cantidad\":6},{\"dependencia\":\"SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo\",\"cantidad\":4},{\"dependencia\":\"5.1 DIRECCION GENERAL DE TALENTO HUMANO\",\"cantidad\":1},{\"dependencia\":\"SSAL - Dirección de Aseguramiento en Salud\",\"cantidad\":1}],\"evolucionMensual\":[{\"mes\":\"2025-01\",\"cantidad\":2},{\"mes\":\"2025-12\",\"cantidad\":2},{\"mes\":\"2026-01\",\"cantidad\":6},{\"mes\":\"2026-02\",\"cantidad\":1},{\"mes\":\"2026-10\",\"cantidad\":1}]},\"epp\":{\"totalEpp\":9,\"servidoresDotados\":4,\"eppEntregados\":9,\"eppPendientesReposicion\":0,\"eppFirmados\":7,\"unidadesEntregadasTotal\":11,\"stockTotalRegistrado\":1533,\"stockDisponibleTotal\":1522,\"existenciasBajasCount\":0,\"inventarioDetalle\":[{\"id_inventario\":1,\"codigo_elemento\":\"A\",\"elemento_epp\":\"A. Casco de seguridad\",\"categoria_epp\":\"Protección Cabeza\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":65,\"stock_minimo\":0,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":7,\"disponibles\":58,\"bajo_stock\":false},{\"id_inventario\":2,\"codigo_elemento\":\"B\",\"elemento_epp\":\"B. Gorro o Cofias\",\"categoria_epp\":\"Protección Cabeza\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":120,\"stock_minimo\":20,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":2,\"disponibles\":118,\"bajo_stock\":false},{\"id_inventario\":3,\"codigo_elemento\":\"C\",\"elemento_epp\":\"C. Gorro Zafari\",\"categoria_epp\":\"Protección Cabeza\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":30,\"stock_minimo\":8,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":30,\"bajo_stock\":false},{\"id_inventario\":4,\"codigo_elemento\":\"D\",\"elemento_epp\":\"D. Tapones externos\",\"categoria_epp\":\"Protección Auditiva\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":80,\"stock_minimo\":15,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":80,\"bajo_stock\":false},{\"id_inventario\":5,\"codigo_elemento\":\"E\",\"elemento_epp\":\"E. Tapones de copa (orejeras)\",\"categoria_epp\":\"Protección Auditiva\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":25,\"stock_minimo\":6,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":25,\"bajo_stock\":false},{\"id_inventario\":6,\"codigo_elemento\":\"F\",\"elemento_epp\":\"F. Careta (guadañar)\",\"categoria_epp\":\"Protección Facial\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":18,\"stock_minimo\":5,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":18,\"bajo_stock\":false},{\"id_inventario\":7,\"codigo_elemento\":\"G\",\"elemento_epp\":\"G. Monogafas\",\"categoria_epp\":\"Protección Visual\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":40,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":40,\"bajo_stock\":false},{\"id_inventario\":8,\"codigo_elemento\":\"H\",\"elemento_epp\":\"H. Gafas de seguridad\",\"categoria_epp\":\"Protección Visual\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":50,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":50,\"bajo_stock\":false},{\"id_inventario\":9,\"codigo_elemento\":\"I\",\"elemento_epp\":\"I. Gafas de seguridad / UV\",\"categoria_epp\":\"Protección Visual\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":35,\"stock_minimo\":8,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":35,\"bajo_stock\":false},{\"id_inventario\":10,\"codigo_elemento\":\"J\",\"elemento_epp\":\"J. Respirador con filtros\",\"categoria_epp\":\"Protección Respiratoria\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":20,\"stock_minimo\":5,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":20,\"bajo_stock\":false},{\"id_inventario\":11,\"codigo_elemento\":\"K\",\"elemento_epp\":\"K. Filtros para respiradores\",\"categoria_epp\":\"Protección Respiratoria\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":40,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":40,\"bajo_stock\":false},{\"id_inventario\":12,\"codigo_elemento\":\"L\",\"elemento_epp\":\"L. Respirador ffp2 o n95\",\"categoria_epp\":\"Protección Respiratoria\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":150,\"stock_minimo\":30,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":150,\"bajo_stock\":false},{\"id_inventario\":13,\"codigo_elemento\":\"M\",\"elemento_epp\":\"M. Mascarilla desechable\",\"categoria_epp\":\"Protección Respiratoria\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":200,\"stock_minimo\":40,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":200,\"bajo_stock\":false},{\"id_inventario\":14,\"codigo_elemento\":\"N\",\"elemento_epp\":\"N. Guantes de poliuretano\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":60,\"stock_minimo\":12,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":60,\"bajo_stock\":false},{\"id_inventario\":15,\"codigo_elemento\":\"O\",\"elemento_epp\":\"O. Guantes de vaqueta\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":45,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":45,\"bajo_stock\":false},{\"id_inventario\":16,\"codigo_elemento\":\"P\",\"elemento_epp\":\"P. Guantes de Nitrilo\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":100,\"stock_minimo\":20,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":1,\"disponibles\":99,\"bajo_stock\":false},{\"id_inventario\":17,\"codigo_elemento\":\"Q\",\"elemento_epp\":\"Q. Guantes de látex\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":90,\"stock_minimo\":20,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":90,\"bajo_stock\":false},{\"id_inventario\":18,\"codigo_elemento\":\"R\",\"elemento_epp\":\"R. Guantes de caucho\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":50,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":50,\"bajo_stock\":false},{\"id_inventario\":19,\"codigo_elemento\":\"S\",\"elemento_epp\":\"S. Guantes sustancias químicas\",\"categoria_epp\":\"Protección Manos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":25,\"stock_minimo\":6,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":25,\"bajo_stock\":false},{\"id_inventario\":20,\"codigo_elemento\":\"T\",\"elemento_epp\":\"T. Chaleco Trabajo en campo\",\"categoria_epp\":\"Ropa de Trabajo\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":55,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":1,\"disponibles\":54,\"bajo_stock\":false},{\"id_inventario\":21,\"codigo_elemento\":\"U\",\"elemento_epp\":\"U. Overol de dos piezas cinta reflectiva\",\"categoria_epp\":\"Ropa de Trabajo\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":30,\"stock_minimo\":8,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":30,\"bajo_stock\":false},{\"id_inventario\":22,\"codigo_elemento\":\"V\",\"elemento_epp\":\"V. Overol antifluidos\",\"categoria_epp\":\"Ropa de Trabajo\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":35,\"stock_minimo\":8,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":35,\"bajo_stock\":false},{\"id_inventario\":23,\"codigo_elemento\":\"W\",\"elemento_epp\":\"W. Bata manga larga antifluido\",\"categoria_epp\":\"Ropa de Trabajo\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":40,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":40,\"bajo_stock\":false},{\"id_inventario\":24,\"codigo_elemento\":\"X\",\"elemento_epp\":\"X. Delantal Carnaza\",\"categoria_epp\":\"Ropa de Trabajo\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":15,\"stock_minimo\":5,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":15,\"bajo_stock\":false},{\"id_inventario\":25,\"codigo_elemento\":\"Y\",\"elemento_epp\":\"Y. Zapato cerrado\",\"categoria_epp\":\"Calzado de Seguridad\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":30,\"stock_minimo\":8,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":30,\"bajo_stock\":false},{\"id_inventario\":26,\"codigo_elemento\":\"Z\",\"elemento_epp\":\"Z. Botas de Seguridad\",\"categoria_epp\":\"Calzado de Seguridad\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":40,\"stock_minimo\":10,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":40,\"bajo_stock\":false},{\"id_inventario\":27,\"codigo_elemento\":\"AA\",\"elemento_epp\":\"AA. Botas pantaneras con puntera\",\"categoria_epp\":\"Calzado de Seguridad\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":25,\"stock_minimo\":6,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":25,\"bajo_stock\":false},{\"id_inventario\":28,\"codigo_elemento\":\"AB\",\"elemento_epp\":\"AB. Otros\",\"categoria_epp\":\"Otros Elementos\",\"unidad_medida\":\"UNIDAD\",\"stock_total\":20,\"stock_minimo\":5,\"ubicacion_bodega\":\"Almacén SST - Casa de la Torre\",\"entregados\":0,\"disponibles\":20,\"bajo_stock\":false}],\"porElemento\":[{\"codigo\":\"A\",\"elemento\":\"A. Casco de seguridad\",\"entregas\":5,\"unidades\":7},{\"codigo\":\"B\",\"elemento\":\"B. Gorro o Cofias\",\"entregas\":2,\"unidades\":2},{\"codigo\":\"T\",\"elemento\":\"T. Chaleco Trabajo en campo\",\"entregas\":1,\"unidades\":1},{\"codigo\":\"P\",\"elemento\":\"P. Guantes de Nitrilo\",\"entregas\":1,\"unidades\":1}],\"porDependencia\":[{\"dependencia\":\"INFRA - Secretaría de Infraestructura\",\"entregas\":4,\"servidores\":1},{\"dependencia\":\"SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo\",\"entregas\":3,\"servidores\":1},{\"dependencia\":\"5.1 DIRECCION GENERAL DE TALENTO HUMANO\",\"entregas\":2,\"servidores\":2}],\"evolucionMensual\":[{\"mes\":\"2026-01\",\"entregas\":3,\"servidores\":1},{\"mes\":\"2026-09\",\"entregas\":4,\"servidores\":1},{\"mes\":\"2026-10\",\"entregas\":2,\"servidores\":2}]},\"sociodemografico\":{\"totalSociodemografico\":5,\"dependenciasCubiertas\":4,\"sedesCubiertas\":1,\"edadPromedio\":534.5,\"porRangoEdad\":[{\"rango\":\"30 a 39 años\",\"cantidad\":1},{\"rango\":\"40 a 49 años\",\"cantidad\":2},{\"rango\":\"60 años o más\",\"cantidad\":1},{\"rango\":\"Sin dato\",\"cantidad\":1}],\"porSexo\":[{\"sexo\":\"Femenino\",\"cantidad\":4},{\"sexo\":\"Masculino\",\"cantidad\":1}],\"porEscolaridad\":[{\"escolaridad\":\"Especialización\",\"cantidad\":3},{\"escolaridad\":\"Ninguna\",\"cantidad\":2}],\"porDependencia\":[{\"dependencia\":\"HAC - Dirección de Contabilidad\",\"cantidad\":2},{\"dependencia\":\"5.1 DIRECCION GENERAL DE TALENTO HUMANO\",\"cantidad\":1},{\"dependencia\":\"SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo\",\"cantidad\":1},{\"dependencia\":\"7.2 DIRECCION DE LA MUJER E INCLUSION SOCIAL\",\"cantidad\":1}],\"porVinculacion\":[{\"vinculacion\":\"Carrera Administrativa\",\"cantidad\":5}],\"porEstadoCivil\":[{\"estado_civil\":\"Soltero (a)\",\"cantidad\":3},{\"estado_civil\":\"Casado (a)\",\"cantidad\":2}]}}",
+      "status": "FAIL",
+      "evidence": "sst.js:stats RBAC check"
+    },
+    {
+      "id": "RBAC-006",
+      "title": "Administrador con acceso integral a estadísticas y auditoría",
+      "role": "Administrador",
+      "expected": "HTTP 200 OK con métricas globales",
+      "actual": "HTTP 500",
+      "status": "FAIL",
+      "evidence": "admin-requests.js:stats"
+    },
+    {
+      "id": "SEC-PROT-001",
+      "title": "Garantía de inmutabilidad de los tres módulos excluidos (Personas, Horarios, Viáticos)",
+      "role": "Auditoría",
+      "expected": "Conteo exacto idéntico en las 3 tablas excluidas",
+      "actual": "personas: 0, horarios: 0, viaticos: 0",
+      "status": "PASS",
+      "evidence": "PostgreSQL count comparison"
+    }
+  ],
+  "incapacidades_excel": [
+    {
+      "id": "INC-IMP-001",
+      "title": "Importación Excel: Archivo válido con 1 registro",
+      "role": "Luis Sánchez",
+      "expected": "HTTP 201 + 1 insertado",
+      "actual": "HTTP 201: insertados=1, omitidos=0",
+      "status": "PASS",
+      "evidence": "{\"inserted\":1,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 1 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-002",
+      "title": "Importación Excel: Archivo válido con varios registros (3 filas)",
+      "role": "Luis Sánchez",
+      "expected": "HTTP 201 + 3 insertados",
+      "actual": "HTTP 201: insertados=3, omitidos=0",
+      "status": "PASS",
+      "evidence": "{\"inserted\":3,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 3 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-003",
+      "title": "Importación Excel: Campos obligatorios vacíos (Cédula, Nombre o Dependencia)",
+      "role": "Luis Sánchez",
+      "expected": "HTTP 201 con 0 insertados, 3 omitidos y reporte de errores por fila",
+      "actual": "HTTP 201: insertados=0, omitidos=3, errores=3",
+      "status": "PASS",
+      "evidence": "[{\"fila\":2,\"columna\":\"NOMBRES Y APELLIDOS\",\"motivo\":\"Campos obligatorios faltantes (Nombre, Cédula o Dependencia).\"},{\"fila\":3,\"columna\":\"CÉDULA\",\"motivo\":\"Campos obligatorios faltantes (Nombre, Cédula o Dependencia).\"},{\"fila\":4,\"columna\":\"DEPENDENCIA EN LA QUE TRABAJA\",\"motivo\":\"Campos obligatorios faltantes (Nombre, Cédula o Dependencia).\"}]"
+    },
+    {
+      "id": "INC-IMP-004",
+      "title": "Importación Excel: Fechas en formato corrupto o invertidas",
+      "role": "Luis Sánchez",
+      "expected": "Manejo defensivo sin provocar caída de base de datos ni error 500",
+      "actual": "HTTP 201: insertados=2",
+      "status": "PASS",
+      "evidence": "{\"inserted\":2,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 2 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-005",
+      "title": "Importación Excel: Estructura con columnas faltantes",
+      "role": "Luis Sánchez",
+      "expected": "Fila omitida por falta de campos obligatorios",
+      "actual": "HTTP 201: omitidos=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":0,\"skipped\":1,\"errors\":[{\"fila\":2,\"columna\":\"DEPENDENCIA EN LA QUE TRABAJA\",\"motivo\":\"Campos obligatorios faltantes (Nombre, Cédula o Dependencia).\"}],\"message\":\"Se importaron 0 registros de incapacidad exitosamente (1 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-006",
+      "title": "Importación Excel: Encabezados desalineados o no oficiales",
+      "role": "Luis Sánchez",
+      "expected": "Omitidos por falta de claves oficiales",
+      "actual": "HTTP 201: omitidos=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":0,\"skipped\":1,\"errors\":[{\"fila\":2,\"columna\":\"CÉDULA\",\"motivo\":\"Campos obligatorios faltantes (Nombre, Cédula o Dependencia).\"}],\"message\":\"Se importaron 0 registros de incapacidad exitosamente (1 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-007",
+      "title": "Importación Excel: Detección y omisión de filas duplicadas en el mismo archivo",
+      "role": "Luis Sánchez",
+      "expected": "1 insertado y 1 omitido por duplicidad de cédula y periodo",
+      "actual": "HTTP 201: insertados=1, omitidos=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":1,\"skipped\":1,\"errors\":[{\"fila\":3,\"columna\":\"CÉDULA / FECHAS\",\"motivo\":\"Registro duplicado para documento 7199905 en el periodo 01/09/2026 - 05/09/2026.\"}],\"message\":\"Se importaron 1 registros de incapacidad exitosamente (1 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-008",
+      "title": "Importación Excel: Cédula de servidor que no figura en censo histórico",
+      "role": "Luis Sánchez",
+      "expected": "Inserción exitosa sin violación de llave foránea en solicitudes_admin",
+      "actual": "HTTP 201: insertados=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":1,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 1 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-009",
+      "title": "Importación Excel: Tipos de datos textuales en campos numéricos (días/salario)",
+      "role": "Luis Sánchez",
+      "expected": "Manejo resiliente con asignación de valores seguros (dias >= 1, salario=0)",
+      "actual": "HTTP 201: insertados=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":1,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 1 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    },
+    {
+      "id": "INC-IMP-010",
+      "title": "Importación Excel: Valores negativos en días o salario",
+      "role": "Luis Sánchez",
+      "expected": "Saneamiento con Math.max para evitar montos o días negativos",
+      "actual": "HTTP 201: insertados=1",
+      "status": "PASS",
+      "evidence": "{\"inserted\":1,\"skipped\":0,\"errors\":[],\"message\":\"Se importaron 1 registros de incapacidad exitosamente (0 omitidos/duplicados).\"}"
+    }
+  ]
+}

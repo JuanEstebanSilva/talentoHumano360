@@ -4,26 +4,96 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const LegalModule = (() => {
-  const STORAGE_KEY = 'talento360_legal_consent';
-  const LEGAL_VERSION = '2026.4'; // Versión actualizada para verificación obligatoria en login
+  const STORAGE_KEY = 'talento360_legal_consents';
+  const LEGACY_STORAGE_KEY = 'talento360_legal_consent';
+  const LEGAL_VERSION = '2026.4'; // Versión del compromiso normativo. Solo se vuelve a pedir al cambiar esta versión o en el primer inicio de sesión de cada usuario en el navegador.
 
   /**
-   * Limpia el consentimiento guardado (útil para auditoría, pruebas y cierre de sesión).
+   * Resuelve el nombre de usuario normalizado a partir de un parámetro explícito
+   * o de la sesión activa en Auth. Remueve dominios de correo institucional para
+   * garantizar coincidencia exacta sin importar si se usa usuario corto o correo.
    */
-  function clearConsent() {
+  function resolveUsername(optUsername) {
+    let raw = '';
+    if (optUsername && typeof optUsername === 'string' && optUsername.trim()) {
+      raw = optUsername.trim().toLowerCase();
+    } else {
+      try {
+        const user = (typeof Auth !== 'undefined' && Auth.getUser && Auth.getUser()) || {};
+        if (user && user.username) {
+          raw = String(user.username).trim().toLowerCase();
+        }
+      } catch (_) {}
+    }
+    if (!raw) return null;
+    return raw.replace(/@boyaca\.(gov|edu)\.co$/i, '').trim();
+  }
+
+  /**
+   * Obtiene el diccionario completo de consentimientos registrados por usuario en este navegador.
+   */
+  function getAllConsents() {
+    let consents = {};
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          consents = parsed;
+        }
+      }
+    } catch (_) {}
+
+    // Compatibilidad retroactiva con clave individual previa si existía
+    try {
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        const legacy = JSON.parse(legacyRaw);
+        if (legacy && legacy.accepted && legacy.version && legacy.username) {
+          const uKey = String(legacy.username).trim().toLowerCase();
+          if (!consents[uKey]) {
+            consents[uKey] = legacy;
+          }
+        }
+      }
+    } catch (_) {}
+
+    return consents;
+  }
+
+  /**
+   * Limpia el consentimiento guardado (útil para auditoría, pruebas y verificación).
+   * Si se pasa un nombre de usuario, limpia solo el de ese usuario.
+   * Si no se especifica, limpia todos los registros locales.
+   */
+  function clearConsent(optUsername) {
+    try {
+      const username = resolveUsername(optUsername);
+      if (username) {
+        const consents = getAllConsents();
+        delete consents[username];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(consents));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
     } catch (_) {}
   }
 
   /**
-   * Verifica si el usuario actual ha aceptado la versión vigente de las políticas.
+   * Verifica si un usuario específico ha aceptado la versión vigente de las políticas (LEGAL_VERSION).
+   * Devuelve false si:
+   * 1. Es la primera vez que ese usuario inicia sesión en este navegador (no existe registro para su usuario).
+   * 2. La Gobernación publicó una nueva versión del compromiso (versión registrada !== LEGAL_VERSION).
    */
-  function hasAcceptedLegal() {
+  function hasAcceptedLegal(optUsername) {
     try {
-      const consentStr = localStorage.getItem(STORAGE_KEY);
-      if (!consentStr) return false;
-      const consent = JSON.parse(consentStr);
+      const username = resolveUsername(optUsername);
+      if (!username) return false;
+      const consents = getAllConsents();
+      const consent = consents[username]
+        || consents[`${username}@boyaca.gov.co`]
+        || consents[`${username}@boyaca.edu.co`];
       return Boolean(consent && consent.accepted === true && consent.version === LEGAL_VERSION);
     } catch (_) {
       return false;
@@ -31,30 +101,37 @@ const LegalModule = (() => {
   }
 
   /**
-   * Guarda el consentimiento formal en el almacenamiento local.
+   * Guarda el consentimiento formal en el almacenamiento local para el usuario actual.
    */
-  function recordConsent() {
-    const user = (typeof Auth !== 'undefined' && Auth.getUser()) || {};
+  function recordConsent(optUsername) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser && Auth.getUser()) || {};
+    const username = resolveUsername(optUsername) || (user.username ? resolveUsername(user.username) : 'servidor_publico');
     const consentPayload = {
       accepted: true,
       version: LEGAL_VERSION,
       timestamp: new Date().toISOString(),
-      username: user.username || 'servidor_publico',
+      username: username,
       ipPlataforma: window.location.hostname
     };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consentPayload));
+      const consents = getAllConsents();
+      consents[username] = consentPayload;
+      if (user.username && typeof user.username === 'string' && user.username.includes('@')) {
+        consents[user.username.trim().toLowerCase()] = consentPayload;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consents));
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(consentPayload));
     } catch (e) {
       console.warn('[Talento 360 Legal] Error persistiendo consentimiento:', e);
     }
   }
 
   /**
-   * Despliega el modal bloqueante de consentimiento obligatorio.
+   * Despliega el modal bloqueante de consentimiento obligatorio si el usuario no ha aceptado la versión vigente.
    * Proporciona retroalimentación interactiva asertiva cuando el usuario intenta continuar sin marcar la casilla.
    */
-  function requireConsentModal(onSuccessCallback) {
-    if (hasAcceptedLegal()) {
+  function requireConsentModal(onSuccessCallback, optUsername) {
+    if (hasAcceptedLegal(optUsername)) {
       if (typeof onSuccessCallback === 'function') onSuccessCallback();
       return;
     }
@@ -227,7 +304,7 @@ const LegalModule = (() => {
       }
 
       // Consentimiento otorgado con éxito
-      recordConsent();
+      recordConsent(optUsername);
       overlay.remove();
 
       if (typeof App !== 'undefined' && App.showToast) {
@@ -304,10 +381,12 @@ const LegalModule = (() => {
   }
 
   return {
+    LEGAL_VERSION,
     hasAcceptedLegal,
     requireConsentModal,
     recordConsent,
     clearConsent,
+    getAllConsents,
     render
   };
 })();

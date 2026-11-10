@@ -21,7 +21,6 @@ const Auth = (() => {
   function clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    try { localStorage.removeItem('talento360_legal_consent'); } catch (_) {}
   }
 
   function decodeJwtPayload(token) {
