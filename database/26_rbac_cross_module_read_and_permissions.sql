@@ -28,3 +28,27 @@ UPDATE usuarios SET
   permisos = 'dashboard:read,employees:read,horarios:read,viaticos:read,viaticos:write,viaticos:status,viaticos:import,viaticos:delete' 
 WHERE LOWER(username) IN ('bergenet.gutierrez@boyaca.gov.co');
 
+-- 5. Sandra Roa: SST (Perfil Epidemiológico, Perfil Sociodemográfico y Entrega de EPP)
+UPDATE usuarios SET
+  modulos = 'sst',
+  permisos = 'sst:read,sst:write,epidemiologico:read,epidemiologico:write,sociodemografico:read,sociodemografico:write,epp:read,epp:write'
+WHERE LOWER(username) IN ('sandra.roa@boyaca.gov.co');
+
+-- 6. Luis Sanchez: Incapacidades
+UPDATE usuarios SET
+  modulos = 'admin-requests,incapacidades',
+  permisos = 'admin-requests:read,admin-requests:write,incapacidades:read,incapacidades:write,requests:read,requests:write'
+WHERE LOWER(username) IN ('luis.sanches@boyaca.gov.co', 'luis.sanchez@boyaca.gov.co');
+
+-- 7. Alejandro Leon: Permisos
+UPDATE usuarios SET
+  modulos = 'admin-requests,permisos',
+  permisos = 'admin-requests:read,admin-requests:write,permisos:read,permisos:write,requests:read,requests:write'
+WHERE LOWER(username) IN ('alejandro.leon@boyaca.edu.co', 'alejandro.leon@boyaca.gov.co');
+
+-- 8. Sebastian Rincon: Permisos y Licencias
+UPDATE usuarios SET
+  modulos = 'admin-requests,permisos,licencias',
+  permisos = 'admin-requests:read,admin-requests:write,permisos:read,permisos:write,licencias:read,licencias:write,requests:read,requests:write'
+WHERE LOWER(username) IN ('sebastian.rincon@boyaca.gov.co');
+

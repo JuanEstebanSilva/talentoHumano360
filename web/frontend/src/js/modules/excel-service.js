@@ -511,16 +511,19 @@ const ExcelService = (() => {
 
   /**
    * Abre un modal de carga masiva con drag & drop, previsualización en tiempo real,
-   * conteo de registros válidos y con errores, y envío al backend.
+   * detección de duplicados, reporte descargable de errores por fila/columna y envío al backend.
    */
   function openImportModal({
     title = 'Carga Masiva de Archivo Excel',
-    subtitle = 'Seleccione o arrastre un archivo Excel (.xlsx o .xls) con la estructura solicitada',
+    subtitle = 'Seleccione o arrastre un archivo Excel (.xlsx o .xls) con la estructura institucional solicitada',
     moduleName = 'registros',
     columns = [],
     sampleRows = [],
+    existingRecords = [],
+    duplicateKeyFn = null,
     validateRow,
-    onImport
+    onImport,
+    onDownloadTemplate
   }) {
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel (SheetJS) aún no se ha cargado.');
@@ -534,12 +537,13 @@ const ExcelService = (() => {
     let parsedData = [];
     let validRows = [];
     let invalidRows = [];
+    let previewFilter = 'all';
 
     const overlay = document.createElement('div');
     overlay.id = 'excel-import-modal-overlay';
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-      <div class="modal-box excel-modal-card" style="max-width: 820px; width: 95%;">
+      <div class="modal-box excel-modal-card" style="max-width: 920px; width: 96%;">
         <div class="modal-header">
           <div class="modal-header-info">
             <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
@@ -557,12 +561,12 @@ const ExcelService = (() => {
           <button class="modal-close" id="btn-close-excel-modal">&times;</button>
         </div>
 
-        <div class="modal-body" style="padding: 20px 24px; max-height: 70vh; overflow-y: auto;">
+        <div class="modal-body" style="padding: 20px 24px; max-height: 74vh; overflow-y: auto;">
           <!-- Paso 1: Descargar Plantilla -->
           <div class="excel-step-banner">
             <div class="excel-step-text">
-              <strong>¿No tienes el formato adecuado?</strong>
-              <p>Descarga la plantilla modelo con los encabezados requeridos y ejemplos pre-llenados.</p>
+              <strong>¿Necesitas la plantilla oficial vacía?</strong>
+              <p>Descarga la plantilla institucional con los encabezados exactos requeridos y ejemplos guía.</p>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-download-excel-template" style="display:inline-flex; align-items:center; gap:6px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
@@ -570,7 +574,7 @@ const ExcelService = (() => {
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              Descargar Plantilla Oficial
+              Descargar Plantilla Oficial Vacía
             </button>
           </div>
 
@@ -589,15 +593,27 @@ const ExcelService = (() => {
             <div id="excel-file-info" class="excel-file-info" style="display:none;"></div>
           </div>
 
-          <!-- Paso 3: Resumen y Previsualización -->
+          <!-- Paso 3: Resumen, Detalle de Errores y Previsualización -->
           <div id="excel-preview-section" style="display:none; margin-top: 20px;">
-            <div class="excel-preview-stats">
-              <span class="badge badge--info" id="badge-total-rows">0 registros detectados</span>
-              <span class="badge badge--aprobada" id="badge-valid-rows">0 válidos</span>
-              <span class="badge badge--rechazada" id="badge-invalid-rows" style="display:none;">0 con errores</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div class="excel-preview-stats" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="badge badge--info" id="badge-total-rows" style="cursor:pointer;">0 registros detectados</span>
+                <span class="badge badge--aprobada" id="badge-valid-rows" style="cursor:pointer;">0 válidos</span>
+                <span class="badge badge--rechazada" id="badge-invalid-rows" style="display:none; cursor:pointer;">0 con errores / duplicados</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-download-error-report" style="display:none; align-items:center; gap:6px; color:#b91c1c; border-color:#fecaca; background:#fef2f2;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Descargar Reporte de Errores (.xlsx)
+              </button>
             </div>
 
-            <div class="table-wrap" style="margin-top: 12px; max-height: 260px; overflow-y: auto;">
+            <div id="excel-errors-summary" style="display:none; margin-top:12px; padding:12px 14px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; font-size:12px; color:#991b1b; max-height:130px; overflow-y:auto;"></div>
+
+            <div class="table-wrap" style="margin-top: 12px; max-height: 290px; overflow-y: auto;">
               <table class="table-preview" id="excel-preview-table">
                 <thead>
                   <tr id="excel-preview-thead"></tr>
@@ -608,14 +624,19 @@ const ExcelService = (() => {
           </div>
         </div>
 
-        <div class="modal-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-excel-modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="btn-confirm-excel-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span id="btn-confirm-text">Confirmar e Importar</span>
-          </button>
+        <div class="modal-footer" style="padding: 16px 24px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-top: 1px solid var(--color-border);">
+          <div style="font-size:12px; color:var(--color-slate);">
+            La carga masiva es transaccional y evita duplicar registros existentes.
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-excel-modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-confirm-excel-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span id="btn-confirm-text">Confirmar e Importar</span>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -626,6 +647,8 @@ const ExcelService = (() => {
     const closeBtn = overlay.querySelector('#btn-close-excel-modal');
     const cancelBtn = overlay.querySelector('#btn-cancel-excel-modal');
     const downloadTemplateBtn = overlay.querySelector('#btn-download-excel-template');
+    const downloadErrorBtn = overlay.querySelector('#btn-download-error-report');
+    const errorsSummaryBox = overlay.querySelector('#excel-errors-summary');
     const dropzone = overlay.querySelector('#excel-dropzone');
     const fileInput = overlay.querySelector('#excel-file-input');
     const fileInfo = overlay.querySelector('#excel-file-info');
@@ -647,6 +670,10 @@ const ExcelService = (() => {
 
     // Descarga de plantilla
     downloadTemplateBtn.addEventListener('click', () => {
+      if (onDownloadTemplate && typeof onDownloadTemplate === 'function') {
+        onDownloadTemplate();
+        return;
+      }
       downloadTemplate({
         filename: `Plantilla_${moduleName.replace(/\s+/g, '_')}`,
         sheetName: moduleName,
@@ -654,6 +681,41 @@ const ExcelService = (() => {
         sampleRows
       });
     });
+
+    // Descarga de reporte de errores en Excel
+    downloadErrorBtn.addEventListener('click', () => {
+      if (!invalidRows.length) return;
+      const errCols = [
+        { header: 'FILA EXCEL', key: '_rowNum', width: 14 },
+        { header: 'COLUMNA OBSERVADA', key: '_column', width: 28 },
+        { header: 'MOTIVO DEL ERROR / DUPLICADO', key: '_error', width: 48 },
+        ...columns.map(c => ({ header: c.header, key: c.key, width: c.width || 20 }))
+      ];
+      const errData = invalidRows.map(item => {
+        const base = {
+          _rowNum: item._rowNum || item._rowIndex,
+          _column: item.column || 'VALIDACIÓN GENERAL',
+          _error: item.error || 'Datos incompletos o inválidos',
+        };
+        columns.forEach(c => {
+          base[c.key] = (item.cleanRow && item.cleanRow[c.key] !== undefined)
+            ? item.cleanRow[c.key]
+            : (item.row[c.key] ?? item.row[c.header] ?? '');
+        });
+        return base;
+      });
+      exportToExcel({
+        filename: `Reporte_Errores_${moduleName.replace(/\s+/g, '_')}`,
+        sheetName: 'Errores de Importacion',
+        columns: errCols,
+        data: errData
+      });
+    });
+
+    // Filtros rápidos haciendo clic en los badges
+    badgeTotal.addEventListener('click', () => { previewFilter = 'all'; renderPreviewTable(); });
+    badgeValid.addEventListener('click', () => { previewFilter = 'valid'; renderPreviewTable(); });
+    badgeInvalid.addEventListener('click', () => { previewFilter = 'invalid'; renderPreviewTable(); });
 
     // Drag & Drop handlers
     dropzone.addEventListener('click', () => fileInput.click());
@@ -703,16 +765,17 @@ const ExcelService = (() => {
             return;
           }
 
-          // Detectar automáticamente la fila de encabezados reales (evita confundir títulos o banners superiores)
+          // Detectar automáticamente la fila de encabezados reales
           const rawMatrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
           let headerRowIndex = 0;
-          for (let r = 0; r < Math.min(15, rawMatrix.length); r++) {
+          for (let r = 0; r < Math.min(18, rawMatrix.length); r++) {
             const rowVals = (rawMatrix[r] || []).map(v => String(v).toLowerCase().trim());
             const matches = rowVals.filter(v =>
-              v.includes('nombre') || v.includes('identifica') || v.includes('cedula') ||
+              v.includes('nombre') || v.includes('identifica') || v.includes('cedula') || v.includes('cédula') ||
               v.includes('cargo') || v.includes('dependencia') || v.includes('situaci') ||
               v.includes('documento') || v.includes('codigo') || v.includes('grado') ||
               v.includes('secretaria') || v.includes('teletrabajo') || v.includes('modalidad') ||
+              v.includes('servidor') || v.includes('apellido') || v.includes('radicaci') ||
               v === 'no.' || v === 'no' || v === 'item' || v === 'n°'
             );
             if (matches.length >= 2) {
@@ -723,12 +786,17 @@ const ExcelService = (() => {
 
           parsedData = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: '' });
 
-          // Filtrar filas completamente vacías
-          parsedData = (parsedData || []).filter(row =>
-            Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '')
-          );
+          // Filtrar filas completamente vacías conservando su número de fila en Excel
+          const enriched = [];
+          (parsedData || []).forEach((row, idx) => {
+            const hasData = Object.values(row).some(v => v !== null && v !== undefined && String(v).trim() !== '');
+            if (hasData) {
+              enriched.push({ ...row, _excelRowNum: headerRowIndex + idx + 2 });
+            }
+          });
+          parsedData = enriched;
 
-          if (!parsedData || !parsedData.length) {
+          if (!parsedData.length) {
             alert('El archivo no contiene filas de datos o está vacío.');
             return;
           }
@@ -746,62 +814,93 @@ const ExcelService = (() => {
     function processAndPreview(rows) {
       validRows = [];
       invalidRows = [];
+      previewFilter = 'all';
+
+      // Construir conjunto de claves existentes para detectar duplicados
+      const existingKeys = new Set();
+      if (typeof duplicateKeyFn === 'function' && Array.isArray(existingRecords)) {
+        existingRecords.forEach(rec => {
+          const k = duplicateKeyFn(rec);
+          if (k) existingKeys.add(String(k).toLowerCase().trim());
+        });
+      }
+      const batchKeys = new Set();
 
       rows.forEach((row, index) => {
+        const rowNum = row._excelRowNum || (index + 2);
         const validation = validateRow ? validateRow(row, index) : { valid: true, cleanRow: row };
-        if (validation.valid) {
-          validRows.push({ ...validation.cleanRow, _rowIndex: index + 1 });
-        } else {
-          invalidRows.push({ row, _rowIndex: index + 1, error: validation.error || 'Datos incompletos o inválidos' });
+        if (!validation.valid) {
+          invalidRows.push({
+            row,
+            cleanRow: validation.cleanRow || null,
+            _rowIndex: index + 1,
+            _rowNum: rowNum,
+            column: validation.column || validation.campo || 'Columna requerida',
+            error: validation.error || 'Datos incompletos o inválidos'
+          });
+          return;
         }
+
+        const cleanRow = { ...validation.cleanRow, _rowIndex: index + 1, _rowNum: rowNum };
+
+        // Verificar duplicados si se configuró duplicateKeyFn
+        if (typeof duplicateKeyFn === 'function') {
+          const key = String(duplicateKeyFn(cleanRow) || '').toLowerCase().trim();
+          if (key) {
+            if (batchKeys.has(key)) {
+              invalidRows.push({
+                row,
+                cleanRow,
+                _rowIndex: index + 1,
+                _rowNum: rowNum,
+                column: 'REGISTRO DUPLICADO EN ARCHIVO',
+                error: `Fila duplicada dentro del mismo archivo Excel (${key.replace(/\|/g, ' · ')}).`
+              });
+              return;
+            }
+            if (existingKeys.has(key)) {
+              invalidRows.push({
+                row,
+                cleanRow,
+                _rowIndex: index + 1,
+                _rowNum: rowNum,
+                column: 'REGISTRO YA EXISTENTE EN BD',
+                error: `El registro ya existe en la base de datos (${key.replace(/\|/g, ' · ')}).`
+              });
+              return;
+            }
+            batchKeys.add(key);
+          }
+        }
+
+        validRows.push(cleanRow);
       });
 
       // Actualizar badges
       badgeTotal.textContent = `${rows.length} registros detectados`;
-      badgeValid.textContent = `${validRows.length} válidos`;
+      badgeValid.textContent = `${validRows.length} válidos para importar`;
 
       if (invalidRows.length > 0) {
         badgeInvalid.style.display = 'inline-flex';
-        badgeInvalid.textContent = `${invalidRows.length} con errores`;
+        badgeInvalid.textContent = `${invalidRows.length} con errores o duplicados`;
+        downloadErrorBtn.style.display = 'inline-flex';
+        errorsSummaryBox.style.display = 'block';
+        errorsSummaryBox.innerHTML = `
+          <div style="font-weight:700; margin-bottom:6px;">Detalle de filas rechazadas o duplicadas (${invalidRows.length}):</div>
+          <ul style="margin:0; padding-left:18px; line-height:1.5;">
+            ${invalidRows.slice(0, 12).map(ir => `
+              <li><strong>Fila ${ir._rowNum}</strong> [${ir.column}]: ${ir.error}</li>
+            `).join('')}
+            ${invalidRows.length > 12 ? `<li><em>... y ${invalidRows.length - 12} observaciones más (descargue el reporte de errores en Excel).</em></li>` : ''}
+          </ul>
+        `;
       } else {
         badgeInvalid.style.display = 'none';
+        downloadErrorBtn.style.display = 'none';
+        errorsSummaryBox.style.display = 'none';
       }
 
-      // Renderizar tabla de previsualización
-      thead.innerHTML = `
-        <th style="width: 50px;">Fila</th>
-        <th style="width: 90px;">Estado</th>
-        ${columns.map(c => `<th>${c.header}</th>`).join('')}
-      `;
-
-      tbody.innerHTML = '';
-      const displayRows = [...validRows.map(r => ({ ...r, _status: 'ok' })), ...invalidRows.map(r => ({ ...r.row, _rowIndex: r._rowIndex, _status: 'error', _msg: r.error }))].slice(0, 15);
-
-      displayRows.forEach(item => {
-        const tr = document.createElement('tr');
-        if (item._status === 'error') tr.className = 'excel-row-error';
-
-        let statusBadge = item._status === 'ok'
-          ? `<span class="badge badge--aprobada" style="font-size:10px; padding:2px 6px;">Válido</span>`
-          : `<span class="badge badge--rechazada" style="font-size:10px; padding:2px 6px;" title="${item._msg || ''}">Error</span>`;
-
-        tr.innerHTML = `
-          <td><strong>#${item._rowIndex}</strong></td>
-          <td>${statusBadge}</td>
-          ${columns.map(col => {
-            const val = item[col.key] || item[col.header] || '';
-            return `<td>${String(val).substring(0, 35)}</td>`;
-          }).join('')}
-        `;
-        tbody.appendChild(tr);
-      });
-
-      if (rows.length > 15) {
-        const trMore = document.createElement('tr');
-        trMore.innerHTML = `<td colspan="${columns.length + 2}" style="text-align:center; color:var(--color-slate); font-size:12px; padding:8px;">... y ${rows.length - 15} registros más en el archivo.</td>`;
-        tbody.appendChild(trMore);
-      }
-
+      renderPreviewTable();
       previewSection.style.display = 'block';
 
       if (validRows.length > 0) {
@@ -813,12 +912,66 @@ const ExcelService = (() => {
       }
     }
 
+    function renderPreviewTable() {
+      thead.innerHTML = `
+        <th style="width: 65px;">Fila</th>
+        <th style="width: 110px;">Estado</th>
+        <th style="width: 180px;">Observación / Columna</th>
+        ${columns.map(c => `<th>${c.header}</th>`).join('')}
+      `;
+
+      tbody.innerHTML = '';
+      const validMapped = validRows.map(r => ({ ...r, _status: 'ok', _col: 'OK', _msg: 'Listo para importar' }));
+      const invalidMapped = invalidRows.map(r => ({
+        ...(r.cleanRow || r.row),
+        _rowIndex: r._rowIndex,
+        _rowNum: r._rowNum,
+        _status: 'error',
+        _col: r.column || 'Validación',
+        _msg: r.error
+      }));
+
+      let sourceList = [...invalidMapped, ...validMapped];
+      if (previewFilter === 'valid') sourceList = validMapped;
+      if (previewFilter === 'invalid') sourceList = invalidMapped;
+
+      const displayRows = sourceList.slice(0, 80);
+
+      displayRows.forEach(item => {
+        const tr = document.createElement('tr');
+        if (item._status === 'error') tr.className = 'excel-row-error';
+
+        const statusBadge = item._status === 'ok'
+          ? `<span class="badge badge--aprobada" style="font-size:10px; padding:2px 6px;">Válido</span>`
+          : `<span class="badge badge--rechazada" style="font-size:10px; padding:2px 6px;" title="${item._msg || ''}">Rechazado</span>`;
+
+        tr.innerHTML = `
+          <td><strong>Fila ${item._rowNum || item._rowIndex}</strong></td>
+          <td>${statusBadge}</td>
+          <td style="font-size:11px; color:${item._status === 'error' ? '#b91c1c' : '#15803d'};">
+            <strong>${item._col}:</strong> ${String(item._msg || '').substring(0, 65)}
+          </td>
+          ${columns.map(col => {
+            const val = item[col.key] ?? item[col.header] ?? '';
+            return `<td>${String(val).substring(0, 35)}</td>`;
+          }).join('')}
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (sourceList.length > 80) {
+        const trMore = document.createElement('tr');
+        trMore.innerHTML = `<td colspan="${columns.length + 3}" style="text-align:center; color:var(--color-slate); font-size:12px; padding:8px;">... y ${sourceList.length - 80} registros más en el archivo.</td>`;
+        tbody.appendChild(trMore);
+      }
+    }
+
     // Acción de confirmación
     confirmBtn.addEventListener('click', async () => {
       if (!validRows.length) return;
 
       confirmBtn.disabled = true;
-      confirmText.textContent = 'Procesando carga...';
+      confirmText.textContent = 'Procesando carga transaccional...';
 
       try {
         await onImport(validRows);

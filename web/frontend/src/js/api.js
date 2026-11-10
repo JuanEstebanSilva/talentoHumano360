@@ -223,13 +223,37 @@ const API = (() => {
 
     // Solicitudes Administrativas
     getAdminRequests: (params = {}) => request('/admin-requests?' + new URLSearchParams(params)),
-    getAdminRequestsStats: () => request('/admin-requests/stats'),
+    getAdminRequestsStats: (params = {}) => {
+      const qs = new URLSearchParams({ detailed: '1', ...params }).toString();
+      return request('/admin-requests/stats' + (qs ? `?${qs}` : ''));
+    },
     createAdminRequest: (data) => request('/admin-requests', { method: 'POST', body: JSON.stringify(data) }),
-    bulkCreateAdminRequests: (rows) => request('/admin-requests/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
     updateAdminRequest: (id, data) => request(`/admin-requests/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     updateAdminRequestStatus: (id, estado, notaGestion = '') =>
       request(`/admin-requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, notaGestion }) }),
     deleteAdminRequest: (id) => request(`/admin-requests/${id}`, { method: 'DELETE' }),
+    getPermisosCatalogs: () => request('/admin-requests/catalogs/permisos'),
+    getLicenciasCatalogs: () => request('/admin-requests/catalogs/licencias'),
+    getAdminRequestSoportes: (id) => request(`/admin-requests/${id}/soportes`),
+    getAdminRequestSoporteUrl: (id, sid) => `${BASE}/admin-requests/${id}/soportes/${sid}`,
+    reenviarNotificacionAdminRequest: (id) =>
+      request(`/admin-requests/${id}/reenviar-notificacion`, { method: 'POST' }),
+
+    // Incapacidades (Formato 9. INCAPACIDADES SST — E-DO-ST-F-002 Versión 2)
+    getIncapacidades: (params = {}) => request('/admin-requests/incapacidades?' + new URLSearchParams(params)),
+    getIncapacidadesStats: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request('/admin-requests/incapacidades/stats' + (qs ? `?${qs}` : ''));
+    },
+    getIncapacidadesCatalogs: () => request('/admin-requests/incapacidades/catalogs'),
+    createIncapacidad: (data) => request('/admin-requests/incapacidades', { method: 'POST', body: JSON.stringify(data) }),
+    bulkCreateIncapacidades: (rows) => request('/admin-requests/incapacidades/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
+    updateIncapacidad: (id, data) => request(`/admin-requests/incapacidades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateIncapacidadStatus: (id, estado, observaciones = '') =>
+      request(`/admin-requests/incapacidades/${id}/status`, { method: 'PATCH', body: JSON.stringify({ estado, observaciones }) }),
+    deleteIncapacidad: (id) => request(`/admin-requests/incapacidades/${id}`, { method: 'DELETE' }),
+    getIncapacidadSoportes: (id) => request(`/admin-requests/incapacidades/${id}/soportes`),
+    getIncapacidadSoporteUrl: (id, sid) => `${BASE}/admin-requests/incapacidades/${id}/soportes/${sid}`,
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
@@ -276,7 +300,10 @@ const API = (() => {
 
     // Seguridad y Salud en el Trabajo (SST)
     getSstCatalogs: () => request('/sst/catalogs'),
-    getSstStats: () => request('/sst/stats'),
+    getSstStats: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request('/sst/stats' + (qs ? `?${qs}` : ''));
+    },
 
     getSstEpidemiologico: (params = {}) => request('/sst/epidemiologico?' + new URLSearchParams(params)),
     createSstEpidemiologico: (data) => request('/sst/epidemiologico', { method: 'POST', body: JSON.stringify(data) }),
@@ -288,6 +315,9 @@ const API = (() => {
     deleteSstEpidemiologico: (id) => request(`/sst/epidemiologico/${id}`, { method: 'DELETE' }),
 
     getSstEpp: (params = {}) => request('/sst/epp?' + new URLSearchParams(params)),
+    getSstEppInventario: () => request('/sst/epp/inventario'),
+    updateSstEppInventario: (codigo, data) =>
+      request(`/sst/epp/inventario/${encodeURIComponent(codigo)}`, { method: 'PUT', body: JSON.stringify(data) }),
     createSstEpp: (data) => request('/sst/epp', { method: 'POST', body: JSON.stringify(data) }),
     updateSstEpp: (id, data) => request(`/sst/epp/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     bulkCreateSstEpp: (rows) => request('/sst/epp/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
@@ -298,6 +328,62 @@ const API = (() => {
     updateSstSociodemografico: (id, data) => request(`/sst/sociodemografico/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     bulkCreateSstSociodemografico: (rows) => request('/sst/sociodemografico/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
     deleteSstSociodemografico: (id) => request(`/sst/sociodemografico/${id}`, { method: 'DELETE' }),
+
+    // Gobernanza Unificada: RBAC, Responsables por Módulo, Auditoría Inmutable y Documentos Institucionales
+    getGovernancePermissions: (modulo = '', service = 'admin-requests') =>
+      request(`/${service}/governance/permissions?` + new URLSearchParams(modulo ? { modulo } : {})),
+    checkGovernancePermission: async (modulo = 'permisos') => {
+      const sstMods = ['epidemiologico', 'sociodemografico', 'epp'];
+      const service = sstMods.includes(modulo) ? 'sst' : 'admin-requests';
+      const res = await request(`/${service}/governance/permissions?` + new URLSearchParams({ modulo }));
+      const perm = (res && res.permissions && res.permissions[modulo]) || {};
+      return {
+        isAdmin: Boolean(res?.isAdmin || perm.isAdmin),
+        isResponsable: Boolean(perm.isResponsable),
+        canManage: Boolean(perm.canManage || res?.isAdmin),
+        canApprove: Boolean(perm.canApprove || perm.canManage || res?.isAdmin),
+        canImport: Boolean(perm.canImport || perm.canManage || res?.isAdmin),
+        canExport: Boolean(perm.canExport || perm.canManage || res?.isAdmin),
+        roleType: perm.roleType || (res?.isAdmin ? 'Administrador' : 'Funcionario'),
+        responsables: res?.responsables || [],
+      };
+    },
+    getGovernanceUsers: (service = 'admin-requests') =>
+      request(`/${service}/governance/users`),
+    saveModuloResponsable: (data, service = 'admin-requests') =>
+      request(`/${service}/governance/responsables`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteModuloResponsable: (id, service = 'admin-requests') =>
+      request(`/${service}/governance/responsables/${id}`, { method: 'DELETE' }),
+    getAuditoriaModulos: (params = {}, service = 'admin-requests') =>
+      request(`/${service}/governance/auditoria?` + new URLSearchParams(params)),
+    getDocumentosInstitucionales: (modulo = '', service = 'admin-requests') =>
+      request(`/${service}/governance/documentos?` + new URLSearchParams(modulo ? { modulo } : {})),
+    getDocumentoVersiones: (id, service = 'admin-requests') =>
+      request(`/${service}/governance/documentos/${id}/versiones`),
+    createDocumentoInstitucional: (data, service = 'admin-requests') =>
+      request(`/${service}/governance/documentos`, { method: 'POST', body: JSON.stringify(data) }),
+    updateDocumentoInstitucional: (id, data, service = 'admin-requests') =>
+      request(`/${service}/governance/documentos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteDocumentoInstitucional: (id, service = 'admin-requests') =>
+      request(`/${service}/governance/documentos/${id}`, { method: 'DELETE' }),
+    downloadDocumentoInstitucional: async (id, nombreArchivo = 'Documento_Institucional', service = 'admin-requests', versionId = null) => {
+      const token = Auth.getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const pathUrl = versionId
+        ? `${BASE}/${service}/governance/documentos/${id}/versiones/${versionId}/download`
+        : `${BASE}/${service}/governance/documentos/${id}/download`;
+      const res = await fetch(pathUrl, { headers });
+      if (!res.ok) throw new Error('No se pudo descargar el documento institucional.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    },
 
     // Administración Técnica: Monitoreo de Errores y Copias de Seguridad
     reportError: (payload) =>

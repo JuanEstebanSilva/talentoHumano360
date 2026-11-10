@@ -1,9 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    sst.js — Módulo de Seguridad y Salud en el Trabajo (SST — Talento 360)
-   Formatos Oficiales Gobernación de Boyacá:
-   1. Perfil Epidemiológico y EMO (Código E-DO-ST-F-024 V3)
-   2. Entrega de Elementos de Protección Personal - EPP (Código E-DO-ST-F-028 V4)
-   3. Perfil Sociodemográfico (Código E-DO-ST-F-011 V5)
+   Submódulos:\n   1. Perfil Epidemiológico y EMO\n   2. Entrega de Elementos de Protección Personal (EPP)\n   3. Perfil Sociodemográfico
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const SstModule = (() => {
@@ -11,21 +8,21 @@ const SstModule = (() => {
     epidemiologico: {
       key: 'epidemiologico',
       title: 'Perfil Epidemiológico y EMO',
-      code: 'E-DO-ST-F-024 V3',
+      code: '',
       desc: 'Control de Exámenes Médicos Ocupacionales (EMO), restricciones, PVE y seguimiento de accidentes/enfermedades laborales',
       btnCreate: 'Nuevo Registro EMO'
     },
     epp: {
       key: 'epp',
       title: 'Entrega de Elementos de Protección Personal (EPP)',
-      code: 'E-DO-ST-F-028 V4',
-      desc: 'Suministro y reposición de Elementos de Protección Personal conforme al Instructivo E-DO-ST-I-007',
+      code: '',
+      desc: 'Suministro, reposición y verificación de entrega de Elementos de Protección Personal',
       btnCreate: 'Registrar Entrega EPP'
     },
     sociodemografico: {
       key: 'sociodemografico',
       title: 'Perfil Sociodemográfico',
-      code: 'E-DO-ST-F-011 V5',
+      code: '',
       desc: 'Caracterización sociodemográfica, familiar, educativa y laboral de los servidores públicos y contratistas',
       btnCreate: 'Nuevo Perfil Sociodemográfico'
     }
@@ -39,11 +36,24 @@ const SstModule = (() => {
     totalPages: 1,
     filters: { q: '', subFilter1: 'Todos', subFilter2: 'Todos' },
     stats: {},
-    catalogs: null
+    catalogs: null,
+    permission: null,
+    selectedIds: new Set(),
+    dashVisible: true,
+    dashFilters: { anio: 'Todos', mes: 'Todos' }
   };
 
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+  let chartInstances = { c1: null, c2: null, c3: null };
+
+  function canManageCurrent() {
+    if (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin()) return true;
+    if (state.permission && typeof state.permission.canManage === 'boolean') {
+      return state.permission.canManage;
+    }
+    return typeof Auth !== 'undefined' && Auth.canEdit ? Auth.canEdit() : false;
+  }
 
   function escHtml(str) {
     if (str === null || str === undefined) return '';
@@ -55,164 +65,405 @@ const SstModule = (() => {
       .replace(/'/g, '&#039;');
   }
 
-  function loadStats() {
-    API.getSstStats().then(stats => {
-      state.stats = stats || {};
-      const grid = document.getElementById('sst-stats-grid');
-      if (!grid) return;
-
-      if (state.tab === 'epp') {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalEpp) || 0}</span>
-              <span class="stat-label">Total Dotaciones</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.servidoresDotados) || 0}</span>
-              <span class="stat-label">Servidores Dotados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.eppEntregados) || 0}</span>
-              <span class="stat-label">EPP Entregados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${Math.max(0, (parseInt(stats.totalEpp) || 0) - (parseInt(stats.eppEntregados) || 0))}</span>
-              <span class="stat-label">En Reposición / Pendiente</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">E-DO-ST-F-028</span>
-              <span class="stat-label">Formato Oficial V4</span>
-            </div>
-          </div>
-        `;
-      } else if (state.tab === 'sociodemografico') {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalSociodemografico) || 0}</span>
-              <span class="stat-label">Perfiles Registrados</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.dependenciasCubiertas) || 0}</span>
-              <span class="stat-label">Dependencias Cubiertas</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">E-DO-ST-F-011</span>
-              <span class="stat-label">Formato Oficial V5</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">100%</span>
-              <span class="stat-label">Confidencialidad Ley 1581</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">Vigencia 2026</span>
-              <span class="stat-label">Actualización Periódica</span>
-            </div>
-          </div>
-        `;
-      } else {
-        grid.innerHTML = `
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.totalEmo) || 0}</span>
-              <span class="stat-label">Total Exámenes EMO</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.emoVigentes) || 0}</span>
-              <span class="stat-label">EMO Vigentes</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.emoAlertas) || 0}</span>
-              <span class="stat-label">Alertas / Vencidos</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.casosSeguimiento) || 0}</span>
-              <span class="stat-label">En Seguimiento</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon stat-icon--purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">${parseInt(stats.direccionadosPve) || 0}</span>
-              <span class="stat-label">Direccionados PVE</span>
-            </div>
-          </div>
-        `;
+  function destroyCharts() {
+    Object.keys(chartInstances).forEach(k => {
+      if (chartInstances[k]) {
+        try { chartInstances[k].destroy(); } catch (_) {}
+        chartInstances[k] = null;
       }
+    });
+  }
+
+  function toggleDashboard() {
+    state.dashVisible = !state.dashVisible;
+    const wrap = document.getElementById('sst-charts-wrap');
+    const lbl = document.getElementById('sst-dash-toggle-lbl');
+    if (wrap) wrap.style.display = state.dashVisible ? 'grid' : 'none';
+    if (lbl) lbl.textContent = state.dashVisible ? 'Ocultar Gráficos' : 'Mostrar Gráficos';
+    if (state.dashVisible) renderDashboard(state.stats || {});
+  }
+
+  function applyDashFilters() {
+    state.dashFilters.anio = document.getElementById('sst-dash-anio')?.value || '';
+    state.dashFilters.mes = document.getElementById('sst-dash-mes')?.value || '';
+    loadStats();
+  }
+
+  function loadStats() {
+    API.getSstStats({ anio: state.dashFilters.anio, mes: state.dashFilters.mes }).then(stats => {
+      state.stats = stats || {};
+      renderDashboard(state.stats);
     }).catch(err => {
       console.error('[SstModule] Error cargando estadísticas SST:', err);
     });
   }
 
+  function renderDashboard(stats = state.stats || {}) {
+    const grid = document.getElementById('sst-stats-grid');
+    if (!grid) return;
+
+    if (state.tab === 'epp') {
+      const ep = stats.epp || stats || {};
+      const totalEpp = parseInt(ep.totalEpp ?? stats.totalEpp) || 0;
+      const totalUnidades = parseInt(ep.unidadesEntregadasTotal ?? stats.unidadesEntregadasTotal ?? stats.totalUnidadesEntregadas) || totalEpp;
+      const dotados = parseInt(ep.servidoresDotados ?? stats.servidoresDotados) || 0;
+      const disp = (ep.stockDisponibleTotal ?? stats.stockDisponibleTotal) != null ? parseInt(ep.stockDisponibleTotal ?? stats.stockDisponibleTotal) : 0;
+      const bajas = parseInt(ep.existenciasBajasCount ?? stats.existenciasBajasCount) || 0;
+      const firmados = parseInt(ep.eppFirmados ?? stats.eppFirmados) || 0;
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Entregas Registradas</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalEpp.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">Unidades suministradas: <strong>${totalUnidades}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#1e40af;font-weight:700;">Funcionarios Dotados</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8;margin:4px 0;">${dotados.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Entregas en estado Entregado: ${parseInt(ep.eppEntregados ?? stats.eppEntregados) || 0}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;cursor:pointer;" onclick="SstModule.openEppInventoryModal()" title="Clic para ver y gestionar el inventario de EPP">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Elementos Disponibles (Stock)</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#15803d;margin:4px 0;">${disp.toLocaleString('es-CO')} u.</div>
+          <div style="font-size:0.73rem;color:#166534;text-decoration:underline;">Gestionar inventario A–AB →</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid ${bajas > 0 ? '#fecaca' : '#e2e8f0'};border-left:4px solid ${bajas > 0 ? '#dc2626' : '#64748b'};padding:14px 16px;border-radius:12px;cursor:pointer;" onclick="SstModule.openEppInventoryModal()" title="Clic para revisar existencias bajas de EPP">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:${bajas > 0 ? '#991b1b' : '#475569'};font-weight:700;">Alertas Existencias Bajas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${bajas > 0 ? '#dc2626' : '#334155'};margin:4px 0;">${bajas} ítem(s)</div>
+          <div style="font-size:0.73rem;color:#64748b;">${bajas > 0 ? 'Bajo stock mínimo configurado' : 'Todo el stock sobre el mínimo'}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Firmas Digitales Verificadas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#b45309;margin:4px 0;">${firmados} / ${totalEpp}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Cobertura firma: ${totalEpp > 0 ? Math.round((firmados / totalEpp) * 100) : 0}%</div>
+        </div>
+      `;
+    } else if (state.tab === 'sociodemografico') {
+      const sc = stats.sociodemografico || stats.socioCharts || stats || {};
+      const totalSocio = parseInt(sc.totalSociodemografico ?? stats.totalSociodemografico) || 0;
+      const deps = parseInt(sc.dependenciasCubiertas ?? stats.dependenciasCubiertas) || 0;
+      const sedes = parseInt(sc.sedesCubiertas ?? stats.sedesCubiertas) || 0;
+      const edadProm = sc.edadPromedio ?? stats.edadPromedio ?? 0;
+      const genList = sc.porSexo || sc.porGenero || [];
+      const genText = genList.length ? genList.map(g => `${g.sexo || g.label}: ${g.cantidad ?? g.count}`).join(' · ') : 'Sin registros';
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Funcionarios Caracterizados</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalSocio.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">Censo sociodemográfico real</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bbf7d0;border-left:4px solid #16a34a;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#166534;font-weight:700;">Edad Promedio de la Planta</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#15803d;margin:4px 0;">${edadProm} años</div>
+          <div style="font-size:0.73rem;color:#64748b;">Calculado sobre registros activos</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #0284c7;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#0369a1;font-weight:700;">Dependencias Cubiertas</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#0284c7;margin:4px 0;">${deps}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Sedes cubiertas: <strong>${sedes}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #e9d5ff;border-left:4px solid #7c3aed;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#6d28d9;font-weight:700;">Distribución por Sexo</div>
+          <div style="font-size:1.15rem;font-weight:800;color:#5b21b6;margin:8px 0;">${escHtml(genText)}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Formato oficial E-DO-ST-F-011 V5</div>
+        </div>
+      `;
+    } else {
+      const ep = stats.epidemiologico || stats || {};
+      const totalEmo = parseInt(ep.totalEmo ?? stats.totalEmo) || 0;
+      const vigentes = parseInt(ep.emoVigentes ?? stats.emoVigentes) || 0;
+      const alertas = parseInt(ep.emoAlertas ?? stats.emoAlertas) || 0;
+      const seg = parseInt(ep.casosSeguimiento ?? stats.casosSeguimiento) || 0;
+      const pve = parseInt(ep.direccionadosPve ?? stats.direccionadosPve) || 0;
+      const rest = parseInt(ep.conCondicionesSalud ?? stats.conCondicionesSalud ?? stats.conRestricciones) || 0;
+
+      grid.innerHTML = `
+        <div class="stat-card" style="background:linear-gradient(135deg,#1b4f32 0%,#15803d 100%);color:#fff;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.9;font-weight:700;">Total Evaluaciones EMO</div>
+          <div style="font-size:1.8rem;font-weight:800;margin:4px 0;">${totalEmo.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;opacity:0.9;">EMO Vigentes: <strong>${vigentes}</strong></div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #fde68a;border-left:4px solid #d97706;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#92400e;font-weight:700;">Con Condiciones / Restricciones</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#b45309;margin:4px 0;">${rest.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Casos AT: ${ep.accidentesTrabajo ?? stats.accidentesTrabajo ?? 0} · Casos EL: ${ep.enfermedadesLaborales ?? stats.enfermedadesLaborales ?? 0}</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #e9d5ff;border-left:4px solid #7c3aed;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#6d28d9;font-weight:700;">Direccionados a PVE</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#5b21b6;margin:4px 0;">${pve.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Programas de Vigilancia Epidemiológica</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:#1e40af;font-weight:700;">Casos en Seguimiento</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#1d4ed8;margin:4px 0;">${seg.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">En seguimiento o rehabilitación</div>
+        </div>
+        <div class="stat-card" style="background:#fff;border:1px solid ${alertas > 0 ? '#fecaca' : '#bbf7d0'};border-left:4px solid ${alertas > 0 ? '#dc2626' : '#16a34a'};padding:14px 16px;border-radius:12px;">
+          <div style="font-size:0.73rem;text-transform:uppercase;letter-spacing:0.5px;color:${alertas > 0 ? '#991b1b' : '#166534'};font-weight:700;">Alertas EMO / Vencidos</div>
+          <div style="font-size:1.8rem;font-weight:800;color:${alertas > 0 ? '#dc2626' : '#15803d'};margin:4px 0;">${alertas.toLocaleString('es-CO')}</div>
+          <div style="font-size:0.73rem;color:#64748b;">Próximos a vencer o vencidos</div>
+        </div>
+      `;
+    }
+
+    renderDashboardCharts(stats);
+  }
+
+  function renderDashboardCharts(stats = state.stats || {}) {
+    if (!state.dashVisible || typeof Chart === 'undefined') return;
+    destroyCharts();
+
+    const t1 = document.getElementById('sst-chart-1-title') || document.getElementById('sst-chart-title-1');
+    const t2 = document.getElementById('sst-chart-2-title') || document.getElementById('sst-chart-title-2');
+    const t3 = document.getElementById('sst-chart-3-title') || document.getElementById('sst-chart-title-3');
+    const c1 = document.getElementById('sst-chart-1');
+    const c2 = document.getElementById('sst-chart-2');
+    const c3 = document.getElementById('sst-chart-3');
+    const e1 = document.getElementById('sst-empty-1');
+    const e2 = document.getElementById('sst-empty-2');
+    const e3 = document.getElementById('sst-empty-3');
+    if (!c1 || !c2 || !c3) return;
+
+    const palette = ['#1b4f32', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0d9488', '#475569', '#0284c7'];
+
+    const drawChart = (key, canvas, emptyEl, type, labels, data, options = {}, datasetExtra = {}) => {
+      if (!labels || !labels.length) {
+        canvas.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'flex';
+        return;
+      }
+      canvas.style.display = 'block';
+      if (emptyEl) emptyEl.style.display = 'none';
+      chartInstances[key] = new Chart(canvas, {
+        type,
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: type === 'doughnut' || type === 'pie' ? palette : (datasetExtra.backgroundColor || '#1b4f32'),
+            borderColor: datasetExtra.borderColor || '#1b4f32',
+            borderRadius: type === 'bar' ? 4 : 0,
+            fill: datasetExtra.fill || false,
+            tension: 0.3,
+            ...datasetExtra
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: type === 'doughnut' || type === 'pie',
+              position: 'right',
+              labels: { boxWidth: 11, font: { size: 10.5 } }
+            }
+          },
+          ...options
+        }
+      });
+    };
+
+    if (state.tab === 'epidemiologico') {
+      const ec = stats.epidemiologico || stats.epiCharts || {};
+      if (t1) t1.textContent = 'Distribución por Programa PVE / Riesgo';
+      if (t2) t2.textContent = 'Estado Actual de los Casos EMO';
+      if (t3) t3.textContent = 'Casos Epidemiológicos por Dependencia (Top 8)';
+
+      const pve = ec.porPve || [];
+      drawChart('c1', c1, e1, 'doughnut', pve.map(x => String(x.pve || x.label || 'N/A').substring(0, 26)), pve.map(x => x.cantidad ?? x.count ?? 0));
+
+      const est = ec.porEstadoCaso || [];
+      drawChart('c2', c2, e2, 'doughnut', est.map(x => String(x.estado || x.label || 'N/A').substring(0, 24)), est.map(x => x.cantidad ?? x.count ?? 0));
+
+      const dep = (ec.porDependencia || []).slice(0, 8);
+      drawChart('c3', c3, e3, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#1b4f32' });
+    } else if (state.tab === 'sociodemografico') {
+      const sc = stats.sociodemografico || stats.socioCharts || {};
+      if (t1) t1.textContent = 'Distribución por Rango de Edad';
+      if (t2) t2.textContent = 'Distribución por Nivel Educativo';
+      if (t3) t3.textContent = 'Funcionarios Caracterizados por Dependencia';
+
+      const edad = sc.porRangoEdad || [];
+      drawChart('c1', c1, e1, 'bar', edad.map(x => x.rango || x.label || 'N/A'), edad.map(x => x.cantidad ?? x.count ?? 0), {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#2563eb' });
+
+      const esc = sc.porEscolaridad || [];
+      drawChart('c2', c2, e2, 'doughnut', esc.map(x => String(x.escolaridad || x.label || 'N/A').substring(0, 24)), esc.map(x => x.cantidad ?? x.count ?? 0));
+
+      const dep = (sc.porDependencia || []).slice(0, 8);
+      drawChart('c3', c3, e3, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#0284c7' });
+    } else {
+      const epc = stats.epp || stats.eppCharts || {};
+      if (t1) t1.textContent = 'Entregas por Tipo de Elemento EPP';
+      if (t2) t2.textContent = 'Entregas de EPP por Secretaría / Dependencia';
+      if (t3) t3.textContent = 'Evolución Mensual de Entregas de EPP';
+
+      const elem = (epc.porElemento || []).slice(0, 8);
+      drawChart('c1', c1, e1, 'doughnut', elem.map(x => String(x.elemento || x.label || 'N/A').substring(0, 25)), elem.map(x => x.entregas ?? x.cantidad ?? x.count ?? 0));
+
+      const dep = (epc.porDependencia || []).slice(0, 8);
+      drawChart('c2', c2, e2, 'bar', dep.map(x => String(x.dependencia || x.label || 'N/A').substring(0, 25)), dep.map(x => x.cantidad ?? x.count ?? 0), {
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { backgroundColor: '#15803d' });
+
+      const evo = epc.evolucionMensual || [];
+      drawChart('c3', c3, e3, 'line', evo.map(x => x.mes), evo.map(x => x.cantidad ?? x.count ?? 0), {
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }, { borderColor: '#1b4f32', backgroundColor: 'rgba(27,79,50,0.14)', fill: true });
+    }
+  }
+
   // ─── Catálogos Fallback Locales ────────────────────────────────────────────
   const DEFAULT_CATALOGS = {
+    elementosEppClean: [
+      'Casco de seguridad',
+      'Gorro o Cofias',
+      'Gorro Zafari',
+      'Tapones externos',
+      'Tapones de copa (orejeras)',
+      'Careta (guadañar)',
+      'Monogafas',
+      'Gafas de seguridad',
+      'Gafas de seguridad / UV',
+      'Respirador con filtros',
+      'Filtros para respiradores',
+      'Respirador ffp2 o n95',
+      'Mascarilla desechable',
+      'Guantes de poliuretano',
+      'Guantes de vaqueta',
+      'Guantes de Nitrilo',
+      'Guantes de látex',
+      'Guantes de caucho',
+      'Guantes sustancias químicas',
+      'Chaleco Trabajo en campo',
+      'Overol de dos piezas cinta reflectiva',
+      'Overol antifluidos',
+      'Bata manga larga antifluido',
+      'Delantal Carnaza',
+      'Zapato cerrado',
+      'Botas de Seguridad',
+      'Botas pantaneras con puntera',
+      'Otros'
+    ],
+    secretariasEpp: [
+      'DESPACHO DEL GOBERNADOR',
+      'SECRETARIA DE PLANEACION',
+      'SECRETARIA DE HACIENDA',
+      'SECRETARIA DE CONTRATACION',
+      'SECRETARIA GENERAL',
+      'SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL',
+      'SECRETARIA DE INTEGRACION SOCIAL',
+      'SECRETARIA DE EDUCACIÓN',
+      'SECRETARIA DE CULTURA Y PATRIMONIO',
+      'SECRETARIA DE SALUD',
+      'SECRETARIA DE INFRAESTRUCTURA PUBLICA',
+      'SECRETARIA DE MINAS Y ENERGIA',
+      'SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+      'SECRETARIA DE AGRICULTURA',
+      'SECRETARIA DE DESARROLLO EMPRESARIAL',
+      'SECRETARIA DE TURISMO',
+      'SECRETARIA DE TIC Y GOBIERNO ABIERTO'
+    ],
+    direccionesEpp: [
+      'OFICINA DE CONTROL INTERNO',
+      'OFICINA CONTROL INTERNO DISCIPLINARIO (INSTRUCCIÓN)',
+      'UNIDAD ADMINISTRATIVA ESPECIAL DE ASESORÍA Y DEFENSA JURIDICA DEL DEPARTAMENTO',
+      'UNIDAD ADMINISTRATIVA ESPECIAL PARA LA GESTION DEL RIESGO DE DESASTRES',
+      'UNIDAD ADMINISTRATIVA DE RELACIONES NACIONALES E INTERNACIONALES',
+      'UNIDAD ADMINISTRATIVA DE COMUNICACIONES Y PROTOCOLO',
+      'SUBDIRECCION DE RADIO Y TELEVISION',
+      'OFICINA ASESORA DE PLANEACION Y METODOS DE GESTION',
+      'DIRECCION DE SEGUIMIENTO Y PLANEACION TERRITORIAL',
+      'DIRECCION GEOGRAFICA Y DE GESTION TERRITORIAL',
+      'DIRECCION DE INVERSION PUBLICA DEL DEPARTAMENTO',
+      'DIRECCION FINANCIERA Y FISCAL',
+      'SUBDIRECCION DE PRESUPUESTO',
+      'SUBDIRECCION DE CENTRAL DE CUENTAS',
+      'SUBDIRECCION DE CONTABILIDAD',
+      'SUBDIRECCION DE COBRO COACTIVO',
+      'TESORERIA GENERAL',
+      'DIRECCION DE RECAUDO Y FISCALIZACION',
+      'DIRECCION DEPARTAMENTAL DE PASIVOS PENSIONALES',
+      'SUBDIRECCION ADMINISTRATIVA DE PASIVOS PENSIONALES',
+      'SUBDIRECCION JURIDICA DE PASIVOS PENSIONALES',
+      'DIRECCION DE PROCESOS DE SELECCIÓN',
+      'DIRECCION ADMINISTRATIVA CONTRACTUAL',
+      'DIRECCION GENERAL DE TALENTO HUMANO',
+      'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO',
+      'DIRECCION SERVICIOS ADMINISTRATIVOS Y LOGÍSTICOS',
+      'SUBDIRECCION DE ATENCIÓN  AL CIUDADANO',
+      'SUBDIRECCION DE GESTION DOCUMENTAL',
+      'DIRECCION DE DIALOGO SOCIAL Y CONVIVENCIA',
+      'DIRECCION DE PARTICIPACION Y ACCIÓN COMUNAL',
+      'DIRECCION DE JUVENTUD',
+      'DIRECCION DE FAMILIA, INFANCIA, ADOLESCENCIA Y ADULTO MAYOR',
+      'DIRECCION DE LA MUJER E INCLUSIÓN SOCIAL',
+      'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR EDUCACIÓN',
+      'OFICINA ASESORA PARA LA GESTIÓN ESTRATEGICA DEL SECTOR EDUCACIÓN',
+      'DIRECCION ADMINISTRATIVA Y FINANCIERA',
+      'SUBDIRECCION DE TALENTO HUMANO',
+      'DIRECCION TECNICO PEDAGOGICA',
+      'SUBDIRECCION DE NUCLEOS EDUCATIVOS',
+      'SUBDIRECCION DE INSPECCION Y VIGILANCIA',
+      'SUBDIRECCION DE COBERTURA Y RURALIDAD',
+      'PROGRAMA DE ADULTOS Y JOVENES EN EXTRA EDAD',
+      'PROGRAMA DEL PLAN ALIMENTARIO ESCOLAR',
+      'SUBDIRECCION DE CALIDAD EDUCATIVA',
+      'OFICINA ASESORA Y DEFENSA JURIDICA DEL SECTOR SALUD',
+      'OFICINA ASESORA PARA LA GESTION ESTRATEGICA DEL SECTOR SALUD',
+      'DIRECCION DE PROMOCION Y PREVENCION EN SALUD',
+      'SUBDIRECCION DE PROMOCION EN SALUD',
+      'DIRECCION DE ASEGURAMIENTO EN SALUD',
+      'DIRECCION DE PRESTACION DE SERVICIOS DE SALUD',
+      'DIRECCION TECNICA  DE ESTUDIOS Y DISEÑO',
+      'DIRECCION DE DESARROLLO DE LA INFRAESTRUCTURA VIAL',
+      'DIRECCION DE VIVIENDA, EDIFICACIONES Y OBRA PUBLICA',
+      'DIRECCION DE GESTION DEL RECURSO HIDRICO Y SANEAMIENTO BASICO',
+      'DIRECCION DE DESARROLLO RURAL INTEGRAL',
+      'DIRECCION DE BIENESTAR CAMPESINO',
+      'DIRECCION DE PRODUCTIVIDAD AGROPECUARIA',
+      'DIRECCION DE DESARROLLO EMPRESARIAL',
+      'DIRECCION DE INVERSION Y COMERCIO',
+      'DIRECCION DE APROPIACION DE TIC',
+      'DIRECCION DE SISTEMAS'
+    ],
+    cargosEpp: [
+      'GOBERNADOR',
+      'ASESOR',
+      'SECRETARIO DE DESPACHO',
+      'JEFE OFICINA ASESORA',
+      'DIRECTOR ADMINISTRATIVO',
+      'DIRECTOR TÉCNICO',
+      'PROFESIONAL UNIVERSITARIO',
+      'PROFESIONAL ESPECIALIZADO',
+      'ALMACENISTA GENERAL',
+      'TESORERO GENERAL',
+      'TECNICO ADMINISTRATIVO',
+      'TECNICO OPERATIVO',
+      'SECRETARIO EJECUTIVO',
+      'SECRETARIA EJECUTIVA',
+      'AUXILIAR ADMINISTRATIVO',
+      'AUXILIAR DE SERVICIOS GENERALES',
+      'CONDUCTOR',
+      'CONDUCTOR MECANICO',
+      'OPERARIO'
+    ],
+    vinculacionesEpp: [
+      'CARRERA ADMINISTRATIVA',
+      'PROVISIONALIDAD',
+      'LIBRE NOMBRAMIENTO',
+      'JUDICANTE',
+      'ESTUDIANTE / PASANTE'
+    ],
     eppCatalogo: [
       { codigo: 'A',  nombre: 'A. Casco de seguridad' },
       { codigo: 'B',  nombre: 'B. Gorro o Cofias' },
@@ -243,29 +494,204 @@ const SstModule = (() => {
       { codigo: 'AA', nombre: 'AA. Botas pantaneras con puntera' },
       { codigo: 'AB', nombre: 'AB. Otros' }
     ],
-    sedes: [
-      'CASA DE LA TORRE',
-      'EDIFICIO INTELIGENTE - BICENTENARIO',
-      'ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.',
-      'ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.',
-      'AUDITORIO JOSE MOSSER Y OFICINAS.',
-      'CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 203 B INTERIOR.',
-      'EDIFICIO LOTERÍA DE BOYACÁ',
-      'CASA DE BOYACÁ EN BOGOTÁ.',
-      'SECRETARIA DE EDUCACION DE BOYACÁ.',
-      'SECRETARÍA DE SALUD DEL DEPARTAMENTO DE BOYACÁ.'
-    ],
+        sedes: [
+      "ARCHIVO GENERAL DEL DEPARTAMENTO - Centro.",
+      "ARCHIVO GENERAL DEL DEPARTAMENTO - Topo.",
+      "AUDITORIO JOSE MOSSER Y OFICINAS.",
+      "BIBLIOTECA DEPARTAMENTAL \"EDUARDO TORRES QUINTERO\"/SECRETARÍA DE DE AMBIENTE Y DESARROLLO SOSTENIBLE/ARCHIVO COBRO COACTIVO.",
+      "BIBLIOTECA PEDRO PASCACIO MARTÍNEZ. (CASA JUAN DE CASTELLANOS)",
+      "BODEGA TALLERES DE OBRAS PÚBLICAS DEL DEPARTAMENTO DE BOYACÁ.",
+      "BODEGA VECTORES",
+      "CASA DE BOYACÁ EN BOGOTÁ.",
+      "CASA DE LA TORRE",
+      "CASA PRIVADA DEL SEÑOR GOBERNADOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 203 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 209 B INTERIOR",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 206 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 207 B INTERIOR.",
+      "CENTRO CIVICO PLAZA REAL TUNJA - OFICINA 208 B INTERIOR",
+      "EDIFICIO CENTRO EXPERIMENTAL PILOTO - CEP.",
+      "EDIFICIO LOTERÍA DE BOYACÁ",
+      "EDIFICIO LOTERÍA DE BOYACÁ PISO 4",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 8° OFICINA 805",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1002",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1003",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1004",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1006",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 10° OFICINA 1007",
+      "EDIFICIO LOTERÍA DE BOYACÁ - PISO 11°",
+      "ESCUELA DE ARTES.",
+      "FONDO TERRITORIAL DE PENSIONES DE BOYACÁ.",
+      "JARDÍN BOTÁNICO.",
+      "LABORATORIO DEPARTAMENTAL DE SALUD PÚBLICA.",
+      "MONUMENTO HISTÓRICO DEL PUENTE DE BOYACÁ.",
+      "OFICINAS DEL CDGRD.",
+      "PALACIO DE SERVICIOS CULTURALES",
+      "PARQUEADERO DEL DEPARTAMENTO.",
+      "SECRETARIA DE EDUCACION DE BOYACÁ.",
+      "SECRETARÍA DE SALUD DE BOYACÁ - CRISDI",
+      "SECRETARÍA DE SALUD DEL DEPARTAMENTO DE BOYACÁ.",
+      "VIVE DIGITAL Y VIVE LAB.",
+      "EDIFICIO INTELIGENTE - BICENTENARIO"
+],
     dependencias: [
-      'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
-      'SGEN - Dirección General de Talento Humano',
-      'SGEN - SECRETARIA GENERAL (Despacho)',
-      'DES - Despacho del gobernador',
-      'SHAC - SECRETARIA DE HACIENDA (Despacho)',
-      'SSAL - SECRETARIA DE SALUD (Despacho)',
-      'SEDU - SECRETARIA DE EDUCACIÓN (Despacho)',
-      'SINF - SECRETARIA DE INFRAESTRUCTURA PÚBLICA (Despacho)',
-      'STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)'
-    ],
+      "DES - Despacho del gobernador",
+      "DES - Oficina Asesora de Control Interno de Gestión",
+      "DES - Oficina Asesora de Control Interno Disciplinario",
+      "DES - Unidad Administrativa de Comunicaciones y Protocolo",
+      "DES - UCOM - Subdirección de Radio y Televisión",
+      "DES - Unidad Administrativa de Relaciones Nacionales Internacionales",
+      "DES - Unidad Administrativa Especial de Asesoría y Defensa Jurídica del Departamento",
+      "DES - Unidad Administrativa para la Gestión del Riesgo y del Desastre",
+      "SAGR - SECRETARIA DE AGRICULTURA (Despacho)",
+      "SAGR - Dirección de Desarrollo Rural Integral",
+      "SAGR - Dirección de Productividad Agropecuaria",
+      "SAGR - Dirección de Bienestar Campesino",
+      "SAMB - SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE (Despacho)",
+      "SAMB - Dirección de Gestión del Recurso Hídrico y Saneamiento Básico",
+      "SCON - SECRETARIA DE CONTRATACION (Despacho)",
+      "SCON - Dirección Administrativa Contractual",
+      "SCON - Dirección de Procesos de Selección",
+      "SCUP - SECRETARIA DE CULTURA Y PATRIMONIO (Despacho)",
+      "SDEM - SECRETARIA DE DESARROLLO EMPRESARIAL (Despacho)",
+      "SDEM - Dirección de Desarrollo Empresarial",
+      "SDEM - Dirección de Inversión y Comercio",
+      "SEDU - SECRETARIA DE EDUCACIÓN (Despacho)",
+      "*SEDU - INSTITUCIÓN EDUCATIVA DEL DEPARTAMENTO",
+      "SEDU - Oficina Asesora para la Gestión Estratégica del Sector Educación",
+      "SEDU - Oficina Asesora y Defensa Jurídica del Sector Educación",
+      "SEDU - Dirección Técnico Pedagógica",
+      "SEDU - DTP - Programa de Adultos y Jóvenes en Extra Edad",
+      "SEDU - DTP - Programa del Plan Alimentario Escolar",
+      "SEDU - DTP - Subdirección de Calidad Educativa",
+      "SEDU - DTP - Subdirección de Cobertura y Ruralidad",
+      "SEDU - DTP - Subdirección de Inspección de Vigilancia",
+      "SEDU - DTP - Subdirección de Núcleos Educativos",
+      "SEDU - Dirección Administrativa Financiera",
+      "SEDU - DAF - Subdirección de Talento Humano",
+      "SGEN - SECRETARIA GENERAL (Despacho)",
+      "SGEN - Dirección General de Talento Humano",
+      "SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo",
+      "SGEN - Dirección de Servicios Administrativos y Logísticos",
+      "SGEN - DSA - Subdirección de Atención al Ciudadano",
+      "SGEN - DSA - Subdirección de Gestión Documental",
+      "SGOB - SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL (Despacho)",
+      "SGOB - Dirección de Dialogo Social y Convivencia",
+      "SGOB - Dirección de Participación y Acción Comunal",
+      "SGOB -Dirección de Juventud",
+      "SHAC - SECRETARIA DE HACIENDA (Despacho)",
+      "SHAC - Dirección Financiera Y Fiscal",
+      "SHAC - DFF - Subdirección de Cobro Coactivo",
+      "SHAC - DFF - Subdirección Central de Cuentas",
+      "SHAC - DFF - Subdirección de Contabilidad",
+      "SHAC - DFF - Subdirección de Presupuesto",
+      "SHAC - Dirección Departamental de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Administrativa de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Jurídica de Pasivos Pensionales",
+      "SHAC - Dirección de Recaudo y Fiscalización",
+      "SHAC - Tesorería General",
+      "SINF - SECRETARIA DE INFRAESTRUCTURA PUBLICA (Despacho)",
+      "SINF - Dirección de Desarrollo de la Infraestructura Vial",
+      "SINF - Dirección de Vivienda Edificaciones y Obra Publica",
+      "SINF - Dirección Técnica de Estudios y Diseños",
+      "SINS - SECRETARIA DE INTEGRACIÓN SOCIAL (Despacho)",
+      "SINS - Dirección de Familia, Infancia, Adolescencia y Adulto Mayor",
+      "SINS - Dirección de la Mujer e Inclusión Social",
+      "SMIN - SECRETARIA DE MINAS Y ENERGIA (Despacho)",
+      "SPLA - SECRETARIA DE PLANEACIÓN (Despacho)",
+      "SPLA - Dirección de Inversión Publica del Departamento",
+      "SPLA - Dirección de Seguimiento y Planeación Territorial",
+      "SPLA - Dirección Geográfica y de Gestión Territorial",
+      "SPLA - Oficina Asesora de Planeación y Métodos de Gestión",
+      "SSAL - SECRETARIA DE SALUD (Despacho)",
+      "SSAL - Dirección de Aseguramiento en Salud",
+      "SSAL - Dirección de Prestación de Servicios de Salud",
+      "SSAL - Dirección de Promoción y Prevención en Salud",
+      "SSAL - DPP - Subdirección de Promoción Social en Salud",
+      "SSAL - Oficina Asesora de Defensa Jurídica del Sector Salud",
+      "SSAL - Oficina Asesora para la Gestión Estratégica del Sector Salud",
+      "STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)",
+      "STIC - Dirección de Apropiación de TIC",
+      "STIC - Dirección de Sistemas de Información",
+      "STUR - SECRETARIA DE TURISMO (Despacho)",
+      "DES - Oficina Asesora de Control Interno de Gestión",
+      "DES - Oficina Asesora de Control Interno Disciplinario",
+      "DES - Unidad Administrativa de Comunicaciones y Protocolo",
+      "DES - UCOM - Subdirección de Radio y Televisión",
+      "DES - Unidad Administrativa de Relaciones Nacionales Internacionales",
+      "DES - Unidad Administrativa Especial de Asesoría y Defensa Jurídica del Departamento",
+      "DES - Unidad Administrativa para la Gestión del Riesgo y del Desastre",
+      "SAGR - SECRETARIA DE AGRICULTURA (Despacho)",
+      "SAGR - Dirección de Bienestar Campesino",
+      "SAGR - Dirección de Desarrollo Rural Integral",
+      "SAGR - Dirección de Productividad Agropecuaria",
+      "SAMB - SECRETARIA DE AMBIENTE Y DESARROLLO SOSTENIBLE (Despacho)",
+      "SAMB - Dirección de Gestión del Recurso Hídrico y Saneamiento Básico",
+      "SCON - SECRETARIA DE CONTRATACION (Despacho)",
+      "SCON - Dirección Administrativa Contractual",
+      "SCON - Dirección de Procesos de Selección",
+      "SCUP - SECRETARIA DE CULTURA Y PATRIMONIO (Despacho)",
+      "SDEM - SECRETARIA DE DESARROLLO EMPRESARIAL (Despacho)",
+      "SDEM - Dirección de Desarrollo Empresarial",
+      "SDEM - Dirección de Inversión y Comercio",
+      "SEDU - SECRETARIA DE EDUCACIÓN (Despacho)",
+      "SEDU - Oficina Asesora para la Gestión Estratégica del Sector Educación",
+      "SEDU - Oficina Asesora y Defensa Jurídica del Sector Educación",
+      "SEDU - Dirección Técnico Pedagógica",
+      "SEDU - DTP - Programa de Adultos y Jóvenes en Extra Edad",
+      "SEDU - DTP - Programa del Plan Alimentario Escolar",
+      "SEDU - DTP - Subdirección de Calidad Educativa",
+      "SEDU - DTP - Subdirección de Cobertura y Ruralidad",
+      "SEDU - DTP - Subdirección de Inspección de Vigilancia",
+      "SEDU - DTP - Subdirección de Núcleos Educativos",
+      "SEDU - Dirección Administrativa Financiera",
+      "SEDU - DAF - Subdirección de Talento Humano",
+      "SGEN - SECRETARIA GENERAL (Despacho)",
+      "SGEN - Dirección General de Talento Humano",
+      "SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo",
+      "SGEN - Dirección de Servicios Administrativos y Logísticos",
+      "SGEN - DSA - Subdirección de Atención al Ciudadano",
+      "SGEN - DSA - Subdirección de Gestión Documental",
+      "SGOB - SECRETARIA DE GOBIERNO Y ACCIÓN COMUNAL (Despacho)",
+      "SGOB - Dirección de Dialogo Social y Convivencia",
+      "SGOB - Dirección de Participación y Acción Comunal",
+      "SGOB -Dirección de Juventud",
+      "SHAC - SECRETARIA DE HACIENDA (Despacho)",
+      "SHAC - Dirección Financiera Y Fiscal",
+      "SHAC - DFF - Subdirección de Cobro Coactivo",
+      "SHAC - DFF - Subdirección Central de Cuentas",
+      "SHAC - DFF - Subdirección de Contabilidad",
+      "SHAC - DFF - Subdirección de Presupuesto",
+      "SHAC - Dirección Departamental de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Administrativa de Pasivos Pensionales",
+      "SHAC - DPP - Subdirección Jurídica de Pasivos Pensionales",
+      "SHAC - Dirección de Recaudo y Fiscalización",
+      "SHAC - Tesorería General",
+      "SINF - SECRETARIA DE INFRAESTRUCTURA PUBLICA (Despacho)",
+      "SINF - Dirección de Desarrollo de la Infraestructura Vial",
+      "SINF - Dirección de Vivienda Edificaciones y Obra Publica",
+      "SINF - Dirección Técnica de Estudios y Diseños",
+      "SINS - SECRETARIA DE INTEGRACIÓN SOCIAL (Despacho)",
+      "SINS - Dirección de Familia, Infancia, Adolescencia y Adulto Mayor",
+      "SINS - Dirección de la Mujer e Inclusión Social",
+      "SMIN - SECRETARIA DE MINAS Y ENERGIA (Despacho)",
+      "SPLA - SECRETARIA DE PLANEACIÓN (Despacho)",
+      "SPLA - Dirección de Inversión Publica del Departamento",
+      "SPLA - Dirección de Seguimiento y Planeación Territorial",
+      "SPLA - Dirección Geográfica y de Gestión Territorial",
+      "SPLA - Oficina Asesora de Planeación y Métodos de Gestión",
+      "SSAL - SECRETARIA DE SALUD (Despacho)",
+      "SSAL - Dirección de Aseguramiento en Salud",
+      "SSAL - Dirección de Prestación de Servicios de Salud",
+      "SSAL - Dirección de Promoción y Prevención en Salud",
+      "SSAL - DPP - Subdirección de Promoción Social en Salud",
+      "SSAL - Oficina Asesora de Defensa Jurídica del Sector Salud",
+      "SSAL - Oficina Asesora para la Gestión Estratégica del Sector Salud",
+      "STIC - SECRETARIA DE TIC Y GOBIERNO ABIERTO (Despacho)",
+      "STIC - Dirección de Apropiación de TIC",
+      "STIC - Dirección de Sistemas de Información",
+      "STUR - SECRETARIA DE TURISMO (Despacho)"
+],
     tiposEmo: ['Ingreso', 'Periódico', 'Egreso', 'Post Incapacidad', 'Trabajo en alturas'],
     estadosCaso: ['Vigente', 'En Seguimiento', 'En Rehabilitación', 'Próximo a Vencer', 'Vencido', 'Cerrado'],
     programasPve: [
@@ -277,6 +703,71 @@ const SstModule = (() => {
       'PVE Cardiovascular y Metabólico',
       'PVE Respiratorio',
       'PVE Voz'
+    ],
+    estadosAccidente: [
+      'No aplica',
+      'En investigación / Reporte inicial',
+      'En tratamiento médico',
+      'En proceso de rehabilitación',
+      'En calificación PCL (ARL / Junta)',
+      'Cerrado sin secuelas',
+      'Cerrado con secuelas',
+      'Caso archivado'
+    ],
+    estadosEnfermedad: [
+      'No aplica',
+      'En estudio / Calificación de origen',
+      'Origen laboral calificado en firme',
+      'En tratamiento médico especializado',
+      'En rehabilitación laboral',
+      'Con reubicación / adecuación laboral',
+      'Cerrado / Dictamen emitido'
+    ],
+    epsSugerencias: [
+      'No aplica',
+      'Nueva EPS',
+      'Sanitas EPS',
+      'Salud Total EPS',
+      'Famisanar EPS',
+      'Coosalud EPS',
+      'Compensar EPS',
+      'EPS Sura',
+      'ARL Positiva Compañía de Seguros',
+      'Asmet Salud',
+      'Seguimiento por Medicina Laboral'
+    ],
+    restriccionesFrecuentes: [
+      'NINGUNA',
+      'Evitar levantamiento de cargas mayores a 5 kg',
+      'Evitar levantamiento de cargas mayores a 10 kg',
+      'Evitar bipedestación prolongada (más de 2 horas continuas)',
+      'Evitar sedestación prolongada (realizar pausas activas cada 2 horas)',
+      'Evitar movimientos repetitivos y flexoextensión forzada de miembros superiores',
+      'Uso permanente de lentes correctivos para trabajo con pantallas (PVD)',
+      'Uso obligatorio de elementos de protección auditiva',
+      'Restricción para trabajo en alturas y espacios confinados',
+      'Restricción para conducción de vehículos automotores'
+    ],
+    recomendacionesFrecuentes: [
+      'Pausas activas e higiene postural',
+      'Pausas activas visuales y ergonómicas cada 2 horas',
+      'Adecuación ergonómica del puesto de trabajo (silla, descansapiés, soporte monitor)',
+      'Seguimiento por optometría / oftalmología anual',
+      'Seguimiento por audiometría ocupacional anual',
+      'Control médico periódico por EPS tratante',
+      'Ingreso y adherencia al Programa de Vigilancia Epidemiológica (PVE)',
+      'Promoción de estilos de vida y trabajo saludable, actividad física y control de peso',
+      'Seguimiento conjunto con ARL Positiva'
+    ],
+    actividadesPendientesFrecuentes: [
+      'Ninguna',
+      'Programar inspección de puesto de trabajo',
+      'Seguimiento al cumplimiento de recomendaciones médicas en puesto de trabajo',
+      'Remisión a especialista EPS tratante',
+      'Seguimiento a dictamen de calificación ARL Positiva',
+      'Programación de examen médico ocupacional de control',
+      'Adecuación de elementos ergonómicos (silla ergonómica / descansapiés / soporte monitor)',
+      'Capacitación y sensibilización en higiene postural y autocuidado'
     ],
     tiposIdentificacion: ['Cédula de Ciudadanía', 'Cédula de Extranjería', 'Pasaporte', 'Tarjeta de Identidad'],
     razas: ['Blanco/Mestizo', 'Afrodescendiente', 'Indígena', 'Raizal', 'Palenquero', 'Gitano', 'OTRA'],
@@ -303,11 +794,108 @@ const SstModule = (() => {
     rangosAntiguedad: [
       'Menos de 1 año.', 'Entre 1 y 4 años', 'Entre 4 y 10 años',
       'Entre 10 y 20 años', 'Entre 20 y 30 años', 'Mas de 30 años', 'N/A - CPS.'
+    ],
+    cargosOficialesSocio: [
+      'Profesional Universitario',
+      'Profesional Especializado',
+      'Técnico Administrativo',
+      'Técnico Operativo',
+      'Auxiliar Administrativo',
+      'Aux. Servicios Generales',
+      'Secretario',
+      'Secretario Ejecutivo',
+      'Secretaria Ejecutiva',
+      'Secretario de Despacho',
+      'Subdirector Administrativo',
+      'Subdirector Técnico',
+      'Director Administrativo',
+      'Director Técnico',
+      'Director de Departamento',
+      'Jefe de Oficina Asesora',
+      'Asesor',
+      'Gobernador',
+      'Tesorero General',
+      'Almacenista General',
+      'Celador',
+      'Conductor',
+      'Conductor Mecánico',
+      'Operario',
+      'Judicante',
+      'Pasante SENA',
+      'Practicante Universitario',
+      'N/A (Contrato de Prestación de Servicios)',
+      'OTRO'
+    ],
+    municipiosResidenciaSugeridos: [
+      'Tunja',
+      'Duitama',
+      'Sogamoso',
+      'Chiquinquirá',
+      'Paipa',
+      'Cómbita',
+      'Samacá',
+      'Villa de Leyva',
+      'Moniquirá',
+      'Nobsa',
+      'Garagoa',
+      'Guateque',
+      'Puerto Boyacá',
+      'Ventaquemada',
+      'Tuta',
+      'Oicatá',
+      'Soracá',
+      'Siachoque',
+      'Chivatá',
+      'Toca',
+      'Pesca',
+      'Tibasosa',
+      'Santa Rosa de Viterbo',
+      'Bogotá D.C.',
+      'Otro Municipio'
+    ],
+    municipiosTrabajoSugeridos: [
+      'Tunja',
+      'Bogotá',
+      'Duitama',
+      'Sogamoso',
+      'Chiquinquirá',
+      'Paipa',
+      'Puerto Boyacá',
+      'OTRO'
+    ],
+    profesionesSugeridas: [
+      'Ingeniero Industrial',
+      'Abogado',
+      'Contador Público',
+      'Administrador de Empresas',
+      'Administrador Público',
+      'Economista',
+      'Ingeniero de Sistemas',
+      'Ingeniero Civil',
+      'Ingeniero Ambiental',
+      'Psicólogo',
+      'Trabajador Social',
+      'Comunicador Social / Periodista',
+      'Médico',
+      'Enfermero',
+      'Arquitecto',
+      'Docente / Licenciado',
+      'Tecnólogo en Gestión Administrativa',
+      'Técnico en Sistemas',
+      'Bachiller',
+      'OTRA'
     ]
   };
 
   function getCats() {
-    return state.catalogs || DEFAULT_CATALOGS;
+    const backend = state.catalogs || {};
+    const merged = Object.assign({}, DEFAULT_CATALOGS);
+    for (const [key, val] of Object.entries(backend)) {
+      if (Array.isArray(val) && val.length > 0) {
+        merged[key] = val;
+      }
+    }
+    return merged;
   }
 
   function badgeClass(estado) {
@@ -349,25 +937,27 @@ const SstModule = (() => {
         }
         dropdown.innerHTML = list.map(emp => `
           <div class="autocomplete-item" onclick='SstModule.selectEmployee(${JSON.stringify({
-            cedula: emp.cedula || '',
-            nombreCompleto: emp.nombreCompleto || '',
+            cedula: emp.cedula || emp.documento || '',
+            nombreCompleto: emp.nombreCompleto || emp.persona || '',
             apellidos: `${emp.primerApellido || ''} ${emp.segundoApellido || ''}`.trim(),
             nombres: emp.nombres || '',
             dependencia: emp.dependencia || '',
-            cargo: emp.cargoActual || emp.cargoBase || '',
+            sede: emp.sede || emp.ubicacion || 'CASA DE LA TORRE',
+            cargo: emp.cargoActual || emp.cargoBase || emp.cargo || '',
             edad: emp.edad || '',
+            fechaNacimiento: emp.fechaNacimiento || emp.fecha_nacimiento || '',
             sexo: emp.sexo || '',
-            telefono: emp.celular || emp.telefonoFijo || '',
-            fechaIngreso: emp.fechaIngreso || '',
-            ciudad: emp.ciudad || 'Tunja',
-            estudios: emp.estudios || '',
-            clasificacion: emp.clasificacionEmpleo || 'Carrera Administrativa'
+            telefono: emp.celular || emp.telefonoFijo || emp.telefono || '',
+            fechaIngreso: emp.fechaIngreso || emp.fecha_ingreso || '',
+            ciudad: emp.ciudad || emp.municipio || 'Tunja',
+            estudios: emp.estudios || emp.nivelEstudios || emp.escolaridad || '',
+            clasificacion: emp.clasificacionEmpleo || emp.tipoVinculacion || 'Carrera Administrativa'
           }).replace(/'/g, '&#39;')})'>
             <div class="autocomplete-item-main">
               <strong>${escHtml(emp.nombreCompleto)}</strong>
-              <span class="badge badge--pendiente" style="font-size:10px">C.C. ${escHtml(emp.cedula)}</span>
+              <span class="badge badge--pendiente" style="font-size:10px">C.C. ${escHtml(emp.cedula || emp.documento)}</span>
             </div>
-            <div class="autocomplete-item-sub">${escHtml(emp.cargoActual || emp.cargoBase || '')} · ${escHtml(emp.dependencia || '')}</div>
+            <div class="autocomplete-item-sub">${escHtml(emp.cargoActual || emp.cargoBase || emp.cargo || '')} · ${escHtml(emp.dependencia || '')}</div>
           </div>
         `).join('');
         dropdown.style.display = 'block';
@@ -377,29 +967,196 @@ const SstModule = (() => {
     }, 260);
   }
 
+    function onFechaEmoChange(val) {
+    if (!val) return;
+    const tipo = document.getElementById('sst-tipo-emo')?.value;
+    const proxInput = document.getElementById('sst-prox-emo');
+    if (proxInput && tipo !== 'Egreso') {
+      try {
+        const d = new Date(val + 'T00:00:00');
+        d.setFullYear(d.getFullYear() + 1);
+        proxInput.value = d.toISOString().split('T')[0];
+      } catch (_) {}
+    }
+  }
+
+  function onTipoEmoChange(val) {
+    const proxInput = document.getElementById('sst-prox-emo');
+    if (!proxInput) return;
+    if (val === 'Egreso') {
+      proxInput.value = '';
+    } else if (!proxInput.value) {
+      const fEmo = document.getElementById('sst-fecha-emo')?.value;
+      if (fEmo) onFechaEmoChange(fEmo);
+    }
+  }
+
+  function onAtToggle(val) {
+    const fAt = document.getElementById('sst-fecha-at');
+    const estAt = document.getElementById('sst-estado-at');
+    const isSi = val === 'SI';
+    if (fAt) {
+      fAt.disabled = !isSi;
+      if (!isSi) fAt.value = '';
+    }
+    if (estAt) {
+      estAt.disabled = !isSi;
+      if (!isSi) estAt.value = 'No aplica';
+      else if (estAt.value === 'No aplica') estAt.value = 'En investigación / Reporte inicial';
+    }
+  }
+
+  function onElToggle(val) {
+    const fEl = document.getElementById('sst-fecha-el');
+    const estEl = document.getElementById('sst-estado-el');
+    const isSi = val === 'SI';
+    if (fEl) {
+      fEl.disabled = !isSi;
+      if (!isSi) fEl.value = '';
+    }
+    if (estEl) {
+      estEl.disabled = !isSi;
+      if (!isSi) estEl.value = 'No aplica';
+      else if (estEl.value === 'No aplica') estEl.value = 'En estudio / Calificación de origen';
+    }
+  }
+
+  function onApellidosNombresChange() {
+    const ape = (document.getElementById('sst-apellidos')?.value || '').trim();
+    const nom = (document.getElementById('sst-nombres')?.value || '').trim();
+    const nomInput = document.getElementById('sst-nombre');
+    if (nomInput && (ape || nom)) {
+      nomInput.value = `${ape} ${nom}`.trim();
+    }
+  }
+
   function selectEmployee(emp) {
     const dropdown = document.getElementById('sst-autocomplete-list');
     if (dropdown) dropdown.style.display = 'none';
 
     const setVal = (id, val) => {
       const el = document.getElementById(id);
-      if (el && val !== undefined && val !== null && val !== '') el.value = val;
+      if (!el || val === undefined || val === null || val === '') return;
+      if (el.tagName === 'SELECT') {
+        const valStr = String(val).trim().toLowerCase();
+        let matched = false;
+        for (let i = 0; i < el.options.length; i++) {
+          if (el.options[i].value.toLowerCase() === valStr || el.options[i].textContent.toLowerCase() === valStr) {
+            el.selectedIndex = i;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          for (let i = 0; i < el.options.length; i++) {
+            const optVal = el.options[i].value.toLowerCase();
+            if (optVal && (optVal.includes(valStr) || valStr.includes(optVal))) {
+              el.selectedIndex = i;
+              matched = true;
+              break;
+            }
+          }
+        }
+        if (!matched) {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val;
+          opt.selected = true;
+          el.appendChild(opt);
+        }
+      } else {
+        el.value = val;
+      }
     };
 
     setVal('sst-nombre', emp.nombreCompleto);
+    setVal('sst-search', emp.nombreCompleto);
     setVal('sst-doc', emp.cedula);
-    setVal('sst-apellidos', emp.apellidos);
-    setVal('sst-nombres', emp.nombres);
+    setVal('sst-apellidos', emp.apellidos || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(0, 2).join(' ') : ''));
+    setVal('sst-nombres', emp.nombres || (emp.nombreCompleto ? emp.nombreCompleto.split(' ').slice(2).join(' ') : ''));
     setVal('sst-dep', emp.dependencia);
     setVal('sst-cargo', emp.cargo);
+    setVal('sst-sede', emp.sede || 'CASA DE LA TORRE');
     setVal('sst-tel', emp.telefono);
-    setVal('sst-edad', emp.edad);
-    setVal('sst-ingreso', emp.fechaIngreso);
+
+    // Año de Nacimiento y Edad
+    let age = parseInt(emp.edad) || 0;
+    let bYear = 0;
+    if (emp.fechaNacimiento) {
+      const d = new Date(emp.fechaNacimiento);
+      if (!isNaN(d.getFullYear())) {
+        bYear = d.getFullYear();
+        if (!age) age = new Date().getFullYear() - bYear;
+      }
+    }
+    if (!bYear && age > 0) {
+      bYear = new Date().getFullYear() - age;
+    }
+    if (age > 0) setVal('sst-edad', age);
+    if (bYear > 0) setVal('sst-anio-nac', bYear);
+
+    if (emp.dependencia || emp.secretaria) {
+      const depUpper = String(emp.secretaria || emp.dependencia || '').toUpperCase();
+      const secEl = document.getElementById('sst-secretaria');
+      if (secEl) {
+        for (let i = 0; i < secEl.options.length; i++) {
+          const optVal = secEl.options[i].value.toUpperCase();
+          const cleanOpt = optVal.replace(/^SECRETARIA\s+DE\s+/, '').replace(/^SECRETARIA\s+/, '').trim();
+          if (cleanOpt && depUpper.includes(cleanOpt)) {
+            secEl.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+    if (emp.fechaIngreso) {
+      const fIng = String(emp.fechaIngreso).split('T')[0];
+      setVal('sst-ingreso', fIng);
+
+      // Calcular Antigüedad en Años
+      const dIng = new Date(fIng);
+      if (!isNaN(dIng.getTime())) {
+        const diffYears = Math.max(0, Math.floor((new Date() - dIng) / (365.25 * 24 * 3600 * 1000)));
+        let rango = 'Menos de 1 año.';
+        if (diffYears >= 1 && diffYears < 4) rango = 'Entre 1 y 4 años';
+        else if (diffYears >= 4 && diffYears < 10) rango = 'Entre 4 y 10 años';
+        else if (diffYears >= 10 && diffYears < 20) rango = 'Entre 10 y 20 años';
+        else if (diffYears >= 20 && diffYears < 30) rango = 'Entre 20 y 30 años';
+        else if (diffYears >= 30) rango = 'Mas de 30 años';
+        setVal('sst-ant-entidad', rango);
+        setVal('sst-ant-cargo', rango);
+      }
+    }
     setVal('sst-profesion', emp.estudios);
     setVal('sst-mpio-res', emp.ciudad);
+    setVal('sst-mpio-trab', emp.ciudad || 'Tunja');
     if (emp.sexo) {
       const s = emp.sexo.toUpperCase().startsWith('F') ? 'Femenino' : 'Masculino';
       setVal('sst-sexo', s);
+    }
+    if (emp.clasificacion) {
+      setVal('sst-vinculacion', emp.clasificacion);
+      if (emp.clasificacion.toLowerCase().includes('carrera')) setVal('sst-tipo-cargo', 'Carrera Administrativa');
+    }
+  }
+
+  function onSocioAnioNacChange(val) {
+    if (!val) return;
+    const y = parseInt(val);
+    const currYear = new Date().getFullYear();
+    if (y > 1920 && y <= currYear) {
+      const edadInput = document.getElementById('sst-edad');
+      if (edadInput) edadInput.value = currYear - y;
+    }
+  }
+
+  function onSocioEdadChange(val) {
+    if (!val) return;
+    const age = parseInt(val);
+    const currYear = new Date().getFullYear();
+    if (age >= 16 && age <= 100) {
+      const anioInput = document.getElementById('sst-anio-nac');
+      if (anioInput && !anioInput.value) anioInput.value = currYear - age;
     }
   }
 
@@ -454,6 +1211,12 @@ const SstModule = (() => {
         const toggleBtn = document.getElementById('sst-dropdown-toggle');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
       }
+
+      const acList = document.getElementById('sst-autocomplete-list');
+      const acWrap = document.querySelector('.autocomplete-wrapper');
+      if (acList && acList.style.display !== 'none' && acWrap && !acWrap.contains(e.target)) {
+        acList.style.display = 'none';
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -467,13 +1230,28 @@ const SstModule = (() => {
   }
 
   // ─── Render Principal del Módulo SST ──────────────────────────────────────
+  function getModuleCode(tabKey = state.tab) {
+    if (tabKey === 'epidemiologico') return 'epidemiologico';
+    if (tabKey === 'epp') return 'epp';
+    return 'sociodemografico';
+  }
+
   async function render(container, initialTab = 'epidemiologico') {
     if (TABS[initialTab]) state.tab = initialTab;
     state.page = 1;
-    state.filters = { q: '', subFilter1: 'Todos', subFilter2: 'Todos' };
+    state.selectedIds = new Set();
+    state.filters = { q: '', subFilter1: state.tab === 'sociodemografico' ? 'Todas' : 'Todos', subFilter2: 'Todos' };
+    state.dashFilters = { anio: '', mes: '' };
+
+    try {
+      state.permission = await API.checkGovernancePermission(getModuleCode(state.tab));
+    } catch {
+      state.permission = { canManage: Auth.canEdit(), isResponsable: false, isAdmin: Auth.isAdmin() };
+    }
 
     const tabCfg = TABS[state.tab];
-    const canManage = Auth.canEdit();
+    const canManage = canManageCurrent();
+    const isAdmin = Auth.isAdmin();
 
     container.innerHTML = `
       <div class="module-enter">
@@ -481,12 +1259,38 @@ const SstModule = (() => {
           <div class="page-header-info">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <h1 class="page-heading" id="sst-heading">${escHtml(tabCfg.title)}</h1>
-              <span class="badge badge--revision" id="sst-format-code" style="font-family:monospace;font-size:11px;">Formato ${escHtml(tabCfg.code)}</span>
+              <span class="badge ${canManage ? 'badge--aprobada' : 'badge--pendiente'}" id="sst-role-badge" style="font-size:11px;">
+                ${state.permission?.isResponsable ? 'Sandra Roa / Responsable' : (canManage ? 'Administrador' : 'Funcionario — Solo Consulta')}
+              </span>
             </div>
             <p class="page-desc" id="sst-desc">${escHtml(tabCfg.desc)}</p>
           </div>
-          <div class="page-actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- Dropdown de Opciones Secundarias (Hick's Law) -->
+          <div class="page-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- Gobernanza, Formatos, Reportes, Inventario EPP y Auditoría -->
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openInstitutionalDocuments()" title="Repositorio de Formatos y Documentos Institucionales SST">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Formatos
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openReportGenerator()" title="9.4 Generador de Reportes en PDF y Excel (7 Criterios A-G)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>
+              Reportes PDF / Excel
+            </button>
+            <button type="button" class="btn btn-secondary" id="sst-btn-epp-inv" style="${state.tab === 'epp' && canManage ? '' : 'display:none'}" onclick="SstModule.openEppInventoryModal()" title="Administrar Stock e Inventario de Elementos EPP (Catálogo A-AB)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Inventario EPP
+            </button>
+            ${canManage ? `
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openAuditHistory()" title="Historial de Operaciones y Auditoría Inmutable">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Auditoría
+            </button>` : ''}
+            ${isAdmin ? `
+            <button type="button" class="btn btn-secondary" onclick="SstModule.openResponsablesManager()" title="Gestión de Responsables por Submódulo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Responsables
+            </button>` : ''}
+
+            <!-- Dropdown de Opciones Secundarias (Sección 9: las 4 funciones diferenciadas) -->
             <div class="actions-dropdown-wrap">
               <button
                 type="button"
@@ -497,10 +1301,10 @@ const SstModule = (() => {
                 aria-controls="sst-dropdown-menu"
                 onclick="SstModule.toggleActionsDropdown(event)"
                 onkeydown="SstModule.handleDropdownKeydown(event)"
-                title="Opciones secundarias (Excel y plantillas)"
+                title="Operaciones con Plantillas Excel y Reportes (Sección 9)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                <span>Acciones</span>
+                <span>Plantillas y Excel</span>
                 <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               <div
@@ -510,52 +1314,100 @@ const SstModule = (() => {
                 aria-labelledby="sst-dropdown-toggle"
                 hidden
               >
+                <!-- 9.1 Exportar a Plantilla Oficial -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
-                  onclick="SstModule.closeActionsDropdown(); SstModule.exportExcel();"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.openExportProfileModal();"
+                  title="9.1 Exportar información del sistema a la plantilla oficial Excel"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <div>
-                    <strong>Exportar SST a Excel</strong>
-                    <small>Descarga los registros actuales del submódulo en formato .xlsx</small>
+                    <strong>9.1 Exportar a Plantilla Oficial</strong>
+                    <small>Descargar registros del sistema en formato institucional (.xlsx)</small>
                   </div>
                 </button>
-                ${canManage ? `
+
+                <!-- 9.2 Descargar la Plantilla Oficial Vacía -->
                 <button
                   type="button"
                   role="menuitem"
                   tabindex="-1"
                   class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.downloadOfficialTemplate();"
+                  title="9.2 Descargar archivo Excel oficial en blanco para diligenciar"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                  <div>
+                    <strong>9.2 Descargar Plantilla Vacía</strong>
+                    <small>Formato Excel institucional en blanco con listas de validación</small>
+                  </div>
+                </button>
+
+                <!-- 9.3 Cargue Masivo de un Excel -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  id="sst-dropdown-import-btn"
+                  style="${canManage ? '' : 'display:none'}"
                   onclick="SstModule.closeActionsDropdown(); SstModule.openImportModal();"
+                  title="9.3 Cargar archivo Excel con validación de duplicados y reporte de errores"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <div>
-                    <strong>Carga Masiva Excel</strong>
-                    <small>Importar registros desde plantilla oficial SST</small>
+                    <strong>9.3 Carga Masiva desde Excel</strong>
+                    <small>Importar registros con detección de duplicados y reporte de errores</small>
                   </div>
-                </button>` : ''}
+                </button>
+
+                <!-- 9.4 Generador de Reportes PDF / Excel (7 Criterios) + Reporte Anual -->
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.openReportGenerator();"
+                  style="border-top: 1px solid var(--border-color, #e2e8f0); margin-top: 4px; padding-top: 8px;"
+                  title="9.4 Generar reportes PDF y Excel por los 7 criterios (A-G)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-500, #3b82f6);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>
+                  <div>
+                    <strong>9.4 Generar Reportes (PDF y Excel)</strong>
+                    <small>Por seleccionados, empleado, dependencia, estado, rango de fechas o todo</small>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabindex="-1"
+                  class="actions-dropdown-item"
+                  onclick="SstModule.closeActionsDropdown(); SstModule.generateAnnualReport();"
+                  title="Generar y descargar informe anual consolidado con gráficas en Excel"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary-400, #16a34a);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <div>
+                    <strong style="color:var(--color-primary-400, #16a34a);">Descargar Consolidado Anual (.xlsx)</strong>
+                    <small>Libro Excel anual con estadísticas, gráficos e indicadores SST</small>
+                  </div>
+                </button>
               </div>
             </div>
 
             <!-- Acción Primaria (CTA - Visual Salience) -->
-            ${canManage ? `
-            <button class="btn btn-primary btn-primary-cta" id="sst-create-btn" onclick="SstModule.openCreate()">
+            <button class="btn btn-primary btn-primary-cta" id="sst-create-btn" style="${canManage ? '' : 'display:none'}" onclick="SstModule.openCreate()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               <span id="sst-create-btn-text">${escHtml(tabCfg.btnCreate)}</span>
-            </button>` : ''}
+            </button>
           </div>
         </div>
 
-        <!-- KPIs SST -->
-        <div class="stats-grid" id="sst-stats-grid" style="margin-bottom:var(--space-5);">
-          ${renderStatsSkeletons()}
-        </div>
-
         <!-- Pestañas de Submódulos SST -->
-        <div class="module-tabs">
+        <div class="module-tabs" style="margin-bottom:14px;">
           <button class="tab-btn ${state.tab === 'epidemiologico' ? 'active' : ''}" onclick="SstModule.setTab('epidemiologico', this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             Perfil Epidemiológico y EMO
@@ -570,6 +1422,53 @@ const SstModule = (() => {
           </button>
         </div>
 
+        <!-- Dashboard Dinámico e Interactivo SST (Sección 6.4, 6.5 y 6.6) -->
+        <div class="table-card" style="margin-bottom:var(--space-5);padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-500, #3b82f6)" stroke-width="2" style="width:18px;height:18px"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <strong style="font-size:14px;" id="sst-dash-title">Panel Analítico e Indicadores en Tiempo Real — ${escHtml(tabCfg.title)}</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <select id="sst-dash-anio" class="filter-select" style="height:32px;font-size:12px;padding:0 24px 0 8px;" onchange="SstModule.applyDashFilters()">
+                <option value="">Todos los años</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <select id="sst-dash-mes" class="filter-select" style="height:32px;font-size:12px;padding:0 24px 0 8px;" onchange="SstModule.applyDashFilters()">
+                <option value="">Todos los meses</option>
+                <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+                <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+                <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+                <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+              </select>
+              <button type="button" class="btn btn-secondary" style="height:32px;padding:0 10px;font-size:12px;" onclick="SstModule.toggleDashboard()">
+                <span id="sst-dash-toggle-lbl">${state.dashVisible ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="sst-stats-grid" style="margin-bottom:${state.dashVisible ? '16px' : '0'};">
+            ${renderStatsSkeletons()}
+          </div>
+
+          <div id="sst-charts-wrap" style="display:${state.dashVisible ? 'grid' : 'none'};grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-1-title">Indicador 1</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-1"></canvas></div>
+            </div>
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-2-title">Indicador 2</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-2"></canvas></div>
+            </div>
+            <div style="background:var(--bg-surface, #fff);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px;" id="sst-chart-3-title">Indicador 3</div>
+              <div style="height:210px;position:relative;"><canvas id="sst-chart-3"></canvas></div>
+            </div>
+          </div>
+        </div>
+
         <!-- Filtros Dinámicos -->
         <div class="filters-card" id="sst-filters-container">
           ${renderFiltersHtml()}
@@ -578,14 +1477,19 @@ const SstModule = (() => {
         <!-- Tabla Principal -->
         <div class="table-card">
           <div class="table-header table-header--horarios">
-            <span class="table-title" id="sst-table-title">${escHtml(tabCfg.title)}</span>
-            <button type="button" id="sst-btn-vencimientos" class="btn-check-vencimientos" style="${state.tab === 'epidemiologico' ? '' : 'display:none'}" onclick="SstModule.checkEmoVencimientos()" title="Verificar Exámenes Médicos Ocupacionales próximos a vencer o vencidos">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              <span>Verificar Vencimientos EMO</span>
-            </button>
-            <span class="table-count" id="sst-count">
-              <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
-            </span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span class="table-title" id="sst-table-title">${escHtml(tabCfg.title)}</span>
+              <span id="sst-selected-badge" class="badge badge--aprobada" style="display:none;font-size:11px;">0 seleccionados</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button type="button" id="sst-btn-vencimientos" class="btn-check-vencimientos" style="${state.tab === 'epidemiologico' && canManage ? '' : 'display:none'}" onclick="SstModule.checkEmoVencimientos()" title="Verificar Exámenes Médicos Ocupacionales próximos a vencer o vencidos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                <span>Verificar Vencimientos EMO</span>
+              </button>
+              <span class="table-count" id="sst-count">
+                <span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>
+              </span>
+            </div>
           </div>
           <div class="table-wrap">
             <table aria-label="Registros de Seguridad y Salud en el Trabajo">
@@ -605,6 +1509,29 @@ const SstModule = (() => {
     API.getSstCatalogs().then(c => { state.catalogs = c; }).catch(() => {});
     loadStats();
     await load();
+  }
+
+  function updateSelectedBadge() {
+    const badge = document.getElementById('sst-selected-badge');
+    if (!badge) return;
+    const count = state.selectedIds.size;
+    badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    badge.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+  }
+
+  function toggleSelectAll(checked) {
+    state.data.forEach(r => {
+      if (checked) state.selectedIds.add(r.id);
+      else state.selectedIds.delete(r.id);
+    });
+    document.querySelectorAll('.sst-row-chk').forEach(chk => { chk.checked = checked; });
+    updateSelectedBadge();
+  }
+
+  function toggleSelectRow(id, checked) {
+    if (checked) state.selectedIds.add(id);
+    else state.selectedIds.delete(id);
+    updateSelectedBadge();
   }
 
   function renderFiltersHtml() {
@@ -687,6 +1614,7 @@ const SstModule = (() => {
   function renderTheadHtml() {
     if (state.tab === 'epidemiologico') {
       return `<tr>
+        <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
         <th>Código</th>
         <th>Servidor Público</th>
         <th>Dependencia & Sede</th>
@@ -699,6 +1627,7 @@ const SstModule = (() => {
     }
     if (state.tab === 'epp') {
       return `<tr>
+        <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
         <th>Radicado</th>
         <th>Servidor Público</th>
         <th>Dependencia & Cargo</th>
@@ -710,6 +1639,7 @@ const SstModule = (() => {
       </tr>`;
     }
     return `<tr>
+      <th style="width:36px;"><input type="checkbox" id="sst-select-all" onchange="SstModule.toggleSelectAll(this.checked)" title="Seleccionar todos" /></th>
       <th>Código</th>
       <th>Servidor Público</th>
       <th>Sexo & Edad</th>
@@ -725,7 +1655,17 @@ const SstModule = (() => {
     if (!TABS[tabKey]) return;
     state.tab = tabKey;
     state.page = 1;
-    state.filters = { q: '', subFilter1: 'Todos', subFilter2: 'Todos' };
+    state.selectedIds = new Set();
+    updateSelectedBadge();
+    state.filters = { q: '', subFilter1: tabKey === 'sociodemografico' ? 'Todas' : 'Todos', subFilter2: 'Todos' };
+
+    try {
+      state.permission = await API.checkGovernancePermission(getModuleCode(tabKey));
+    } catch {
+      state.permission = { canManage: Auth.canEdit(), isResponsable: false, isAdmin: Auth.isAdmin() };
+    }
+
+    const canManage = canManageCurrent();
 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (activeBtn) activeBtn.classList.add('active');
@@ -743,16 +1683,27 @@ const SstModule = (() => {
     const tabCfg = TABS[tabKey];
     const heading = document.getElementById('sst-heading');
     if (heading) heading.textContent = tabCfg.title;
-    const codeBadge = document.getElementById('sst-format-code');
-    if (codeBadge) codeBadge.textContent = `Formato ${tabCfg.code}`;
+    const roleBadge = document.getElementById('sst-role-badge');
+    if (roleBadge) {
+      roleBadge.className = `badge ${canManage ? 'badge--aprobada' : 'badge--pendiente'}`;
+      roleBadge.textContent = state.permission?.isResponsable ? 'Sandra Roa / Responsable' : (canManage ? 'Administrador' : 'Funcionario — Solo Consulta');
+    }
+    const dashTitle = document.getElementById('sst-dash-title');
+    if (dashTitle) dashTitle.textContent = `Panel Analítico e Indicadores en Tiempo Real — ${tabCfg.title}`;
     const desc = document.getElementById('sst-desc');
     if (desc) desc.textContent = tabCfg.desc;
     const tableTitle = document.getElementById('sst-table-title');
     if (tableTitle) tableTitle.textContent = tabCfg.title;
+    const createBtn = document.getElementById('sst-create-btn');
+    if (createBtn) createBtn.style.display = canManage ? '' : 'none';
     const createBtnTxt = document.getElementById('sst-create-btn-text');
     if (createBtnTxt) createBtnTxt.textContent = tabCfg.btnCreate;
+    const importBtn = document.getElementById('sst-dropdown-import-btn');
+    if (importBtn) importBtn.style.display = canManage ? '' : 'none';
     const btnVenc = document.getElementById('sst-btn-vencimientos');
-    if (btnVenc) btnVenc.style.display = tabKey === 'epidemiologico' ? '' : 'none';
+    if (btnVenc) btnVenc.style.display = (tabKey === 'epidemiologico' && canManage) ? '' : 'none';
+    const btnEppInv = document.getElementById('sst-btn-epp-inv');
+    if (btnEppInv) btnEppInv.style.display = (tabKey === 'epp' && canManage) ? '' : 'none';
 
     const filtersContainer = document.getElementById('sst-filters-container');
     if (filtersContainer) filtersContainer.innerHTML = renderFiltersHtml();
@@ -777,100 +1728,9 @@ const SstModule = (() => {
   }
 
   function renderSkeletonRows(tabKey = 'epidemiologico', count = 7) {
-    if (tabKey === 'epp') {
-      return Array.from({ length: count }).map((_, i) => `
-        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
-          <td>
-            <div class="skeleton-user-cell">
-              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
-              <div class="skeleton-text-group">
-                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
-                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
-              <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
-            </div>
-          </td>
-          <td><div class="skeleton skeleton-line" style="width: 140px; height: 13px;"></div></td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-badge" style="width: 65px; height: 18px;"></div>
-              <div class="skeleton skeleton-line" style="width: 45px; height: 10px;"></div>
-            </div>
-          </td>
-          <td><div class="skeleton skeleton-line" style="width: 80px; height: 13px;"></div></td>
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 22px;"></div></td>
-          <td>
-            <div class="skeleton-actions-wrap">
-              <div class="skeleton skeleton-btn"></div>
-              <div class="skeleton skeleton-btn"></div>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    if (tabKey === 'sociodemografico') {
-      return Array.from({ length: count }).map((_, i) => `
-        <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
-          <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
-          <td>
-            <div class="skeleton-user-cell">
-              <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
-              <div class="skeleton-text-group">
-                <div class="skeleton skeleton-line skeleton-line--title" style="width:${i % 2 === 0 ? '80%' : '70%'}; height:14px;"></div>
-                <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 70px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 45px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 80px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '90%' : '80%'}; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 60px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 85px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 70px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-text-group">
-              <div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div>
-              <div class="skeleton skeleton-line" style="width: 55px; height: 11px;"></div>
-            </div>
-          </td>
-          <td>
-            <div class="skeleton-actions-wrap">
-              <div class="skeleton skeleton-btn"></div>
-              <div class="skeleton skeleton-btn"></div>
-            </div>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    // epidemiologico (default)
     return Array.from({ length: count }).map((_, i) => `
       <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+        <td><div class="skeleton" style="width:16px;height:16px;border-radius:4px;"></div></td>
         <td><div class="skeleton skeleton-badge" style="width: 85px; height: 20px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
@@ -881,19 +1741,9 @@ const SstModule = (() => {
             </div>
           </div>
         </td>
-        <td>
-          <div class="skeleton-text-group">
-            <div class="skeleton skeleton-line" style="width:${i % 3 === 0 ? '85%' : '75%'}; height:13px;"></div>
-            <div class="skeleton skeleton-line" style="width:45%; height:11px;"></div>
-          </div>
-        </td>
-        <td>
-          <div class="skeleton-text-group">
-            <div class="skeleton skeleton-badge" style="width: 75px; height: 18px;"></div>
-            <div class="skeleton skeleton-line" style="width: 65px; height: 11px;"></div>
-          </div>
-        </td>
         <td><div class="skeleton skeleton-line" style="width: 110px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width: 100px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-badge" style="width: 80px; height: 22px;"></div></td>
         <td>
@@ -940,12 +1790,14 @@ const SstModule = (() => {
           estado: state.filters.subFilter2 || 'Todos'
         });
       } else {
+        const escVal = state.filters.subFilter1 || 'Todas';
+        const vincVal = state.filters.subFilter2 || 'Todos';
         res = await API.getSstSociodemografico({
           page: state.page,
           limit: 20,
           q: state.filters.q || '',
-          escolaridad: state.filters.subFilter1 || 'Todas',
-          tipoVinculacion: state.filters.subFilter2 || 'Todos'
+          escolaridad: (escVal === 'Todas' || escVal === 'Todos') ? '' : escVal,
+          tipoVinculacion: (vincVal === 'Todos' || vincVal === 'Todas') ? '' : vincVal
         });
       }
 
@@ -969,7 +1821,7 @@ const SstModule = (() => {
     tbody.setAttribute('aria-busy', 'false');
 
     if (!state.data.length) {
-      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span class="empty-state-title">No hay registros en ${escHtml(TABS[state.tab].title)}</span>
         <span class="empty-state-desc">Crea un nuevo registro o realiza una carga masiva desde Excel.</span>
@@ -977,9 +1829,12 @@ const SstModule = (() => {
       return;
     }
 
+    const canManage = canManageCurrent();
+
     if (state.tab === 'epidemiologico') {
       tbody.innerHTML = state.data.map(r => `
         <tr>
+          <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
           <td class="td-radicado">${escHtml(r.radicado)}</td>
           <td>
             <div class="user-table-cell">
@@ -1015,10 +1870,13 @@ const SstModule = (() => {
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Ficha Epidemiológica">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha PDF Oficial E-DO-ST-F-024">
+              <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Perfil en Plantilla Oficial Excel (.xlsx)" style="color:#16a34a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+              </button>
+              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Ficha Médica EMO (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
-              ${Auth.canEdit() ? `
+              ${canManage ? `
               <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Registro">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -1034,6 +1892,7 @@ const SstModule = (() => {
     if (state.tab === 'epp') {
       tbody.innerHTML = state.data.map(r => `
         <tr>
+          <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
           <td class="td-radicado">${escHtml(r.radicado)}</td>
           <td>
             <div class="user-table-cell">
@@ -1055,16 +1914,29 @@ const SstModule = (() => {
             </div>
           </td>
           <td>${formatDate(r.fechaEntrega)}</td>
-          <td><span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span></td>
+          <td>
+            <span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span>
+            ${r.firmaDigital ? `
+              <div style="margin-top:4px;">
+                <span class="badge badge--aprobada" style="font-size:10px;padding:1px 6px;gap:3px;display:inline-flex;align-items:center;" title="Entrega verificada y firmada digitalmente en tablet">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;"><polyline points="20 6 9 17 4 12"/></svg>
+                  Firmado
+                </span>
+              </div>
+            ` : ''}
+          </td>
           <td class="td-actions">
             <div class="td-actions-wrap">
               <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Detalle de Entrega EPP">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega PDF (Formato E-DO-ST-F-028)">
+              <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Formato de Entrega EPP en Excel (.xlsx)" style="color:#16a34a;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+              </button>
+              <button class="btn-action-soporte" onclick="SstModule.exportSinglePdf(${r.id})" title="Descargar Acta de Entrega EPP (PDF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </button>
-              ${Auth.canEdit() ? `
+              ${canManage ? `
               <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Entrega">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
@@ -1080,6 +1952,7 @@ const SstModule = (() => {
     // Sociodemográfico
     tbody.innerHTML = state.data.map(r => `
       <tr>
+        <td><input type="checkbox" class="sst-row-chk" ${state.selectedIds.has(r.id) ? 'checked' : ''} onchange="SstModule.toggleSelectRow(${r.id}, this.checked)" /></td>
         <td class="td-radicado">${escHtml(r.radicado)}</td>
         <td>
           <div class="user-table-cell">
@@ -1122,7 +1995,10 @@ const SstModule = (() => {
             <button class="btn-action-view" onclick="SstModule.openView(${r.id})" title="Ver Ficha Sociodemográfica">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
-            ${Auth.canEdit() ? `
+            <button class="btn-action-soporte" onclick="SstModule.exportSingleProfileExcel(${r.id})" title="Descargar Perfil en Plantilla Oficial Excel (.xlsx)" style="color:#16a34a;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M10 9h1"/></svg>
+            </button>
+            ${canManage ? `
             <button class="btn-action-edit" onclick="SstModule.openEdit(${r.id})" title="Editar Perfil">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
@@ -1157,308 +2033,649 @@ const SstModule = (() => {
     currentUploadedFile = r.soporte || null;
 
     if (state.tab === 'epidemiologico') {
+      const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+      const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+      const isAt = (r.accidenteTrabajo === 'SI');
+      const isEl = (r.enfermedadLaboral === 'SI');
+
       return `
         <div class="form-grid">
+          <!-- SECCIÓN 1: DATOS DEL SERVIDOR PÚBLICO -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              1. Información del Servidor Público
+            </h4>
+          </div>
+
           <div class="form-group span-2 autocomplete-wrapper">
-            <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe nombre o cédula para autocompletar desde planta)</span></label>
-            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
+            <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
+            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
             <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Tipo de Identificación</label>
+            <label class="form-label">Tipo de Identificación *</label>
             <select id="sst-tipo-id" class="filter-select">
               ${cats.tiposIdentificacion.map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Número de Documento *</label>
-            <input id="sst-doc" class="form-input" placeholder="Cédula" value="${escHtml(r.documento || '')}" required />
+            <input id="sst-doc" class="form-input" placeholder="Cédula de ciudadanía o extranjería" value="${escHtml(r.documento || '')}" required />
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Apellidos *</label>
+            <input id="sst-apellidos" class="form-input" placeholder="Primer y segundo apellido" value="${escHtml(apellidos)}" oninput="SstModule.onApellidosNombresChange()" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nombres *</label>
+            <input id="sst-nombres" class="form-input" placeholder="Nombres completos" value="${escHtml(nombres)}" oninput="SstModule.onApellidosNombresChange()" required />
+          </div>
+
           <div class="form-group">
             <label class="form-label">Teléfono / Celular</label>
-            <input id="sst-tel" class="form-input" placeholder="Ej: 3213938142" value="${escHtml(r.telefono || '')}" />
+            <input id="sst-tel" class="form-input" placeholder="Número de contacto (Ej: 3101234567)" value="${escHtml(r.telefono || '')}" />
           </div>
+
           <div class="form-group">
             <label class="form-label">Edad (años)</label>
-            <input id="sst-edad" type="number" class="form-input" value="${escHtml(r.edad || '')}" />
+            <input id="sst-edad" type="number" min="18" max="99" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" />
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Fecha de Ingreso a la Entidad</label>
+            <input id="sst-ingreso" type="date" class="form-input" value="${escHtml(r.fechaIngreso || '')}" />
+          </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Dependencia donde trabaja *</label>
-            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Seleccione o escriba dependencia..." value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
+            <label class="form-label">Dependencia donde Trabaja *</label>
+            <input id="sst-dep" list="sst-deps-list" class="form-input" placeholder="Seleccione o escriba la dependencia..." value="${escHtml(r.dependencia || '')}" required />
             <datalist id="sst-deps-list">
               ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
             </datalist>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Sede de Trabajo</label>
+            <label class="form-label">Sede de Trabajo *</label>
             <select id="sst-sede" class="filter-select">
-              ${cats.sedes.map(s => `<option ${r.sedeTrabajo === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+              <option value="">-- Seleccione la Sede --</option>
+              ${cats.sedes.map(s => `<option value="${escHtml(s)}" ${(r.sedeTrabajo || '') === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
-            <label class="form-label">Cargo</label>
-            <input id="sst-cargo" class="form-input" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
+            <label class="form-label">Cargo *</label>
+            <input id="sst-cargo" class="form-input" placeholder="Denominación del cargo" value="${escHtml(r.cargo || '')}" />
           </div>
+
+          <!-- SECCIÓN 2: EXAMEN MÉDICO OCUPACIONAL (EMO) Y PVE -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              2. Examen Médico Ocupacional (EMO) y Vigilancia Epidemiológica
+            </h4>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Tipo de EMO *</label>
-            <select id="sst-tipo-emo" class="filter-select">
-              ${cats.tiposEmo.map(t => `<option ${r.tipoEmo === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+            <select id="sst-tipo-emo" class="filter-select" onchange="SstModule.onTipoEmoChange(this.value)">
+              <option value="">-- Seleccione Tipo de EMO --</option>
+              ${cats.tiposEmo.map(t => `<option value="${escHtml(t)}" ${r.tipoEmo === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha Realización EMO *</label>
-            <input id="sst-fecha-emo" type="date" class="form-input" value="${escHtml(r.fechaEmo || new Date().toISOString().split('T')[0])}" />
+            <input id="sst-fecha-emo" type="date" class="form-input" value="${escHtml(r.fechaEmo || new Date().toISOString().split('T')[0])}" onchange="SstModule.onFechaEmoChange(this.value)" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha Próximo EMO</label>
             <input id="sst-prox-emo" type="date" class="form-input" value="${escHtml(r.fechaProximoEmo || '')}" />
           </div>
-          <div class="form-group">
-            <label class="form-label">Estado Final del Caso</label>
-            <select id="sst-estado-caso" class="filter-select">
-              ${cats.estadosCaso.map(e => `<option ${r.estadoFinalCaso === e ? 'selected' : ''}>${escHtml(e)}</option>`).join('')}
-            </select>
-          </div>
+
           <div class="form-group">
             <label class="form-label">Direccionado a PVE</label>
             <select id="sst-pve" class="filter-select">
-              ${cats.programasPve.map(p => `<option ${r.direccionadoPve === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
+              <option value="">-- Seleccione PVE (o No aplica) --</option>
+              ${cats.programasPve.map(p => `<option value="${escHtml(p)}" ${r.direccionadoPve === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('')}
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label">Direccionado a EPS / ARL</label>
-            <input id="sst-eps" class="form-input" placeholder="Ej: Control por Ortopedia EPS / No aplica" value="${escHtml(r.direccionadoEps || 'No aplica')}" />
+
+          <div class="form-group span-2">
+            <label class="form-label">Direccionado a EPS / IPS</label>
+            <input id="sst-eps" list="sst-eps-list" class="form-input" placeholder="Seleccione o escriba entidad de salud (Ej: Nueva EPS / No aplica)" value="${escHtml(r.direccionadoEps || '')}" />
+            <datalist id="sst-eps-list">
+              ${(cats.epsSugerencias || []).map(eps => `<option value="${escHtml(eps)}"></option>`).join('')}
+            </datalist>
           </div>
+
           <div class="form-group span-2">
             <label class="form-label">Restricciones Médicas Laborales</label>
-            <input id="sst-restricciones" class="form-input" placeholder="NINGUNA o detalle de restricción médica..." value="${escHtml(r.restricciones || 'NINGUNA')}" />
+            <input id="sst-restricciones" list="sst-restricciones-list" class="form-input" placeholder="Haga clic para opciones frecuentes o escriba la restricción médica..." value="${escHtml(r.restricciones || '')}" />
+            <datalist id="sst-restricciones-list">
+              ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
+            </datalist>
           </div>
+
           <div class="form-group span-2">
             <label class="form-label">Recomendaciones Médicas Ocupacionales</label>
-            <input id="sst-recomendaciones" class="form-input" placeholder="Pausas activas, higiene postural, adecuación ergonómica..." value="${escHtml(r.recomendaciones || 'Pausas activas e higiene postural')}" />
+            <input id="sst-recomendaciones" list="sst-recomendaciones-list" class="form-input" placeholder="Haga clic para recomendaciones frecuentes o escriba..." value="${escHtml(r.recomendaciones || '')}" />
+            <datalist id="sst-recomendaciones-list">
+              ${(cats.recomendacionesFrecuentes || []).map(rc => `<option value="${escHtml(rc)}"></option>`).join('')}
+            </datalist>
           </div>
+
+          <!-- SECCIÓN 3: ACCIDENTE DE TRABAJO Y ENFERMEDAD LABORAL -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              3. Accidente de Trabajo (AT) y Enfermedad Laboral (EL)
+            </h4>
+          </div>
+
           <div class="form-group">
             <label class="form-label">¿Accidente de Trabajo (AT)?</label>
-            <select id="sst-at" class="filter-select">
-              <option value="NO" ${r.accidenteTrabajo !== 'SI' ? 'selected' : ''}>NO</option>
-              <option value="SI" ${r.accidenteTrabajo === 'SI' ? 'selected' : ''}>SI</option>
+            <select id="sst-at" class="filter-select" onchange="SstModule.onAtToggle(this.value)">
+              <option value="NO" ${!isAt ? 'selected' : ''}>NO</option>
+              <option value="SI" ${isAt ? 'selected' : ''}>SI</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Fecha del Accidente (AT)</label>
+            <input id="sst-fecha-at" type="date" class="form-input" value="${escHtml(r.fechaAccidente || '')}" ${isAt ? '' : 'disabled'} />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Estado Actual del Accidente</label>
+            <input id="sst-estado-at" list="sst-estado-at-list" class="form-input" placeholder="Seleccione o escriba estado actual del accidente..." value="${escHtml(r.estadoActualAccidente || 'No aplica')}" ${isAt ? '' : 'disabled'} />
+            <datalist id="sst-estado-at-list">
+              ${(cats.estadosAccidente || []).map(ea => `<option value="${escHtml(ea)}"></option>`).join('')}
+            </datalist>
+          </div>
+
           <div class="form-group">
             <label class="form-label">¿Enfermedad Laboral (EL)?</label>
-            <select id="sst-el" class="filter-select">
-              <option value="NO" ${r.enfermedadLaboral !== 'SI' ? 'selected' : ''}>NO</option>
-              <option value="SI" ${r.enfermedadLaboral === 'SI' ? 'selected' : ''}>SI</option>
+            <select id="sst-el" class="filter-select" onchange="SstModule.onElToggle(this.value)">
+              <option value="NO" ${!isEl ? 'selected' : ''}>NO</option>
+              <option value="SI" ${isEl ? 'selected' : ''}>SI</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label class="form-label">¿Cumplió Rehabilitación?</label>
+            <label class="form-label">Fecha Diagnóstico Enfermedad (EL)</label>
+            <input id="sst-fecha-el" type="date" class="form-input" value="${escHtml(r.fechaEnfermedad || '')}" ${isEl ? '' : 'disabled'} />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Estado Actual de la Enfermedad</label>
+            <input id="sst-estado-el" list="sst-estado-el-list" class="form-input" placeholder="Seleccione o escriba estado actual de la enfermedad..." value="${escHtml(r.estadoActualEnfermedad || 'No aplica')}" ${isEl ? '' : 'disabled'} />
+            <datalist id="sst-estado-el-list">
+              ${(cats.estadosEnfermedad || []).map(ee => `<option value="${escHtml(ee)}"></option>`).join('')}
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">¿Cumplió Proceso de Rehabilitación?</label>
             <select id="sst-rehab" class="filter-select">
               <option value="N/A" ${(!r.cumplioRehabilitacion || r.cumplioRehabilitacion === 'N/A') ? 'selected' : ''}>N/A</option>
               <option value="SI" ${r.cumplioRehabilitacion === 'SI' ? 'selected' : ''}>SI</option>
               <option value="NO" ${r.cumplioRehabilitacion === 'NO' ? 'selected' : ''}>NO</option>
             </select>
           </div>
+
+          <!-- SECCIÓN 4: ESTADO FINAL Y ACTIVIDADES PENDIENTES -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              4. Estado Final del Caso y Seguimiento SST
+            </h4>
+          </div>
+
           <div class="form-group">
+            <label class="form-label">Estado Final del Caso *</label>
+            <select id="sst-estado-caso" class="filter-select">
+              ${cats.estadosCaso.map(e => `<option ${r.estadoFinalCaso === e ? 'selected' : ''}>${escHtml(e)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
             <label class="form-label">Actividades Pendientes SST</label>
-            <input id="sst-pendientes" class="form-input" placeholder="Seguimiento, inspección de puesto..." value="${escHtml(r.actividadesPendientes || '')}" />
+            <input id="sst-pendientes" list="sst-pendientes-list" class="form-input" placeholder="Haga clic para actividades frecuentes o escriba pendientes..." value="${escHtml(r.actividadesPendientes || '')}" />
+            <datalist id="sst-pendientes-list">
+              ${(cats.actividadesPendientesFrecuentes || []).map(ap => `<option value="${escHtml(ap)}"></option>`).join('')}
+            </datalist>
           </div>
         </div>`;
     }
 
     if (state.tab === 'epp') {
+      const eppList = cats.elementosEppClean || [];
+      const secList = cats.secretariasEpp || [];
+      const dirList = cats.direccionesEpp || [];
+      const cargoList = cats.cargosEpp || [];
+      const vincList = cats.vinculacionesEpp || [];
+
+      const currentElemento = r.elementoEpp || '';
+      const cleanCurrentElemento = currentElemento.replace(/^[A-Z]+\.\s*/, '').trim();
+
       return `
         <div class="form-grid">
-          <div class="form-group span-2 autocomplete-wrapper">
-            <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar desde planta)</span></label>
-            <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
-            <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
+          <!-- SECCIÓN 1: DATOS PERSONALES -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              1. Datos Personales
+            </h4>
           </div>
+
+          <div class="form-group span-2 autocomplete-wrapper" style="position:relative;">
+            <label class="form-label">Buscar Servidor en Planta <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(Opcional para autocompletar desde base institucional)</span></label>
+            <input id="sst-search" class="form-input" placeholder="Escriba el nombre o cédula para buscar y autollenar los campos..." oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
+            <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;"></div>
+          </div>
+
           <div class="form-group">
-            <label class="form-label">Documento de Identidad (C.C.) *</label>
-            <input id="sst-doc" class="form-input" placeholder="Número de documento" value="${escHtml(r.documento || '')}" required />
+            <label class="form-label">No. De Identificación (C.C.) *</label>
+            <input id="sst-doc" class="form-input font-mono" placeholder="Número de cédula o documento" value="${escHtml(r.documento || '')}" required />
           </div>
+
           <div class="form-group">
-            <label class="form-label">Teléfono</label>
-            <input id="sst-tel" class="form-input" placeholder="Celular de contacto" value="${escHtml(r.telefono || '')}" />
+            <label class="form-label">Nombre Completo del Servidor / Receptor *</label>
+            <input id="sst-nombre" class="form-input" placeholder="APELLIDOS Y NOMBRES COMPLETOS" value="${escHtml(r.nombreCompleto || '')}" required />
           </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Dependencia / Subdirección *</label>
-            <input id="sst-dep" list="sst-deps-list" class="form-input" value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
-            <datalist id="sst-deps-list">
-              ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
+            <label class="form-label">Teléfono / Celular</label>
+            <input id="sst-tel" class="form-input" placeholder="Número telefónico o celular" value="${escHtml(r.telefono || '')}" />
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Secretaría *</label>
+            <select id="sst-secretaria" class="filter-select" required>
+              <option value="">-- Seleccione Secretaría --</option>
+              ${secList.map(s => {
+                const isSel = (r.secretaria || '').toUpperCase().includes(s.toUpperCase());
+                return `<option value="${escHtml(s)}" ${isSel ? 'selected' : ''}>${escHtml(s)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Dirección / Subdirección *</label>
+            <select id="sst-dep" class="filter-select" required>
+              <option value="">-- Seleccione Dirección / Subdirección --</option>
+              ${dirList.map(d => {
+                const isSel = (r.dependencia || '').toUpperCase().includes(d.toUpperCase());
+                return `<option value="${escHtml(d)}" ${isSel ? 'selected' : ''}>${escHtml(d)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Sede de Trabajo *</label>
+            <select id="sst-sede" class="filter-select" required>
+              <option value="">-- Seleccione la Sede --</option>
+              ${cats.sedes.map(s => `<option value="${escHtml(s)}" ${(r.sedeTrabajo || '') === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Cargo *</label>
+            <select id="sst-cargo" class="filter-select" required>
+              <option value="">-- Seleccione Cargo --</option>
+              ${cargoList.map(c => {
+                const isSel = (r.cargo || '').toUpperCase() === c.toUpperCase();
+                return `<option value="${escHtml(c)}" ${isSel ? 'selected' : ''}>${escHtml(c)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tipo de Vinculación *</label>
+            <select id="sst-vinculacion" class="filter-select" required>
+              <option value="">-- Seleccione Tipo de Vinculación --</option>
+              ${vincList.map(v => {
+                const isSel = (r.tipoVinculacion || '').toUpperCase() === v.toUpperCase();
+                return `<option value="${escHtml(v)}" ${isSel ? 'selected' : ''}>${escHtml(v)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+
+          <div class="form-group span-2">
+            <label class="form-label">Restricciones y/o Recomendaciones</label>
+            <input id="sst-restricciones" list="sst-epp-restricciones-list" class="form-input" placeholder="Restricciones médicas o recomendaciones de uso..." value="${escHtml(r.restriccionesRecomendaciones || '')}" />
+            <datalist id="sst-epp-restricciones-list">
+              ${(cats.restriccionesFrecuentes || []).map(rf => `<option value="${escHtml(rf)}"></option>`).join('')}
             </datalist>
           </div>
-          <div class="form-group">
-            <label class="form-label">Cargo</label>
-            <input id="sst-cargo" class="form-input" value="${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}" />
+
+          <!-- SECCIÓN 2: REGISTRO DE ENTREGA -->
+          <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              2. Registro de Entrega de EPP
+            </h4>
           </div>
-          <div class="form-group">
-            <label class="form-label">Tipo de Vinculación</label>
-            <select id="sst-vinculacion" class="filter-select">
-              ${cats.tiposVinculacion.map(v => `<option ${(r.tipoVinculacion || '').toUpperCase() === v.toUpperCase() ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-            </select>
-          </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Elemento de Protección Personal (Catálogo E-DO-ST-F-028) *</label>
-            <select id="sst-elemento-epp" class="filter-select">
-              ${cats.eppCatalogo.map(e => `<option value="${escHtml(e.nombre)}" ${(r.elementoEpp === e.nombre || r.codigoElemento === e.codigo) ? 'selected' : ''}>${escHtml(e.nombre)}</option>`).join('')}
+            <label class="form-label">Elemento *</label>
+            <select id="sst-elemento-epp" class="filter-select" required>
+              <option value="">-- Seleccione Elemento EPP --</option>
+              ${eppList.map(e => {
+                const isSel = (cleanCurrentElemento.toUpperCase() === e.toUpperCase() || currentElemento.toUpperCase() === e.toUpperCase());
+                return `<option value="${escHtml(e)}" ${isSel ? 'selected' : ''}>${escHtml(e)}</option>`;
+              }).join('')}
             </select>
           </div>
+
           <div class="form-group">
             <label class="form-label">Talla</label>
             <input id="sst-talla" class="form-input" placeholder="N/A, S, M, L, XL, 38, 40..." value="${escHtml(r.talla || 'N/A')}" />
           </div>
+
           <div class="form-group">
-            <label class="form-label">Cantidad Entregada *</label>
-            <input id="sst-cantidad" class="form-input" placeholder="1 UNIDAD, 1 PAR, 1 CAJA..." value="${escHtml(r.cantidad || '1 UNIDAD')}" />
+            <label class="form-label">Cantidad *</label>
+            <input id="sst-cantidad" class="form-input" placeholder="1 UNIDAD, 1 PAR, 1 CAJA..." value="${escHtml(r.cantidad || '1 UNIDAD')}" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Fecha de Entrega *</label>
-            <input id="sst-fecha-entrega" type="date" class="form-input" value="${escHtml(r.fechaEntrega || new Date().toISOString().split('T')[0])}" />
+            <input id="sst-fecha-entrega" type="date" class="form-input" value="${escHtml(r.fechaEntrega || new Date().toISOString().split('T')[0])}" required />
           </div>
+
           <div class="form-group">
             <label class="form-label">Estado de Entrega</label>
             <select id="sst-estado-entrega" class="filter-select">
               ${['Entregado', 'Reposición Programada', 'Pendiente Firma', 'Devuelto'].map(s => `<option ${r.estadoEntrega === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
           </div>
+
           <div class="form-group span-2">
-            <label class="form-label">Restricciones y/o Recomendaciones Asociadas</label>
-            <input id="sst-restricciones" class="form-input" value="${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}" />
+            <label class="form-label">Observaciones</label>
+            <input id="sst-obs" class="form-input" placeholder="Observaciones adicionales sobre la entrega o estado del elemento..." value="${escHtml(r.observaciones || '')}" />
           </div>
-          <div class="form-group span-2">
-            <label class="form-label">Observaciones de Dotación (Instructivo E-DO-ST-I-007)</label>
-            <input id="sst-obs" class="form-input" placeholder="Observaciones adicionales..." value="${escHtml(r.observaciones || '')}" />
+
+          <!-- Apartado de Firma Digital (Tablet / Pantalla Táctil) -->
+          <div class="form-group span-2 sst-signature-box" style="margin-top:6px;background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color, #e2e8f0);border-radius:10px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--color-primary-400, #16a34a);"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                <label class="form-label" style="margin:0;font-weight:600;font-size:13px;color:var(--text-primary);">Firma Digital de Recepción y Verificación</label>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span id="sst-firma-status" class="badge ${r.firmaDigital ? 'badge--aprobada' : 'badge--pendiente'}" style="font-size:11px;">
+                  ${r.firmaDigital ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Firmado' : 'Pendiente de Firma'}
+                </span>
+                <button type="button" class="btn btn-secondary" onclick="SstModule.clearSignature()" style="padding:4px 10px;font-size:12px;height:28px;" title="Borrar y volver a firmar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;margin-right:4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Limpiar
+                </button>
+              </div>
+            </div>
+            <div style="position:relative;background:#ffffff;border:2px dashed var(--border-color, #cbd5e1);border-radius:8px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);">
+              <canvas id="sst-signature-canvas" style="width:100%;height:150px;display:block;cursor:crosshair;touch-action:none;"></canvas>
+              <div id="sst-signature-line" style="position:absolute;bottom:20px;left:24px;right:24px;border-bottom:1px solid #94a3b8;pointer-events:none;display:flex;justify-content:space-between;padding-bottom:2px;${r.firmaDigital ? 'opacity:0.2;' : ''}">
+                <span style="font-size:11px;color:#64748b;font-weight:500;">Firma del Funcionario / Receptor</span>
+                <span style="font-size:11px;color:#94a3b8;font-style:italic;">Firme con su dedo, lápiz o puntero táctil</span>
+              </div>
+            </div>
+            <input type="hidden" id="sst-firma-digital" value="${escHtml(r.firmaDigital || '')}" />
+            <small style="color:var(--text-muted);font-size:11px;display:block;margin-top:6px;">
+              El personal certifica mediante esta firma digital la recepción conforme del Elemento de Protección Personal (EPP) y la verificación del estado de entrega.
+            </small>
           </div>
         </div>`;
     }
 
-    // Sociodemográfico (E-DO-ST-F-011 V5)
+    // Sociodemográfico
+    const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+    const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
     return `
       <div class="form-grid">
+        <!-- SECCIÓN 1: DATOS DEL SERVIDOR PÚBLICO -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            1. Información del Servidor Público
+          </h4>
+        </div>
+
         <div class="form-group span-2 autocomplete-wrapper">
-          <label class="form-label">Servidor Público * <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escribe para autocompletar desde planta)</span></label>
-          <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" required />
+          <label class="form-label">Servidor Público <span style="font-size:11px;color:var(--color-primary-400);font-weight:400;">(Escriba nombre o cédula para autocompletar desde planta)</span></label>
+          <input id="sst-nombre" class="form-input" placeholder="Buscar funcionario por nombre o documento..." value="${escHtml(r.nombreCompleto || '')}" oninput="SstModule.onEmployeeInput(this.value)" autocomplete="off" />
           <div id="sst-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Documento</label>
+          <label class="form-label">Tipo de Identificación *</label>
           <select id="sst-tipo-id" class="filter-select">
-            ${cats.tiposIdentificacion.map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+            ${(cats.tiposIdentificacion || []).map(t => `<option ${r.tipoIdentificacion === t ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Número de Identificación *</label>
-          <input id="sst-doc" class="form-input" value="${escHtml(r.documento || '')}" required />
+          <label class="form-label">Número de Documento *</label>
+          <input id="sst-doc" class="form-input" placeholder="Cédula de ciudadanía o extranjería" value="${escHtml(r.documento || '')}" required />
         </div>
+
         <div class="form-group">
-          <label class="form-label">Sexo</label>
+          <label class="form-label">Apellidos *</label>
+          <input id="sst-apellidos" class="form-input" placeholder="Primer y segundo apellido" value="${escHtml(apellidos)}" oninput="SstModule.onApellidosNombresChange()" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nombres *</label>
+          <input id="sst-nombres" class="form-input" placeholder="Nombres completos" value="${escHtml(nombres)}" oninput="SstModule.onApellidosNombresChange()" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Sexo *</label>
           <select id="sst-sexo" class="filter-select">
-            <option ${r.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
-            <option ${r.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
+            <option value="">-- Seleccione Sexo --</option>
+            <option value="Masculino" ${r.sexo === 'Masculino' ? 'selected' : ''}>Masculino</option>
+            <option value="Femenino" ${r.sexo === 'Femenino' ? 'selected' : ''}>Femenino</option>
           </select>
         </div>
+
         <div class="form-group">
           <label class="form-label">Año Nacimiento / Edad</label>
           <div style="display:flex;gap:8px;">
-            <input id="sst-anio-nac" type="number" class="form-input" placeholder="Año (Ej: 1990)" value="${escHtml(r.anioNacimiento || '')}" />
-            <input id="sst-edad" type="number" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" />
+            <input id="sst-anio-nac" type="number" min="1920" max="2015" class="form-input" placeholder="Año (Ej: 1990)" value="${escHtml(r.anioNacimiento || '')}" oninput="SstModule.onSocioAnioNacChange(this.value)" />
+            <input id="sst-edad" type="number" min="16" max="99" class="form-input" placeholder="Edad" value="${escHtml(r.edad || '')}" oninput="SstModule.onSocioEdadChange(this.value)" />
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Raza / Etnia</label>
-          <select id="sst-raza" class="filter-select">
-            ${cats.razas.map(rz => `<option ${r.razaEtnia === rz ? 'selected' : ''}>${escHtml(rz)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Estado Civil</label>
-          <select id="sst-estado-civil" class="filter-select">
-            ${cats.estadosCiviles.map(ec => `<option ${r.estadoCivil === ec ? 'selected' : ''}>${escHtml(ec)}</option>`).join('')}
-          </select>
-        </div>
+
         <div class="form-group span-2">
-          <label class="form-label">Composición Familiar (Personas con las que comparte vivienda)</label>
+          <label class="form-label">Raza / Etnia *</label>
+          <select id="sst-raza" class="filter-select">
+            <option value="">-- Seleccione Raza / Etnia --</option>
+            ${(cats.razas || []).map(rz => `<option ${r.razaEtnia === rz ? 'selected' : ''}>${escHtml(rz)}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- SECCIÓN 2: ENTORNO SOCIOFAMILIAR Y VIVIENDA -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            2. Entorno Sociofamiliar y Vivienda
+          </h4>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estado Civil *</label>
+          <select id="sst-estado-civil" class="filter-select">
+            <option value="">-- Seleccione Estado Civil --</option>
+            ${(cats.estadosCiviles || []).map(ec => `<option ${r.estadoCivil === ec ? 'selected' : ''}>${escHtml(ec)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Composición Familiar (Convive con) *</label>
           <select id="sst-familia" class="filter-select">
-            ${cats.composicionesFamiliares.map(cf => `<option ${r.composicionFamiliar === cf ? 'selected' : ''}>${escHtml(cf)}</option>`).join('')}
+            <option value="">-- Seleccione Composición Familiar --</option>
+            ${(cats.composicionesFamiliares || []).map(cf => `<option ${r.composicionFamiliar === cf ? 'selected' : ''}>${escHtml(cf)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Vivienda</label>
+          <label class="form-label">Tipo de Vivienda *</label>
           <select id="sst-vivienda" class="filter-select">
-            ${cats.tiposVivienda.map(tv => `<option ${r.tipoVivienda === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+            <option value="">-- Seleccione Tipo de Vivienda --</option>
+            ${(cats.tiposVivienda || []).map(tv => `<option ${r.tipoVivienda === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Estrato Servicios Públicos</label>
+          <label class="form-label">Estrato Servicios Públicos *</label>
           <select id="sst-estrato" class="filter-select">
-            ${cats.estratos.map(es => `<option ${String(r.estrato || '3') === es ? 'selected' : ''}>${es}</option>`).join('')}
+            <option value="">-- Seleccione Estrato --</option>
+            ${(cats.estratos || []).map(es => `<option value="${es}" ${String(r.estrato || '') === es ? 'selected' : ''}>Estrato ${es}</option>`).join('')}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Municipio de Residencia</label>
-          <input id="sst-mpio-res" class="form-input" value="${escHtml(r.municipioResidencia || 'Tunja')}" />
+
+        <div class="form-group span-2">
+          <label class="form-label">Ciudad / Municipio de Residencia *</label>
+          <select id="sst-mpio-res" class="filter-select">
+            ${(() => {
+              const current = r.municipioResidencia || '';
+              const list = (cats.municipiosDivipola && cats.municipiosDivipola.length) ? cats.municipiosDivipola : (cats.municipiosResidenciaSugeridos || ['Tunja', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Moniquirá', 'Puerto Boyacá', 'Villa de Leyva', 'Garagoa', 'Guateque', 'Miraflores', 'Nobsa', 'Santa Rosa de Viterbo', 'Soatá', 'Cómbita', 'Samacá', 'Ventaquemada', 'Tuta', 'Oicatá', 'Soracá', 'Siachoque', 'Chivatá', 'Toca', 'Pesca', 'Tibasosa', 'Bogotá D.C.', 'Otro Municipio']);
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Municipio de Residencia --</option>` + all.map(m => `<option value="${escHtml(m)}" ${current === m ? 'selected' : ''}>${escHtml(m)}</option>`).join('');
+            })()}
+          </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Municipio donde Trabaja</label>
-          <input id="sst-mpio-trab" class="form-input" value="${escHtml(r.municipioTrabajo || 'Tunja')}" />
+
+        <!-- SECCIÓN 3: FORMACIÓN ACADÉMICA Y UBICACIÓN LABORAL -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            3. Formación Académica y Ubicación Laboral
+          </h4>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Escolaridad (Último nivel)</label>
+          <label class="form-label">Escolaridad (Último nivel) *</label>
           <select id="sst-escolaridad" class="filter-select">
-            ${cats.escolaridades.map(sc => `<option ${r.escolaridad === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('')}
+            ${(() => {
+              const current = r.escolaridad || '';
+              const list = cats.escolaridades || ['Ninguna', 'Primaria', 'Bachillerato', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización', 'Maestría', 'Doctorado', 'Posdoctorado'];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Nivel de Escolaridad --</option>` + all.map(sc => `<option value="${escHtml(sc)}" ${current === sc ? 'selected' : ''}>${escHtml(sc)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Ocupación o Profesión</label>
-          <input id="sst-profesion" class="form-input" placeholder="Ej: Ingeniero Industrial, Abogado..." value="${escHtml(r.ocupacionProfesion || '')}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Rango de Ingresos</label>
-          <select id="sst-ingresos" class="filter-select">
-            ${cats.rangosIngresos.map(ri => `<option ${r.rangoIngresos === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
+          <label class="form-label">Ocupación o Profesión *</label>
+          <select id="sst-profesion" class="filter-select">
+            ${(() => {
+              const current = r.ocupacionProfesion || '';
+              const list = cats.profesionesSugeridas || ['Abogado', 'Administrador de Empresas', 'Administrador Público', 'Contador Público', 'Economista', 'Ingeniero Civil', 'Ingeniero de Sistemas', 'Ingeniero Ambiental', 'Ingeniero Industrial', 'Médico', 'Enfermero', 'Psicólogo', 'Trabajador Social', 'Comunicador Social / Periodista', 'Docente / Licenciado', 'Arquitecto', 'Tecnólogo en Gestión Administrativa', 'Técnico en Sistemas', 'Bachiller', 'OTRA'];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccionar Profesión / Oficio --</option>` + all.map(p => `<option value="${escHtml(p)}" ${current === p ? 'selected' : ''}>${escHtml(p)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Denominación del Cargo</label>
-          <input id="sst-cargo" class="form-input" value="${escHtml(r.denominacionCargo || 'Profesional Universitario')}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tipo de Cargo</label>
-          <select id="sst-tipo-cargo" class="filter-select">
-            ${cats.tiposCargo.map(tc => `<option ${r.tipoCargo === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
+          <label class="form-label">Ciudad / Municipio donde Trabaja *</label>
+          <select id="sst-mpio-trab" class="filter-select">
+            ${(() => {
+              const current = r.municipioTrabajo || '';
+              const list = (cats.municipiosDivipola && cats.municipiosDivipola.length) ? cats.municipiosDivipola : (cats.municipiosTrabajoSugeridos || ['Tunja', 'Bogotá', 'Duitama', 'Sogamoso', 'Chiquinquirá', 'Paipa', 'Puerto Boyacá', 'OTRO']);
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Municipio de Trabajo --</option>` + all.map(mt => `<option value="${escHtml(mt)}" ${current === mt ? 'selected' : ''}>${escHtml(mt)}</option>`).join('');
+            })()}
           </select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Tipo de Vinculación</label>
-          <select id="sst-vinculacion" class="filter-select">
-            ${cats.tiposVinculacion.map(tv => `<option ${r.tipoVinculacion === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+          <label class="form-label">Sede de Trabajo *</label>
+          <select id="sst-sede" class="filter-select">
+            ${(() => {
+              const current = r.sedeTrabajo || '';
+              const list = cats.sedes || [];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Sede de Trabajo --</option>` + all.map(s => `<option value="${escHtml(s)}" ${current === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
+            })()}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Antigüedad en el Cargo Actual</label>
-          <select id="sst-ant-cargo" class="filter-select">
-            ${cats.rangosAntiguedad.map(ra => `<option ${r.antiguedadCargo === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Antigüedad en la Entidad</label>
-          <select id="sst-ant-entidad" class="filter-select">
-            ${cats.rangosAntiguedad.map(ra => `<option ${r.antiguedadEntidad === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
-          </select>
-        </div>
+
         <div class="form-group span-2">
           <label class="form-label">Dependencia donde Trabaja *</label>
-          <input id="sst-dep" list="sst-deps-list" class="form-input" value="${escHtml(r.dependencia || 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo')}" />
-          <datalist id="sst-deps-list">
-            ${cats.dependencias.map(d => `<option value="${escHtml(d)}"></option>`).join('')}
-          </datalist>
+          <select id="sst-dep" class="filter-select">
+            ${(() => {
+              const current = r.dependencia || '';
+              const list = cats.dependencias || [];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Dependencia --</option>` + all.map(d => `<option value="${escHtml(d)}" ${current === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('');
+            })()}
+          </select>
         </div>
+
+        <!-- SECCIÓN 4: VINCULACIÓN Y CONDICIONES LABORALES -->
+        <div class="form-group span-2" style="border-bottom: 2px solid var(--border-color); padding-bottom: 6px; margin-top: 10px; margin-bottom: 4px;">
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--color-primary-400); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            4. Vinculación y Condiciones Laborales
+          </h4>
+        </div>
+
         <div class="form-group span-2">
-          <label class="form-label">Sede de Trabajo</label>
-          <select id="sst-sede" class="filter-select">
-            ${cats.sedes.map(s => `<option ${r.sedeTrabajo === s ? 'selected' : ''}>${escHtml(s)}</option>`).join('')}
+          <label class="form-label">Denominación del Cargo *</label>
+          <select id="sst-cargo" class="filter-select">
+            ${(() => {
+              const current = r.denominacionCargo || '';
+              const list = cats.cargosOficialesSocio || [];
+              const all = current && !list.includes(current) ? [current, ...list] : list;
+              return `<option value="">-- Seleccione Cargo --</option>` + all.map(cg => `<option value="${escHtml(cg)}" ${current === cg ? 'selected' : ''}>${escHtml(cg)}</option>`).join('');
+            })()}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Cargo *</label>
+          <select id="sst-tipo-cargo" class="filter-select">
+            <option value="">-- Seleccione Tipo de Cargo --</option>
+            ${(cats.tiposCargo || []).map(tc => `<option value="${escHtml(tc)}" ${(r.tipoCargo || '') === tc ? 'selected' : ''}>${escHtml(tc)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo de Vinculación *</label>
+          <select id="sst-vinculacion" class="filter-select">
+            <option value="">-- Seleccione Tipo de Vinculación --</option>
+            ${(cats.tiposVinculacion || []).map(tv => `<option value="${escHtml(tv)}" ${(r.tipoVinculacion || '') === tv ? 'selected' : ''}>${escHtml(tv)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Rango de Ingresos (SMMLV) *</label>
+          <select id="sst-ingresos" class="filter-select">
+            <option value="">-- Seleccione Rango de Ingresos --</option>
+            ${(cats.rangosIngresos || []).map(ri => `<option value="${escHtml(ri)}" ${(r.rangoIngresos || '') === ri ? 'selected' : ''}>${escHtml(ri)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Antigüedad en el Cargo Actual *</label>
+          <select id="sst-ant-cargo" class="filter-select">
+            <option value="">-- Seleccione Antigüedad en Cargo --</option>
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadCargo || '') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="form-group span-2">
+          <label class="form-label">Antigüedad en la Entidad (años) *</label>
+          <select id="sst-ant-entidad" class="filter-select">
+            <option value="">-- Seleccione Antigüedad en Entidad --</option>
+            ${(cats.rangosAntiguedad || []).map(ra => `<option value="${escHtml(ra)}" ${(r.antiguedadEntidad || '') === ra ? 'selected' : ''}>${escHtml(ra)}</option>`).join('')}
           </select>
         </div>
       </div>`;
@@ -1485,40 +2702,90 @@ const SstModule = (() => {
     }
 
     if (state.tab === 'epidemiologico') {
+      const dep = document.getElementById('sst-dep')?.value.trim();
+      if (!dep) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-dep', 'La dependencia es requerida.');
+        } else {
+          App.showToast('La dependencia es requerida.', 'warning');
+        }
+        return null;
+      }
       const fechaEmo = document.getElementById('sst-fecha-emo')?.value;
       if (!fechaEmo) {
         if (typeof App !== 'undefined' && App.markFieldInvalid) {
           App.markFieldInvalid('sst-fecha-emo', 'La fecha de realización del examen médico (EMO) es obligatoria.');
         } else {
-          App.showToast('La fecha del examen médico es obligatoria.', 'warning');
+          App.showToast('La fecha del EMO es obligatoria.', 'warning');
         }
         return null;
       }
+      const tipoEmo = document.getElementById('sst-tipo-emo')?.value;
+      if (!tipoEmo) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-tipo-emo', 'El tipo de evaluación médica ocupacional es obligatorio.');
+        } else {
+          App.showToast('El tipo de evaluación médica ocupacional es obligatorio.', 'warning');
+        }
+        return null;
+      }
+
+      const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
+      const nombres = document.getElementById('sst-nombres')?.value.trim() || '';
+      let nomComp = nombreCompleto;
+      if (!nomComp && (apellidos || nombres)) {
+        nomComp = `${apellidos} ${nombres}`.trim();
+      }
       return {
-        nombreCompleto,
+        nombreCompleto: nomComp,
+        apellidos: apellidos || (nomComp ? nomComp.split(' ').slice(0, 2).join(' ') : ''),
+        nombres: nombres || (nomComp ? nomComp.split(' ').slice(2).join(' ') : ''),
         documento,
-        tipoIdentificacion: document.getElementById('sst-tipo-id')?.value,
-        telefono: document.getElementById('sst-tel')?.value.trim(),
-        edad: document.getElementById('sst-edad')?.value,
-        dependencia: document.getElementById('sst-dep')?.value.trim(),
-        sedeTrabajo: document.getElementById('sst-sede')?.value,
-        cargo: document.getElementById('sst-cargo')?.value.trim(),
-        tipoEmo: document.getElementById('sst-tipo-emo')?.value,
-        fechaEmo: document.getElementById('sst-fecha-emo')?.value,
-        fechaProximoEmo: document.getElementById('sst-prox-emo')?.value,
-        estadoFinalCaso: document.getElementById('sst-estado-caso')?.value,
-        direccionadoPve: document.getElementById('sst-pve')?.value,
-        direccionadoEps: document.getElementById('sst-eps')?.value.trim(),
-        restricciones: document.getElementById('sst-restricciones')?.value.trim(),
-        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim(),
-        accidenteTrabajo: document.getElementById('sst-at')?.value,
-        enfermedadLaboral: document.getElementById('sst-el')?.value,
-        cumplioRehabilitacion: document.getElementById('sst-rehab')?.value,
-        actividadesPendientes: document.getElementById('sst-pendientes')?.value.trim()
+        tipoIdentificacion: document.getElementById('sst-tipo-id')?.value || 'Cédula de Ciudadanía',
+        telefono: document.getElementById('sst-tel')?.value.trim() || '',
+        edad: document.getElementById('sst-edad')?.value || null,
+        fechaIngreso: document.getElementById('sst-ingreso')?.value || '',
+        dependencia: dep,
+        sedeTrabajo: document.getElementById('sst-sede')?.value || '',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || '',
+        tipoEmo: tipoEmo,
+        fechaEmo: fechaEmo,
+        fechaProximoEmo: document.getElementById('sst-prox-emo')?.value || '',
+        estadoFinalCaso: document.getElementById('sst-estado-caso')?.value || 'Vigente',
+        direccionadoPve: document.getElementById('sst-pve')?.value || 'No aplica',
+        direccionadoEps: document.getElementById('sst-eps')?.value.trim() || 'No aplica',
+        restricciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
+        recomendaciones: document.getElementById('sst-recomendaciones')?.value.trim() || '',
+        accidenteTrabajo: document.getElementById('sst-at')?.value || 'NO',
+        fechaAccidente: document.getElementById('sst-fecha-at')?.value || '',
+        estadoActualAccidente: document.getElementById('sst-estado-at')?.value.trim() || 'No aplica',
+        enfermedadLaboral: document.getElementById('sst-el')?.value || 'NO',
+        fechaEnfermedad: document.getElementById('sst-fecha-el')?.value || '',
+        estadoActualEnfermedad: document.getElementById('sst-estado-el')?.value.trim() || 'No aplica',
+        cumplioRehabilitacion: document.getElementById('sst-rehab')?.value || 'N/A',
+        actividadesPendientes: document.getElementById('sst-pendientes')?.value.trim() || ''
       };
     }
 
     if (state.tab === 'epp') {
+      const dep = document.getElementById('sst-dep')?.value.trim();
+      if (!dep) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-dep', 'La dependencia es obligatoria.');
+        } else {
+          App.showToast('La dependencia es obligatoria.', 'warning');
+        }
+        return null;
+      }
+      const elementoEpp = document.getElementById('sst-elemento-epp')?.value;
+      if (!elementoEpp) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-elemento-epp', 'Debe seleccionar el elemento EPP a entregar.');
+        } else {
+          App.showToast('Debe seleccionar el elemento EPP a entregar.', 'warning');
+        }
+        return null;
+      }
       const fechaEntrega = document.getElementById('sst-fecha-entrega')?.value;
       if (!fechaEntrega) {
         if (typeof App !== 'undefined' && App.markFieldInvalid) {
@@ -1528,66 +2795,114 @@ const SstModule = (() => {
         }
         return null;
       }
+      const firmaDigital = document.getElementById('sst-firma-digital')?.value || null;
+      if (!firmaDigital) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-firma-digital', 'La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.');
+        } else {
+          App.showToast('La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.', 'warning');
+        }
+        return null;
+      }
       return {
         nombreCompleto,
         documento,
-        telefono: document.getElementById('sst-tel')?.value.trim(),
-        dependencia: document.getElementById('sst-dep')?.value.trim(),
-        cargo: document.getElementById('sst-cargo')?.value.trim(),
-        tipoVinculacion: document.getElementById('sst-vinculacion')?.value,
-        elementoEpp: document.getElementById('sst-elemento-epp')?.value,
-        talla: document.getElementById('sst-talla')?.value.trim(),
-        cantidad: document.getElementById('sst-cantidad')?.value.trim(),
-        fechaEntrega: document.getElementById('sst-fecha-entrega')?.value,
-        estadoEntrega: document.getElementById('sst-estado-entrega')?.value,
-        restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim(),
-        observaciones: document.getElementById('sst-obs')?.value.trim()
+        telefono: document.getElementById('sst-tel')?.value.trim() || '',
+        secretaria: document.getElementById('sst-secretaria')?.value.trim() || 'SECRETARIA GENERAL',
+        dependencia: dep,
+        sedeTrabajo: document.getElementById('sst-sede')?.value || '',
+        cargo: document.getElementById('sst-cargo')?.value.trim() || '',
+        tipoVinculacion: document.getElementById('sst-vinculacion')?.value || 'CARRERA ADMINISTRATIVA',
+        elementoEpp: elementoEpp,
+        talla: document.getElementById('sst-talla')?.value.trim() || 'N/A',
+        cantidad: document.getElementById('sst-cantidad')?.value.trim() || '1 UNIDAD',
+        fechaEntrega: document.getElementById('sst-fecha-entrega')?.value || new Date().toISOString().split('T')[0],
+        estadoEntrega: document.getElementById('sst-estado-entrega')?.value || 'Entregado',
+        restriccionesRecomendaciones: document.getElementById('sst-restricciones')?.value.trim() || 'NINGUNA',
+        observaciones: document.getElementById('sst-obs')?.value.trim() || '',
+        firmaDigital: firmaDigital
       };
     }
 
+    const dep = document.getElementById('sst-dep')?.value.trim();
+    if (!dep) {
+      App.showToast('La dependencia es requerida.', 'warning');
+      return null;
+    }
+
+    const apellidos = document.getElementById('sst-apellidos')?.value.trim() || '';
+    const nombres = document.getElementById('sst-nombres')?.value.trim() || '';
+    let nomComp = nombreCompleto;
+    if (!nomComp && (apellidos || nombres)) {
+      nomComp = `${apellidos} ${nombres}`.trim();
+    }
+
+    const anioNac = parseInt(document.getElementById('sst-anio-nac')?.value) || null;
+    const edad = parseInt(document.getElementById('sst-edad')?.value) || null;
+    const estratoVal = String(document.getElementById('sst-estrato')?.value || '');
+    const estratoClean = estratoVal.replace(/[^0-9]/g, '') || '';
+
     return {
-      nombreCompleto,
+      nombreCompleto: nomComp,
+      apellidos: apellidos || (nomComp ? nomComp.split(' ').slice(0, 2).join(' ') : ''),
+      nombres: nombres || (nomComp ? nomComp.split(' ').slice(2).join(' ') : ''),
       documento,
-      tipoIdentificacion: document.getElementById('sst-tipo-id')?.value,
-      sexo: document.getElementById('sst-sexo')?.value,
-      anioNacimiento: document.getElementById('sst-anio-nac')?.value,
-      edad: document.getElementById('sst-edad')?.value,
-      razaEtnia: document.getElementById('sst-raza')?.value,
-      estadoCivil: document.getElementById('sst-estado-civil')?.value,
-      composicionFamiliar: document.getElementById('sst-familia')?.value,
-      tipoVivienda: document.getElementById('sst-vivienda')?.value,
-      estrato: document.getElementById('sst-estrato')?.value,
-      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim(),
-      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim(),
-      escolaridad: document.getElementById('sst-escolaridad')?.value,
-      ocupacionProfesion: document.getElementById('sst-profesion')?.value.trim(),
-      rangoIngresos: document.getElementById('sst-ingresos')?.value,
-      denominacionCargo: document.getElementById('sst-cargo')?.value.trim(),
-      tipoCargo: document.getElementById('sst-tipo-cargo')?.value,
-      tipoVinculacion: document.getElementById('sst-vinculacion')?.value,
-      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value,
-      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value,
-      dependencia: document.getElementById('sst-dep')?.value.trim(),
-      sedeTrabajo: document.getElementById('sst-sede')?.value
+      tipoIdentificacion: document.getElementById('sst-tipo-id')?.value || 'Cédula de Ciudadanía',
+      sexo: document.getElementById('sst-sexo')?.value || '',
+      anioNacimiento: anioNac,
+      edad: edad,
+      razaEtnia: document.getElementById('sst-raza')?.value || '',
+      estadoCivil: document.getElementById('sst-estado-civil')?.value || '',
+      composicionFamiliar: document.getElementById('sst-familia')?.value || '',
+      tipoVivienda: document.getElementById('sst-vivienda')?.value || '',
+      estrato: estratoClean,
+      municipioResidencia: document.getElementById('sst-mpio-res')?.value.trim() || '',
+      municipioTrabajo: document.getElementById('sst-mpio-trab')?.value.trim() || '',
+      escolaridad: document.getElementById('sst-escolaridad')?.value || '',
+      ocupacionProfesion: document.getElementById('sst-profesion')?.value.trim() || '',
+      rangoIngresos: document.getElementById('sst-ingresos')?.value || '',
+      denominacionCargo: document.getElementById('sst-cargo')?.value.trim() || '',
+      tipoCargo: document.getElementById('sst-tipo-cargo')?.value || '',
+      tipoVinculacion: document.getElementById('sst-vinculacion')?.value || '',
+      antiguedadCargo: document.getElementById('sst-ant-cargo')?.value || '',
+      antiguedadEntidad: document.getElementById('sst-ant-entidad')?.value || '',
+      dependencia: dep,
+      sedeTrabajo: document.getElementById('sst-sede')?.value || ''
     };
   }
 
   function openCreate() {
-    const tabCfg = TABS[state.tab];
-    App.openModal(`${tabCfg.btnCreate} (${tabCfg.code})`, buildForm(), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Guardar Registro', cls: 'btn-primary', id: 'sst-save-btn', action: saveCreate }
-    ]);
+    try {
+      const tabCfg = TABS[state.tab];
+      App.openModal(tabCfg.btnCreate, buildForm(), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Guardar Registro', cls: 'btn-primary', id: 'sst-save-btn', action: saveCreate }
+      ], 'modal-box--wide');
+      if (state.tab === 'epp') {
+        setTimeout(() => initSignaturePad(), 60);
+      }
+    } catch (err) {
+      console.error('[SstModule.openCreate error]', err);
+      App.showToast('Error al abrir formulario: ' + err.message, 'error');
+    }
   }
 
   function openEdit(id) {
-    const r = state.data.find(x => x.id === id);
-    if (!r) return;
-    const tabCfg = TABS[state.tab];
-    App.openModal(`Editar — ${tabCfg.title} (${r.radicado})`, buildForm(r), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Actualizar Cambios', cls: 'btn-gold', id: 'sst-save-btn', action: () => saveEdit(id) }
-    ]);
+    try {
+      const r = state.data.find(x => x.id === id);
+      if (!r) return;
+      const tabCfg = TABS[state.tab];
+      App.openModal(`Editar — ${tabCfg.title} (${r.radicado})`, buildForm(r), [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Actualizar Cambios', cls: 'btn-gold', id: 'sst-save-btn', action: () => saveEdit(id) }
+      ], 'modal-box--wide');
+      if (state.tab === 'epp') {
+        setTimeout(() => initSignaturePad(r), 60);
+      }
+    } catch (err) {
+      console.error('[SstModule.openEdit error]', err);
+      App.showToast('Error al abrir edición: ' + err.message, 'error');
+    }
   }
 
   async function saveCreate() {
@@ -1633,6 +2948,120 @@ const SstModule = (() => {
     }
   }
 
+
+  // ─── Pad de Firma Digital (Tablet / Pantalla Táctil EPP) ───────────────────
+  function initSignaturePad(existingRecord = null) {
+    const canvas = document.getElementById('sst-signature-canvas');
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = rect.width || 560;
+    const cssHeight = 150;
+
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const hiddenInput = document.getElementById('sst-firma-digital');
+    const existingSig = (existingRecord && existingRecord.firmaDigital) || (hiddenInput && hiddenInput.value);
+
+    if (existingSig && existingSig.startsWith('data:image')) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, cssWidth, cssHeight);
+        updateFirmaStatus(true);
+      };
+      img.src = existingSig;
+    }
+
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function getCoords(e) {
+      const b = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - b.left,
+        y: e.clientY - b.top
+      };
+    }
+
+    function onPointerDown(e) {
+      isDrawing = true;
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      const coords = getCoords(e);
+      lastX = coords.x;
+      lastY = coords.y;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      if (!isDrawing) return;
+      const coords = getCoords(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+      lastX = coords.x;
+      lastY = coords.y;
+      e.preventDefault();
+    }
+
+    function onPointerUp(e) {
+      if (!isDrawing) return;
+      isDrawing = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      const dataUrl = canvas.toDataURL('image/png');
+      if (hiddenInput) hiddenInput.value = dataUrl;
+      updateFirmaStatus(true);
+      e.preventDefault();
+    }
+
+    canvas.onpointerdown = onPointerDown;
+    canvas.onpointermove = onPointerMove;
+    canvas.onpointerup = onPointerUp;
+    canvas.onpointercancel = onPointerUp;
+  }
+
+  function clearSignature() {
+    const canvas = document.getElementById('sst-signature-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    const hidden = document.getElementById('sst-firma-digital');
+    if (hidden) hidden.value = '';
+    updateFirmaStatus(false);
+  }
+
+  function updateFirmaStatus(isSigned) {
+    const badge = document.getElementById('sst-firma-status');
+    const line = document.getElementById('sst-signature-line');
+    if (badge) {
+      if (isSigned) {
+        badge.className = 'badge badge--aprobada';
+        badge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Firmado';
+      } else {
+        badge.className = 'badge badge--pendiente';
+        badge.textContent = 'Pendiente de Firma';
+      }
+    }
+    if (line) {
+      line.style.opacity = isSigned ? '0.2' : '1';
+    }
+  }
+
   function openView(id) {
     const r = state.data.find(x => x.id === id);
     if (!r) return;
@@ -1642,59 +3071,141 @@ const SstModule = (() => {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Código Formato E-DO-ST-F-024</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio EMO</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado del Caso</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoFinalCaso)}">${escHtml(r.estadoFinalCaso)}</span></div></div>
+            
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">INFORMACIÓN DEL SERVIDOR PÚBLICO</strong>
+            </div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (${escHtml(r.tipoIdentificacion)}: ${escHtml(r.documento)})</span></div>
+            <div class="detail-item"><span class="detail-label">Apellidos & Nombres</span><span class="detail-value">${escHtml(r.apellidos || '—')}, ${escHtml(r.nombres || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Teléfono & Edad</span><span class="detail-value">${escHtml(r.telefono || '—')} · ${r.edad ? `${r.edad} años` : '—'}</span></div>
+            <div class="detail-item"><span class="detail-label">Fecha Ingreso Entidad</span><span class="detail-value">${formatDate(r.fechaIngreso)}</span></div>
+            <div class="detail-item"><span class="detail-label">Cargo</span><span class="detail-value">${escHtml(r.cargo || 'PROFESIONAL UNIVERSITARIO')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Sede</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.sedeTrabajo || 'CASA DE LA TORRE')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">VALORACIÓN MÉDICA OCUPACIONAL (EMO)</strong>
+            </div>
             <div class="detail-item"><span class="detail-label">Tipo de EMO</span><span class="detail-value">${escHtml(r.tipoEmo)}</span></div>
             <div class="detail-item"><span class="detail-label">Fecha Realización EMO</span><span class="detail-value">${formatDate(r.fechaEmo)}</span></div>
             <div class="detail-item"><span class="detail-label">Próximo EMO Programado</span><span class="detail-value">${formatDate(r.fechaProximoEmo)}</span></div>
-            <div class="detail-item"><span class="detail-label">Programa Vigilancia (PVE)</span><span class="detail-value">${escHtml(r.direccionadoPve || 'No aplica')}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones Laborales</span><span class="detail-value">${escHtml(r.restricciones || 'NINGUNA')}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Recomendaciones Médicas</span><span class="detail-value">${escHtml(r.recomendaciones || '—')}</span></div>
-            <div class="detail-item"><span class="detail-label">Accidente de Trabajo</span><span class="detail-value">${escHtml(r.accidenteTrabajo)} ${r.estadoActualAccidente ? `— ${escHtml(r.estadoActualAccidente)}` : ''}</span></div>
-            <div class="detail-item"><span class="detail-label">Enfermedad Laboral / Rehab.</span><span class="detail-value">EL: ${escHtml(r.enfermedadLaboral)} · Rehab: ${escHtml(r.cumplioRehabilitacion)}</span></div>
-            ${r.actividadesPendientes ? `<div class="detail-item detail-grid--full"><span class="detail-label">Actividades Pendientes SST</span><span class="detail-value">${escHtml(r.actividadesPendientes)}</span></div>` : ''}
+            <div class="detail-item"><span class="detail-label">Direccionado a PVE</span><span class="detail-value">${escHtml(r.direccionadoPve || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Direccionado a EPS / IPS</span><span class="detail-value">${escHtml(r.direccionadoEps || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones Médicas Laborales</span><span class="detail-value">${escHtml(r.restricciones || 'NINGUNA')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Recomendaciones Médicas Ocupacionales</span><span class="detail-value">${escHtml(r.recomendaciones || '—')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">ACCIDENTES DE TRABAJO (AT) & ENFERMEDAD LABORAL (EL)</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Accidente de Trabajo (AT)</span><span class="detail-value">${escHtml(r.accidenteTrabajo)} ${r.fechaAccidente ? `(${formatDate(r.fechaAccidente)})` : ''}</span></div>
+            <div class="detail-item"><span class="detail-label">Estado Actual AT</span><span class="detail-value">${escHtml(r.estadoActualAccidente || 'No aplica')}</span></div>
+            <div class="detail-item"><span class="detail-label">Enfermedad Laboral (EL)</span><span class="detail-value">${escHtml(r.enfermedadLaboral)} ${r.fechaEnfermedad ? `(${formatDate(r.fechaEnfermedad)})` : ''}</span></div>
+            <div class="detail-item"><span class="detail-label">Estado Actual EL</span><span class="detail-value">${escHtml(r.estadoActualEnfermedad || 'No aplica')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Cumplió Proceso de Rehabilitación</span><span class="detail-value">${escHtml(r.cumplioRehabilitacion || 'N/A')}</span></div>
+
+            ${r.actividadesPendientes ? `
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <span class="detail-label">Actividades Pendientes SST</span>
+              <span class="detail-value">${escHtml(r.actividadesPendientes)}</span>
+            </div>` : ''}
           </div>
         </div>`;
     } else if (state.tab === 'epp') {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Radicado E-DO-ST-F-028</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio EPP</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
             <div class="detail-item"><span class="detail-label">Estado Entrega</span><div class="detail-badge-wrap"><span class="badge ${badgeClass(r.estadoEntrega)}">${escHtml(r.estadoEntrega)}</span></div></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Cargo</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.cargo || '')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Secretaría</span><span class="detail-value">${escHtml(r.secretaria || 'SECRETARIA GENERAL')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Dirección / Subdirección</span><span class="detail-value">${escHtml(r.dependencia || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Cargo</span><span class="detail-value">${escHtml(r.cargo || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Tipo de Vinculación</span><span class="detail-value">${escHtml(r.tipoVinculacion || '—')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Elemento de Protección Personal Entregado</span><span class="detail-value">${escHtml(r.elementoEpp)}</span></div>
             <div class="detail-item"><span class="detail-label">Talla</span><span class="detail-value">${escHtml(r.talla || 'N/A')}</span></div>
             <div class="detail-item"><span class="detail-label">Cantidad</span><span class="detail-value">${escHtml(r.cantidad)}</span></div>
             <div class="detail-item"><span class="detail-label">Fecha de Entrega</span><span class="detail-value">${formatDate(r.fechaEntrega)}</span></div>
-            <div class="detail-item"><span class="detail-label">Tipo de Vinculación</span><span class="detail-value">${escHtml(r.tipoVinculacion || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Teléfono de Contacto</span><span class="detail-value">${escHtml(r.telefono || '—')}</span></div>
             <div class="detail-item detail-grid--full"><span class="detail-label">Restricciones y/o Recomendaciones</span><span class="detail-value">${escHtml(r.restriccionesRecomendaciones || 'NINGUNA')}</span></div>
             ${r.observaciones ? `<div class="detail-item detail-grid--full"><span class="detail-label">Observaciones</span><span class="detail-value">${escHtml(r.observaciones)}</span></div>` : ''}
+            <div class="detail-item detail-grid--full" style="background:var(--bg-subtle, rgba(255,255,255,0.03));border:1px solid var(--border-color);border-radius:8px;padding:12px;margin-top:6px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span class="detail-label" style="font-weight:600;display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--color-primary-400, #16a34a);"><polyline points="20 6 9 17 4 12"/></svg>
+                  Firma Digital de Recepción y Verificación
+                </span>
+                ${r.firmaDigital ? '<span class="badge badge--aprobada">Verificado y Firmado</span>' : '<span class="badge badge--pendiente">Sin Firma Digital</span>'}
+              </div>
+              ${r.firmaDigital ? `
+                <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:10px;text-align:center;">
+                  <img src="${escHtml(r.firmaDigital)}" alt="Firma de entrega" style="max-height:120px;max-width:100%;object-fit:contain;display:inline-block;" />
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px;">
+                  <span>Receptor: ${escHtml(r.nombreCompleto)}</span>
+                  <span>C.C. ${escHtml(r.documento)}</span>
+                </div>
+              ` : `
+                <div style="color:var(--text-muted);font-size:12px;font-style:italic;">No se registró firma digital en el momento de la entrega.</div>
+              `}
+            </div>
           </div>
         </div>`;
     } else {
       html = `
         <div class="detail-modal-card">
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-label">Código E-DO-ST-F-011</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
-            <div class="detail-item"><span class="detail-label">Sexo & Edad</span><span class="detail-value">${escHtml(r.sexo)} · ${r.edad ? `${r.edad} años` : '—'}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)})</span></div>
-            <div class="detail-item"><span class="detail-label">Estado Civil & Etnia</span><span class="detail-value">${escHtml(r.estadoCivil)} · ${escHtml(r.razaEtnia)}</span></div>
-            <div class="detail-item"><span class="detail-label">Vivienda & Estrato</span><span class="detail-value">${escHtml(r.tipoVivienda)} (Estrato ${escHtml(r.estrato)})</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Composición Familiar</span><span class="detail-value">${escHtml(r.composicionFamiliar || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Radicado / Folio</span><span class="detail-value">${escHtml(r.radicado)}</span></div>
+            <div class="detail-item"><span class="detail-label">Fecha de Registro</span><span class="detail-value">${formatDate(r.creadoEn || new Date().toISOString())}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">1. INFORMACIÓN DEL SERVIDOR PÚBLICO</strong>
+            </div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Servidor Público</span><span class="detail-value">${escHtml(r.nombreCompleto)} (${escHtml(r.tipoIdentificacion)}: ${escHtml(r.documento)})</span></div>
+            <div class="detail-item"><span class="detail-label">Apellidos & Nombres</span><span class="detail-value">${escHtml(r.apellidos || '—')}, ${escHtml(r.nombres || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Sexo & Edad</span><span class="detail-value">${escHtml(r.sexo)} · ${r.edad ? `${r.edad} años (${r.anioNacimiento || ''})` : '—'}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Raza / Etnia</span><span class="detail-value">${escHtml(r.razaEtnia || 'Blanco/Mestizo')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">2. ENTORNO SOCIOFAMILIAR Y VIVIENDA</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Estado Civil</span><span class="detail-value">${escHtml(r.estadoCivil)}</span></div>
+            <div class="detail-item"><span class="detail-label">Composición Familiar</span><span class="detail-value">${escHtml(r.composicionFamiliar || '—')}</span></div>
+            <div class="detail-item"><span class="detail-label">Vivienda & Estrato</span><span class="detail-value">${escHtml(r.tipoVivienda)} · Estrato ${escHtml(r.estrato)}</span></div>
+            <div class="detail-item"><span class="detail-label">Municipio Residencia</span><span class="detail-value">${escHtml(r.municipioResidencia || 'Tunja')}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">3. FORMACIÓN ACADÉMICA Y UBICACIÓN LABORAL</strong>
+            </div>
             <div class="detail-item"><span class="detail-label">Escolaridad</span><span class="detail-value">${escHtml(r.escolaridad)}</span></div>
             <div class="detail-item"><span class="detail-label">Profesión / Ocupación</span><span class="detail-value">${escHtml(r.ocupacionProfesion || '—')}</span></div>
-            <div class="detail-item"><span class="detail-label">Vinculación & Cargo</span><span class="detail-value">${escHtml(r.tipoVinculacion)} (${escHtml(r.tipoCargo)})</span></div>
+            <div class="detail-item"><span class="detail-label">Municipio de Trabajo</span><span class="detail-value">${escHtml(r.municipioTrabajo || 'Tunja')}</span></div>
+            <div class="detail-item"><span class="detail-label">Sede de Trabajo</span><span class="detail-value">${escHtml(r.sedeTrabajo || 'CASA DE LA TORRE')}</span></div>
+            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia donde Trabaja</span><span class="detail-value">${escHtml(r.dependencia)}</span></div>
+
+            <div class="detail-item detail-grid--full" style="border-top:1px solid var(--border-color);padding-top:8px;margin-top:4px;">
+              <strong style="color:var(--color-primary-400);font-size:12px;">4. CONDICIONES Y VINCULACIÓN LABORAL</strong>
+            </div>
+            <div class="detail-item"><span class="detail-label">Denominación del Cargo</span><span class="detail-value">${escHtml(r.denominacionCargo || 'Profesional Universitario')}</span></div>
+            <div class="detail-item"><span class="detail-label">Tipo de Cargo & Vinculación</span><span class="detail-value">${escHtml(r.tipoCargo)} · ${escHtml(r.tipoVinculacion)}</span></div>
             <div class="detail-item"><span class="detail-label">Rango Salarial</span><span class="detail-value">${escHtml(r.rangoIngresos)}</span></div>
-            <div class="detail-item detail-grid--full"><span class="detail-label">Dependencia & Sede</span><span class="detail-value">${escHtml(r.dependencia)} · ${escHtml(r.sedeTrabajo)}</span></div>
+            <div class="detail-item"><span class="detail-label">Antigüedad Cargo / Entidad</span><span class="detail-value">${escHtml(r.antiguedadCargo || '—')} / ${escHtml(r.antiguedadEntidad || '—')}</span></div>
           </div>
         </div>`;
     }
 
-    const actions = [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }];
-    if (Auth.canEdit()) {
+    const actions = [
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+      {
+        text: 'Exportar Ficha Excel',
+        cls: 'btn-secondary',
+        action: () => {
+          if (state.tab === 'epidemiologico' || state.tab === 'sociodemografico' || state.tab === 'epp') exportSingleProfileExcel(id);
+          else exportExcel();
+        }
+      }
+    ];
+    if (canManageCurrent()) {
       actions.push({
         text: 'Editar Registro',
         cls: 'btn-gold',
@@ -1783,7 +3294,7 @@ const SstModule = (() => {
     doc.setFontSize(13);
     doc.text('GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL', 14, 11);
     doc.setFontSize(10);
-    doc.text(`SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO · FORMATO ${tabCfg.code}`, 14, 19);
+    doc.text(`SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO · ${tabCfg.title.toUpperCase()}`, 14, 19);
 
     doc.setTextColor(30, 30, 30);
     doc.setFontSize(12);
@@ -1799,8 +3310,8 @@ const SstModule = (() => {
           ['Talla y Cantidad', `Talla: ${r.talla || 'N/A'} | Cantidad: ${r.cantidad}`],
           ['Fecha de Entrega', formatDate(r.fechaEntrega)],
           ['Restricciones / Recomendaciones', r.restriccionesRecomendaciones || 'NINGUNA'],
-          ['Estado / Firma', `${r.estadoEntrega} (Firmado por funcionario)`],
-          ['Observaciones', r.observaciones || 'Cumplimiento Instructivo E-DO-ST-I-007']
+          ['Estado / Verificación', `${r.estadoEntrega}${r.firmaDigital ? ' (Con Firma Digital Verificada)' : ''}`],
+          ['Observaciones', r.observaciones || 'Entrega y verificación de EPP']
         ]
       : [
           ['Servidor Público', r.nombreCompleto],
@@ -1825,8 +3336,30 @@ const SstModule = (() => {
       });
     }
 
+    if (state.tab === 'epp' && r.firmaDigital && String(r.firmaDigital).startsWith('data:image')) {
+      const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 180) + 8;
+      const sigY = (finalY + 45 > 280) ? 20 : finalY;
+      if (finalY + 45 > 280) doc.addPage();
+
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text('FIRMA DIGITAL DEL FUNCIONARIO RECEPTOR:', 14, sigY);
+      try {
+        doc.addImage(r.firmaDigital, 'PNG', 14, sigY + 3, 60, 20);
+      } catch (e) {
+        console.warn('Error embedding signature in PDF:', e);
+      }
+      doc.setDrawColor(180, 180, 180);
+      doc.line(14, sigY + 25, 110, sigY + 25);
+      doc.setFontSize(8.5);
+      doc.setTextColor(50, 50, 50);
+      doc.text(`${r.nombreCompleto} — C.C. ${r.documento}`, 14, sigY + 30);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Constancia Digital de Entrega de EPP · ${formatDate(r.fechaEntrega)}`, 14, sigY + 34);
+    }
+
     doc.save(`${r.radicado}_${r.documento}.pdf`);
-    App.showToast(`Formato oficial ${tabCfg.code} descargado en PDF.`, 'success');
+    App.showToast('Documento oficial SST descargado en PDF.', 'success');
   }
 
   // ─── Exportación e Importación Masiva Excel por Submódulo ───────────────────
@@ -1858,7 +3391,8 @@ const SstModule = (() => {
         { header: 'Documento', key: 'documento', width: 16 },
         { header: 'Servidor Público', key: 'nombreCompleto', width: 32 },
         { header: 'Teléfono', key: 'telefono', width: 15 },
-        { header: 'Dependencia', key: 'dependencia', width: 35 },
+        { header: 'Secretaría', key: 'secretaria', width: 28 },
+        { header: 'Dirección / Subdirección', key: 'dependencia', width: 35 },
         { header: 'Cargo', key: 'cargo', width: 25 },
         { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
         { header: 'Elemento EPP', key: 'elementoEpp', width: 30 },
@@ -1866,26 +3400,36 @@ const SstModule = (() => {
         { header: 'Cantidad', key: 'cantidad', width: 14 },
         { header: 'Fecha Entrega', key: 'fechaEntrega', width: 16 },
         { header: 'Estado Entrega', key: 'estadoEntrega', width: 18 },
+        { header: 'Restricciones y Recomendaciones', key: 'restriccionesRecomendaciones', width: 28 },
         { header: 'Observaciones', key: 'observaciones', width: 30 }
       ];
     }
     return [
       { header: 'Código', key: 'radicado', width: 16 },
-      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 20 },
+      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 22 },
       { header: 'Documento', key: 'documento', width: 16 },
+      { header: 'Apellidos', key: 'apellidos', width: 20 },
+      { header: 'Nombres', key: 'nombres', width: 20 },
       { header: 'Servidor Público', key: 'nombreCompleto', width: 32 },
       { header: 'Sexo', key: 'sexo', width: 12 },
       { header: 'Año Nacimiento', key: 'anioNacimiento', width: 15 },
       { header: 'Edad', key: 'edad', width: 10 },
       { header: 'Raza / Etnia', key: 'razaEtnia', width: 18 },
       { header: 'Estado Civil', key: 'estadoCivil', width: 16 },
-      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 15 },
+      { header: 'Composición Familiar', key: 'composicionFamiliar', width: 35 },
+      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 16 },
       { header: 'Estrato', key: 'estrato', width: 10 },
-      { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+      { header: 'Municipio Residencia', key: 'municipioResidencia', width: 22 },
+      { header: 'Municipio Trabajo', key: 'municipioTrabajo', width: 20 },
+      { header: 'Escolaridad', key: 'escolaridad', width: 20 },
       { header: 'Ocupación / Profesión', key: 'ocupacionProfesion', width: 25 },
       { header: 'Rango Ingresos', key: 'rangoIngresos', width: 20 },
+      { header: 'Denominación del Cargo', key: 'denominacionCargo', width: 28 },
+      { header: 'Tipo de Cargo', key: 'tipoCargo', width: 18 },
       { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
-      { header: 'Dependencia', key: 'dependencia', width: 35 },
+      { header: 'Antigüedad en el Cargo', key: 'antiguedadCargo', width: 24 },
+      { header: 'Antigüedad en la Entidad', key: 'antiguedadEntidad', width: 24 },
+      { header: 'Dependencia', key: 'dependencia', width: 38 },
       { header: 'Sede de Trabajo', key: 'sedeTrabajo', width: 28 }
     ];
   }
@@ -1905,15 +3449,1805 @@ const SstModule = (() => {
     }
   }
 
+
+  // ─── 1. Exportar Perfil Individual a la Plantilla Oficial Excel ──────────────
+  async function exportSingleProfileExcel(id) {
+    const r = state.data.find(x => x.id === id);
+    if (!r) {
+      App.showToast('No se encontró el registro a exportar.', 'warning');
+      return;
+    }
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca de Excel (SheetJS) no está disponible.', 'error');
+      return;
+    }
+
+    try {
+      App.showToast('Generando plantilla oficial de Excel...', 'info');
+
+      // CASO A: PERFIL SOCIODEMOGRÁFICO
+      if (state.tab === 'sociodemografico') {
+        let wb = null;
+        try {
+          const resp = await fetch('plantillas/PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx');
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+          }
+        } catch (_) {}
+
+        if (!wb) {
+          wb = buildOfficialSociodemograficoTemplateWorkbook();
+        }
+
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
+        // Escribir fila 8 (B8:Z8)
+        const dataRow = [
+          1, // Col B: No
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.sexo || 'Masculino',
+          r.anioNacimiento ? parseInt(r.anioNacimiento) : '',
+          r.edad ? parseInt(r.edad) : '',
+          r.razaEtnia || 'Blanco/Mestizo',
+          r.estadoCivil || 'Soltero (a)',
+          r.composicionFamiliar || 'Conyuge Permanente, Hijos',
+          r.tipoVivienda || 'Propia',
+          r.estrato ? String(r.estrato) : '3',
+          r.municipioResidencia || 'Tunja',
+          r.municipioTrabajo || 'Tunja',
+          r.escolaridad || 'Profesional',
+          r.ocupacionProfesion || '',
+          r.rangoIngresos || 'Entre 3 y 6 SMMLV',
+          r.denominacionCargo || 'Profesional Universitario',
+          r.tipoCargo || 'Profesional',
+          r.tipoVinculacion || 'Carrera Administrativa',
+          r.antiguedadCargo || 'Entre 1 y 4 años',
+          r.antiguedadEntidad || 'Entre 1 y 4 años',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE'
+        ];
+
+        dataRow.forEach((val, idx) => {
+          const cellRef = XLSX.utils.encode_cell({ r: 7, c: idx + 1 });
+          ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val };
+        });
+
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:Z8');
+        if (range.e.r < 7) range.e.r = 7;
+        if (range.e.c < 25) range.e.c = 25;
+        ws['!ref'] = XLSX.utils.encode_range(range);
+
+        const cleanDoc = String(r.documento || 'perfil').replace(/[^a-zA-Z0-9]/g, '');
+        const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const filename = `PERFIL_SOCIODEMOGRAFICO_${cleanDoc}_${cleanNom}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+        App.showToast(`Perfil sociodemográfico de ${r.nombreCompleto} exportado exitosamente a la plantilla oficial Excel.`, 'success');
+        return;
+      }
+
+      // CASO B: ENTREGA DE EPP
+      if (state.tab === 'epp') {
+        let wb = null;
+        try {
+          const resp = await fetch('plantillas/FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx');
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+          }
+        } catch (_) {}
+
+        if (!wb) {
+          wb = buildOfficialEppTemplateWorkbook();
+        }
+
+        const wsName = wb.SheetNames[0]; // FÍSICO
+        const ws = wb.Sheets[wsName];
+
+        const firmaTexto = r.firmaDigital ? 'Firma Digital Registrada' : (r.firmadoFuncionario ? 'Firma del funcionario' : 'Pendiente');
+
+        // Datos Personales en formato oficial
+        ws['C10'] = { t: 's', v: r.nombreCompleto || '' };
+        ws['K10'] = { t: 's', v: String(r.documento || '') };
+        ws['N10'] = { t: 's', v: String(r.telefono || '') };
+
+        ws['A12'] = { t: 's', v: r.secretaria || 'SECRETARIA GENERAL' };
+        ws['F12'] = { t: 's', v: r.dependencia || '' };
+        ws['J12'] = { t: 's', v: r.cargo || '' };
+        ws['M12'] = { t: 's', v: r.tipoVinculacion || 'CARRERA ADMINISTRATIVA' };
+
+        ws['A14'] = { t: 's', v: r.restriccionesRecomendaciones || 'NINGUNA' };
+
+        // Registro de Entrega (Fila 18)
+        ws['A18'] = { t: 's', v: r.elementoEpp || '' };
+        ws['C18'] = { t: 's', v: r.talla || 'N/A' };
+        ws['D18'] = { t: 's', v: r.cantidad || '1 UNIDAD' };
+        ws['F18'] = { t: 's', v: formatDate(r.fechaEntrega) || '' };
+        ws['G18'] = { t: 's', v: firmaTexto };
+
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:O25');
+        if (range.e.r < 18) range.e.r = 18;
+        ws['!ref'] = XLSX.utils.encode_range(range);
+
+        const cleanDoc = String(r.documento || 'epp').replace(/[^a-zA-Z0-9]/g, '');
+        const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const filename = `FORMATO_ENTREGA_EPP_${cleanDoc}_${cleanNom}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+        App.showToast(`Formato oficial de entrega de EPP para ${r.nombreCompleto} exportado exitosamente.`, 'success');
+        return;
+      }
+
+      // CASO C: PERFIL EPIDEMIOLÓGICO
+      let wb = null;
+      try {
+        const resp = await fetch('plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx');
+        if (resp.ok) {
+          const buf = await resp.arrayBuffer();
+          wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellStyles: true });
+        }
+      } catch (_) {}
+
+      // Si no se pudo obtener el archivo estático, generarlo programáticamente con la estructura exacta
+      if (!wb) {
+        wb = buildOfficialTemplateWorkbook();
+      }
+
+      const wsName = wb.SheetNames[0];
+      const ws = wb.Sheets[wsName];
+
+      const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+      const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+
+      // Escribir fila 7 (fila de datos oficiales A7:X7)
+      const dataRow = [
+        1,
+        r.tipoIdentificacion || 'Cédula de Ciudadanía',
+        r.documento || '',
+        apellidos,
+        nombres,
+        r.telefono || '',
+        r.edad ? parseInt(r.edad) : '',
+        formatDate(r.fechaIngreso) || '',
+        r.dependencia || '',
+        formatDate(r.fechaEmo) || '',
+        r.tipoEmo || 'Periódico',
+        r.restricciones || 'NINGUNA',
+        r.recomendaciones || 'Pausas activas e higiene postural',
+        r.direccionadoPve || 'No aplica',
+        r.direccionadoEps || 'No aplica',
+        formatDate(r.fechaProximoEmo) || '',
+        r.accidenteTrabajo || 'NO',
+        formatDate(r.fechaAccidente) || '',
+        r.estadoActualAccidente || 'No aplica',
+        r.enfermedadLaboral || 'NO',
+        formatDate(r.fechaEnfermedad) || '',
+        r.estadoActualEnfermedad || 'No aplica',
+        r.estadoFinalCaso || 'Vigente',
+        r.actividadesPendientes || ''
+      ];
+
+      // Escribir celdas A7 a X7
+      dataRow.forEach((val, idx) => {
+        const cellRef = XLSX.utils.encode_cell({ r: 6, c: idx });
+        ws[cellRef] = { t: typeof val === 'number' ? 'n' : 's', v: val };
+      });
+
+      // Asegurar rango adecuado
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:X7');
+      if (range.e.r < 6) range.e.r = 6;
+      if (range.e.c < 23) range.e.c = 23;
+      ws['!ref'] = XLSX.utils.encode_range(range);
+
+      const cleanDoc = String(r.documento || 'perfil').replace(/[^a-zA-Z0-9]/g, '');
+      const cleanNom = String(r.nombreCompleto || 'servidor').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const filename = `PERFIL_EPIDEMIOLOGICO_${cleanDoc}_${cleanNom}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+      App.showToast(`Perfil de ${r.nombreCompleto} exportado exitosamente a la plantilla oficial Excel.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] exportSingleProfileExcel error:', err);
+      App.showToast('Error al exportar plantilla Excel: ' + err.message, 'error');
+    }
+  }
+
+  // ─── 2. Descargar la Plantilla Oficial en Blanco ────────────────────────────
+  async function downloadOfficialTemplate() {
+    if (state.tab === 'sociodemografico') {
+      try {
+        const a = document.createElement('a');
+        a.href = 'plantillas/PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx';
+        a.download = 'PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Perfil Sociodemográfico descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      try {
+        const wb = buildOfficialSociodemograficoTemplateWorkbook();
+        XLSX.writeFile(wb, 'PERFILSOCIODEMOGRAFICO_Plantilla_Oficial_V5.xlsx');
+        App.showToast('Plantilla oficial de Perfil Sociodemográfico generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+      return;
+    }
+
+    if (state.tab === 'epidemiologico') {
+      try {
+        // Enlace directo si el archivo existe en el servidor
+        const a = document.createElement('a');
+        a.href = 'plantillas/PERFILEPIDEMIOLOGICO_Plantilla_Oficial.xlsx';
+        a.download = 'PERFILEPIDEMIOLOGICO_Plantilla_Oficial_V3.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Perfil Epidemiológico descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      // Fallback programático con SheetJS
+      try {
+        const wb = buildOfficialTemplateWorkbook();
+        XLSX.writeFile(wb, 'PERFILEPIDEMIOLOGICO_Plantilla_Oficial_V3.xlsx');
+        App.showToast('Plantilla oficial generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+      return;
+    }
+
+    if (state.tab === 'epp') {
+      try {
+        const a = document.createElement('a');
+        a.href = 'plantillas/FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx';
+        a.download = 'FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        App.showToast('Plantilla oficial de Entrega de EPP descargada.', 'success');
+        return;
+      } catch (_) {}
+
+      try {
+        const wb = buildOfficialEppTemplateWorkbook();
+        XLSX.writeFile(wb, 'FORMATOENTREGADEEPP_Plantilla_Oficial_V4.xlsx');
+        App.showToast('Plantilla oficial de Entrega de EPP generada y descargada.', 'success');
+      } catch (err) {
+        App.showToast('Error al descargar plantilla: ' + err.message, 'error');
+      }
+      return;
+    }
+
+    const tabCfg = TABS[state.tab];
+    ExcelService.downloadTemplate({
+      filename: `Plantilla_${state.tab}`,
+      sheetName: tabCfg.title.substring(0, 30),
+      columns: getExcelColumns().filter(c => c.key !== 'radicado')
+    });
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS para Entrega de EPP (E-DO-ST-F-028 V4)
+  function buildOfficialEppTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // Hoja 1: FÍSICO
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 4'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-028'],
+      ['', 'ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 02/Ene/2026'],
+      [],
+      ['A. Casco de seguridad', 'B. Gorro o Cofias', 'C. Gorro Zafari', 'D. Tapones externos', 'E. Tapones de copa (orejeras)', 'F. Careta  (guadañar)', 'G. Monogafas', 'H. Gafas de seguridad ', 'I. Gafas de seguridad / UV ', 'J. Respirador con filtros', 'K. Filtros para respiradores', 'L. Respirador ffp2 o n95', 'M. Mascarilla desechable ', 'N. Guantes de poliuretano', ''],
+      ['O. Guantes de vaqueta', 'P. Guantes de Nitrilo', 'Q. Guantes de látex', 'R. Guantes de caucho ', 'S. Guantes sustancias químicas', 'T. Chaleco Trabajo en campo', 'U. Overol de dos piezas cinta reflectiva', 'V. Overol antifluidos', 'W. Bata manga larga antifluido', 'X. Delantal Carnaza', 'Y. Zapato cerrado', 'Z. Botas de Seguridad', 'AA. Botas pantaneras con puntera', 'AB. Otros ', ''],
+      [],
+      ['DATOS PERSONALES'],
+      ['Nombres y apellidos', '', '', '', '', '', '', '', 'No. De Identificación', '', '', '', 'Teléfono', ''],
+      ['Secretaria', '', '', '', '', 'Dirección / Subdirección', '', '', '', 'Cargo', '', '', 'Tipo de Vinculación', ''],
+      [],
+      ['Restricciones y/o Recomendaciones'],
+      [],
+      [],
+      ['REGISTROS DE ENTREGAS'],
+      ['Elemento ', '', 'Talla ', 'Cantidad', '', 'Fecha', 'Firma', '', 'Elemento ', '', 'Talla', 'Cantidad', 'Fecha', 'Firma', '']
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 16 }, { wch: 22 }, { wch: 4 }, { wch: 18 }, { wch: 18 },
+      { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, 'FÍSICO');
+
+    // Hoja 2: Hoja1 (Catálogos oficiales)
+    const secList = cats.secretariasEpp || [];
+    const dirList = cats.direccionesEpp || [];
+    const cargoList = cats.cargosEpp || [];
+    const vincList = cats.vinculacionesEpp || [];
+    const maxLen = Math.max(secList.length, dirList.length, cargoList.length, vincList.length);
+
+    const ws2Data = [['SECRETARIA', 'DIRECCIÓN / SUBDIRECCIÓN', '', 'CARGO', '', 'TIPO DE VINCULACIÓN']];
+    for (let i = 0; i < maxLen; i++) {
+      ws2Data.push([
+        secList[i] || '',
+        dirList[i] || '',
+        '',
+        cargoList[i] || '',
+        '',
+        vincList[i] || ''
+      ]);
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [{ wch: 38 }, { wch: 55 }, { wch: 4 }, { wch: 30 }, { wch: 4 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja1');
+
+    return wb;
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS para Perfil Sociodemográfico (E-DO-ST-F-011 V5)
+  function buildOfficialSociodemograficoTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // 1. Hoja 1: PERFIL
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 5'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-011'],
+      ['', 'PERFIL SOCIODEMOGRÁFICO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 07/May/2025'],
+      [],
+      [
+        '',
+        'No',
+        'TIPO DE IDENTIFICACIÓN',
+        'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+        'APELLIDOS',
+        'NOMBRES',
+        'SEXO',
+        'AÑO DE NACIMIENTO',
+        'EDAD\n(años)',
+        'RAZA',
+        'ESTADO CIVIL',
+        'COMPOSICIÓN FAMILIAR (Personas con las que comparte vivienda)\nPADRE; MADRE; CONYUGUE PERMANENTE; HIJOS; OTROS(Hermanos, Sobrinos, Ahijados, Hijastros, Entre otros )',
+        'TIPO DE VIVIENDA',
+        'ESTRATO SERVICIOS PÚBLICOS',
+        'CIUDAD / MUNICIPIO DE RESIDENCIA',
+        'CIUDAD / MUNICIPIO DONDE TRABAJA',
+        'ESCOLARIDAD\n(último nivel de estudios)',
+        'OCUPACIÓN O PROFESIÓN',
+        'RANGO INGRESOS',
+        'DENOMINACIÓN DEL CARGO',
+        'TIPO DE CARGO',
+        'TIPO DE VINCULACIÓN',
+        'RANGO DE ANTIGÜEDAD EN EL CARGO ACTUAL',
+        'ANTIGÜEDAD EN LA ENTIDAD (años)',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'SEDE DE TRABAJO'
+      ]
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 4 },   // A
+      { wch: 6 },   // B: No
+      { wch: 25 },  // C: TIPO DE IDENTIFICACIÓN
+      { wch: 20 },  // D: NÚMERO DOCUMENTO
+      { wch: 22 },  // E: APELLIDOS
+      { wch: 22 },  // F: NOMBRES
+      { wch: 12 },  // G: SEXO
+      { wch: 15 },  // H: AÑO DE NACIMIENTO
+      { wch: 12 },  // I: EDAD
+      { wch: 18 },  // J: RAZA
+      { wch: 16 },  // K: ESTADO CIVIL
+      { wch: 40 },  // L: COMPOSICIÓN FAMILIAR
+      { wch: 16 },  // M: TIPO DE VIVIENDA
+      { wch: 12 },  // N: ESTRATO
+      { wch: 22 },  // O: MUNICIPIO RESIDENCIA
+      { wch: 20 },  // P: MUNICIPIO TRABAJA
+      { wch: 22 },  // Q: ESCOLARIDAD
+      { wch: 25 },  // R: OCUPACIÓN / PROFESIÓN
+      { wch: 20 },  // S: RANGO INGRESOS
+      { wch: 28 },  // T: DENOMINACIÓN DEL CARGO
+      { wch: 16 },  // U: TIPO DE CARGO
+      { wch: 22 },  // V: TIPO DE VINCULACIÓN
+      { wch: 24 },  // W: ANTIGÜEDAD CARGO
+      { wch: 24 },  // X: ANTIGÜEDAD ENTIDAD
+      { wch: 48 },  // Y: DEPENDENCIA
+      { wch: 32 }   // Z: SEDE
+    ];
+
+    // 2. Hoja 2: Hoja2 (Catálogos oficiales de validación)
+    const catColsData = [
+      cats.tiposIdentificacion || [],
+      ['Femenino', 'Masculino'],
+      cats.razas || [],
+      cats.estadosCiviles || [],
+      cats.composicionesFamiliares || [],
+      cats.tiposVivienda || [],
+      cats.estratos || [],
+      cats.municipiosTrabajoSugeridos || ['Tunja', 'Bogotá'],
+      cats.escolaridades || [],
+      cats.rangosIngresos || [],
+      cats.cargosOficialesSocio || [],
+      cats.tiposCargo || [],
+      cats.tiposVinculacion || [],
+      cats.rangosAntiguedad || [],
+      cats.rangosAntiguedad || [],
+      cats.dependencias || [],
+      cats.sedes || []
+    ];
+
+    const maxLen = Math.max(...catColsData.map(c => c.length), 10);
+    const ws2Data = [
+      [],
+      [
+        'TIPO DE IDENTIFICACIÓN',
+        'SEXO',
+        'RAZA',
+        'ESTADO CIVIL',
+        'COMPOSICION GRUPO FAMILIAR',
+        'TIPO DE VIVIENDA',
+        'ESTRATO SERVICIOS PÚBLICOS',
+        'MUNICIPIO DONDE TRABAJA',
+        'ESCOLARIDAD',
+        'RANGO INGRESOS',
+        'DENOMINACIÓN DEL CARGO',
+        'TIPO DE CARGO',
+        'TIPO DE VINCULACIÓN',
+        'RANGO DE ANTIGÜEDAD EN EL CARGO ACTUAL',
+        'RANGO DE ANTIGÜEDAD EN LA ENTIDAD.',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'SEDE DE TRABAJO'
+      ],
+      []
+    ];
+
+    for (let r = 0; r < maxLen; r++) {
+      const row = [];
+      for (let c = 0; c < catColsData.length; c++) {
+        row.push(catColsData[c][r] || '');
+      }
+      ws2Data.push(row);
+    }
+
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [
+      { wch: 24 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 36 },
+      { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 20 },
+      { wch: 32 }, { wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 },
+      { wch: 48 }, { wch: 32 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'PERFIL');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja2');
+    return wb;
+  }
+
+  // Constructor interno de la plantilla oficial SheetJS con todas las columnas y hojas
+  function buildOfficialTemplateWorkbook() {
+    const cats = getCats();
+    const wb = XLSX.utils.book_new();
+
+    // 1. Hoja principal: PERFIL EPIDEMIOLÓGICO
+    const ws1Data = [
+      ['', '', '', '', 'FORMATO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VERSIÓN: 3'],
+      [],
+      ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'CÓDIGO: E-DO-ST-F-024'],
+      ['PERFIL  EPIDEMIOLÓGICO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'FECHA: 30/Abr/2025'],
+      [],
+      [
+        'N°',
+        'TIPO DE IDENTIFICACIÓN',
+        'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+        'APELLIDOS',
+        'NOMBRES',
+        'TELEFONO',
+        'EDAD\n(años)',
+        'FECHA DE INGRESO A LA ENTIDAD',
+        'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+        'FECHA EMO',
+        'TIPO DE EMO',
+        'RESTRICCIONES',
+        'RECOMENDACIONES ',
+        'DIRECCIONADO \nA PVE',
+        'DIRECCIONADO A EPS',
+        'FECHA PRÓXIMO EMO',
+        'ACCIDENTE DE TRABAJO',
+        'FECHA',
+        'ESTADO ACTUAL',
+        'ENFERMEDAD LABORAL',
+        'FECHA',
+        'ESTADO ACTUAL',
+        'ESTADO FINAL DEL CASO',
+        'ACTIVIDADES PENDIENTES'
+      ]
+    ];
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+    ws1['!cols'] = [
+      { wch: 7 },   // A: N°
+      { wch: 28 },  // B: TIPO DE IDENTIFICACIÓN
+      { wch: 16 },  // C: NÚMERO DOCUMENTO
+      { wch: 24 },  // D: APELLIDOS
+      { wch: 23 },  // E: NOMBRES
+      { wch: 18 },  // F: TELEFONO
+      { wch: 13 },  // G: EDAD
+      { wch: 20 },  // H: FECHA INGRESO
+      { wch: 48 },  // I: DEPENDENCIA
+      { wch: 20 },  // J: FECHA EMO
+      { wch: 16 },  // K: TIPO EMO
+      { wch: 35 },  // L: RESTRICCIONES
+      { wch: 40 },  // M: RECOMENDACIONES
+      { wch: 30 },  // N: DIRECCIONADO A PVE
+      { wch: 32 },  // O: DIRECCIONADO A EPS
+      { wch: 25 },  // P: FECHA PROXIMO EMO
+      { wch: 25 },  // Q: ACCIDENTE DE TRABAJO
+      { wch: 15 },  // R: FECHA
+      { wch: 30 },  // S: ESTADO ACTUAL
+      { wch: 25 },  // T: ENFERMEDAD LABORAL
+      { wch: 15 },  // U: FECHA
+      { wch: 25 },  // V: ESTADO ACTUAL
+      { wch: 25 },  // W: ESTADO FINAL
+      { wch: 33 }   // X: ACTIVIDADES PENDIENTES
+    ];
+
+    // 2. Hoja 2: Hoja1 (Catálogos y listas oficiales de validación)
+    const maxLen = Math.max(
+      cats.tiposIdentificacion.length,
+      cats.dependencias.length,
+      cats.tiposEmo.length,
+      cats.sedes.length,
+      2
+    );
+
+    const ws2Data = [
+      [],
+      ['TIPO DE IDENTIFICACIÓN', 'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA', 'TIPO DE EMO', 'SEDE DE TRABAJO', 'CUMPLIÓ PROCESO DE REHABILITACIÓN']
+    ];
+
+    for (let i = 0; i < maxLen; i++) {
+      ws2Data.push([
+        cats.tiposIdentificacion[i] || '',
+        cats.dependencias[i] || '',
+        cats.tiposEmo[i] || '',
+        cats.sedes[i] || '',
+        i === 0 ? 'SI' : (i === 1 ? 'NO' : '')
+      ]);
+    }
+
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+    ws2['!cols'] = [
+      { wch: 26 },
+      { wch: 50 },
+      { wch: 18 },
+      { wch: 42 },
+      { wch: 35 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'PERFIL EPIDEMIOLÓGICO');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Hoja1');
+    return wb;
+  }
+
+  // ─── 3. Modal de Exportar a Excel con Selección de Perfil ────────────────────
+  function openExportProfileModal() {
+    if (state.tab === 'sociodemografico') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione el servidor público cuyo perfil sociodemográfico desea exportar a la <strong>Plantilla Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Servidor Público:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.escolaridad || 'Profesional')} · ${escHtml(r.denominacionCargo || 'Cargo N/A')}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica a la plantilla suministrada (Código E-DO-ST-F-011 Versión 5).</li>
+              <li>Poblado de los 24 campos oficiales sociodemográficos, familiares y laborales en la fila de datos.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Plantilla Oficial Excel', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Perfil Seleccionado (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+      return;
+    }
+
+    if (state.tab === 'epidemiologico') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione el servidor público cuyo perfil epidemiológico desea exportar a la <strong>Plantilla Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Servidor Público:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.tipoEmo)} ${formatDate(r.fechaEmo)}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica a la plantilla suministrada (Código E-DO-ST-F-024 Versión 3).</li>
+              <li>Poblado de los 24 campos oficiales clínicos y ocupacionales en la fila de datos.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Plantilla Oficial Excel', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Perfil Seleccionado (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+      return;
+    }
+
+    if (state.tab === 'epp') {
+      const records = state.data || [];
+      if (!records.length) {
+        App.showToast('No hay registros de EPP en la vista actual para exportar.', 'warning');
+        return;
+      }
+
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0;">
+            Seleccione la entrega de EPP que desea exportar al <strong>Formato Oficial Excel</strong>:
+          </p>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;">Seleccionar Entrega de EPP:</label>
+            <select id="sst-export-profile-select" class="filter-select" style="width:100%;font-size:13px;padding:9px 12px;">
+              ${records.map(r => `
+                <option value="${r.id}">
+                  ${escHtml(r.nombreCompleto)} (C.C. ${escHtml(r.documento)}) — ${escHtml(r.radicado)} [${escHtml(r.elementoEpp)} · ${escHtml(r.cantidad)} · ${formatDate(r.fechaEntrega)}]
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="background:var(--bg-subtle, #f8fafc);border:1px solid var(--border-color);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">Características de la exportación:</div>
+            <ul style="margin:0 0 0 16px;padding:0;line-height:1.5;">
+              <li>Estructura idéntica al formato suministrado (Código E-DO-ST-F-028 Versión 4).</li>
+              <li>Poblado de los datos personales: Secretaría, Dirección/Subdirección, Cargo, Vinculación y Restricciones.</li>
+              <li>Poblado del registro de entrega: Elemento, Talla, Cantidad, Fecha y Verificación de Firma.</li>
+              <li>Incluye hoja de catálogos y listas oficiales de la Gobernación de Boyacá.</li>
+            </ul>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Exportar a Formato Oficial Excel (EPP)', html, [
+        { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+        {
+          text: 'Exportar Tabla Completa (.xlsx)',
+          cls: 'btn-secondary',
+          action: () => {
+            App.closeModal();
+            exportExcelAllCurrent();
+          }
+        },
+        {
+          text: 'Descargar Entrega Seleccionada (.xlsx)',
+          cls: 'btn-primary',
+          action: () => {
+            const selId = parseInt(document.getElementById('sst-export-profile-select')?.value);
+            App.closeModal();
+            if (selId) exportSingleProfileExcel(selId);
+          }
+        }
+      ]);
+      return;
+    }
+
+    exportExcel();
+  }
+
+  function exportExcelAllCurrent() {
+    exportExcel();
+  }
+
+  // ─── 4. Generación y Descarga de Reporte Anual Consolidado ───────────────────
+  async function generateEpidemiologicoAnnualReport() {
+    try {
+      App.showToast('Generando Reporte Anual Consolidado Perfil Epidemiológico...', 'info');
+
+      // Obtener todos los registros disponibles
+      const res = await API.getSstEpidemiologico({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de Perfil Epidemiológico para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Estadísticas e indicadores anuales
+      const total = records.length;
+      let countVigentes = 0;
+      let countSeguimiento = 0;
+      let countRehab = 0;
+      let countAlertas = 0;
+      let countCerrados = 0;
+      let countAt = 0;
+      let countEl = 0;
+      let countRestricciones = 0;
+      let countPve = 0;
+
+      const porTipoEmo = {};
+      const porPve = {};
+      const porDependencia = {};
+
+      records.forEach(r => {
+        const est = (r.estadoFinalCaso || 'Vigente').toLowerCase();
+        if (est.includes('vigente')) countVigentes++;
+        else if (est.includes('seguimiento')) countSeguimiento++;
+        else if (est.includes('rehabilit')) countRehab++;
+        else if (est.includes('venc') || est.includes('próx')) countAlertas++;
+        else if (est.includes('cerrad')) countCerrados++;
+
+        if (r.accidenteTrabajo === 'SI') countAt++;
+        if (r.enfermedadLaboral === 'SI') countEl++;
+        if (r.restricciones && r.restricciones.toUpperCase() !== 'NINGUNA') countRestricciones++;
+        if (r.direccionadoPve && r.direccionadoPve !== 'No aplica') countPve++;
+
+        const tEmo = r.tipoEmo || 'Periódico';
+        porTipoEmo[tEmo] = (porTipoEmo[tEmo] || 0) + 1;
+
+        const pveProg = r.direccionadoPve || 'No aplica';
+        porPve[pveProg] = (porPve[pveProg] || 0) + 1;
+
+        const dep = r.dependencia || 'SGEN - SECRETARIA GENERAL';
+        porDependencia[dep] = (porDependencia[dep] || 0) + 1;
+      });
+
+      // Crear Libro Excel con SheetJS
+      const wb = XLSX.utils.book_new();
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES ANUALES
+      // ───────────────────────────────────────────────────────────────────────
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`REPORTE ANUAL CONSOLIDADO — PERFIL EPIDEMIOLÓGICO Y EMO (VIGENCIA ${anioActual})`],
+        [`Fecha de Emisión: ${fechaHoy} | Total Servidores Evaluados: ${total}`],
+        [],
+        ['1. INDICADORES GLOBALES DE VIGILANCIA EPIDEMIOLÓGICA', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Exámenes Médicos Ocupacionales (EMO) Realizados', total, '100%'],
+        ['Casos Vigentes con Aptitud Laboral', countVigentes, `${((countVigentes / total) * 100).toFixed(1)}%`],
+        ['Casos en Seguimiento Médico Activo', countSeguimiento, `${((countSeguimiento / total) * 100).toFixed(1)}%`],
+        ['Casos en Proceso de Rehabilitación Ocupacional', countRehab, `${((countRehab / total) * 100).toFixed(1)}%`],
+        ['Casos Vencidos o Próximos a Vencer (Alertas SST)', countAlertas, `${((countAlertas / total) * 100).toFixed(1)}%`],
+        ['Casos Cerrados en la Vigencia', countCerrados, `${((countCerrados / total) * 100).toFixed(1)}%`],
+        ['Servidores con Restricciones Médicas Laborales', countRestricciones, `${((countRestricciones / total) * 100).toFixed(1)}%`],
+        ['Servidores Ingresados a Programas PVE', countPve, `${((countPve / total) * 100).toFixed(1)}%`],
+        ['Casos con Accidente de Trabajo (AT) Registrado', countAt, `${((countAt / total) * 100).toFixed(1)}%`],
+        ['Casos con Enfermedad Laboral (EL) Registrada', countEl, `${((countEl / total) * 100).toFixed(1)}%`],
+        [],
+        ['2. CLASIFICACIÓN POR TIPO DE EXAMEN MÉDICO OCUPACIONAL', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porTipoEmo).forEach(([tipo, cant]) => {
+        summaryRows.push([tipo, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. PROGRAMAS DE VIGILANCIA EPIDEMIOLÓGICA (PVE)', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porPve).forEach(([prog, cant]) => {
+        summaryRows.push([prog, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. COBERTURA POR DEPENDENCIAS (TOP)', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porDependencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .forEach(([dep, cant]) => {
+          summaryRows.push([dep, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 24 }, { wch: 20 }];
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 2: BASE CONSOLIDADA DE PERFILES EPIDEMIOLÓGICOS (24 COLUMNAS OFICIALES)
+      // ───────────────────────────────────────────────────────────────────────
+      const baseRows = [
+        [
+          'N°',
+          'TIPO DE IDENTIFICACIÓN',
+          'NÚMERO DOCUMENTO DE IDENTIFICACIÓN',
+          'APELLIDOS',
+          'NOMBRES',
+          'TELEFONO',
+          'EDAD (años)',
+          'FECHA DE INGRESO A LA ENTIDAD',
+          'DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA',
+          'SEDE DE TRABAJO',
+          'CARGO',
+          'FECHA EMO',
+          'TIPO DE EMO',
+          'RESTRICCIONES',
+          'RECOMENDACIONES',
+          'DIRECCIONADO A PVE',
+          'DIRECCIONADO A EPS',
+          'FECHA PRÓXIMO EMO',
+          'ACCIDENTE DE TRABAJO',
+          'FECHA ACCIDENTE',
+          'ESTADO ACTUAL ACCIDENTE',
+          'ENFERMEDAD LABORAL',
+          'FECHA ENFERMEDAD',
+          'ESTADO ACTUAL ENFERMEDAD',
+          'CUMPLIÓ REHABILITACIÓN',
+          'ESTADO FINAL DEL CASO',
+          'ACTIVIDADES PENDIENTES'
+        ]
+      ];
+
+      records.forEach((r, idx) => {
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+        baseRows.push([
+          idx + 1,
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.telefono || '',
+          r.edad || '',
+          formatDate(r.fechaIngreso) || '',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE',
+          r.cargo || '',
+          formatDate(r.fechaEmo) || '',
+          r.tipoEmo || 'Periódico',
+          r.restricciones || 'NINGUNA',
+          r.recomendaciones || '',
+          r.direccionadoPve || 'No aplica',
+          r.direccionadoEps || 'No aplica',
+          formatDate(r.fechaProximoEmo) || '',
+          r.accidenteTrabajo || 'NO',
+          formatDate(r.fechaAccidente) || '',
+          r.estadoActualAccidente || 'No aplica',
+          r.enfermedadLaboral || 'NO',
+          formatDate(r.fechaEnfermedad) || '',
+          r.estadoActualEnfermedad || 'No aplica',
+          r.cumplioRehabilitacion || 'N/A',
+          r.estadoFinalCaso || 'Vigente',
+          r.actividadesPendientes || ''
+        ]);
+      });
+
+      const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
+      wsBase['!cols'] = [
+        { wch: 6 },
+        { wch: 25 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 45 },
+        { wch: 28 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 32 },
+        { wch: 35 },
+        { wch: 28 },
+        { wch: 24 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 32 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores Anuales SST');
+      XLSX.utils.book_append_sheet(wb, wsBase, 'Base Consolidada');
+
+      const filename = `Reporte_Anual_Perfil_Epidemiologico_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} perfiles epidemiológicos generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateEpidemiologicoAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual: ' + err.message, 'error');
+    }
+  }
+
+  async function generateSociodemograficoAnnualReport() {
+    try {
+      App.showToast('Generando Reporte Anual Consolidado Perfil Sociodemográfico...', 'info');
+
+      // Obtener todos los registros disponibles de sociodemográfico
+      const res = await API.getSstSociodemografico({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de Perfil Sociodemográfico para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+      const total = records.length;
+
+      // Variables y contadores estadísticos
+      let sumEdades = 0;
+      let countConEdad = 0;
+
+      const porSexo = {};
+      const porRangoEdad = {
+        'Menores de 20 años': 0,
+        '20 a 29 años': 0,
+        '30 a 39 años': 0,
+        '40 a 49 años': 0,
+        '50 a 59 años': 0,
+        '60 años o más': 0
+      };
+      const porRaza = {};
+      const porEstadoCivil = {};
+      const porVivienda = {};
+      const porEstrato = {};
+      const porEscolaridad = {};
+      const porVinculacion = {};
+      const porTipoCargo = {};
+      const porAntiguedadCargo = {};
+      const porAntiguedadEntidad = {};
+      const porRangoIngresos = {};
+      const porMunicipioResidencia = {};
+      const porSede = {};
+      const porDependencia = {};
+
+      records.forEach(r => {
+        // Sexo
+        const s = r.sexo || 'No especificado';
+        porSexo[s] = (porSexo[s] || 0) + 1;
+
+        // Edad y Año de Nacimiento
+        const edad = parseInt(r.edad) || (r.anioNacimiento ? anioActual - parseInt(r.anioNacimiento) : null);
+        if (edad != null && !isNaN(edad) && edad > 0) {
+          sumEdades += edad;
+          countConEdad++;
+          if (edad < 20) porRangoEdad['Menores de 20 años']++;
+          else if (edad <= 29) porRangoEdad['20 a 29 años']++;
+          else if (edad <= 39) porRangoEdad['30 a 39 años']++;
+          else if (edad <= 49) porRangoEdad['40 a 49 años']++;
+          else if (edad <= 59) porRangoEdad['50 a 59 años']++;
+          else porRangoEdad['60 años o más']++;
+        }
+
+        // Raza / Etnia
+        const rz = r.razaEtnia || 'Blanco/Mestizo';
+        porRaza[rz] = (porRaza[rz] || 0) + 1;
+
+        // Estado Civil
+        const ec = r.estadoCivil || 'Soltero (a)';
+        porEstadoCivil[ec] = (porEstadoCivil[ec] || 0) + 1;
+
+        // Tipo Vivienda
+        const viv = r.tipoVivienda || 'Arriendo';
+        porVivienda[viv] = (porVivienda[viv] || 0) + 1;
+
+        // Estrato
+        const est = r.estrato ? `Estrato ${r.estrato}` : 'Sin Estrato';
+        porEstrato[est] = (porEstrato[est] || 0) + 1;
+
+        // Escolaridad
+        const esc = r.escolaridad || 'Profesional';
+        porEscolaridad[esc] = (porEscolaridad[esc] || 0) + 1;
+
+        // Modalidad de Vinculación
+        const vinc = r.tipoVinculacion || 'Carrera Administrativa';
+        porVinculacion[vinc] = (porVinculacion[vinc] || 0) + 1;
+
+        // Tipo de Cargo
+        const tc = r.tipoCargo || 'Profesional';
+        porTipoCargo[tc] = (porTipoCargo[tc] || 0) + 1;
+
+        // Antigüedad en el Cargo
+        const ac = r.antiguedadCargo || 'Entre 1 y 4 años';
+        porAntiguedadCargo[ac] = (porAntiguedadCargo[ac] || 0) + 1;
+
+        // Antigüedad en la Entidad
+        const ae = r.antiguedadEntidad || 'Entre 1 y 4 años';
+        porAntiguedadEntidad[ae] = (porAntiguedadEntidad[ae] || 0) + 1;
+
+        // Rango de Ingresos
+        const ri = r.rangoIngresos || 'Entre 3 y 6 SMMLV';
+        porRangoIngresos[ri] = (porRangoIngresos[ri] || 0) + 1;
+
+        // Municipio de Residencia
+        const mr = r.municipioResidencia || 'Tunja';
+        porMunicipioResidencia[mr] = (porMunicipioResidencia[mr] || 0) + 1;
+
+        // Sede de Trabajo
+        const sd = r.sedeTrabajo || 'CASA DE LA TORRE';
+        porSede[sd] = (porSede[sd] || 0) + 1;
+
+        // Dependencia
+        const dep = r.dependencia || 'SGEN - SECRETARIA GENERAL';
+        porDependencia[dep] = (porDependencia[dep] || 0) + 1;
+      });
+
+      const edadPromedio = countConEdad > 0 ? (sumEdades / countConEdad).toFixed(1) : 'N/D';
+
+      // Crear Libro Excel con SheetJS
+      const wb = XLSX.utils.book_new();
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES SOCIODEMOGRÁFICOS
+      // ───────────────────────────────────────────────────────────────────────
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`INFORME ANUAL CONSOLIDADO — PERFIL SOCIODEMOGRÁFICO DE LA POBLACIÓN TRABAJADORA (VIGENCIA ${anioActual})`],
+        [`Código: E-DO-ST-F-011 | Versión: 5 | Fecha de Emisión: ${fechaHoy} | Total Servidores: ${total}`],
+        [],
+        ['1. CARACTERIZACIÓN GENERAL Y DEMOGRÁFICA', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Servidores Caracterizados', total, '100%'],
+        ['Edad Promedio de los Servidores', `${edadPromedio} años`, '-'],
+        [],
+        ['2. DISTRIBUCIÓN POR GÉNERO / SEXO', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porSexo).forEach(([sexo, cant]) => {
+        summaryRows.push([sexo, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. GRUPOS DE EDAD (PIRÁMIDE ETARIA)', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRangoEdad).forEach(([rango, cant]) => {
+        summaryRows.push([rango, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. ESTADO CIVIL', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porEstadoCivil).forEach(([ec, cant]) => {
+        summaryRows.push([ec, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['5. PERTENENCIA ÉTNICA / RAZA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRaza).forEach(([rz, cant]) => {
+        summaryRows.push([rz, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['6. TENENCIA DE VIVIENDA Y ESTRATO SOCIOECONÓMICO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVivienda).forEach(([viv, cant]) => {
+        summaryRows.push([`Vivienda ${viv}`, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+      Object.entries(porEstrato).forEach(([est, cant]) => {
+        summaryRows.push([est, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['7. NIVEL DE ESCOLARIDAD / FORMACIÓN ACADÉMICA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porEscolaridad).forEach(([esc, cant]) => {
+        summaryRows.push([esc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['8. MODALIDAD DE VINCULACIÓN LABORAL', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVinculacion).forEach(([vinc, cant]) => {
+        summaryRows.push([vinc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['9. NIVEL JERÁRQUICO / TIPO DE CARGO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porTipoCargo).forEach(([tc, cant]) => {
+        summaryRows.push([tc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['10. ANTIGÜEDAD EN LA ENTIDAD', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porAntiguedadEntidad).forEach(([ae, cant]) => {
+        summaryRows.push([ae, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['11. RANGO DE INGRESOS MENSUALES', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porRangoIngresos).forEach(([ri, cant]) => {
+        summaryRows.push([ri, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['12. SEDES DE TRABAJO', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porSede).forEach(([sd, cant]) => {
+        summaryRows.push([sd, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+      });
+
+      summaryRows.push([]);
+      summaryRows.push(['13. TOP MUNICIPIOS DE RESIDENCIA', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porMunicipioResidencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .forEach(([mun, cant]) => {
+          summaryRows.push([mun, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['14. COBERTURA POR DEPENDENCIAS (TOP)', 'CANTIDAD DE SERVIDORES', 'PORCENTAJE (%)']);
+      Object.entries(porDependencia)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .forEach(([dep, cant]) => {
+          summaryRows.push([dep, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 24 }, { wch: 20 }];
+
+      // ───────────────────────────────────────────────────────────────────────
+      // HOJA 2: BASE CONSOLIDADA DE PERFILES SOCIODEMOGRÁFICOS (24 COLUMNAS OFICIALES)
+      // ───────────────────────────────────────────────────────────────────────
+      const baseRows = [
+        [
+          'N°',
+          'TIPO DE IDENTIFICACIÓN',
+          'No. DOCUMENTO IDENTIFICACIÓN',
+          'APELLIDOS',
+          'NOMBRES',
+          'SEXO',
+          'AÑO DE NACIMIENTO',
+          'EDAD',
+          'RAZA',
+          'ESTADO CIVIL',
+          'COMPOSICIÓN FAMILIAR',
+          'TIPO DE VIVIENDA',
+          'ESTRATO',
+          'MUNICIPIO DE RESIDENCIA',
+          'MUNICIPIO DE TRABAJO',
+          'ESCOLARIDAD',
+          'OCUPACIÓN O PROFESIÓN',
+          'RANGO DE INGRESOS',
+          'DENOMINACIÓN DEL CARGO',
+          'TIPO DE CARGO',
+          'TIPO DE VINCULACIÓN',
+          'RANGO DE ANTIGÜEDAD EN EL CARGO',
+          'ANTIGÜEDAD EN LA ENTIDAD',
+          'DEPENDENCIA',
+          'SEDE DE TRABAJO'
+        ]
+      ];
+
+      records.forEach((r, idx) => {
+        const apellidos = r.apellidos || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(0, 2).join(' ') : '');
+        const nombres = r.nombres || (r.nombreCompleto ? r.nombreCompleto.split(' ').slice(2).join(' ') : '');
+        baseRows.push([
+          idx + 1,
+          r.tipoIdentificacion || 'Cédula de Ciudadanía',
+          r.documento || '',
+          apellidos,
+          nombres,
+          r.sexo || 'Masculino',
+          r.anioNacimiento || '',
+          r.edad || '',
+          r.razaEtnia || 'Blanco/Mestizo',
+          r.estadoCivil || 'Soltero (a)',
+          r.composicionFamiliar || '',
+          r.tipoVivienda || 'Arriendo',
+          r.estrato || '3',
+          r.municipioResidencia || 'Tunja',
+          r.municipioTrabajo || 'Tunja',
+          r.escolaridad || 'Profesional',
+          r.ocupacionProfesion || '',
+          r.rangoIngresos || 'Entre 3 y 6 SMMLV',
+          r.denominacionCargo || 'Profesional Universitario',
+          r.tipoCargo || 'Profesional',
+          r.tipoVinculacion || 'Carrera Administrativa',
+          r.antiguedadCargo || 'Entre 1 y 4 años',
+          r.antiguedadEntidad || 'Entre 1 y 4 años',
+          r.dependencia || '',
+          r.sedeTrabajo || 'CASA DE LA TORRE'
+        ]);
+      });
+
+      const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
+      wsBase['!cols'] = [
+        { wch: 6 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 20 },
+        { wch: 28 },
+        { wch: 22 },
+        { wch: 32 },
+        { wch: 18 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 24 },
+        { wch: 45 },
+        { wch: 28 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores Sociodemográficos');
+      XLSX.utils.book_append_sheet(wb, wsBase, 'Base Consolidada');
+
+      const filename = `Reporte_Anual_Perfil_Sociodemografico_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} perfiles sociodemográficos generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateSociodemograficoAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual: ' + err.message, 'error');
+    }
+  }
+
+  async function generateEppAnnualReport() {
+    try {
+      App.showToast('Generando Reporte Anual Consolidado Entregas de EPP...', 'info');
+
+      const res = await API.getSstEpp({ limit: 5000 });
+      const records = res.data || state.data || [];
+
+      if (!records.length) {
+        App.showToast('No hay registros de EPP para generar el reporte anual.', 'warning');
+        return;
+      }
+
+      const anioActual = new Date().getFullYear();
+      const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      const total = records.length;
+      const servidoresSet = new Set();
+      let countFirmados = 0;
+      let countEntregados = 0;
+      let countReposicion = 0;
+      let countPendienteFirma = 0;
+      let countDevueltos = 0;
+
+      const porElemento = {};
+      const porSecretaria = {};
+      const porVinculacion = {};
+
+      records.forEach(r => {
+        if (r.documento) servidoresSet.add(String(r.documento).trim());
+        if (r.firmaDigital) countFirmados++;
+
+        const est = (r.estadoEntrega || 'Entregado').toLowerCase();
+        if (est.includes('entregado')) countEntregados++;
+        else if (est.includes('reposic')) countReposicion++;
+        else if (est.includes('pend')) countPendienteFirma++;
+        else if (est.includes('devuelt')) countDevueltos++;
+
+        const elem = r.elementoEpp || 'Otros';
+        porElemento[elem] = (porElemento[elem] || 0) + 1;
+
+        const sec = r.secretaria || 'SECRETARIA GENERAL';
+        porSecretaria[sec] = (porSecretaria[sec] || 0) + 1;
+
+        const vinc = r.tipoVinculacion || 'CARRERA ADMINISTRATIVA';
+        porVinculacion[vinc] = (porVinculacion[vinc] || 0) + 1;
+      });
+
+      const totalServidores = servidoresSet.size;
+      const wb = XLSX.utils.book_new();
+
+      // HOJA 1: RESUMEN EJECUTIVO E INDICADORES
+      const summaryRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SECRETARÍA GENERAL'],
+        ['SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`REPORTE ANUAL CONSOLIDADO — ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP) (VIGENCIA ${anioActual})`],
+        [`Fecha de Emisión: ${fechaHoy} | Total Dotaciones: ${total} | Servidores Únicos Dotados: ${totalServidores}`],
+        [],
+        ['1. INDICADORES GLOBALES DE DOTACIÓN Y ENTREGA DE EPP', 'CANTIDAD', 'PORCENTAJE (%)'],
+        ['Total Dotaciones / Entregas Realizadas', total, '100%'],
+        ['Servidores Públicos Únicos Beneficiados', totalServidores, '—'],
+        ['Entregas Verificadas con Firma Digital en Tablet', countFirmados, `${((countFirmados / total) * 100).toFixed(1)}%`],
+        ['Entregas con Estado "Entregado"', countEntregados, `${((countEntregados / total) * 100).toFixed(1)}%`],
+        ['Entregas en Reposición Programada', countReposicion, `${((countReposicion / total) * 100).toFixed(1)}%`],
+        ['Entregas con Firma Pendiente', countPendienteFirma, `${((countPendienteFirma / total) * 100).toFixed(1)}%`],
+        ['Elementos Devueltos', countDevueltos, `${((countDevueltos / total) * 100).toFixed(1)}%`],
+        [],
+        ['2. DISTRIBUCIÓN POR ELEMENTO DE PROTECCIÓN PERSONAL (EPP)', 'CANTIDAD', 'PORCENTAJE (%)']
+      ];
+
+      Object.entries(porElemento)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([elem, cant]) => {
+          summaryRows.push([elem, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['3. DISTRIBUCIÓN POR SECRETARÍA', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porSecretaria)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([sec, cant]) => {
+          summaryRows.push([sec, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      summaryRows.push([]);
+      summaryRows.push(['4. DISTRIBUCIÓN POR TIPO DE VINCULACIÓN', 'CANTIDAD', 'PORCENTAJE (%)']);
+      Object.entries(porVinculacion)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([vinc, cant]) => {
+          summaryRows.push([vinc, cant, `${((cant / total) * 100).toFixed(1)}%`]);
+        });
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 55 }, { wch: 18 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Indicadores EPP');
+
+      // HOJA 2: MATRIZ BASE CONSOLIDADA DE ENTREGAS
+      const matrixHeaders = [
+        'Radicado Folio',
+        'No. Documento',
+        'Servidor Público',
+        'Teléfono',
+        'Secretaría',
+        'Dirección / Subdirección',
+        'Cargo',
+        'Tipo de Vinculación',
+        'Elemento EPP',
+        'Talla',
+        'Cantidad',
+        'Fecha de Entrega',
+        'Estado de Entrega',
+        'Firma Digital Registrada',
+        'Restricciones y/o Recomendaciones',
+        'Observaciones'
+      ];
+
+      const matrixRows = [
+        ['GOBERNACIÓN DE BOYACÁ — SUBDIRECCIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO'],
+        [`MATRIZ MAESTRA ANUAL DE ENTREGAS DE EPP — VIGENCIA ${anioActual}`],
+        matrixHeaders
+      ];
+
+      records.forEach(r => {
+        matrixRows.push([
+          r.radicado || '',
+          r.documento || '',
+          r.nombreCompleto || '',
+          r.telefono || '',
+          r.secretaria || 'SECRETARIA GENERAL',
+          r.dependencia || '',
+          r.cargo || '',
+          r.tipoVinculacion || 'CARRERA ADMINISTRATIVA',
+          r.elementoEpp || '',
+          r.talla || 'N/A',
+          r.cantidad || '1 UNIDAD',
+          formatDate(r.fechaEntrega) || '',
+          r.estadoEntrega || 'Entregado',
+          r.firmaDigital ? 'SI (Verificada en Tablet)' : (r.firmadoFuncionario ? 'SI' : 'NO'),
+          r.restriccionesRecomendaciones || 'NINGUNA',
+          r.observaciones || ''
+        ]);
+      });
+
+      const wsMatrix = XLSX.utils.aoa_to_sheet(matrixRows);
+      wsMatrix['!cols'] = [
+        { wch: 16 }, { wch: 16 }, { wch: 32 }, { wch: 16 },
+        { wch: 30 }, { wch: 35 }, { wch: 28 }, { wch: 24 },
+        { wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 16 },
+        { wch: 16 }, { wch: 24 }, { wch: 32 }, { wch: 32 }
+      ];
+      XLSX.utils.book_append_sheet(wb, wsMatrix, `Matriz Entregas ${anioActual}`);
+
+      const filename = `Reporte_Anual_Entregas_EPP_${anioActual}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      App.showToast(`Reporte anual de ${total} entregas de EPP generado exitosamente.`, 'success');
+    } catch (err) {
+      console.error('[SstModule] generateEppAnnualReport error:', err);
+      App.showToast('Error al generar reporte anual de EPP: ' + err.message, 'error');
+    }
+  }
+
+  async function generateAnnualReport() {
+    if (typeof XLSX === 'undefined') {
+      App.showToast('La biblioteca SheetJS aún no está cargada.', 'error');
+      return;
+    }
+
+    if (state.tab === 'sociodemografico') {
+      await generateSociodemograficoAnnualReport();
+    } else if (state.tab === 'epp') {
+      await generateEppAnnualReport();
+    } else {
+      await generateEpidemiologicoAnnualReport();
+    }
+  }
+
+  // ─── 5. Carga Masiva de Archivos Excel por Submódulo (9.3) ────────────────────
+  function openEppImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
+    const cols = [
+      { header: 'No. De Identificación', key: 'documento', width: 18 },
+      { header: 'Nombres y apellidos', key: 'nombreCompleto', width: 28 },
+      { header: 'Teléfono', key: 'telefono', width: 16 },
+      { header: 'Secretaría', key: 'secretaria', width: 28 },
+      { header: 'Dirección / Subdirección', key: 'dependencia', width: 36 },
+      { header: 'Cargo', key: 'cargo', width: 24 },
+      { header: 'Tipo de Vinculación', key: 'tipoVinculacion', width: 22 },
+      { header: 'Elemento', key: 'elementoEpp', width: 26 },
+      { header: 'Talla', key: 'talla', width: 12 },
+      { header: 'Cantidad', key: 'cantidad', width: 14 },
+      { header: 'Fecha', key: 'fechaEntrega', width: 16 },
+      { header: 'Estado', key: 'estadoEntrega', width: 16 },
+      { header: 'Restricciones y/o Recomendaciones', key: 'restriccionesRecomendaciones', width: 28 },
+      { header: 'Observaciones', key: 'observaciones', width: 24 }
+    ];
+
+    ExcelService.openImportModal({
+      title: '9.3 Carga Masiva SST — Entregas de EPP',
+      subtitle: 'Importe el archivo oficial FORMATO ENTREGA DE EPP con detección de duplicados y reporte de errores',
+      moduleName: 'entrega_epp',
+      columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}|${r.elementoEpp || ''}|${(r.fechaEntrega || '').slice(0, 10)}`,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
+      sampleRows: [
+        {
+          'No. De Identificación': '1003481573',
+          'Nombres y apellidos': 'ROMERO MARIN IVAN DARIO',
+          'Teléfono': '3213938142',
+          'Secretaria': 'SECRETARIA GENERAL',
+          'Dirección / Subdirección': 'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO',
+          'Cargo': 'PROFESIONAL UNIVERSITARIO',
+          'Tipo de Vinculación': 'CARRERA ADMINISTRATIVA',
+          'Elemento': 'Casco de seguridad',
+          'Talla': 'N/A',
+          'Cantidad': '1 UNIDAD',
+          'Fecha': '2026-01-15',
+          'Estado': 'Entregado',
+          'Restricciones y/o Recomendaciones': 'NINGUNA',
+          'Observaciones': 'Entrega de dotación y EPP oficial'
+        }
+      ],
+      validateRow: (row) => {
+        const documento = String(
+          row['No. De Identificación'] ||
+          row['No De Identificación'] ||
+          row['No. DOCUMENTO IDENTIFICACIÓN'] ||
+          row['NÚMERO DOCUMENTO DE IDENTIFICACIÓN'] ||
+          row['Documento'] ||
+          row['DOCUMENTO'] ||
+          row['Cédula'] ||
+          row['Cedula'] ||
+          row.documento || ''
+        ).trim();
+
+        const nombreCompleto = String(
+          row['Nombres y apellidos'] ||
+          row['Servidor Público'] ||
+          row['Nombre Completo'] ||
+          row['NOMBRE COMPLETO'] ||
+          row.nombreCompleto ||
+          `${row['APELLIDOS'] || ''} ${row['NOMBRES'] || ''}`.trim()
+        ).trim();
+
+        if (!documento || !nombreCompleto) {
+          return { valid: false, error: 'Documento y Nombres y apellidos del servidor son obligatorios.', column: !documento ? 'No. De Identificación' : 'Nombres y apellidos' };
+        }
+
+        const elementoRaw = String(
+          row['Elemento'] ||
+          row['Elemento '] ||
+          row['ELEMENTO'] ||
+          row['ELEMENTO '] ||
+          row['Elemento EPP'] ||
+          row.elementoEpp ||
+          'Casco de seguridad'
+        ).trim();
+
+        const fechaRaw = row['Fecha'] || row['FECHA'] || row['Fecha Entrega'] || row['Fecha de Entrega'] || row.fechaEntrega;
+        let fechaEntrega = new Date().toISOString().split('T')[0];
+        if (fechaRaw) {
+          if (fechaRaw instanceof Date) {
+            fechaEntrega = fechaRaw.toISOString().split('T')[0];
+          } else {
+            const s = String(fechaRaw).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) fechaEntrega = s;
+            else if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+              const [d, m, y] = s.split('/');
+              fechaEntrega = `${y}-${m}-${d}`;
+            }
+          }
+        }
+
+        return {
+          valid: true,
+          cleanRow: {
+            documento,
+            nombreCompleto,
+            telefono: String(row['Teléfono'] || row['Telefono'] || row.telefono || '').trim(),
+            secretaria: String(row['Secretaria'] || row['Secretaría'] || row['SECRETARIA'] || row.secretaria || 'SECRETARIA GENERAL').trim(),
+            dependencia: String(row['Dirección / Subdirección'] || row['Direccion / Subdireccion'] || row['Dependencia'] || row['DEPENDENCIA'] || row.dependencia || 'SUBDIRECCION DE SEGURIDAD Y SALUD EN EL TRABAJO').trim(),
+            cargo: String(row['Cargo'] || row['CARGO'] || row.cargo || 'PROFESIONAL UNIVERSITARIO').trim(),
+            tipoVinculacion: String(row['Tipo de Vinculación'] || row['Tipo de Vinculacion'] || row['Tipo Vinculación'] || row.tipoVinculacion || 'CARRERA ADMINISTRATIVA').trim(),
+            elementoEpp: elementoRaw,
+            talla: String(row['Talla'] || row['Talla '] || row['TALLA'] || row.talla || 'N/A').trim(),
+            cantidad: String(row['Cantidad'] || row['CANTIDAD'] || row.cantidad || '1 UNIDAD').trim(),
+            fechaEntrega,
+            estadoEntrega: String(row['Estado'] || row['Estado Entrega'] || row['Estado de Entrega'] || row.estadoEntrega || 'Entregado').trim(),
+            restriccionesRecomendaciones: String(row['Restricciones y/o Recomendaciones'] || row['Restricciones'] || row.restriccionesRecomendaciones || 'NINGUNA').trim(),
+            observaciones: String(row['Observaciones'] || row['OBSERVACIONES'] || row.observaciones || '').trim()
+          }
+        };
+      },
+      onImport: async (rows) => {
+        const res = await API.bulkCreateSstEpp(rows);
+        App.showToast(res.message || `Se importaron ${rows.length} entregas de EPP con éxito.`, 'success');
+        loadStats();
+        await load();
+      }
+    });
+  }
+
+  function openSociodemograficoImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
+    const cols = [
+      { header: 'Tipo Identificación', key: 'tipoIdentificacion', width: 20 },
+      { header: 'Documento', key: 'documento', width: 16 },
+      { header: 'Apellidos', key: 'apellidos', width: 20 },
+      { header: 'Nombres', key: 'nombres', width: 20 },
+      { header: 'Sexo', key: 'sexo', width: 12 },
+      { header: 'Año Nacimiento', key: 'anioNacimiento', width: 14 },
+      { header: 'Edad', key: 'edad', width: 10 },
+      { header: 'Raza / Etnia', key: 'razaEtnia', width: 16 },
+      { header: 'Estado Civil', key: 'estadoCivil', width: 16 },
+      { header: 'Tipo Vivienda', key: 'tipoVivienda', width: 16 },
+      { header: 'Estrato', key: 'estrato', width: 10 },
+      { header: 'Municipio Residencia', key: 'municipioResidencia', width: 20 },
+      { header: 'Municipio Trabajo', key: 'municipioTrabajo', width: 20 },
+      { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+      { header: 'Denominación del Cargo', key: 'denominacionCargo', width: 26 },
+      { header: 'Tipo de Cargo', key: 'tipoCargo', width: 16 },
+      { header: 'Tipo Vinculación', key: 'tipoVinculacion', width: 22 },
+      { header: 'Dependencia', key: 'dependencia', width: 36 },
+      { header: 'Sede de Trabajo', key: 'sedeTrabajo', width: 24 }
+    ];
+
+    ExcelService.openImportModal({
+      title: '9.3 Carga Masiva SST — Perfil Sociodemográfico',
+      subtitle: 'Importe el archivo oficial E-DO-ST-F-011 V5 con detección de duplicados y reporte de errores',
+      moduleName: 'perfil_sociodemografico',
+      columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}`,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
+      sampleRows: [
+        {
+          'TIPO DE IDENTIFICACIÓN': 'Cédula de Ciudadanía',
+          'No. DOCUMENTO IDENTIFICACIÓN': '1049632481',
+          'APELLIDOS': 'GÓMEZ PÉREZ',
+          'NOMBRES': 'ANA MARÍA',
+          'SEXO': 'Femenino',
+          'AÑO DE NACIMIENTO': '1988',
+          'EDAD': '38',
+          'RAZA': 'Blanco/Mestizo',
+          'ESTADO CIVIL': 'Casado (a)',
+          'COMPOSICIÓN FAMILIAR': 'Conyuge Permanente, Hijos',
+          'TIPO DE VIVIENDA': 'Propia',
+          'ESTRATO': '3',
+          'MUNICIPIO DE RESIDENCIA': 'Tunja',
+          'MUNICIPIO DE TRABAJO': 'Tunja',
+          'ESCOLARIDAD': 'Especialización',
+          'OCUPACIÓN O PROFESIÓN': 'Abogado (a)',
+          'RANGO DE INGRESOS': 'Entre 3 y 6 SMMLV',
+          'DENOMINACIÓN DEL CARGO': 'Profesional Universitario',
+          'TIPO DE CARGO': 'Profesional',
+          'TIPO DE VINCULACIÓN': 'Carrera Administrativa',
+          'RANGO DE ANTIGÜEDAD EN EL CARGO': 'Entre 5 y 10 años',
+          'ANTIGÜEDAD EN LA ENTIDAD': 'Entre 5 y 10 años',
+          'DEPENDENCIA': 'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo',
+          'SEDE DE TRABAJO': 'CASA DE LA TORRE'
+        }
+      ],
+      validateRow: (row) => {
+        const documento = String(
+          row['No. DOCUMENTO IDENTIFICACIÓN'] ||
+          row['NÚMERO DOCUMENTO DE IDENTIFICACIÓN'] ||
+          row['No DOCUMENTO IDENTIFICACIÓN'] ||
+          row['DOCUMENTO'] ||
+          row['Documento'] ||
+          row['Cédula'] ||
+          row['Cedula'] ||
+          row.documento || ''
+        ).trim();
+
+        let apellidos = String(row['APELLIDOS'] || row['Apellidos'] || row.apellidos || '').trim();
+        let nombres = String(row['NOMBRES'] || row['Nombres'] || row.nombres || '').trim();
+        let nombreCompleto = String(row['Servidor Público'] || row['Nombre Completo'] || row['Nombres y apellidos'] || row.nombreCompleto || '').trim();
+
+        if (!apellidos && !nombres && nombreCompleto) {
+          const parts = nombreCompleto.split(' ');
+          if (parts.length >= 2) {
+            apellidos = parts.slice(0, 2).join(' ');
+            nombres = parts.slice(2).join(' ') || parts[1];
+          } else {
+            nombres = nombreCompleto;
+            apellidos = '';
+          }
+        }
+        if (!nombreCompleto && (apellidos || nombres)) {
+          nombreCompleto = `${apellidos} ${nombres}`.trim();
+        }
+
+        if (!documento || (!apellidos && !nombreCompleto)) {
+          return { valid: false, error: 'Documento y Apellidos/Nombre del servidor son obligatorios.', column: !documento ? 'Documento' : 'Apellidos/Nombres' };
+        }
+
+        const currentYear = new Date().getFullYear();
+        let anioNac = parseInt(row['AÑO DE NACIMIENTO'] || row['Año de Nacimiento'] || row['Año Nacimiento'] || row.anioNacimiento);
+        let edad = parseInt(row['EDAD'] || row['Edad'] || row.edad);
+
+        if (!edad && anioNac && anioNac > 1920 && anioNac <= currentYear) {
+          edad = currentYear - anioNac;
+        } else if (!anioNac && edad && edad > 0 && edad < 120) {
+          anioNac = currentYear - edad;
+        }
+
+        let estrato = String(row['ESTRATO'] || row['Estrato'] || row.estrato || '3').replace(/[^0-9]/g, '');
+        if (!estrato) estrato = '3';
+
+        return {
+          valid: true,
+          cleanRow: {
+            tipoIdentificacion: String(row['TIPO DE IDENTIFICACIÓN'] || row['Tipo de Identificación'] || row.tipoIdentificacion || 'Cédula de Ciudadanía').trim(),
+            documento,
+            apellidos: apellidos || nombreCompleto,
+            nombres: nombres || nombreCompleto,
+            nombreCompleto,
+            sexo: String(row['SEXO'] || row['Sexo'] || row.sexo || 'Masculino').trim(),
+            anioNacimiento: anioNac || null,
+            edad: edad || null,
+            razaEtnia: String(row['RAZA'] || row['Raza'] || row['Raza / Etnia'] || row['Pertenencia Étnica'] || row.razaEtnia || 'Blanco/Mestizo').trim(),
+            estadoCivil: String(row['ESTADO CIVIL'] || row['Estado Civil'] || row.estadoCivil || 'Soltero (a)').trim(),
+            composicionFamiliar: String(row['COMPOSICIÓN FAMILIAR'] || row['Composición Familiar'] || row.composicionFamiliar || 'Conyuge Permanente, Hijos').trim(),
+            tipoVivienda: String(row['TIPO DE VIVIENDA'] || row['Tipo de Vivienda'] || row['Tipo Vivienda'] || row.tipoVivienda || 'Arriendo').trim(),
+            estrato,
+            municipioResidencia: String(row['MUNICIPIO DE RESIDENCIA'] || row['Municipio de Residencia'] || row['Municipio Residencia'] || row.municipioResidencia || 'Tunja').trim(),
+            municipioTrabajo: String(row['MUNICIPIO DE TRABAJO'] || row['Municipio de Trabajo'] || row['Municipio Trabajo'] || row.municipioTrabajo || 'Tunja').trim(),
+            escolaridad: String(row['ESCOLARIDAD'] || row['Escolaridad'] || row.escolaridad || 'Profesional').trim(),
+            ocupacionProfesion: String(row['OCUPACIÓN O PROFESIÓN'] || row['Ocupación o Profesión'] || row['Ocupación / Profesión'] || row['Profesión'] || row.ocupacionProfesion || '').trim(),
+            rangoIngresos: String(row['RANGO DE INGRESOS'] || row['Rango de Ingresos'] || row['Rango Ingresos'] || row.rangoIngresos || 'Entre 3 y 6 SMMLV').trim(),
+            denominacionCargo: String(row['DENOMINACIÓN DEL CARGO'] || row['Denominación del Cargo'] || row['Cargo'] || row.denominacionCargo || 'Profesional Universitario').trim(),
+            tipoCargo: String(row['TIPO DE CARGO'] || row['Tipo de Cargo'] || row['Tipo Cargo'] || row.tipoCargo || 'Profesional').trim(),
+            tipoVinculacion: String(row['TIPO DE VINCULACIÓN'] || row['Tipo de Vinculación'] || row['Tipo Vinculación'] || row.tipoVinculacion || 'Carrera Administrativa').trim(),
+            antiguedadCargo: String(row['RANGO DE ANTIGÜEDAD EN EL CARGO'] || row['Antigüedad en el Cargo'] || row['Rango Antigüedad en el Cargo'] || row.antiguedadCargo || 'Entre 1 y 4 años').trim(),
+            antiguedadEntidad: String(row['ANTIGÜEDAD EN LA ENTIDAD'] || row['Antigüedad en la Entidad'] || row['Rango Antigüedad en la Entidad'] || row.antiguedadEntidad || 'Entre 1 y 4 años').trim(),
+            dependencia: String(row['DEPENDENCIA'] || row['DEPENDENCIA DE LA ENTIDAD DONDE TRABAJA'] || row['Dependencia'] || row.dependencia || 'SGEN - SECRETARIA GENERAL (Despacho)').trim(),
+            sedeTrabajo: String(row['SEDE DE TRABAJO'] || row['Sede de Trabajo'] || row['SEDE'] || row['Sede'] || row.sedeTrabajo || 'CASA DE LA TORRE').trim()
+          }
+        };
+      },
+      onImport: async (rows) => {
+        const res = await API.bulkCreateSstSociodemografico(rows);
+        App.showToast(res.message || `Se importaron ${rows.length} perfiles sociodemográficos con éxito.`, 'success');
+        loadStats();
+        await load();
+      }
+    });
+  }
+
   function openImportModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden realizar carga masiva.', 'error');
+      return;
+    }
+    if (state.tab === 'sociodemografico') {
+      openSociodemograficoImportModal();
+      return;
+    }
+    if (state.tab === 'epp') {
+      openEppImportModal();
+      return;
+    }
+
     const tabCfg = TABS[state.tab];
     const cols = getExcelColumns().filter(c => c.key !== 'radicado');
 
     ExcelService.openImportModal({
-      title: `Carga Masiva SST — ${tabCfg.title} (${tabCfg.code})`,
-      subtitle: `Importe registros desde formato oficial Excel (${tabCfg.code}) o respuestas de Microsoft Forms`,
+      title: `9.3 Carga Masiva SST — ${tabCfg.title}`,
+      subtitle: 'Importe registros desde archivo Excel o respuestas de Microsoft Forms con detección de duplicados',
       moduleName: tabCfg.title.toLowerCase(),
       columns: cols,
+      existingRecords: state.data,
+      duplicateKeyFn: (r) => `${r.documento || ''}|${r.tipoEmo || ''}|${(r.fechaEmo || '').slice(0, 10)}`,
+      onDownloadTemplate: () => downloadOfficialTemplate(),
       sampleRows: [
         {
           'Documento': '1003481573',
@@ -1931,7 +5265,7 @@ const SstModule = (() => {
         ).trim();
 
         if (!documento || !nombreCompleto) {
-          return { valid: false, error: 'Documento y nombre del servidor son obligatorios.' };
+          return { valid: false, error: 'Documento y nombre del servidor son obligatorios.', column: !documento ? 'Documento' : 'Servidor Público' };
         }
         return {
           valid: true,
@@ -1960,13 +5294,210 @@ const SstModule = (() => {
     });
   }
 
+  // ─── 6. Gestión de Inventario / Stock de Elementos EPP (Catálogo A-AB) ─────────
+  async function openEppInventoryModal() {
+    if (!canManageCurrent()) {
+      App.showToast('Solo Sandra Roa o un Administrador pueden gestionar el inventario EPP.', 'error');
+      return;
+    }
+    try {
+      const res = await API.getSstEppInventario();
+      const items = res.data || [];
+
+      const html = `
+        <div>
+          <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+            Administre las unidades totales en inventario y el umbral de alerta mínima para cada elemento del catálogo EPP (A–AB). Los indicadores de <strong>Elementos disponibles</strong> y <strong>Existencias bajas</strong> del dashboard se calculan dinámicamente descontando las entregas reales.
+          </p>
+          <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Elemento EPP</th>
+                  <th style="text-align:center;">Stock Total</th>
+                  <th style="text-align:center;">Entregados</th>
+                  <th style="text-align:center;">Disponibles</th>
+                  <th style="text-align:center;">Mínimo Alerta</th>
+                  <th style="text-align:right;">Guardar</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(it => {
+                  const cod = it.codigo_elemento || it.codigoElemento || '';
+                  const nom = it.elemento_epp || it.nombreElemento || '';
+                  const stk = Number(it.stock_total ?? it.stockTotal ?? 0);
+                  const ent = Number(it.entregados ?? 0);
+                  const disp = Number(it.disponibles ?? 0);
+                  const min = Number(it.stock_minimo ?? it.minimoAlerta ?? 8);
+                  const low = Boolean(it.bajo_stock ?? (disp <= min));
+                  return `
+                    <tr>
+                      <td class="font-mono" style="font-weight:700;">${escHtml(cod)}</td>
+                      <td style="font-size:12px;">${escHtml(nom)}</td>
+                      <td style="text-align:center;">
+                        <input type="number" id="epp-stock-${escHtml(cod)}" class="form-input" style="width:82px;height:30px;text-align:center;padding:2px 6px;" value="${stk}" min="0" />
+                      </td>
+                      <td style="text-align:center;font-weight:600;">${ent}</td>
+                      <td style="text-align:center;">
+                        <span class="badge ${low ? 'badge--rechazada' : 'badge--aprobada'}">${disp}</span>
+                      </td>
+                      <td style="text-align:center;">
+                        <input type="number" id="epp-min-${escHtml(cod)}" class="form-input" style="width:72px;height:30px;text-align:center;padding:2px 6px;" value="${min}" min="0" />
+                      </td>
+                      <td style="text-align:right;">
+                        <button type="button" class="btn btn-primary" style="padding:4px 10px;font-size:11px;" onclick="SstModule.saveEppInventoryRow('${escHtml(cod)}', '${escHtml(nom)}')">
+                          Actualizar
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      App.openModal('Inventario y Stock de Elementos EPP (Catálogo A–AB)', html, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      ]);
+    } catch (err) {
+      App.showToast('Error al cargar inventario EPP: ' + err.message, 'error');
+    }
+  }
+
+  async function saveEppInventoryRow(codigo, nombreElemento) {
+    const stockTotal = parseInt(document.getElementById(`epp-stock-${codigo}`)?.value || '0', 10);
+    const stockMinimo = parseInt(document.getElementById(`epp-min-${codigo}`)?.value || '8', 10);
+    try {
+      await API.updateSstEppInventario(codigo, { nombreElemento, stockTotal, stockMinimo });
+      App.showToast(`Inventario actualizado para ${codigo}.`, 'success');
+      loadStats();
+      openEppInventoryModal();
+    } catch (err) {
+      App.showToast('Error al actualizar stock: ' + err.message, 'error');
+    }
+  }
+
+  // ─── 7. Generador de Reportes (9.4) y Gobernanza (Secciones 10, 11 y 12) ─────
+  function openReportGenerator() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    const selectedRecords = state.data.filter(r => state.selectedIds.has(r.id));
+    let columns = [];
+    let dateField = 'createdAt';
+    let statusField = 'estadoFinalCaso';
+    let statuses = ['Seguimiento', 'Abierto', 'Cerrado', 'Controlado'];
+
+    if (state.tab === 'epidemiologico') {
+      dateField = 'fechaEmo';
+      statusField = 'estadoFinalCaso';
+      statuses = getCats().estadosCaso || ['Seguimiento', 'Abierto', 'Cerrado'];
+      columns = [
+        { header: 'Código', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Sede', key: 'sedeTrabajo', width: 20 },
+        { header: 'Tipo EMO', key: 'tipoEmo', width: 16 },
+        { header: 'Fecha EMO', key: 'fechaEmo', width: 14 },
+        { header: 'PVE', key: 'direccionadoPve', width: 22 },
+        { header: 'Estado Caso', key: 'estadoFinalCaso', width: 16 }
+      ];
+    } else if (state.tab === 'epp') {
+      dateField = 'fechaEntrega';
+      statusField = 'estadoEntrega';
+      statuses = ['Entregado', 'Reposición Programada', 'Pendiente Firma', 'Devuelto'];
+      columns = [
+        { header: 'Radicado', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Cargo', key: 'cargo', width: 22 },
+        { header: 'Elemento EPP', key: 'elementoEpp', width: 26 },
+        { header: 'Talla', key: 'talla', width: 10 },
+        { header: 'Cantidad', key: 'cantidad', width: 12 },
+        { header: 'Fecha Entrega', key: 'fechaEntrega', width: 14 },
+        { header: 'Estado', key: 'estadoEntrega', width: 16 }
+      ];
+    } else {
+      dateField = 'createdAt';
+      statusField = 'escolaridad';
+      statuses = getCats().escolaridades || ['Profesional', 'Especialización', 'Maestría', 'Técnico', 'Tecnólogo'];
+      columns = [
+        { header: 'Código', key: 'radicado', width: 16 },
+        { header: 'Documento', key: 'documento', width: 15 },
+        { header: 'Servidor Público', key: 'nombreCompleto', width: 28 },
+        { header: 'Sexo', key: 'sexo', width: 12 },
+        { header: 'Edad', key: 'edad', width: 10 },
+        { header: 'Escolaridad', key: 'escolaridad', width: 18 },
+        { header: 'Vinculación', key: 'tipoVinculacion', width: 20 },
+        { header: 'Dependencia', key: 'dependencia', width: 32 },
+        { header: 'Estrato', key: 'estrato', width: 10 }
+      ];
+    }
+
+    GovernanceAndReports.openReportGeneratorModal({
+      title: TABS[state.tab].title,
+      moduleCode: getModuleCode(state.tab),
+      columns,
+      currentData: state.data,
+      selectedRecords,
+      statuses,
+      dateField,
+      statusField,
+      fetchAllFn: async () => {
+        if (state.tab === 'epidemiologico') {
+          const res = await API.getSstEpidemiologico({ page: 1, limit: 5000 });
+          return res.data || [];
+        }
+        if (state.tab === 'epp') {
+          const res = await API.getSstEpp({ page: 1, limit: 5000 });
+          return res.data || [];
+        }
+        const res = await API.getSstSociodemografico({ page: 1, limit: 5000 });
+        return res.data || [];
+      }
+    });
+  }
+
+  function openInstitutionalDocuments() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openInstitutionalDocumentsModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title,
+      canManage: canManageCurrent()
+    });
+  }
+
+  function openAuditHistory() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openAuditModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title
+    });
+  }
+
+  function openResponsablesManager() {
+    if (typeof GovernanceAndReports === 'undefined') return;
+    GovernanceAndReports.openResponsablesModal({
+      moduleCode: getModuleCode(state.tab),
+      moduleLabel: TABS[state.tab].title
+    });
+  }
+
   return {
     render,
     setTab,
+    toggleDashboard,
+    applyDashFilters,
+    toggleSelectAll,
+    toggleSelectRow,
     openCreate,
     openEdit,
     openView,
     confirmDelete,
+    clearSignature,
     checkEmoVencimientos,
     applyFilters,
     clearFilters,
@@ -1974,8 +5505,25 @@ const SstModule = (() => {
     onEmployeeInput,
     selectEmployee,
     exportSinglePdf,
+    exportSingleProfileExcel,
+    downloadOfficialTemplate,
+    openExportProfileModal,
+    generateAnnualReport,
     exportExcel,
     openImportModal,
+    openEppInventoryModal,
+    saveEppInventoryRow,
+    openReportGenerator,
+    openInstitutionalDocuments,
+    openAuditHistory,
+    openResponsablesManager,
+    onFechaEmoChange,
+    onTipoEmoChange,
+    onAtToggle,
+    onElToggle,
+    onApellidosNombresChange,
+    onSocioAnioNacChange,
+    onSocioEdadChange,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown

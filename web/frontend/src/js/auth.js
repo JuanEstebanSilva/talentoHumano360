@@ -57,8 +57,44 @@ const Auth = (() => {
     return payload.exp > Date.now() / 1000;
   }
 
+  function isAdmin(u) {
+    const user = u || getUser();
+    if (!user) return false;
+    const r = String(user.role || '').toLowerCase();
+    const uname = String(user.username || '').toLowerCase();
+    const mods = Array.isArray(user.modules) ? user.modules : [];
+    return r === 'administrador' || r === 'admin' || r.includes('administrador') || uname === 'admin' || uname === 'admin@boyaca.gov.co' || mods.includes('*') || mods.includes('all');
+  }
+
+  function getRoleScope(u) {
+    const user = u || getUser();
+    if (!user) return 'all';
+    if (isAdmin(user)) return 'all';
+    const r = String(user.role || '').trim().toLowerCase();
+    const uname = String(user.username || '').trim().toLowerCase();
+
+    if (r === 'sst' || r.includes('sst') || uname.startsWith('sandra.roa')) {
+      return 'sst';
+    }
+    if (r === 'incapacidades' || r.includes('incapacidad') || uname.startsWith('luis.sanch')) {
+      return 'incapacidades';
+    }
+    if (r === 'permisos y licencias' || (r.includes('permiso') && r.includes('licencia')) || uname.startsWith('sebastian.rincon')) {
+      return 'permisos_licencias';
+    }
+    if (r === 'permisos' || r.includes('permiso') || uname.startsWith('alejandro.leon')) {
+      return 'permisos';
+    }
+    return 'all';
+  }
+
   function getUserModules(user) {
     if (!user) return ['dashboard'];
+    const scope = getRoleScope(user);
+    if (scope === 'sst') return ['sst', 'epidemiologico', 'sociodemografico', 'epp'];
+    if (scope === 'incapacidades') return ['admin-requests', 'incapacidades'];
+    if (scope === 'permisos_licencias') return ['admin-requests', 'permisos', 'licencias'];
+    if (scope === 'permisos') return ['admin-requests', 'permisos'];
     if (Array.isArray(user.modules) && user.modules.length > 0) {
       return user.modules;
     }
@@ -73,7 +109,23 @@ const Auth = (() => {
     if (!isLoggedIn()) return false;
     const user = getUser();
     const mod = String(moduleName || '').toLowerCase().trim();
-    if (!mod || mod === 'dashboard' || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad') {
+    if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad') {
+      return true;
+    }
+    const scope = getRoleScope(user);
+    if (scope === 'sst') {
+      return ['sst', 'epidemiologico', 'sociodemografico', 'epp'].includes(mod);
+    }
+    if (scope === 'incapacidades') {
+      return ['admin-requests', 'incapacidades'].includes(mod);
+    }
+    if (scope === 'permisos_licencias') {
+      return ['admin-requests', 'permisos', 'licencias'].includes(mod);
+    }
+    if (scope === 'permisos') {
+      return ['admin-requests', 'permisos'].includes(mod);
+    }
+    if (mod === 'dashboard') {
       return true;
     }
     const mods = getUserModules(user);
@@ -81,10 +133,33 @@ const Auth = (() => {
     return mods.includes(mod);
   }
 
+  function canEditModule(modulo, u) {
+    const user = u || getUser();
+    if (!user) return false;
+    if (isAdmin(user)) return true;
+    const scope = getRoleScope(user);
+    const r = String(user.role || '').toLowerCase();
+    if (r.includes('coordinador')) return true;
+
+    const mod = String(modulo || '').toLowerCase();
+    if (['sst', 'epidemiologico', 'sociodemografico', 'epp'].includes(mod)) {
+      return scope === 'sst';
+    }
+    if (mod === 'incapacidades') {
+      return scope === 'incapacidades';
+    }
+    if (mod === 'permisos') {
+      return scope === 'permisos' || scope === 'permisos_licencias';
+    }
+    if (mod === 'licencias') {
+      return scope === 'permisos_licencias';
+    }
+    return canEdit(mod);
+  }
+
   /**
    * canEdit(moduleName):
-   * Sistema RBAC basado exclusivamente en Roles y Permisos explícitos (AUD-007).
-   * Desacoplado 100% de nombres, usernames o identificadores textuales.
+   * Sistema RBAC unificado (soporta permisos explícitos de main y alcances de submódulos SST/Novedades).
    */
   function canEdit(moduleName) {
     const user = getUser();
@@ -110,14 +185,23 @@ const Auth = (() => {
     }
     if (targetMod === 'servidores' || targetMod === 'servidores-publicos') targetMod = 'employees';
 
-    // 3. Verificación de permisos explícitos de mutación (write/delete/manage)
+    // 3. Verificación por alcance de los 6 submódulos (SST, Incapacidades, Permisos, Licencias)
+    const scope = getRoleScope(user);
+    if (scope !== 'all') {
+      if (scope === 'sst' && ['sst', 'epidemiologico', 'sociodemografico', 'epp'].includes(targetMod)) return true;
+      if (scope === 'incapacidades' && ['admin-requests', 'incapacidades', 'requests'].includes(targetMod)) return true;
+      if (scope === 'permisos_licencias' && ['admin-requests', 'permisos', 'licencias', 'requests'].includes(targetMod)) return true;
+      if (scope === 'permisos' && ['admin-requests', 'permisos', 'requests'].includes(targetMod)) return true;
+      if (!targetMod) return true;
+    }
+
+    // 4. Verificación de permisos explícitos de mutación (write/delete/manage)
     if (perms.includes(`${targetMod}:write`) || perms.includes(`${targetMod}:*`)) return true;
     if (mods.includes(`${targetMod}_write`) || mods.includes(`${targetMod}:write`)) return true;
-    // Si no tiene permisos explícitos definidos en el payload, fallback a módulo asignado solo si perms está vacío
     if (perms.length === 0 && mods.includes(targetMod)) return true;
 
     return false;
   }
 
-  return { save, getToken, getUser, clear, isLoggedIn, canEdit, hasModuleAccess, getUserModules };
+  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules };
 })();

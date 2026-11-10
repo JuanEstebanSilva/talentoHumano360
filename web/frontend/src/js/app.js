@@ -964,6 +964,7 @@ const App = (() => {
     employees: 'Servidores Públicos',
     requests: 'Solicitudes de Vacaciones',
     'admin-requests': 'Solicitudes Administrativas',
+    incapacidades: 'Incapacidades y Ausentismo Laboral',
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
     sst: 'Seguridad y Salud en el Trabajo (SST)',
@@ -980,6 +981,7 @@ const App = (() => {
     employees: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     requests: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     'admin-requests': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+    incapacidades: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
@@ -996,6 +998,7 @@ const App = (() => {
     'employees',
     'requests',
     'admin-requests',
+    'incapacidades',
     'viaticos',
     'horarios',
     'sst',
@@ -1005,8 +1008,82 @@ const App = (() => {
     'accesibilidad'
   ]);
 
+  function getDefaultLandingRoute(user) {
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
+    if (scope === 'sst') return { module: 'sst', options: { tab: 'epidemiologico' } };
+    if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
+    if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+    if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+    if (user && isUserAdmin(user)) return { module: 'admin-errors', options: {} };
+    return { module: 'dashboard', options: {} };
+  }
+
+  function applyRoleSidebarAccess(user) {
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
+    const showLi = (id, visible) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const li = el.closest('li') || el;
+      li.style.display = visible ? '' : 'none';
+    };
+
+    if (scope === 'all') {
+      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      return;
+    }
+
+    // Ocultar módulos generales por defecto para roles específicos de submódulo
+    ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group'].forEach(id => showLi(id, false));
+
+    if (scope === 'sst') {
+      showLi('nav-sst-group', true);
+      showLi('nav-sst-epidemiologico', true);
+      showLi('nav-sst-epp', true);
+      showLi('nav-sst-sociodemografico', true);
+      const sstGroupBtn = document.getElementById('nav-sst-group');
+      const sstMenu = document.getElementById('sst-submenu');
+      if (sstGroupBtn) sstGroupBtn.setAttribute('aria-expanded', 'true');
+      if (sstMenu) sstMenu.setAttribute('aria-hidden', 'false');
+    } else if (scope === 'incapacidades') {
+      showLi('nav-incapacidades', true);
+    } else if (scope === 'permisos') {
+      showLi('nav-admin-group', true);
+      showLi('nav-permisos', true);
+      showLi('nav-licencias', false);
+      expandAdminGroup();
+    } else if (scope === 'permisos_licencias') {
+      showLi('nav-admin-group', true);
+      showLi('nav-permisos', true);
+      showLi('nav-licencias', true);
+      expandAdminGroup();
+    }
+  }
+
   async function navigate(module, options = {}) {
-    const rawModule = String(module || '').replace(/^#\/?/, '').trim();
+    let rawModule = String(module || '').replace(/^#\/?/, '').trim();
+    if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
+      return navigate('incapacidades');
+    }
+
+    // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
+    const alwaysAllowed = new Set(['settings', 'privacidad', 'terminos', 'accesibilidad']);
+    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn() && !alwaysAllowed.has(rawModule)) {
+      const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
+      if (scope === 'sst' && rawModule !== 'sst') {
+        return navigate('sst', { tab: options.tab || 'epidemiologico' });
+      }
+      if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
+        return navigate('incapacidades');
+      }
+      if (scope === 'permisos') {
+        if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
+          return navigate('admin-requests', { tipo: 'permisos' });
+        }
+      }
+      if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
+        return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+      }
+    }
 
     // 1. Si la ruta o módulo NO existe en las rutas válidas:
     // Mostrar inmediatamente la pantalla global 404 fuera del layout y sin tocar el módulo actual.
@@ -1175,6 +1252,7 @@ const App = (() => {
             expandAdminGroup();
             break;
           }
+          case 'incapacidades': await IncapacidadesModule.render(container); break;
           case 'viaticos':      await ViaticosModule.render(container, options); break;
           case 'horarios':      await HorariosModule.render(container); break;
           case 'sst': {
@@ -1873,6 +1951,7 @@ const App = (() => {
 
   function applyNavigationPermissions(user = {}) {
     const isAdmin = isUserAdmin(user);
+    const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
     const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : ['dashboard'];
     const hasAll = mods.includes('*') || mods.includes('all');
 
@@ -1883,9 +1962,18 @@ const App = (() => {
       li.style.display = isVisible ? '' : 'none';
     };
 
+    if (scope !== 'all') {
+      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-backups', false);
+      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-backups', false);
+      setVisibility('nav-settings', true);
+      applyRoleSidebarAccess(user);
+      return;
+    }
+
     if (isAdmin) {
       // Para el Administrador técnico (admin / admin123):
-      // Su panel es tranquilo: no tiene los módulos de talento humano, sino únicamente Errores, Copias de Seguridad y Ajustes
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
       setVisibility('nav-admin-errors', true);
@@ -1893,13 +1981,7 @@ const App = (() => {
       setVisibility('nav-settings', true);
 
       // Supervisión global sobre módulos funcionales para el Administrador General (TSK-010 / AUD-010)
-      setVisibility('nav-dashboard', true);
-      setVisibility('nav-employees', true);
-      setVisibility('nav-requests', true);
-      setVisibility('nav-admin-group', true);
-      setVisibility('nav-viaticos', true);
-      setVisibility('nav-horarios', true);
-      setVisibility('nav-sst-group', true);
+      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => setVisibility(id, true));
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
       // Ocultar las herramientas de administración técnica
@@ -1913,6 +1995,9 @@ const App = (() => {
       setVisibility('nav-employees', hasAll || mods.includes('employees'));
       setVisibility('nav-requests', hasAll || mods.includes('requests'));
       setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
+      setVisibility('nav-permisos', hasAll || mods.includes('admin-requests') || mods.includes('permisos'));
+      setVisibility('nav-licencias', hasAll || mods.includes('admin-requests') || mods.includes('licencias'));
+      setVisibility('nav-incapacidades', hasAll || mods.includes('incapacidades'));
       setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
       setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
       setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
@@ -1924,8 +2009,22 @@ const App = (() => {
     if (user.jobTitle && String(user.jobTitle).trim()) {
       return String(user.jobTitle).trim();
     }
+    const username = String(user.username || '').toLowerCase();
+    const name = String(user.name || '').toLowerCase();
+    const role = String(user.role || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
-    const role = (user.role || '').toLowerCase();
+    if (username.includes('sandra') || role === 'sst' || role.includes('sst')) {
+      return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
+    }
+    if (username.includes('luis') || role === 'incapacidades' || role.includes('incapacidad')) {
+      return 'Responsable de Incapacidades y Ausentismo Laboral';
+    }
+    if (username.includes('sebastian') || (role.includes('permiso') && role.includes('licencia'))) {
+      return 'Responsable de Permisos y Licencias Laborales';
+    }
+    if (username.includes('alejandro') || role === 'permisos') {
+      return 'Responsable de Permisos Laborales';
+    }
     if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all')) {
       return 'Administrador del Sistema';
     }
@@ -1946,6 +2045,7 @@ const App = (() => {
     const app = document.getElementById('app');
     if (app) app.style.setProperty('display', 'grid', 'important');
 
+    try { applyRoleSidebarAccess(user); } catch (_) {}
     try { updateUserDisplay(user); } catch (e) { console.warn('[UserDisplay] Error:', e); }
     try { updateTopbarDateTime(); } catch (_) {}
     try { updateTopbarQuickControls(); } catch (_) {}
@@ -2462,15 +2562,15 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
+          const landing = getDefaultLandingRoute(res.user);
 
           const proceedToDashboard = () => {
             try {
               if (typeof Settings !== 'undefined' && res.user && res.user.username) {
                 Settings.loadForUser(res.user.username);
               }
-              const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
               showApp();
-              navigate(defaultMod);
+              navigate(landing.module, landing.options);
               try { checkAndRestoreDraft(); } catch (_) {}
               const userIdentifier = (res.user && res.user.username) || null;
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
@@ -2482,8 +2582,7 @@ const App = (() => {
               if (ls) ls.style.setProperty('display', 'none', 'important');
               const app = document.getElementById('app');
               if (app) app.style.setProperty('display', 'grid', 'important');
-              const defaultMod = isUserAdmin(res.user) ? 'admin-errors' : 'dashboard';
-              try { navigate(defaultMod); } catch (_) {}
+              try { navigate(landing.module, landing.options); } catch (_) {}
               try { checkAndRestoreDraft(); } catch (_) {}
               const userIdentifier = (res.user && res.user.username) || null;
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
@@ -2668,6 +2767,7 @@ const App = (() => {
         Settings.loadForUser(storedUser.username);
       }
       showApp();
+      const landing = getDefaultLandingRoute(storedUser);
       const storedUsername = (storedUser && storedUser.username) || null;
       if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(storedUsername)) {
         LegalModule.requireConsentModal(null, storedUsername);
@@ -2684,8 +2784,7 @@ const App = (() => {
         if (params.get('pkg')) options.pkg = params.get('pkg');
         navigate(initMod, options);
       } else {
-        const defaultMod = (storedUser && isUserAdmin(storedUser)) ? 'admin-errors' : 'dashboard';
-        navigate(defaultMod);
+        navigate(landing.module, landing.options);
       }
     } else {
       if (typeof Settings !== 'undefined') {

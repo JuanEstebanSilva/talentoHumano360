@@ -7,7 +7,13 @@ VALUES
     ('admin@boyaca.gov.co', '$2a$12$V/AEZH3sAI.ZPJZdnCj3Ue8TU5P/6ekQdo9whQRwfR9H9RyLSjXDm', 'Administrador', 'Administrador', NULL, 'ACTIVO'),
     ('angela.ussa@boyaca.gov.co', '$2a$12$eI7ehEXpN701IhYkkXSS1.hMobi37kko/n2/jjH6dkOm87BO5mYl6', 'Angela Ussa', 'Administrador', 'Directora de Talento Humano', 'ACTIVO'),
     ('carlos@boyaca.gov.co', '$2a$12$oxJAvA4mX2.XXloxn./MDeHAg7Xzwuq8pwUbXXY7xNGIdFCGzan0.', 'Carlos Andrés Torres Rivera', 'Coordinador', 'Coordinador de Solicitudes', 'ACTIVO'),
-    ('maria@boyaca.gov.co', '$2a$12$4Pqs0cP5hrAqWydfUiiX0Oe.sBhpvh7pUjDfpvyDQ9V9WiXQyVHRe', 'María Camila Rodríguez Niño', 'Consulta', 'Analista de Talento Humano', 'ACTIVO')
+    ('maria@boyaca.gov.co', '$2a$12$4Pqs0cP5hrAqWydfUiiX0Oe.sBhpvh7pUjDfpvyDQ9V9WiXQyVHRe', 'María Camila Rodríguez Niño', 'Consulta', 'Analista de Talento Humano', 'ACTIVO'),
+    ('sandra.roa@boyaca.gov.co', 'Sandra@123', 'Sandra Roa', 'SST', 'Responsable de Seguridad y Salud en el Trabajo (SST)', 'ACTIVO'),
+    ('luis.sanches@boyaca.gov.co', 'Luis@456', 'Luis Sanchez', 'Incapacidades', 'Responsable de Incapacidades y Ausentismo Laboral', 'ACTIVO'),
+    ('luis.sanchez@boyaca.gov.co', 'Luis@456', 'Luis Sanchez', 'Incapacidades', 'Responsable de Incapacidades y Ausentismo Laboral', 'ACTIVO'),
+    ('alejandro.leon@boyaca.edu.co', 'Alejandro#123', 'Alejandro Leon', 'Permisos', 'Responsable de Permisos Laborales', 'ACTIVO'),
+    ('alejandro.leon@boyaca.gov.co', 'Alejandro#123', 'Alejandro Leon', 'Permisos', 'Responsable de Permisos Laborales', 'ACTIVO'),
+    ('sebastian.rincon@boyaca.gov.co', 'Sebastian#456', 'Sebastian Rincon', 'Permisos y Licencias', 'Responsable de Permisos y Licencias Laborales', 'ACTIVO')
     ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, nombre = EXCLUDED.nombre, rol = EXCLUDED.rol, cargo_laboral = EXCLUDED.cargo_laboral, estado = 'ACTIVO';
 
 -- ============================================================

@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS sst_entrega_epp (
     firmado_funcionario           BOOLEAN       DEFAULT TRUE,
     observaciones                 TEXT,
     soporte                       TEXT,
+    firma_digital                 TEXT,
     creado_por                    VARCHAR(120)  DEFAULT 'admin',
     creado_en                     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -168,7 +169,7 @@ SELECT
     'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo', 'CASA DE LA TORRE',
     'PROFESIONAL UNIVERSITARIO', 'CARRERA ADMINISTRATIVA', 'NINGUNA',
     'A', 'A. Casco de seguridad', 'N/A', '1 UNIDAD', '2026-01-15', 'Entregado', TRUE,
-    'Entrega oficial según Formato E-DO-ST-F-028 V4 e Instructivo E-DO-ST-I-007'
+    'Entrega oficial de dotación y elementos de protección personal'
 WHERE NOT EXISTS (SELECT 1 FROM sst_entrega_epp LIMIT 1);
 
 INSERT INTO sst_entrega_epp (
@@ -213,3 +214,20 @@ SELECT
     'Profesional', 'Carrera Administrativa', 'Entre 1 y 4 años', 'Entre 1 y 4 años',
     'SGEN - DTH - Subdirección de Seguridad y Salud en el Trabajo', 'CASA DE LA TORRE'
 WHERE NOT EXISTS (SELECT 1 FROM sst_perfil_sociodemografico LIMIT 1);
+
+ALTER TABLE sst_entrega_epp ADD COLUMN IF NOT EXISTS firma_digital TEXT;
+
+-- ─── 6. Tabla de Inventario y Existencias de Elementos de Protección Personal (EPP) ───
+CREATE TABLE IF NOT EXISTS sst_inventario_epp (
+    id_inventario        SERIAL PRIMARY KEY,
+    codigo_elemento      VARCHAR(20)  UNIQUE NOT NULL,
+    elemento_epp         VARCHAR(200) NOT NULL,
+    categoria_epp        VARCHAR(120) DEFAULT 'Protección Personal',
+    unidad_medida        VARCHAR(40)  DEFAULT 'UNIDAD',
+    stock_total          INTEGER      NOT NULL DEFAULT 40,
+    stock_minimo         INTEGER      NOT NULL DEFAULT 8,
+    ubicacion_bodega     VARCHAR(160) DEFAULT 'Almacén SST - Casa de la Torre',
+    observaciones        TEXT,
+    actualizado_por      VARCHAR(120) DEFAULT 'Sistema',
+    actualizado_en       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

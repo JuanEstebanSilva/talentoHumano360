@@ -177,6 +177,7 @@ const authRoutes          = require('../services/auth-service/src/routes/auth');
 const employeesRoutes     = require('../services/employees-service/src/routes/employees');
 const requestsRoutes      = require('../services/requests-service/src/routes/requests');
 const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
+const incapacidadesRoutes = require('../services/admin-requests-service/src/routes/incapacidades');
 const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
 const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
 const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
@@ -188,6 +189,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/requests', requestsRoutes);
 app.use('/api/admin-requests', adminRequestsRoutes);
+app.use('/api/incapacidades', incapacidadesRoutes);
 app.use('/api/viaticos', viaticosRoutes);
 // Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
 app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {

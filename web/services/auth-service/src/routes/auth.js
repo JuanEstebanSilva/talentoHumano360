@@ -190,6 +190,14 @@ router.post('/login', loginLimiter, async (req, res) => {
     const rLower = (user.rol || '').toLowerCase();
     if (rLower === 'administrador' || rLower === 'admin') {
       allowedModules = ['*'];
+    } else if (rLower === 'sst' || rLower.includes('sst')) {
+      allowedModules = ['sst', 'epidemiologico', 'sociodemografico', 'epp'];
+    } else if (rLower === 'incapacidades' || rLower.includes('incapacidad')) {
+      allowedModules = ['admin-requests', 'incapacidades'];
+    } else if (rLower.includes('permiso') && rLower.includes('licencia')) {
+      allowedModules = ['admin-requests', 'permisos', 'licencias'];
+    } else if (rLower === 'permisos' || rLower.includes('permiso')) {
+      allowedModules = ['admin-requests', 'permisos'];
     } else if (user.modulos) {
       allowedModules = user.modulos.split(',').map(m => m.trim().toLowerCase()).filter(Boolean);
     }
@@ -367,11 +375,14 @@ function resolvePermissions(role, modules, explicitPerms = null) {
   if (mods.includes('viaticos')) {
     perms.push('viaticos:read', 'viaticos:write', 'viaticos:status', 'viaticos:import', 'viaticos:delete');
   }
-  if (mods.includes('requests') || mods.includes('admin-requests')) {
-    perms.push('requests:read', 'requests:write');
+  if (mods.includes('requests') || mods.includes('admin-requests') || mods.includes('permisos') || mods.includes('licencias') || mods.includes('incapacidades')) {
+    perms.push('requests:read', 'requests:write', 'admin-requests:read', 'admin-requests:write');
+    if (mods.includes('permisos')) perms.push('permisos:read', 'permisos:write');
+    if (mods.includes('licencias')) perms.push('licencias:read', 'licencias:write');
+    if (mods.includes('incapacidades')) perms.push('incapacidades:read', 'incapacidades:write');
   }
   if (mods.includes('sst')) {
-    perms.push('sst:read', 'sst:write');
+    perms.push('sst:read', 'sst:write', 'epidemiologico:read', 'epidemiologico:write', 'sociodemografico:read', 'sociodemografico:write', 'epp:read', 'epp:write');
   }
   return perms;
 }
@@ -379,14 +390,21 @@ function resolvePermissions(role, modules, explicitPerms = null) {
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';
   const r = role.toLowerCase();
+  if (r === 'sst' || r.includes('sst')) return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
+  if (r === 'incapacidades' || r.includes('incapacidad')) return 'Responsable de Incapacidades y Ausentismo Laboral';
+  if (r.includes('permiso') && r.includes('licencia')) return 'Responsable de Permisos y Licencias Laborales';
+  if (r === 'permisos' || r.includes('permiso')) return 'Responsable de Permisos Laborales';
   if (r.includes('coordinador')) return 'Coordinador de Solicitudes';
-  if (r.includes('consulta'))    return 'Usuario de Consulta';
+  if (r.includes('consulta') || r.includes('funcionario')) return 'Servidor Público';
   return 'Administrador del Sistema';
 }
 
 function resolveDepartment(role) {
   if (!role) return 'Dirección de Talento Humano';
   const r = role.toLowerCase();
+  if (r === 'sst' || r.includes('sst') || r === 'incapacidades' || r.includes('incapacidad')) {
+    return 'Subdirección de Seguridad y Salud en el Trabajo';
+  }
   if (r.includes('consulta')) return 'Secretaría General';
   return 'Dirección de Talento Humano';
 }
