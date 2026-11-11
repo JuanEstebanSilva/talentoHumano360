@@ -1143,10 +1143,11 @@ const App = (() => {
         return;
       }
 
+      const isPermisos = (rawModule === 'admin-requests' && (!options || !options.tipo || options.tipo === 'permisos' || options.tipo === 'Permiso Laboral'));
       const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
       const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
 
-      if (!technicalAdminRoutes.has(rawModule) && !isElevated) {
+      if (!isPermisos && !technicalAdminRoutes.has(rawModule) && !isElevated) {
         // El administrador intenta acceder a módulos operativos sin haber confirmado su contraseña
         promptAdminUnlock(rawModule, options);
         return;
@@ -1205,15 +1206,24 @@ const App = (() => {
     }
 
     if (rawModule === 'admin-requests') {
-      const adminGroupBtn = document.getElementById('nav-admin-group');
-      const menu = document.getElementById('admin-submenu');
-      if (adminGroupBtn) {
-        adminGroupBtn.classList.add('active');
-        adminGroupBtn.setAttribute('aria-current', 'true');
-        adminGroupBtn.setAttribute('aria-expanded', 'true');
-      }
-      if (menu) {
-        menu.setAttribute('aria-hidden', 'false');
+      const tipoKey = (options && options.tipo) || 'permisos';
+      const navAdminPermisos = document.getElementById('nav-admin-permisos');
+      const isStandAloneVisible = navAdminPermisos && (navAdminPermisos.closest('li') ? window.getComputedStyle(navAdminPermisos.closest('li')).display !== 'none' : true);
+
+      if (tipoKey === 'permisos' && isStandAloneVisible) {
+        navAdminPermisos.classList.add('active');
+        navAdminPermisos.setAttribute('aria-current', 'page');
+      } else {
+        const adminGroupBtn = document.getElementById('nav-admin-group');
+        const menu = document.getElementById('admin-submenu');
+        if (adminGroupBtn) {
+          adminGroupBtn.classList.add('active');
+          adminGroupBtn.setAttribute('aria-current', 'true');
+          adminGroupBtn.setAttribute('aria-expanded', 'true');
+        }
+        if (menu) {
+          menu.setAttribute('aria-hidden', 'false');
+        }
       }
     } else if (rawModule === 'sst') {
       const sstGroupBtn = document.getElementById('nav-sst-group');
@@ -1297,15 +1307,23 @@ const App = (() => {
           case 'admin-requests': {
             const tipoKey = options.tipo || 'permisos';
             await AdminRequestsModule.render(container, tipoKey);
-            const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
-            const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
-            if (activeSubBtn) {
-              activeSubBtn.classList.add('active');
-              activeSubBtn.setAttribute('aria-current', 'page');
+            const navAdminPermisos = document.getElementById('nav-admin-permisos');
+            const isStandAloneVisible = navAdminPermisos && (navAdminPermisos.closest('li') ? window.getComputedStyle(navAdminPermisos.closest('li')).display !== 'none' : true);
+
+            if (tipoKey === 'permisos' && isStandAloneVisible) {
+              navAdminPermisos.classList.add('active');
+              navAdminPermisos.setAttribute('aria-current', 'page');
+            } else {
+              const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
+              const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
+              if (activeSubBtn) {
+                activeSubBtn.classList.add('active');
+                activeSubBtn.setAttribute('aria-current', 'page');
+              }
+              const adminGroupBtn = document.getElementById('nav-admin-group');
+              if (adminGroupBtn) adminGroupBtn.classList.add('active');
+              expandAdminGroup();
             }
-            const adminGroupBtn = document.getElementById('nav-admin-group');
-            if (adminGroupBtn) adminGroupBtn.classList.add('active');
-            expandAdminGroup();
             break;
           }
           case 'incapacidades': await IncapacidadesModule.render(container); break;
@@ -2380,23 +2398,27 @@ const App = (() => {
     if (scope !== 'all') {
       setVisibility('li-admin-errors', false);
       setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-permisos', false);
       setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', false);
+      setVisibility('nav-admin-permisos', false);
       setVisibility('nav-settings', true);
       applyRoleSidebarAccess(user);
       return;
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123):
+      // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123 / Alejandro#123):
       setVisibility('li-nav-dashboard', true);
       setVisibility('nav-dashboard', true);
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
+      setVisibility('li-admin-permisos', true);
       setVisibility('li-admin-modules-unlock', true);
       setVisibility('nav-admin-errors', true);
       setVisibility('nav-admin-backups', true);
+      setVisibility('nav-admin-permisos', true);
       setVisibility('nav-settings', true);
 
       const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
@@ -2442,9 +2464,11 @@ const App = (() => {
       const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
       setVisibility('li-admin-errors', false);
       setVisibility('li-admin-backups', canAccessBackups);
+      setVisibility('li-admin-permisos', false);
       setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', canAccessBackups);
+      setVisibility('nav-admin-permisos', false);
 
       // Mostrar sus módulos funcionales según permisos
       const hasDashboard = hasAll || mods.includes('dashboard');

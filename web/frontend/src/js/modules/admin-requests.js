@@ -356,6 +356,14 @@ const AdminRequestsModule = (() => {
     document.querySelectorAll('.nav-subitem').forEach(b => b.classList.remove('active'));
     const sideBtn = document.getElementById(sideMap[tipo]);
     if (sideBtn) sideBtn.classList.add('active');
+    const navAdminPerm = document.getElementById('nav-admin-permisos');
+    if (navAdminPerm) {
+      if (tipo === 'Permiso Laboral') {
+        navAdminPerm.classList.add('active');
+      } else {
+        navAdminPerm.classList.remove('active');
+      }
+    }
 
     const countEl = document.getElementById('adm-count');
     if (countEl) {
