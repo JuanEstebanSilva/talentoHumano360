@@ -1159,13 +1159,15 @@ router.post('/', auth, async (req, res) => {
   }
 
   // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
-  let finalDias = parseInt(dias, 10);
-  if (!finalDias || isNaN(finalDias) || finalDias < 1) {
-    if (dStart && dEnd) {
-      finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
-    } else {
-      finalDias = 1;
+  let finalDias = null;
+  if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
+    const parsedDias = parseInt(dias, 10);
+    if (!isNaN(parsedDias) && parsedDias > 0) {
+      finalDias = parsedDias;
     }
+  }
+  if (finalDias === null && dStart && dEnd) {
+    finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
   }
 
   let finalValorDiario = cleanMoney(valorDiario);
@@ -1335,9 +1337,21 @@ router.post('/bulk', auth, async (req, res) => {
       let cargo = (row.cargo || row.cargoActual || row['Cargo'] || '').toString().trim();
       const destino = (row.destino || row['Destino'] || row['LUGAR COMISION'] || 'SIN ESPECIFICAR').toString().trim();
       const motivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || 'Comisión de servicios').toString().trim();
-      const fechaInicio = (row.fechaInicio || row.fecha_inicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim();
-      const fechaFin = (row.fechaFin || row.fecha_fin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || fechaInicio || '').toString().trim();
-      const dias = parseInt(row.dias || row['Días'] || 1) || 1;
+      const fechaInicio = (row.fechaInicio || row.fecha_inicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim() || null;
+      const fechaFin = (row.fechaFin || row.fecha_fin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || '').toString().trim() || null;
+      let rawDias = pickFirst(row, ['dias', 'dias_comision', 'Días', 'DIAS', 'Dias', 'Duración', 'DURACION', 'duracion']);
+      let dias = null;
+      if (rawDias !== undefined && rawDias !== null && String(rawDias).trim() !== '') {
+        const pDias = parseInt(rawDias, 10);
+        if (!isNaN(pDias) && pDias > 0) dias = pDias;
+      }
+      if (dias === null && fechaInicio && fechaFin) {
+        const dS = parseDateInput(fechaInicio);
+        const dE = parseDateInput(fechaFin);
+        if (dS && dE && dE >= dS) {
+          dias = Math.max(1, Math.round((dE - dS) / (1000 * 60 * 60 * 24)) + 1);
+        }
+      }
       const estado = normalizeStatus(row.estado || row['Estado'] || 'Aprobada');
       const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
@@ -1547,12 +1561,18 @@ router.put('/:id', auth, async (req, res) => {
     // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
     const dStart = parseDateInput(fechaInicio);
     const dEnd = parseDateInput(fechaFin);
-    let finalDias = parseInt(dias, 10);
-    if (!finalDias || isNaN(finalDias) || finalDias < 1) {
+    let finalDias = null;
+    if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
+      const parsedDias = parseInt(dias, 10);
+      if (!isNaN(parsedDias) && parsedDias > 0) {
+        finalDias = parsedDias;
+      }
+    }
+    if (finalDias === null) {
       if (dStart && dEnd) {
         finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
-      } else {
-        finalDias = currentViatico.dias || 1;
+      } else if (dias === undefined) {
+        finalDias = currentViatico.dias;
       }
     }
 

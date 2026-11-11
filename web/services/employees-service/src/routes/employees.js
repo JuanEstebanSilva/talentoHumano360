@@ -176,6 +176,7 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
     const params = [`%${rawTerm}%`];
     let whereQuery = `
       WHERE (COALESCE(p.es_vacante, false) = false AND COALESCE(p.primer_apellido, '') != 'VACANTE')
+        AND (p.cedula != 'PROV-00003' AND UPPER(COALESCE(p.nombre_completo, '')) NOT LIKE '%SUPERVISOR%')
         AND (
           LOWER(p.nombre_completo) LIKE LOWER($1)
           OR p.cedula LIKE $1

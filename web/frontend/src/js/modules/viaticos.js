@@ -591,7 +591,7 @@ const ViaticosModule = (() => {
         <td title="${escHtml(r.dependencia)}">${escHtml(truncate(r.dependencia, 24)) || '—'}</td>
         <td title="${escHtml(r.destino)}">${escHtml(truncate(r.destino, 20)) || '—'}</td>
         <td>${escHtml(r.fechaInicio || '—')}</td>
-        <td>${escHtml(String(r.dias ?? '—'))} días</td>
+        <td>${r.dias != null ? `${escHtml(String(r.dias))} días` : '<span class="text-muted" title="Sin duración registrada">—</span>'}</td>
         <td class="td-currency">${formatCOP(r.valorTotal)}</td>
         <td>
           ${Auth.canEdit('viaticos') ? `
@@ -1701,7 +1701,7 @@ const ViaticosModule = (() => {
                 <span class="ficha-card-label">Días Registrados</span>
               </div>
               <div class="ficha-card-val font-mono" style="font-size:1.25rem; font-weight:800;">
-                ${escHtml(r.dias ?? '1')} ${r.dias === 1 ? 'día' : 'días'}
+                ${r.dias != null ? `${escHtml(String(r.dias))} ${r.dias === 1 ? 'día' : 'días'}` : '—'}
               </div>
               <div class="ficha-card-sub">Duración reportada de la comisión</div>
             </div>
@@ -2162,7 +2162,7 @@ const ViaticosModule = (() => {
           <div class="status-picker-person">${escHtml(r.persona)}</div>
           <div class="status-picker-tags">
             <span class="status-picker-tag">📍 ${escHtml(r.destino || 'Destino no especificado')}</span>
-            <span class="status-picker-tag">📅 ${escHtml(r.fechaInicio || '—')} (${r.dias || 1} días)</span>
+            <span class="status-picker-tag">📅 ${escHtml(r.fechaInicio || '—')} (${r.dias != null ? `${r.dias} días` : 'Duración no informada'})</span>
             <span class="status-picker-tag">💰 ${formatCOP(r.valorTotal)}</span>
             <span class="status-picker-tag">Estado actual: <strong class="badge ${badgeClass(r.estado)}" style="margin-left:4px">${r.estado}</strong></span>
           </div>
@@ -4428,11 +4428,12 @@ const ViaticosModule = (() => {
             }
             if (headerIdx === -1) headerIdx = 0;
             const headerRow = sheetData[headerIdx] || [];
-            let colNom = -1, colFecha = -1, colDest = -1, colVal = -1, colRes = -1, colSaldo = -1, colObs = -1;
+            let colNom = -1, colFecha = -1, colDest = -1, colVal = -1, colRes = -1, colSaldo = -1, colObs = -1, colDias = -1;
             headerRow.forEach((c, idx) => {
               const u = String(c).toUpperCase();
               if (u.includes('NOMBRE') || u.includes('SERVIDOR')) colNom = idx;
               else if (u.includes('FECHA')) colFecha = idx;
+              else if (u.includes('DÍA') || u.includes('DIA') || u.includes('DURAC')) colDias = idx;
               else if (u.includes('LUGAR') || u.includes('DESTINO')) colDest = idx;
               else if (u.includes('VALOR') || u.includes('TOTAL')) colVal = idx;
               else if (u.includes('RESOL') || u.includes('ACTO')) colRes = idx;
@@ -4453,6 +4454,7 @@ const ViaticosModule = (() => {
               const nomStr = String(nom).trim();
               if (['TOTAL', 'SUBTOTAL', 'SALDO', 'FIRMA'].includes(nomStr.toUpperCase())) continue;
               const rawFecha = row[colFecha];
+              const explicitDias = colDias !== -1 ? row[colDias] : null;
               const resolVal = colRes !== -1 && row[colRes] ? String(row[colRes]).trim() : '';
               const destVal = colDest !== -1 && row[colDest] ? String(row[colDest]).trim() : 'SIN ESPECIFICAR';
               const valNum = colVal !== -1 && row[colVal] != null ? cleanMoneyNum(row[colVal]) : null;
@@ -4460,7 +4462,7 @@ const ViaticosModule = (() => {
               const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
               const obsVal = colObs !== -1 && row[colObs] ? String(row[colObs]).trim() : '';
 
-              const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal) : { start: '01/01/2026', end: '01/01/2026', dias: 1 };
+              const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal, explicitDias) : { start: null, end: null, dias: explicitDias ? parseInt(explicitDias, 10) : null };
 
               allRows.push({
                 persona: nomStr,
@@ -4469,7 +4471,7 @@ const ViaticosModule = (() => {
                 motivo: 'Comisión institucional de servicios',
                 fechaInicio: dInfo.start,
                 fechaFin: dInfo.end,
-                dias: dInfo.dias || 1,
+                dias: dInfo.dias,
                 valorDiario: (dInfo.dias > 0 && valor > 0) ? parseFloat((valor / dInfo.dias).toFixed(2)) : 0,
                 valorTotal: valor,
                 estado: (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada',
@@ -4791,27 +4793,63 @@ const ViaticosModule = (() => {
     }
 
     // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
-    function parseDateRobust(rawVal, resolucionStr) {
+    function isValidCalendarDate(d, m, y) {
+      const day = parseInt(d, 10);
+      const month = parseInt(m, 10);
+      const year = parseInt(y, 10);
+      if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+      if (year < 1900 || year > 2100) return false;
+      if (month < 1 || month > 12) return false;
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return day >= 1 && day <= daysInMonth;
+    }
+
+    function parseDateRobust(rawVal, resolucionStr, explicitDias) {
+      const expD = (explicitDias !== undefined && explicitDias !== null && String(explicitDias).trim() !== '' && !isNaN(parseInt(explicitDias, 10)) && parseInt(explicitDias, 10) > 0)
+        ? parseInt(explicitDias, 10)
+        : null;
+
       if (rawVal == null || String(rawVal).trim() === '') {
-        return { start: null, end: null, dias: 1, raw: null };
+        return { start: null, end: null, dias: expD, raw: null };
       }
 
       if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
         const sDate = excelSerialToDate(rawVal);
-        if (sDate) return { start: sDate, end: sDate, dias: 1, raw: rawVal };
+        if (sDate) {
+          const [d, m, y] = sDate.split('/');
+          if (isValidCalendarDate(d, m, y)) {
+            return { start: sDate, end: sDate, dias: expD || 1, raw: rawVal };
+          }
+        }
       }
 
       if (rawVal instanceof Date) {
         const d = String(rawVal.getUTCDate()).padStart(2, '0');
         const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
         const y = rawVal.getUTCFullYear();
-        const dStr = `${d}/${m}/${y}`;
-        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
+        if (isValidCalendarDate(d, m, y)) {
+          const dStr = `${d}/${m}/${y}`;
+          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+        }
+        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
       }
 
       let s = String(rawVal).trim().replace(/\s+/g, '');
       const mResol = s.match(/^\d{3,4}\/(\d{1,2}\/\d{1,2}\/\d{2,4})$/);
       if (mResol) s = mResol[1];
+
+      // Formato ISO YYYY-MM-DD
+      const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if (isoMatch) {
+        const y = isoMatch[1];
+        const m = isoMatch[2].padStart(2, '0');
+        const d = isoMatch[3].padStart(2, '0');
+        if (isValidCalendarDate(d, m, y)) {
+          const dStr = `${d}/${m}/${y}`;
+          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+        }
+        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+      }
 
       // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
       s = s.replace(/\/203$/, '/2023');
@@ -4843,13 +4881,19 @@ const ViaticosModule = (() => {
           return cl;
         }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
 
-        if (days.length > 1) {
-          const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
-          const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
-          return { start, end, dias: days.length, raw: rawVal };
+        if (days.length > 0) {
+          const allDaysValid = days.every(d => isValidCalendarDate(d, month, year));
+          if (!allDaysValid) {
+            return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+          }
+          if (days.length > 1) {
+            const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
+            const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
+            return { start, end, dias: expD || days.length, raw: rawVal };
+          }
+          const single = `${days[0].padStart(2, '0')}/${month}/${year}`;
+          return { start: single, end: single, dias: expD || 1, raw: rawVal };
         }
-        const single = `${(days[0] || '01').padStart(2, '0')}/${month}/${year}`;
-        return { start: single, end: single, dias: 1, raw: rawVal };
       } else if (parts.length === 4) {
         let day1Part = parts[0];
         let m1Part = parts[1];
@@ -4865,9 +4909,13 @@ const ViaticosModule = (() => {
           const d1Tokens = day1Part.split(',').filter(Boolean);
           const d2Tokens = [m1Part];
           const startMonth = month2;
-          const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
-          const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
-          return { start, end, dias: d1Tokens.length + d2Tokens.length, raw: rawVal };
+          const startValid = d1Tokens.every(d => isValidCalendarDate(d, startMonth, year));
+          const endValid = d2Tokens.every(d => isValidCalendarDate(d, month2, year));
+          if (startValid && endValid) {
+            const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
+            const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
+            return { start, end, dias: expD || (d1Tokens.length + d2Tokens.length), raw: rawVal };
+          }
         }
       } else if (parts.length >= 5) {
         let year = parts[parts.length - 1];
@@ -4877,22 +4925,31 @@ const ViaticosModule = (() => {
         let startMonth = parts[1].padStart(2, '0');
         let startDays = parts[0].split(',').filter(Boolean);
 
-        const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
-        const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
-        const dias = (startDays.length || 1) + (endDays.length || 1);
-        return { start, end, dias, raw: rawVal };
+        const startValid = startDays.every(d => isValidCalendarDate(d, startMonth, year));
+        const endValid = endDays.every(d => isValidCalendarDate(d, endMonth, year));
+        if (startValid && endValid) {
+          const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
+          const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
+          const dias = expD || ((startDays.length || 1) + (endDays.length || 1));
+          return { start, end, dias, raw: rawVal };
+        }
       }
 
-      const mMatch = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      const mMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
       if (mMatch) {
         let yr = mMatch[3];
         if (yr.length === 2) yr = '20' + yr;
-        const dStr = `${mMatch[1].padStart(2, '0')}/${mMatch[2].padStart(2, '0')}/${yr}`;
-        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
+        const d = mMatch[1].padStart(2, '0');
+        const mo = mMatch[2].padStart(2, '0');
+        if (isValidCalendarDate(d, mo, yr)) {
+          const dStr = `${d}/${mo}/${yr}`;
+          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+        }
+        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
       }
 
-      // Si el formato no corresponde a una fecha reconocible, no inventar fechas
-      return { start: null, end: null, dias: 1, raw: rawVal, invalid: true };
+      // Si el formato no corresponde a una fecha reconocible, no inventar fechas ni duración
+      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
     }
 
     // ─── Confirmación y procesamiento masivo con SheetJS ────────────────────
@@ -4967,7 +5024,7 @@ const ViaticosModule = (() => {
                     destino: (jr['Destino'] || jr.destino || 'SIN ESPECIFICAR').toString().trim(),
                     fechaInicio: (jr['Fecha Salida'] || jr['Fecha Inicio'] || jr.fechaInicio || '').toString().trim(),
                     fechaFin: (jr['Fecha Retorno'] || jr['Fecha Fin'] || jr.fechaFin || '').toString().trim(),
-                    dias: parseInt(jr['Días'] || jr.dias || 1) || 1,
+                    dias: (jr['Días'] !== undefined && jr['Días'] !== null && String(jr['Días']).trim() !== '') ? parseInt(jr['Días'], 10) : ((jr.dias !== undefined && jr.dias !== null && String(jr.dias).trim() !== '') ? parseInt(jr.dias, 10) : null),
                     valorDiario: parseFloat(jr['Valor Diario'] || jr.valorDiario || 0) || 0,
                     valorTotal: parseFloat(jr['Valor Total'] || jr.valorTotal || 0) || 0,
                     estado: (jr['Estado'] || jr.estado || 'Aprobada').toString().trim(),
@@ -4986,6 +5043,7 @@ const ViaticosModule = (() => {
           const headerRow = sheetData[headerIdx] || [];
           let colNombre = -1;
           let colFecha = -1;
+          let colDias = -1;
           let colDestino = -1;
           let colResolucion = -1;
           let colValor = -1;
@@ -4996,6 +5054,7 @@ const ViaticosModule = (() => {
             const hStr = String(cell || '').trim().toUpperCase();
             if (hStr.includes('NOMBRE') || hStr.includes('FUNCIONARIO') || hStr.includes('SERVIDOR')) colNombre = idx;
             else if (hStr.includes('FECHA')) colFecha = idx;
+            else if (hStr.includes('DÍA') || hStr.includes('DIA') || hStr.includes('DURAC')) colDias = idx;
             else if (hStr.includes('LUGAR') || hStr.includes('DESTINO') || hStr.includes('COMISION')) colDestino = idx;
             else if (hStr.includes('RESOLUCION') || hStr.includes('RESOL') || hStr.includes('ACTO')) colResolucion = idx;
             else if (hStr.includes('VALOR') || hStr.includes('TOTAL') || hStr.includes('COSTO')) colValor = idx;
@@ -5022,6 +5081,7 @@ const ViaticosModule = (() => {
             if (['TOTAL', 'SUBTOTAL', 'SALDO', 'FIRMA', 'RESUMEN'].includes(nomUpper)) continue;
 
             const rawFecha = row[colFecha];
+            const explicitDias = colDias !== -1 ? row[colDias] : null;
             const resolVal = row[colResolucion] ? String(row[colResolucion]).trim() : '';
             const destinoVal = row[colDestino] ? String(row[colDestino]).trim().toUpperCase() : 'SIN ESPECIFICAR';
             const valNum = colValor !== -1 && row[colValor] != null ? cleanMoneyNum(row[colValor]) : null;
@@ -5029,9 +5089,9 @@ const ViaticosModule = (() => {
             const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
             const obsVal = row[colObs] ? String(row[colObs]).trim() : '';
 
-            const dInfo = parseDateRobust(rawFecha, resolVal);
-            const dias = dInfo.dias || 1;
-            const valorDiario = dias > 0 && valor > 0 ? parseFloat((valor / dias).toFixed(2)) : 0;
+            const dInfo = parseDateRobust(rawFecha, resolVal, explicitDias);
+            const dias = dInfo.dias;
+            const valorDiario = (dias > 0 && valor > 0) ? parseFloat((valor / dias).toFixed(2)) : 0;
             const estado = (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada';
 
             allRows.push({
