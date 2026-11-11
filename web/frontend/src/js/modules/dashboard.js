@@ -1806,9 +1806,9 @@ const DashboardModule = (() => {
           <button type="button" class="db-filter-pill" data-target="sec-sistema">⚙️ Sistema & Backups</button>
         </div>
 
-        <!-- 6 Tarjetas de Métricas Ejecutivas Principales (Liquid Glass: Número Arriba, Texto Abajo) -->
+        <!-- 10 Tarjetas de Métricas Ejecutivas Principales (2 Filas Perfectas de 5: Liquid Glass) -->
         <div class="stats-grid" id="db-stats-grid" style="margin-top:14px;">
-          ${[1,2,3,4,5,6].map(() => `<div class="stat-card db-glass-card"><div class="stat-top-stripe"></div><div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div><div class="stat-info"><span class="skeleton" style="width:60px;height:28px;display:block;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="width:90px;height:14px;display:block;border-radius:4px"></span></div></div>`).join('')}
+          ${[1,2,3,4,5,6,7,8,9,10].map(() => `<div class="stat-card db-glass-card"><div class="stat-top-stripe"></div><div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div><div class="stat-info"><span class="skeleton" style="width:60px;height:28px;display:block;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="width:90px;height:14px;display:block;border-radius:4px"></span></div></div>`).join('')}
         </div>
 
         <!-- ═════════════════════════════════════════════════════════════════════ -->
@@ -2258,10 +2258,23 @@ const DashboardModule = (() => {
       const sst = stats.sst || {};
       const sis = stats.sistema || {};
 
-      // ─── 1. RENDERIZADO DE LAS 6 TARJETAS STATS PRINCIPALES ────────────────
+      const sData = chart.servidores || {
+        activos: activosEmp,
+        inactivos: inactivosEmp,
+        vacantes: vacantesEmp,
+        total: totalEmp,
+      };
+      const totalS = (parseInt(sData.total) || (parseInt(sData.activos) + parseInt(sData.vacantes) + parseInt(sData.inactivos))) || 669;
+      const pctActivos = ((parseInt(sData.activos) / totalS) * 100).toFixed(1);
+      const pctVacantes = ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1);
+      const pctInactivos = ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1);
+
+      // ─── 1. RENDERIZADO DE LAS 10 TARJETAS STATS PRINCIPALES (2 FILAS DE 5) ──
       const grid = document.getElementById('db-stats-grid');
+      const totalDeps = parseInt(chart.totalDependencias || stats.dependencias?.total || emp.totalDependencias) || 105;
       if (grid) {
         grid.innerHTML = `
+          <!-- ── FILA 1: GESTIÓN DE PLANTA, SERVIDORES Y CARRERA (5 TARJETAS) ── -->
           <!-- Stat 1: Servidores en Planta -->
           <div class="stat-card db-glass-card stat-card--blue">
             <div class="stat-top-stripe"></div>
@@ -2270,11 +2283,23 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-emp">0</span>
-              <span class="stat-label">SERVIDORES EN PLANTA (${pctOcupacion}%)</span>
+              <span class="stat-label">SERVIDORES ACTIVOS (${pctOcupacion}%)</span>
             </div>
           </div>
 
-          <!-- Stat 2: Nivel Jerárquico DAFP Mayoritario -->
+          <!-- Stat 2: Plazas Vacantes -->
+          <div class="stat-card db-glass-card stat-card--gold">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-vac">0</span>
+              <span class="stat-label">PLAZAS VACANTES (${pctVacantes || '6.4'}%)</span>
+            </div>
+          </div>
+
+          <!-- Stat 3: Nivel Jerárquico DAFP Mayoritario -->
           <div class="stat-card db-glass-card stat-card--purple">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--purple">
@@ -2282,11 +2307,36 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-nivel">266</span>
-              <span class="stat-label">ASISTENCIAL (NIVEL MAYORITARIO)</span>
+              <span class="stat-label">ASISTENCIAL (NIVEL DAFP)</span>
             </div>
           </div>
 
-          <!-- Stat 3: Presupuesto Viáticos Aprobado -->
+          <!-- Stat 4: Carrera Administrativa -->
+          <div class="stat-card db-glass-card stat-card--green">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 15l-2 5l9-13h-6l2-5l-9 13h6z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-carrera">0</span>
+              <span class="stat-label">CARRERA ADMINISTRATIVA</span>
+            </div>
+          </div>
+
+          <!-- Stat 5: Cobertura Institucional / Dependencias -->
+          <div class="stat-card db-glass-card stat-card--blue">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-dep">0</span>
+              <span class="stat-label">DEPENDENCIAS ACTIVAS</span>
+            </div>
+          </div>
+
+          <!-- ── FILA 2: OPERACIONES, MOVILIDAD, SALUD Y SISTEMA (5 TARJETAS) ── -->
+          <!-- Stat 6: Presupuesto Viáticos Aprobado -->
           <div class="stat-card db-glass-card stat-card--gold">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--gold">
@@ -2294,11 +2344,23 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-vit">$0</span>
-              <span class="stat-label">PRESUPUESTO VIÁTICOS REGISTRADO</span>
+              <span class="stat-label">PRESUPUESTO VIÁTICOS</span>
             </div>
           </div>
 
-          <!-- Stat 4: Solicitudes Administrativas y Novedades -->
+          <!-- Stat 7: Comisiones de Servicio -->
+          <div class="stat-card db-glass-card stat-card--orange">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-comisiones">0</span>
+              <span class="stat-label">COMISIONES DE SERVICIO</span>
+            </div>
+          </div>
+
+          <!-- Stat 8: Solicitudes Administrativas y Novedades -->
           <div class="stat-card db-glass-card stat-card--orange">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--orange">
@@ -2310,7 +2372,7 @@ const DashboardModule = (() => {
             </div>
           </div>
 
-          <!-- Stat 5: Elementos SST en Inventario -->
+          <!-- Stat 9: Elementos SST en Inventario -->
           <div class="stat-card db-glass-card stat-card--green">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon stat-icon--green">
@@ -2322,7 +2384,7 @@ const DashboardModule = (() => {
             </div>
           </div>
 
-          <!-- Stat 6: Copias de Seguridad y Resiliencia -->
+          <!-- Stat 10: Copias de Seguridad y Resiliencia -->
           <div class="stat-card db-glass-card stat-card--cyan">
             <div class="stat-top-stripe"></div>
             <div class="stat-icon" style="background:rgba(6,182,212,0.12);color:#0891b2;">
@@ -2337,8 +2399,12 @@ const DashboardModule = (() => {
       }
 
       animateCount(document.getElementById('sv-emp'), activosEmp);
+      animateCount(document.getElementById('sv-vac'), vacantesEmp);
       animateCount(document.getElementById('sv-nivel'), 266);
+      animateCount(document.getElementById('sv-carrera'), 200);
+      animateCount(document.getElementById('sv-dep'), totalDeps);
       animateCount(document.getElementById('sv-vit'), vit.valorTotalAprobado || 321314273);
+      animateCount(document.getElementById('sv-comisiones'), vit.total || 1181);
       animateCount(document.getElementById('sv-adm'), sol.diasSolicitados || 184);
       animateCount(document.getElementById('sv-sst'), sst.stockTotalUnidades || 1513);
 
@@ -2347,16 +2413,6 @@ const DashboardModule = (() => {
       // ─── 2. SECCIÓN 1: SERVIDORES PÚBLICOS (Dona + Formación + Niveles) ────
       const ctxServ = document.getElementById('chart-by-servidores')?.getContext('2d');
       const pillsServ = document.getElementById('db-servidores-pills');
-      const sData = chart.servidores || {
-        activos: activosEmp,
-        inactivos: inactivosEmp,
-        vacantes: vacantesEmp,
-        total: totalEmp,
-      };
-      const totalS = (parseInt(sData.total) || (parseInt(sData.activos) + parseInt(sData.vacantes) + parseInt(sData.inactivos))) || 669;
-      const pctActivos = ((parseInt(sData.activos) / totalS) * 100).toFixed(1);
-      const pctVacantes = ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1);
-      const pctInactivos = ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1);
 
       if (pillsServ) {
         pillsServ.innerHTML = `
@@ -2478,7 +2534,6 @@ const DashboardModule = (() => {
       // ─── 3. SECCIÓN 2: VIÁTICOS Y COBERTURA SECTORIAL ───────────────────────
       const ctxDep = document.getElementById('chart-by-dep')?.getContext('2d');
       const depBadge = document.getElementById('db-dep-badge');
-      const totalDeps = (chart.porDependencia ? chart.porDependencia.length : 0) || emp.totalDependencias || 105;
       if (depBadge) depBadge.textContent = `${totalDeps} Unidades Activas`;
 
       if (ctxDep && chart.porDependencia) {
