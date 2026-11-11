@@ -326,27 +326,23 @@ function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
 
           <!-- Header Section with Official Branding -->
           <tr>
-            <td style="background:#092e1f;background:radial-gradient(circle at 50% 0%, rgba(209, 173, 42, 0.22) 0%, transparent 70%), linear-gradient(145deg, #062316 0%, #0f4a33 55%, #08291c 100%);padding:36px 24px 32px;text-align:center;border-bottom:2px solid rgba(209, 173, 42, 0.45);">
+            <td style="background:#092e1f;background:radial-gradient(circle at 50% 0%, rgba(209, 173, 42, 0.22) 0%, transparent 70%), linear-gradient(145deg, #062316 0%, #0f4a33 55%, #08291c 100%);padding:36px 24px 30px;text-align:center;border-bottom:2px solid rgba(209, 173, 42, 0.45);">
               
-              <!-- Official Coat of Arms / Cóndor Medallion -->
-              <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto 14px;">
-                <tr>
-                  <td align="center" style="width:76px;height:76px;border-radius:50%;background:#ffffff;border:2.5px solid #D1AD2A;box-shadow:0 8px 24px rgba(0,0,0,0.35);text-align:center;vertical-align:middle;padding:7px;">
-                    <img src="cid:logoCondor" alt="Escudo Gobernación de Boyacá" width="60" height="60" style="display:block;margin:0 auto;width:60px;height:60px;max-width:60px;border:0;outline:none;" />
-                  </td>
-                </tr>
-              </table>
+              <!-- Official Coat of Arms / Cóndor (Limpio, SIN círculo blanco ni fondo artificial) -->
+              <div style="text-align:center;margin:0 auto 12px;">
+                <img src="cid:logoCondor" alt="Escudo Gobernación de Boyacá" width="68" height="68" style="display:inline-block;margin:0 auto;width:68px;height:68px;max-width:68px;border:0;outline:none;" />
+              </div>
 
-              <!-- Institutional Pill -->
-              <div style="display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(209,173,42,0.50);border-radius:30px;padding:4px 18px;margin-bottom:12px;">
-                <span style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:#FDE047;text-transform:uppercase;">GOBERNACIÓN DE BOYACÁ</span>
+              <!-- Institutional Subtitle (Limpio, SIN fondo innecesario ni bordes) -->
+              <div style="margin-bottom:8px;text-align:center;">
+                <span style="font-size:12px;font-weight:800;letter-spacing:2px;color:#FDE047;text-transform:uppercase;">GOBERNACIÓN DE BOYACÁ</span>
               </div>
 
               <!-- Application Wordmark -->
-              <div style="font-size:30px;font-weight:900;letter-spacing:-0.5px;line-height:1.15;margin:0;">
+              <div style="font-size:30px;font-weight:900;letter-spacing:-0.5px;line-height:1.15;margin:0;text-align:center;">
                 <span style="color:#ffffff;">Talento</span><span style="color:#D1AD2A;"> 360</span>
               </div>
-              <div style="margin-top:6px;color:#cbd5e1;font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">
+              <div style="margin-top:6px;color:#cbd5e1;font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;text-align:center;">
                 Sistema Integral de Gestión de Talento Humano
               </div>
             </td>
@@ -356,9 +352,9 @@ function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
           <tr>
             <td style="padding:36px 36px 28px;">
               
-              <!-- Category Badge -->
-              <div style="display:inline-block;background:rgba(115,137,147,0.12);border:1px solid #738993;border-radius:20px;padding:4px 14px;margin-bottom:18px;">
-                <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#738993;text-transform:uppercase;">Seguridad &bull; Restablecimiento de Acceso</span>
+              <!-- Category Label (Limpio, SIN fondo gris ni marco) -->
+              <div style="margin-bottom:14px;">
+                <span style="font-size:11.5px;font-weight:800;letter-spacing:1.5px;color:#738993;text-transform:uppercase;">Seguridad &bull; Restablecimiento de Acceso</span>
               </div>
 
               <h2 style="margin:0 0 16px;color:#0f172a;font-size:22px;font-weight:800;letter-spacing:-0.3px;">
@@ -396,9 +392,9 @@ function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
                       </tr>
                     </table>
 
-                    <!-- Timer Pill -->
-                    <div style="margin-top:16px;">
-                      <span style="display:inline-block;background:rgba(209,70,0,0.08);border:1px solid rgba(209,70,0,0.32);border-radius:20px;padding:5px 14px;font-size:12.5px;color:#D14600;font-weight:700;">
+                    <!-- Timer Note (Limpio, SIN fondo ni marco) -->
+                    <div style="margin-top:14px;text-align:center;">
+                      <span style="font-size:13px;color:#D14600;font-weight:700;letter-spacing:0.2px;">
                         &#9201; Vigencia limitada: 24 horas a partir de este momento
                       </span>
                     </div>
