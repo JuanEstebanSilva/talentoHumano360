@@ -50,7 +50,25 @@ function auth(req, res, next) {
 // ─── GET /api/dashboard/stats ─────────────────────────────────────────────────
 router.get('/stats', auth, async (_, res) => {
   try {
-    const [empleados, vacaciones, adminReqs, viaticos, recientes, dependenciasCount] = await Promise.all([
+    const [
+      empleados,
+      vacaciones,
+      adminReqs,
+      viaticos,
+      recientes,
+      dependenciasCount,
+      cargosNivel,
+      clasifEmpleo,
+      horariosStats,
+      viaticosDetalle,
+      topDestinos,
+      sstStats,
+      sistemaStats,
+      solicitudesEps,
+      educacionStats,
+      inventarioStats,
+      ultimoBackupRes
+    ] = await Promise.all([
       pool.query(`
         SELECT 
           COUNT(*) AS total,
@@ -87,18 +105,23 @@ router.get('/stats', auth, async (_, res) => {
         SELECT COUNT(*) AS total,
                COUNT(*) FILTER (WHERE LOWER(estado)='pendiente' OR estado IS NULL) AS pendientes,
                COUNT(*) FILTER (WHERE LOWER(estado) LIKE '%aprobad%' OR LOWER(estado) LIKE '%finaliz%') AS aprobadas,
-               COUNT(*) FILTER (WHERE LOWER(estado) LIKE '%rechazad%') AS rechazadas
+               COUNT(*) FILTER (WHERE LOWER(estado) LIKE '%rechazad%') AS rechazadas,
+               COALESCE(SUM(NULLIF(regexp_replace(dias_totales, '[^0-9]', '', 'g'), '')::numeric), 0) AS dias_totales
         FROM vacaciones`),
       pool.query(`
         SELECT
+          COUNT(*) AS total,
           COUNT(*) FILTER (WHERE tipo='Permiso Laboral') AS permisos,
           COUNT(*) FILTER (WHERE tipo='Incapacidad') AS incapacidades,
           COUNT(*) FILTER (WHERE tipo='Licencia') AS licencias,
-          COUNT(*) FILTER (WHERE estado='Pendiente') AS pendientes
+          COUNT(*) FILTER (WHERE LOWER(estado) IN ('aprobada', 'aprobado', 'finalizada')) AS aprobadas,
+          COUNT(*) FILTER (WHERE LOWER(estado) IN ('pendiente', 'en revisión', 'en revision', 'radicado')) AS pendientes,
+          COUNT(*) FILTER (WHERE LOWER(estado) IN ('rechazada', 'rechazado')) AS rechazadas,
+          COALESCE(SUM(dias_solicitados), 0) AS dias_solicitados
         FROM solicitudes_admin`),
       pool.query(`
         SELECT COUNT(*) AS total,
-               COALESCE(SUM(valor_total) FILTER (WHERE estado IN ('Aprobada','Finalizada')), 0) AS valor_total
+               COALESCE(SUM(valor_total) FILTER (WHERE estado IN ('Aprobada','Aprobado','Finalizada','Legalizado')), 0) AS valor_total
         FROM viaticos`),
       // Últimas actividades (mezcla de módulos)
       pool.query(`
@@ -127,6 +150,108 @@ router.get('/stats', auth, async (_, res) => {
         WHERE d.dependencia IS NOT NULL 
           AND TRIM(d.dependencia) != ''
           AND UPPER(TRIM(d.dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
+      `),
+      // Servidores por Nivel Jerárquico DAFP
+      pool.query(`
+        SELECT COALESCE(UPPER(TRIM(c.nivel)), 'SIN CLASIFICAR') AS nivel, count(r.id_registro) AS cantidad
+        FROM rel_principal r
+        LEFT JOIN cargos c ON c.id_cargo = COALESCE(r.id_cargo_actual, r.id_cargo_base)
+        GROUP BY c.nivel
+        ORDER BY cantidad DESC
+      `),
+      // Servidores por Clasificación del Empleo (Carrera, Encargo, etc.)
+      pool.query(`
+        SELECT COALESCE(TRIM(e.clasificacion_empleo), 'Sin Clasificar') AS tipo, count(*) AS cantidad
+        FROM rel_principal r
+        LEFT JOIN estados e ON e.id_estado = r.id_estado
+        GROUP BY e.clasificacion_empleo
+        ORDER BY cantidad DESC
+        LIMIT 6
+      `),
+      // Horarios y Nuevas Modalidades Laborales
+      pool.query(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(modalidad, '')) LIKE '%teletrabajo%') AS teletrabajo,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(modalidad, '')) LIKE '%casa%') AS trabajo_casa,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(modalidad, '')) LIKE '%flex%') AS horario_flexible,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(modalidad, '')) LIKE '%presencial%') AS presencial
+        FROM horarios
+      `),
+      // Viáticos y Comisiones Detalladas
+      pool.query(`
+        SELECT
+          COUNT(*) AS total,
+          COALESCE(SUM(valor_total) FILTER (WHERE estado IN ('Aprobada','Aprobado','Finalizada','Legalizado')), 0) AS valor_total,
+          COALESCE(AVG(valor_total) FILTER (WHERE estado IN ('Aprobada','Aprobado','Finalizada','Legalizado')), 0) AS valor_promedio,
+          COALESCE(AVG(dias), 0) AS dias_promedio,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(estado, '')) IN ('legalizado','finalizada')) AS legalizados,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(estado, '')) IN ('aprobado','aprobada')) AS aprobados,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(estado, '')) IN ('radicado','pendiente')) AS pendientes
+        FROM viaticos
+      `),
+      // Top Destinos de Viáticos
+      pool.query(`
+        SELECT COALESCE(UPPER(TRIM(destino)), 'SIN DESTINO') AS destino,
+               COUNT(*) AS comisiones,
+               COALESCE(SUM(valor_total), 0) AS total_valor
+        FROM viaticos
+        GROUP BY destino
+        ORDER BY comisiones DESC
+        LIMIT 5
+      `),
+      // Estadísticas de SST
+      pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM sst_perfil_epidemiologico) AS total_evaluaciones,
+          (SELECT COUNT(*) FILTER (WHERE accidente_trabajo IS NOT NULL AND LOWER(accidente_trabajo) NOT IN ('no', 'ninguno', '')) FROM sst_perfil_epidemiologico) AS accidentes_trabajo,
+          (SELECT COUNT(*) FILTER (WHERE enfermedad_laboral IS NOT NULL AND LOWER(enfermedad_laboral) NOT IN ('no', 'ninguno', '')) FROM sst_perfil_epidemiologico) AS enfermedades_laborales,
+          (SELECT COUNT(*) FROM sst_entrega_epp) AS entregas_epp,
+          (SELECT COALESCE(SUM(NULLIF(regexp_replace(cantidad, '[^0-9]', '', 'g'), '')::numeric), 0) FROM sst_entrega_epp) AS total_elementos_epp
+      `),
+      // Estadísticas del Sistema y Backups
+      pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM system_backups) AS total_backups,
+          (SELECT COUNT(*) FROM system_backups WHERE LOWER(estado) = 'completado') AS backups_exitosos,
+          (SELECT COALESCE(SUM(filesize), 0) FROM system_backups) AS espacio_total,
+          (SELECT COUNT(*) FROM system_errors) AS total_errores,
+          (SELECT COUNT(*) FROM system_errors WHERE estado = 'Pendiente') AS errores_pendientes,
+          (SELECT COUNT(*) FROM system_errors WHERE estado = 'Resuelto') AS errores_resueltos
+      `),
+      // Desglose de Incapacidades por EPS
+      pool.query(`
+        SELECT COALESCE(UPPER(TRIM(eps)), 'OTRA') AS eps,
+               COUNT(*) AS cantidad,
+               COALESCE(SUM(dias_solicitados), 0) AS dias
+        FROM solicitudes_admin
+        WHERE eps IS NOT NULL AND TRIM(eps) != ''
+        GROUP BY eps
+        ORDER BY cantidad DESC
+        LIMIT 5
+      `),
+      // Estadísticas de Educación y Formación Académica
+      pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE postgrado IS NOT NULL AND postgrado != '' AND postgrado != 'NO APLICA') AS con_postgrado,
+          COUNT(*) FILTER (WHERE tiene_diplomado = true) AS con_diplomado,
+          COUNT(*) FILTER (WHERE matricula_profesional IS NOT NULL AND matricula_profesional != '' AND matricula_profesional != 'NO APLICA') AS con_matricula
+        FROM educacion
+      `),
+      // Inventario EPP y Documentos Institucionales
+      pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM sst_inventario_epp) AS referencias_epp,
+          (SELECT COALESCE(SUM(stock_total), 0) FROM sst_inventario_epp) AS stock_total_unidades,
+          (SELECT COUNT(*) FILTER (WHERE stock_total <= stock_minimo) FROM sst_inventario_epp) AS en_alerta_stock,
+          (SELECT COUNT(*) FROM documentos_institucionales WHERE activo = true) AS documentos_activos
+      `),
+      // Última Copia de Seguridad
+      pool.query(`
+        SELECT TO_CHAR(creado_en, 'DD/MM/YYYY HH12:MI AM') AS ultimo_backup
+        FROM system_backups
+        ORDER BY id DESC
+        LIMIT 1
       `)
     ]);
 
@@ -136,6 +261,13 @@ router.get('/stats', auth, async (_, res) => {
     const vi = viaticos.rows[0];
     const depData = dependenciasCount.rows[0] || {};
     const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 90;
+    const h = horariosStats.rows[0] || {};
+    const vd = viaticosDetalle.rows[0] || {};
+    const sst = sstStats.rows[0] || {};
+    const sis = sistemaStats.rows[0] || {};
+    const edu = educacionStats.rows[0] || {};
+    const inv = inventarioStats.rows[0] || {};
+    const ultBkp = ultimoBackupRes.rows[0]?.ultimo_backup || 'Automático (Cada 30 min)';
 
     res.json({
       empleados: {
@@ -143,24 +275,78 @@ router.get('/stats', auth, async (_, res) => {
         activos: parseInt(e.activos) || 0,
         inactivos: parseInt(e.inactivos) || 0,
         vacantes: parseInt(e.vacantes) || 0,
-        totalDependencias: totalDeps
+        totalDependencias: totalDeps,
+        porNivel: cargosNivel.rows.map(r => ({ nivel: r.nivel, cantidad: parseInt(r.cantidad) || 0 })),
+        porClasificacion: clasifEmpleo.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad) || 0 })),
+        educacion: {
+          conPostgrado: parseInt(edu.con_postgrado) || 0,
+          conDiplomado: parseInt(edu.con_diplomado) || 0,
+          conMatricula: parseInt(edu.con_matricula) || 0
+        }
       },
       totalDependencias: totalDeps,
       vacaciones: {
-        total: parseInt(v.total)||0,
-        pendientes: parseInt(v.pendientes)||0,
-        aprobadas: parseInt(v.aprobadas)||0,
-        rechazadas: parseInt(v.rechazadas)||0,
+        total: parseInt(v.total) || 0,
+        pendientes: parseInt(v.pendientes) || 0,
+        aprobadas: parseInt(v.aprobadas) || 0,
+        rechazadas: parseInt(v.rechazadas) || 0,
+        diasTotales: parseInt(v.dias_totales) || 0
       },
       solicitudesAdmin: {
-        permisos: parseInt(ar.permisos)||0,
-        incapacidades: parseInt(ar.incapacidades)||0,
-        licencias: parseInt(ar.licencias)||0,
-        pendientes: parseInt(ar.pendientes)||0,
+        total: parseInt(ar.total) || 0,
+        permisos: parseInt(ar.permisos) || 0,
+        incapacidades: parseInt(ar.incapacidades) || 0,
+        licencias: parseInt(ar.licencias) || 0,
+        pendientes: parseInt(ar.pendientes) || 0,
+        aprobadas: parseInt(ar.aprobadas) || 0,
+        rechazadas: parseInt(ar.rechazadas) || 0,
+        diasSolicitados: parseInt(ar.dias_solicitados) || 0,
+        porEps: solicitudesEps.rows.map(r => ({
+          eps: r.eps,
+          cantidad: parseInt(r.cantidad) || 0,
+          dias: parseInt(r.dias) || 0
+        }))
       },
       viaticos: {
-        total: parseInt(vi.total)||0,
-        valorTotalAprobado: parseFloat(vi.valor_total)||0,
+        total: parseInt(vi.total) || 0,
+        valorTotalAprobado: parseFloat(vi.valor_total) || 0,
+        valorPromedio: Math.round(parseFloat(vd.valor_promedio) || 0),
+        diasPromedio: (parseFloat(vd.dias_promedio) || 0).toFixed(1),
+        legalizados: parseInt(vd.legalizados) || 0,
+        aprobados: parseInt(vd.aprobados) || 0,
+        pendientes: parseInt(vd.pendientes) || 0,
+        topDestinos: topDestinos.rows.map(r => ({
+          destino: r.destino,
+          comisiones: parseInt(r.comisiones) || 0,
+          totalValor: parseFloat(r.total_valor) || 0
+        }))
+      },
+      horarios: {
+        total: parseInt(h.total) || 0,
+        teletrabajo: parseInt(h.teletrabajo) || 0,
+        trabajoCasa: parseInt(h.trabajo_casa) || 0,
+        horarioFlexible: parseInt(h.horario_flexible) || 0,
+        presencial: parseInt(h.presencial) || 0
+      },
+      sst: {
+        totalEvaluaciones: parseInt(sst.total_evaluaciones) || 0,
+        accidentesTrabajo: parseInt(sst.accidentes_trabajo) || 0,
+        enfermedadesLaborales: parseInt(sst.enfermedades_laborales) || 0,
+        entregasEpp: parseInt(sst.entregas_epp) || 0,
+        totalElementosEpp: parseInt(sst.total_elementos_epp) || 0,
+        referenciasInventario: parseInt(inv.referencias_epp) || 0,
+        stockTotalUnidades: parseInt(inv.stock_total_unidades) || 0,
+        alertasStock: parseInt(inv.en_alerta_stock) || 0
+      },
+      sistema: {
+        totalBackups: parseInt(sis.total_backups) || 0,
+        backupsExitosos: parseInt(sis.backups_exitosos) || 0,
+        espacioTotalBytes: parseInt(sis.espacio_total) || 0,
+        ultimoBackup: ultBkp,
+        totalErrores: parseInt(sis.total_errores) || 0,
+        erroresPendientes: parseInt(sis.errores_pendientes) || 0,
+        erroresResueltos: parseInt(sis.errores_resueltos) || 0,
+        documentosActivos: parseInt(inv.documentos_activos) || 0
       },
       actividades: recientes.rows.map(r => ({
         tipo: r.tipo_modulo, persona: (r.persona||'').trim().toUpperCase(),
@@ -176,7 +362,16 @@ router.get('/stats', auth, async (_, res) => {
 // ─── GET /api/dashboard/chart ─────────────────────────────────────────────────
 router.get('/chart', auth, async (_, res) => {
   try {
-    const [byType, byStatus, byDep, servRes, depCountRes] = await Promise.all([
+    const [
+      byType,
+      byStatus,
+      byDep,
+      servRes,
+      depCountRes,
+      cargosNivelRes,
+      clasifRes,
+      topDestRes
+    ] = await Promise.all([
       // Por tipo de solicitud
       pool.query(`
         SELECT 'Vacaciones' AS tipo, COUNT(*) AS cantidad FROM vacaciones
@@ -204,7 +399,7 @@ router.get('/chart', auth, async (_, res) => {
         LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
         GROUP BY d.dependencia
         ORDER BY cantidad DESC
-        LIMIT 5
+        LIMIT 6
       `),
       // Servidores por estado (Activos, Inactivos, Vacantes)
       pool.query(`
@@ -245,6 +440,33 @@ router.get('/chart', auth, async (_, res) => {
         FROM dependencias
         WHERE dependencia IS NOT NULL AND TRIM(dependencia) != ''
           AND UPPER(TRIM(dependencia)) NOT IN ('HOLAAAAAAAA', 'NO REGISTRADO', 'HOJA2', 'NINGUNA')
+      `),
+      // Distribución por nivel jerárquico DAFP
+      pool.query(`
+        SELECT COALESCE(UPPER(TRIM(c.nivel)), 'SIN CLASIFICAR') AS nivel, count(r.id_registro) AS cantidad
+        FROM rel_principal r
+        LEFT JOIN cargos c ON c.id_cargo = COALESCE(r.id_cargo_actual, r.id_cargo_base)
+        GROUP BY c.nivel
+        ORDER BY cantidad DESC
+      `),
+      // Distribución por clasificación del empleo
+      pool.query(`
+        SELECT COALESCE(TRIM(e.clasificacion_empleo), 'Sin Clasificar') AS tipo, count(*) AS cantidad
+        FROM rel_principal r
+        LEFT JOIN estados e ON e.id_estado = r.id_estado
+        GROUP BY e.clasificacion_empleo
+        ORDER BY cantidad DESC
+        LIMIT 6
+      `),
+      // Top destinos viáticos con montos
+      pool.query(`
+        SELECT COALESCE(UPPER(TRIM(destino)), 'SIN DESTINO') AS destino,
+               COUNT(*) AS comisiones,
+               COALESCE(SUM(valor_total), 0) AS total_valor
+        FROM viaticos
+        GROUP BY destino
+        ORDER BY comisiones DESC
+        LIMIT 5
       `)
     ]);
 
@@ -256,6 +478,13 @@ router.get('/chart', auth, async (_, res) => {
       porEstado: byStatus.rows.map(r => ({ estado: r.estado, cantidad: parseInt(r.cantidad)||0 })),
       porDependencia: byDep.rows.map(r => ({ dependencia: r.dependencia, cantidad: parseInt(r.cantidad)||0 })),
       totalDependencias: totalDeps,
+      porNivel: cargosNivelRes.rows.map(r => ({ nivel: r.nivel, cantidad: parseInt(r.cantidad) || 0 })),
+      porClasificacion: clasifRes.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad) || 0 })),
+      viaticosTopDestinos: topDestRes.rows.map(r => ({
+        destino: r.destino,
+        comisiones: parseInt(r.comisiones) || 0,
+        totalValor: parseFloat(r.total_valor) || 0
+      })),
       servidores: {
         activos: parseInt(s.activos) || 0,
         inactivos: parseInt(s.inactivos) || 0,

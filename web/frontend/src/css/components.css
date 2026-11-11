@@ -12635,3 +12635,251 @@ select[id^="hor-filter-"] {
   border-radius: 9999px !important;
   cursor: pointer !important;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ESTILOS EJECUTIVOS PARA EL DASHBOARD ADMINISTRATIVO MULTI-MÓDULO 360°
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Filtros y Chips de Navegación por Módulo */
+.db-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 4px 14px 4px;
+  margin-top: 14px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.db-filter-pills::-webkit-scrollbar {
+  display: none;
+}
+.db-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary, #475569);
+  background: var(--bg-glass, rgba(255, 255, 255, 0.7));
+  border: 1px solid var(--border-glass, rgba(0, 0, 0, 0.08));
+  border-radius: 9999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.db-filter-pill:hover {
+  color: var(--text-primary, #0f172a);
+  background: var(--bg-glass-hover, rgba(255, 255, 255, 0.95));
+  border-color: rgba(40, 117, 34, 0.35);
+  transform: translateY(-1px);
+}
+.db-filter-pill.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #287522 0%, #1b5317 100%) !important;
+  border-color: #287522 !important;
+  box-shadow: 0 4px 12px rgba(40, 117, 34, 0.25) !important;
+}
+[data-theme="dark"] .db-filter-pill {
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.65);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .db-filter-pill:hover {
+  color: #f8fafc;
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+[data-theme="dark"] .db-filter-pill.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  border-color: #059669 !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
+}
+
+/* Encabezados de Sección del Dashboard */
+.db-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-glass, rgba(0, 0, 0, 0.06));
+}
+.db-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db-section-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: rgba(40, 117, 34, 0.1);
+  color: #287522;
+  border: 1px solid rgba(40, 117, 34, 0.2);
+}
+[data-theme="dark"] .db-section-badge {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.25);
+}
+.db-section-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.db-section-subtitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+/* Modificador de Tarjeta Stat Cyan/Teal */
+.stat-card--cyan .stat-top-stripe {
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+}
+.stat-card--cyan .stat-icon {
+  background: rgba(6, 182, 212, 0.12);
+  color: #0891b2;
+}
+[data-theme="dark"] .stat-card--cyan .stat-icon {
+  background: rgba(6, 182, 212, 0.22);
+  color: #22d3ee;
+}
+
+/* Tiras Horizontales de Educación y Mini Métricas */
+.db-edu-ribbon {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-glass, rgba(0, 0, 0, 0.06));
+}
+.db-edu-item {
+  background: var(--bg-glass, rgba(255, 255, 255, 0.5));
+  border: 1px solid var(--border-glass, rgba(0, 0, 0, 0.05));
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+[data-theme="dark"] .db-edu-item {
+  background: rgba(30, 41, 59, 0.45);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.db-edu-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.db-edu-info {
+  display: flex;
+  flex-direction: column;
+}
+.db-edu-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+}
+.db-edu-lbl {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+}
+
+/* Grilla de Mini Métricas Operativas */
+.db-mini-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.db-mini-kpi-tile {
+  background: var(--bg-glass, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--border-glass, rgba(0, 0, 0, 0.06));
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+}
+[data-theme="dark"] .db-mini-kpi-tile {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.db-mini-kpi-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  letter-spacing: -0.01em;
+}
+.db-mini-kpi-lbl {
+  font-size: 0.70rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Lista de EPS e Incapacidades con Barras de Progreso */
+.db-eps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.db-eps-item {
+  background: var(--bg-glass, rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--border-glass, rgba(0, 0, 0, 0.06));
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+[data-theme="dark"] .db-eps-item {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.db-eps-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.db-eps-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+}
+.db-eps-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(14, 165, 233, 0.1);
+  color: #0284c7;
+}
+.db-eps-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+[data-theme="dark"] .db-eps-progress {
+  background: rgba(255, 255, 255, 0.08);
+}
+.db-eps-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+}
