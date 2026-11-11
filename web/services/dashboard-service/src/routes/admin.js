@@ -76,6 +76,44 @@ function requireAdmin(req, res, next) {
   }
 }
 
+// Middleware de verificación de acceso a Copias de Seguridad (Administrador o Gestor con módulo backups)
+function requireBackupsAccess(req, res, next) {
+  let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+
+  if (!token) {
+    return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const role = String(decoded.role || decoded.rol || '').toLowerCase();
+    const isAdminRole = (role === 'admin' || role === 'administrador');
+    const modules = Array.isArray(decoded.modules) ? decoded.modules : [];
+    const permissions = Array.isArray(decoded.permissions) ? decoded.permissions : [];
+
+    const hasAccess = isAdminRole ||
+      modules.includes('admin-backups') ||
+      modules.includes('backups') ||
+      modules.includes('*') ||
+      permissions.includes('admin-backups:*') ||
+      permissions.includes('backups:*') ||
+      permissions.includes('*');
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de Copias de Seguridad o Administrador.' });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token de sesión inválido o expirado.' });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. REPORTE Y CAPTURA DE ERRORES (Endpoint Público para el Cliente / SPA)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -365,10 +403,10 @@ router.post('/errors/clear-all', requireAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. GESTIÓN DE COPIAS DE SEGURIDAD / BACKUPS (Solo Administrador)
+// 3. GESTIÓN DE COPIAS DE SEGURIDAD / BACKUPS (Administrador y Gestor con permisos)
 // ─────────────────────────────────────────────────────────────────────────────
 
-router.post('/backups/generate', requireAdmin, async (req, res) => {
+router.post('/backups/generate', requireBackupsAccess, async (req, res) => {
   try {
     const user = req.user ? (req.user.username || req.user.nombre || 'admin') : 'admin';
     const result = await backupEngine.generateFullDatabaseDump(pool, {
@@ -391,7 +429,7 @@ router.post('/backups/generate', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/backups', requireAdmin, async (_, res) => {
+router.get('/backups', requireBackupsAccess, async (_, res) => {
   try {
     const backups = await backupEngine.getBackupsList(pool);
     const config = await backupEngine.getBackupConfig(pool);
@@ -401,7 +439,7 @@ router.get('/backups', requireAdmin, async (_, res) => {
   }
 });
 
-router.get('/backups/download/:id', requireAdmin, async (req, res) => {
+router.get('/backups/download/:id', requireBackupsAccess, async (req, res) => {
   try {
     const backupId = parseInt(req.params.id);
     const backup = await backupEngine.getBackupFile(pool, backupId);
@@ -425,7 +463,7 @@ router.get('/backups/download/:id', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/backups/:id/verify', requireAdmin, async (req, res) => {
+router.post('/backups/:id/verify', requireBackupsAccess, async (req, res) => {
   try {
     const backupId = parseInt(req.params.id);
     const verification = await backupEngine.verifyBackupRestoration(pool, backupId);
@@ -440,7 +478,7 @@ router.post('/backups/:id/verify', requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/backups/:id', requireAdmin, async (req, res) => {
+router.delete('/backups/:id', requireBackupsAccess, async (req, res) => {
   try {
     const backupId = parseInt(req.params.id);
     const deleted = await backupEngine.deleteBackup(pool, backupId);
@@ -453,7 +491,7 @@ router.delete('/backups/:id', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/backups/config', requireAdmin, async (_, res) => {
+router.get('/backups/config', requireBackupsAccess, async (_, res) => {
   try {
     const config = await backupEngine.getBackupConfig(pool);
     return res.json({ config });
@@ -462,7 +500,7 @@ router.get('/backups/config', requireAdmin, async (_, res) => {
   }
 });
 
-router.put('/backups/config', requireAdmin, async (req, res) => {
+router.put('/backups/config', requireBackupsAccess, async (req, res) => {
   try {
     const updated = await backupEngine.updateBackupConfig(pool, req.body || {});
     return res.json({ success: true, message: 'Configuración de respaldos actualizada.', config: updated });

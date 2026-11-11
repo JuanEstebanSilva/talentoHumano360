@@ -888,19 +888,23 @@ function resolvePermissions(role, modules, explicitPerms = null) {
   if (mods.includes('sst')) {
     perms.push('sst:read', 'sst:write', 'epidemiologico:read', 'epidemiologico:write', 'sociodemografico:read', 'sociodemografico:write', 'epp:read', 'epp:write');
   }
+  if (mods.includes('admin-backups') || mods.includes('backups')) {
+    perms.push('admin-backups:read', 'admin-backups:write', 'admin-backups:download', 'admin-backups:delete');
+  }
   return perms;
 }
 
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';
   const r = role.toLowerCase();
+  if (r.includes('respaldo') || r.includes('backup')) return 'Gestor de Copias de Seguridad y Respaldo';
   if (r === 'sst' || r.includes('sst')) return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
   if (r === 'incapacidades' || r.includes('incapacidad')) return 'Responsable de Incapacidades y Ausentismo Laboral';
   if (r.includes('permiso') && r.includes('licencia')) return 'Responsable de Permisos y Licencias Laborales';
   if (r === 'permisos' || r.includes('permiso')) return 'Responsable de Permisos Laborales';
   if (r.includes('coordinador')) return 'Coordinador de Solicitudes';
   if (r.includes('consulta') || r.includes('funcionario')) return 'Servidor Público';
-  return 'Administrador del Sistema';
+  return 'Usuario del Sistema';
 }
 
 function resolveDepartment(role) {

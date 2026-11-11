@@ -162,6 +162,9 @@ const Auth = (() => {
     }
     const mods = getUserModules(user);
     if (mods.includes('*') || mods.includes('all')) return true;
+    if ((mod === 'admin-backups' || mod === 'backups') && (mods.includes('admin-backups') || mods.includes('backups'))) {
+      return true;
+    }
     return mods.includes(mod);
   }
 

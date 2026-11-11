@@ -70,16 +70,27 @@ const AdminBackupsModule = (() => {
     `;
   }
 
-  function isUserAdmin() {
+  function hasBackupsAccess() {
     if (typeof Auth === 'undefined' || !Auth.getUser) return false;
     const user = Auth.getUser();
     if (!user) return false;
-    if (typeof Auth.isAdmin === 'function') {
-      return Auth.isAdmin(user);
+    if (typeof Auth.isAdmin === 'function' && Auth.isAdmin(user)) {
+      return true;
     }
     const r = String(user.role || '').toLowerCase();
     const uname = String(user.username || '').toLowerCase();
-    return r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com';
+    if (r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com') {
+      return true;
+    }
+    if (typeof Auth.hasModuleAccess === 'function' && (Auth.hasModuleAccess('admin-backups') || Auth.hasModuleAccess('backups'))) {
+      return true;
+    }
+    const mods = Array.isArray(user.modules) ? user.modules : [];
+    return mods.includes('admin-backups') || mods.includes('backups') || mods.includes('*');
+  }
+
+  function isUserAdmin() {
+    return hasBackupsAccess();
   }
 
   function isCurrentViewAdminBackups() {
@@ -89,7 +100,7 @@ const AdminBackupsModule = (() => {
   }
 
   async function loadData() {
-    if (!isUserAdmin() || !isCurrentViewAdminBackups()) {
+    if (!hasBackupsAccess() || !isCurrentViewAdminBackups()) {
       return;
     }
 

@@ -1017,6 +1017,16 @@ const App = (() => {
     if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
     if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
     if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
+
+    if (typeof Auth !== 'undefined' && Auth.getUserModules) {
+      const u = user || Auth.getUser();
+      const mods = Auth.getUserModules(u);
+      if (!mods.includes('*') && !mods.includes('all') && !mods.includes('dashboard')) {
+        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
+        if (mods.includes('admin-backups') || mods.includes('backups')) return { module: 'admin-backups', options: {} };
+        if (mods.length > 0) return { module: mods[0], options: {} };
+      }
+    }
     return { module: 'dashboard', options: {} };
   }
 
@@ -1142,19 +1152,30 @@ const App = (() => {
         return;
       }
     } else {
-      // Para usuarios regulares: bloquear módulos de administración técnica
-      if (rawModule === 'admin-errors' || rawModule === 'admin-backups' || rawModule === 'admin-modules-unlock') {
+      // Para usuarios regulares: control granular de módulos
+      if (rawModule === 'admin-errors' || rawModule === 'admin-modules-unlock') {
         showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
-        navigate('dashboard');
+        const defaultRoute = getDefaultLandingRoute(user);
+        navigate(defaultRoute.module, defaultRoute.options);
         return;
       }
 
-      const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
-      if (!publicRoutes.includes(rawModule)) {
-        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
-          showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
-          navigate('dashboard');
+      if (rawModule === 'admin-backups') {
+        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess('admin-backups')) {
+          showToast('Acceso restringido: no tienes permisos asignados para copias de seguridad.', 'warning');
+          const defaultRoute = getDefaultLandingRoute(user);
+          navigate(defaultRoute.module, defaultRoute.options);
           return;
+        }
+      } else {
+        const publicRoutes = ['settings', 'privacidad', 'terminos', 'accesibilidad'];
+        if (!publicRoutes.includes(rawModule)) {
+          if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
+            showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+            const defaultRoute = getDefaultLandingRoute(user);
+            navigate(defaultRoute.module, defaultRoute.options);
+            return;
+          }
         }
       }
     }
@@ -2423,15 +2444,18 @@ const App = (() => {
 
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
-      // Ocultar las herramientas de administración técnica
+      // Ocultar las herramientas de administración técnica que no tengan asignadas
+      const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
       setVisibility('li-admin-errors', false);
-      setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-backups', canAccessBackups);
       setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
-      setVisibility('nav-admin-backups', false);
+      setVisibility('nav-admin-backups', canAccessBackups);
 
       // Mostrar sus módulos funcionales según permisos
-      setVisibility('nav-dashboard', true);
+      const hasDashboard = hasAll || mods.includes('dashboard');
+      setVisibility('li-nav-dashboard', hasDashboard);
+      setVisibility('nav-dashboard', hasDashboard);
       setVisibility('nav-employees', hasAll || mods.includes('employees'));
       setVisibility('nav-requests', hasAll || mods.includes('requests'));
       setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
@@ -2470,7 +2494,9 @@ const App = (() => {
     }
     if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
     if (mods.includes('viaticos')) return 'Gestión de Viáticos';
+    if (mods.includes('horarios') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Respaldo y Horarios';
     if (mods.includes('horarios')) return 'Gestión de Horarios y Modalidades';
+    if (mods.includes('admin-backups') || mods.includes('backups')) return 'Gestión de Copias de Seguridad';
     return 'Servidor Público';
   }
 
