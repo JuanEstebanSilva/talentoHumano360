@@ -1,30 +1,68 @@
-# Environment variables
+# ==============================================================================
+# .gitignore — Talento 360 · Gobernación de Boyacá
+# Configuración oficial de exclusión para repositorio institucional limpio
+# ==============================================================================
+
+# Variables de entorno y secretos locales (conserva .env.example)
 .env
+.env.*
+!.env.example
 web/.env
+web/.env.*
+!web/.env.example
 
-# Node modules (recursivo)
-**/node_modules/
+# Archivo local de documentación histórica, evidencias y respaldos
+Adicionales/
+
+# Dependencias de paquetes
 node_modules/
+**/node_modules/
+package-lock.json.bak
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Scratch & temporary test scripts
+# Documentos locales institucionales (fuera de alcance de versión)
+documentos/
+documentosParaAnalisis/
+
+# Scripts de pruebas temporales y diagnóstico
 scratch/
 web/scratch/
 
-# Database dumps and backups
+# Respaldos de base de datos y volcados SQL
+*.dump
+*.dump.tmp
+*.sql.bak
 database/backups/
 database/backup_*.sql
 web/database/backups/
 **/backups/
-*.sql.bak
 
-# IDE and Editor configs
+# Coberturas y reportes de pruebas generados
+coverage/
+**/coverage/
+*.lcov
+.nyc_output/
+
+# Logs del sistema y contenedores
+logs/
+*.log
+npm-debug.log*
+
+# Archivos de configuración de editores y sistemas operativos
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Documentos locales
-documentos/
-documentosParaAnalisis/
+# Archivos temporales de compilación
+dist/
+build/
+.cache/
+tmp/
+*.tmp
