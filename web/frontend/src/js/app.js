@@ -1017,7 +1017,6 @@ const App = (() => {
     if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
     if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
     if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
-    if (user && isUserAdmin(user)) return { module: 'admin-errors', options: {} };
     return { module: 'dashboard', options: {} };
   }
 
@@ -1128,7 +1127,7 @@ const App = (() => {
         return;
       }
 
-      const technicalAdminRoutes = new Set(['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
       const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
 
       if (!technicalAdminRoutes.has(rawModule) && !isElevated) {
@@ -1794,7 +1793,7 @@ const App = (() => {
     cancelBtn.addEventListener('click', () => {
       cleanup();
       const current = activeModule || 'admin-errors';
-      const technicalAdminRoutes = new Set(['admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
       if (!technicalAdminRoutes.has(current)) {
         navigate('admin-errors');
       }
@@ -2239,6 +2238,8 @@ const App = (() => {
 
     if (isAdmin) {
       // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123):
+      setVisibility('li-nav-dashboard', true);
+      setVisibility('nav-dashboard', true);
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
       setVisibility('li-admin-modules-unlock', true);
@@ -2277,7 +2278,7 @@ const App = (() => {
 
       // Si el administrador está elevado con contraseña, se muestran los módulos operativos; de lo contrario, permanecen ocultos ("DE RESTO NO")
       const operationalNavs = [
-        'nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group',
+        'nav-employees', 'nav-requests', 'nav-admin-group',
         'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos',
         'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'
       ];
@@ -3249,7 +3250,7 @@ window.addEventListener('hashchange', () => {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
         const user = Auth.getUser ? Auth.getUser() : null;
-        const defaultMod = (user && App.isUserAdmin && App.isUserAdmin(user)) ? 'admin-errors' : 'dashboard';
+        const defaultMod = 'dashboard';
         App.navigate(defaultMod);
       } else {
         App.showLogin();

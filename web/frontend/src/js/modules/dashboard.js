@@ -1745,15 +1745,20 @@ const DashboardModule = (() => {
 
     container.innerHTML = `
       <div class="module-enter">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-              <h1 class="page-heading" style="margin:0;">Dashboard General</h1>
-              <span class="badge badge--blue" style="font-weight:700;">Administración General</span>
+        <!-- Encabezado Hero Institucional: Dashboard General (Gobernación de Boyacá) -->
+        <div class="module-header-card viaticos-header-hero">
+          <div class="module-header-info">
+            <div class="module-header-brand">
+              <img src="imgs/logoCondor.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-light-theme" />
+              <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="module-header-logo logo-dark-theme" />
+              <span class="module-header-brand-text">Gobernación de Boyacá</span>
             </div>
-            <p class="page-desc">Bienvenido, <strong class="user-name-accent">${escHtml(displayName)}</strong> · Resumen integral 360 del sistema de gestión de talento humano · Gobernación de Boyacá</p>
+            <h1 class="module-hero-title">Dashboard General de Talento Humano</h1>
+            <p class="module-hero-desc">
+              ¡Hola, <strong class="viaticos-user-name user-name-accent">${escHtml(displayName)}</strong>! Panel institucional consolidado en tiempo real con la visión integral 360 de servidores públicos, solicitudes administrativas, viáticos y seguridad laboral de la Gobernación de Boyacá.
+            </p>
           </div>
-          <div class="page-actions" style="display:flex; align-items:center; gap:14px;">
+          <div class="module-header-actions">
             <button
               type="button"
               class="btn-action-icon-download"
@@ -1762,7 +1767,7 @@ const DashboardModule = (() => {
               title="Actualizar métricas en tiempo real"
               aria-label="Actualizar métricas en tiempo real"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
               </svg>
             </button>
@@ -1774,7 +1779,7 @@ const DashboardModule = (() => {
               title="Exportar informe oficial en PDF"
               aria-label="Exportar informe en PDF"
             >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="12" y1="18" x2="12" y2="12"/>
@@ -1785,53 +1790,94 @@ const DashboardModule = (() => {
           </div>
         </div>
 
+        <!-- 5 Tarjetas de Métricas Ejecutivas (Liquid Glass: Número Arriba, Texto Abajo) -->
         <div class="stats-grid" id="db-stats-grid">
-          ${[1,2,3,4,5].map(() => `
-            <div class="stat-card db-glass-card">
-              <div class="stat-top-stripe"></div>
-              <div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div>
-              <div class="stat-info">
-                <span class="skeleton" style="width:60px;height:32px;display:block;border-radius:6px;margin-bottom:8px"></span>
-                <span class="skeleton" style="width:100px;height:14px;display:block;border-radius:4px"></span>
-              </div>
-            </div>`).join('')}
+          ${[1,2,3,4,5].map(() => `<div class="stat-card db-glass-card"><div class="stat-top-stripe"></div><div class="stat-icon skeleton" style="width:48px;height:48px;border-radius:12px"></div><div class="stat-info"><span class="skeleton" style="width:60px;height:28px;display:block;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="width:90px;height:14px;display:block;border-radius:4px"></span></div></div>`).join('')}
         </div>
 
-        <div class="charts-grid">
+        <!-- Fila 1 de Gráficas: Estado Servidores (Dona con KPI central) y Top Dependencias -->
+        <div class="charts-grid" style="margin-top:20px;">
           <div class="chart-card db-glass-card">
             <div class="chart-title">
-              <span>Servidores Públicos</span>
-              <span class="badge badge--blue" id="db-servidores-badge" style="font-size:0.75rem;font-weight:700;">Planta de Personal</span>
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Estado de Servidores Públicos</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Proporción y disponibilidad de la planta de personal</span>
+              </div>
             </div>
-            <div class="chart-wrap" id="wrap-chart-servidores"><canvas id="chart-by-servidores"></canvas></div>
+            <div class="chart-wrap" id="wrap-chart-servidores" style="position:relative;height:260px;">
+              <canvas id="chart-by-servidores"></canvas>
+              <div class="donut-center-kpi" id="donut-center-kpi">
+                <span class="donut-center-title">TOTAL</span>
+                <span class="donut-center-val" id="donut-center-num">0</span>
+                <span class="donut-center-sub">SERVIDORES</span>
+              </div>
+            </div>
             <div id="db-servidores-pills"></div>
           </div>
+
+          <div class="chart-card db-glass-card">
+            <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Top Dependencias con Mayor Personal</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Distribución de dotación de servidores por secretaría</span>
+              </div>
+              <span class="dest-kpi-badge">Top 5 Dependencias</span>
+            </div>
+            <div class="chart-wrap" id="wrap-chart-by-dep" style="height:260px;"><canvas id="chart-by-dep"></canvas></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.78rem;font-weight:700;color:var(--text-secondary);">
+              <span>🏛️ Cobertura Organizacional</span>
+              <span class="badge" id="db-dep-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">0 Unidades Activas</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fila 2 de Gráficas: Solicitudes por Tipo y Distribución por Estado -->
+        <div class="charts-grid" style="margin-top:20px;">
           <div class="chart-card db-glass-card">
             <div class="chart-title">
-              <span>Top Dependencias</span>
-              <span class="badge badge--neutral" id="db-dep-badge" style="font-size:0.75rem;font-weight:700;">Planta</span>
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Solicitudes por Tipo</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Volumen histórico y trámites en curso</span>
+              </div>
             </div>
-            <div class="chart-wrap" id="wrap-chart-by-dep"><canvas id="chart-by-dep"></canvas></div>
-          </div>
-          <div class="chart-card db-glass-card">
-            <div class="chart-title">Solicitudes por Tipo</div>
-            <div class="chart-wrap" id="wrap-chart-by-type"><canvas id="chart-by-type"></canvas></div>
-          </div>
-          <div class="chart-card db-glass-card">
-            <div class="chart-title">Distribución por Estado</div>
-            <div class="chart-wrap" id="wrap-chart-by-status"><canvas id="chart-by-status"></canvas></div>
-          </div>
-          <div class="chart-card db-glass-card chart-card--wide">
-            <div class="chart-title">Gestión por Módulo (Aprobadas vs. Pendientes)</div>
-            <div class="chart-wrap" id="wrap-chart-module-status"><canvas id="chart-module-status"></canvas></div>
+            <div class="chart-wrap" id="wrap-chart-by-type" style="height:260px;"><canvas id="chart-by-type"></canvas></div>
           </div>
 
-          <!-- SST -->
-          <div class="chart-card db-glass-card chart-card--wide" id="db-sst-card">
+          <div class="chart-card db-glass-card">
             <div class="chart-title">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Distribución por Estado</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Aprobadas, en revisión, rechazadas y finalizadas</span>
+              </div>
+            </div>
+            <div class="chart-wrap" id="wrap-chart-by-status" style="height:260px;"><canvas id="chart-by-status"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Fila 3: Gestión por Módulo (Wide Card) -->
+        <div class="charts-grid" style="margin-top:20px;">
+          <div class="chart-card db-glass-card chart-card--wide" style="grid-column: 1 / -1;">
+            <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:1.02rem;font-weight:800;">Gestión por Módulo (Aprobadas vs. Pendientes)</span>
+                <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Balance comparativo de efectividad por proceso administrativo</span>
+              </div>
+              <span class="badge badge--success" style="font-size:0.74rem;font-weight:800;">Trámites 360</span>
+            </div>
+            <div class="chart-wrap" id="wrap-chart-module-status" style="height:280px;"><canvas id="chart-module-status"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Fila 4: SST Card -->
+        <div class="charts-grid" style="margin-top:20px;">
+          <div class="chart-card db-glass-card chart-card--wide" id="db-sst-card" style="grid-column: 1 / -1;">
+            <div class="chart-title" style="display:flex;justify-content:space-between;align-items:center;">
               <div style="display:flex;align-items:center;gap:10px;">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-green-dark);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>Seguridad y Salud en el Trabajo (SST)</span>
+                <div>
+                  <span style="font-size:1.02rem;font-weight:800;">Seguridad y Salud en el Trabajo (SST)</span>
+                  <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Evaluaciones médicas ocupacionales, vigilancia epidemiológica y dotación EPP</span>
+                </div>
               </div>
               <span class="badge badge--aprobada" style="font-size:0.75rem;font-weight:700;">Gestión Integral SST</span>
             </div>
@@ -1847,8 +1893,14 @@ const DashboardModule = (() => {
           </div>
         </div>
 
-        <div class="activity-card db-glass-card">
-          <div class="activity-title">Actividad Reciente Consolidada</div>
+        <!-- Fila 5: Actividad Reciente Consolidada -->
+        <div class="activity-card db-glass-card" style="margin-top:20px;">
+          <div class="activity-title" style="display:flex;justify-content:flex-start;align-items:center;gap:12px;text-align:left;">
+            <div>
+              <span style="font-size:1.02rem;font-weight:800;display:block;">Actividad Reciente Consolidada</span>
+              <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Trazabilidad y operaciones en tiempo real en la entidad</span>
+            </div>
+          </div>
           <ul class="activity-list" id="db-activity-list">
             ${[1,2,3,4].map(() => `<li class="activity-item"><div class="activity-dot skeleton" style="width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px"></div><div class="activity-content"><div class="skeleton" style="width:200px;height:14px;border-radius:4px;margin-bottom:6px"></div><div class="skeleton" style="width:140px;height:11px;border-radius:4px"></div></div></li>`).join('')}
           </ul>
@@ -1859,8 +1911,8 @@ const DashboardModule = (() => {
 
     try {
       const [stats, chart, adminStats, viaticosStats, sstStats] = await Promise.all([
-        API.getDashboardStats(),
-        API.getDashboardChart(),
+        API.getDashboardStats().catch(() => ({})),
+        API.getDashboardChart().catch(() => ({ porDependencia: [], porTipo: [], porEstado: [] })),
         API.getAdminRequestsStats().catch(() => []),
         API.getViaticosStats().catch(() => ({})),
         API.getSstStats().catch(() => ({})),
@@ -1878,78 +1930,67 @@ const DashboardModule = (() => {
 
       if (grid) {
         grid.innerHTML = `
-        <div class="stat-card db-glass-card">
-          <div class="stat-top-stripe"></div>
-          <div class="stat-icon stat-icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="stat-card db-glass-card stat-card--blue">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-emp">0</span>
+              <span class="stat-label">SERVIDORES EN PLANTA</span>
+            </div>
           </div>
-          <div class="stat-info">
-            <span class="stat-label">Servidores Públicos</span>
-            <span class="stat-value" id="sv-emp">0</span>
-            <span class="stat-badge stat-badge--blue" id="sv-emp-badge" title="Servidores públicos en planta">0 en planta</span>
-          </div>
-        </div>
 
-        <div class="stat-card db-glass-card">
-          <div class="stat-top-stripe"></div>
-          <div class="stat-icon stat-icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <div class="stat-card db-glass-card stat-card--green">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-vac">0</span>
+              <span class="stat-label">SOLICITUDES VACACIONES</span>
+            </div>
           </div>
-          <div class="stat-info">
-            <span class="stat-label">Vacaciones</span>
-            <span class="stat-value" id="sv-vac">0</span>
-            <span class="stat-badge stat-badge--warn" id="sv-vac-pend" title="${stats.vacaciones?.pendientes || 0} solicitudes pendientes de vacaciones">${stats.vacaciones?.pendientes || 0} pendientes</span>
-          </div>
-        </div>
 
-        <div class="stat-card db-glass-card">
-          <div class="stat-top-stripe"></div>
-          <div class="stat-icon stat-icon--orange">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <div class="stat-card db-glass-card stat-card--orange">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-adm">0</span>
+              <span class="stat-label">SOLICITUDES ADMIN</span>
+            </div>
           </div>
-          <div class="stat-info">
-            <span class="stat-label">Solicitudes Admin</span>
-            <span class="stat-value" id="sv-adm">0</span>
-            <span class="stat-badge stat-badge--warn" id="sv-adm-pend" title="${stats.solicitudesAdmin?.pendientes || 0} solicitudes administrativas pendientes">${stats.solicitudesAdmin?.pendientes || 0} pendientes</span>
-          </div>
-        </div>
 
-        <div class="stat-card db-glass-card">
-          <div class="stat-top-stripe"></div>
-          <div class="stat-icon stat-icon--gold">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <div class="stat-card db-glass-card stat-card--gold">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--gold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-vit">0</span>
+              <span class="stat-label">VIÁTICOS REGISTRADOS</span>
+            </div>
           </div>
-          <div class="stat-info">
-            <span class="stat-label">Viáticos Registrados</span>
-            <span class="stat-value" id="sv-vit">0</span>
-            <span class="stat-badge stat-badge--gold" title="$${Math.round(stats.viaticos?.valorTotalAprobado || 0).toLocaleString('es-CO')} aprobados">$${Math.round(stats.viaticos?.valorTotalAprobado || 0).toLocaleString('es-CO')}</span>
-          </div>
-        </div>
 
-        <div class="stat-card db-glass-card">
-          <div class="stat-top-stripe"></div>
-          <div class="stat-icon stat-icon--purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div class="stat-info">
-            <span class="stat-label">Aprobadas Totales</span>
-            <span class="stat-value" id="sv-aprobadas">0</span>
-            <span class="stat-badge stat-badge--purple" title="${totalAprobadas} solicitudes gestionadas">✓ ${totalAprobadas} gestionadas</span>
-          </div>
-        </div>`;
+          <div class="stat-card db-glass-card stat-card--purple">
+            <div class="stat-top-stripe"></div>
+            <div class="stat-icon stat-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="sv-aprobadas">0</span>
+              <span class="stat-label">GESTIONES APROBADAS</span>
+            </div>
+          </div>`;
       }
 
-      animateCount(document.getElementById('sv-emp'), stats.empleados?.activos || 0);
+      animateCount(document.getElementById('sv-emp'), stats.empleados?.activos || stats.empleados?.total || 0);
       animateCount(document.getElementById('sv-vac'), stats.vacaciones?.total || 0);
       animateCount(document.getElementById('sv-adm'), totalAdmin);
       animateCount(document.getElementById('sv-vit'), stats.viaticos?.total || 0);
       animateCount(document.getElementById('sv-aprobadas'), totalAprobadas);
-
-      const empBadge = document.getElementById('sv-emp-badge');
-      if (empBadge) {
-        const emp = stats.empleados || {};
-        empBadge.textContent = `${emp.activos || 0} en planta activa · ${emp.vacantes || 0} vac.`;
-      }
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
@@ -1981,7 +2022,7 @@ const DashboardModule = (() => {
         });
       }
 
-      // Chart 2: Servidores Públicos
+      // Chart 2: Servidores Públicos (Doughnut con Gradientes, KPI Central y Chips)
       const ctxServ = document.getElementById('chart-by-servidores')?.getContext('2d');
       const pillsServ = document.getElementById('db-servidores-pills');
       const sData = chart.servidores || {
@@ -1990,33 +2031,54 @@ const DashboardModule = (() => {
         vacantes: stats.empleados?.vacantes || 0,
         total: stats.empleados?.total || 0,
       };
+      const totalS = (parseInt(sData.total) || (parseInt(sData.activos) + parseInt(sData.vacantes) + parseInt(sData.inactivos))) || 1;
+      const pctActivos = ((parseInt(sData.activos) / totalS) * 100).toFixed(1);
+      const pctVacantes = ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1);
+      const pctInactivos = ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1);
 
       if (pillsServ) {
         pillsServ.innerHTML = `
-          <div style="display:flex;justify-content:space-around;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.82rem;font-weight:700;">
-            <span style="display:flex;align-items:center;gap:6px;color:#10b981;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
-              Activos: <strong style="color:var(--text-primary);font-size:0.95rem;">${sData.activos}</strong>
-            </span>
-            <span style="display:flex;align-items:center;gap:6px;color:#ef4444;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>
-              Inactivos: <strong style="color:var(--text-primary);font-size:0.95rem;">${sData.inactivos}</strong>
-            </span>
-            <span style="display:flex;align-items:center;gap:6px;color:#f59e0b;">
-              <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></span>
-              Vacantes: <strong style="color:var(--text-primary);font-size:0.95rem;">${sData.vacantes}</strong>
-            </span>
+          <div class="viaticos-status-chips">
+            <div class="vstatus-chip vstatus-chip--activos" title="Servidores con funciones en ejercicio activo">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Activos</span>
+                <span class="vstatus-chip-num">${(parseInt(sData.activos) || 0).toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctActivos}%</span>
+            </div>
+            <div class="vstatus-chip vstatus-chip--vacantes" title="Plazas pendientes de provisión o encargo">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Vacantes</span>
+                <span class="vstatus-chip-num">${(parseInt(sData.vacantes) || 0).toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctVacantes}%</span>
+            </div>
+            <div class="vstatus-chip vstatus-chip--inactivos" title="Servidores en retiro, suspensión o baja">
+              <div class="vstatus-chip-dot"></div>
+              <div class="vstatus-chip-info">
+                <span class="vstatus-chip-label">Inactivos</span>
+                <span class="vstatus-chip-num">${(parseInt(sData.inactivos) || 0).toLocaleString('es-CO')}</span>
+              </div>
+              <span class="vstatus-chip-pct">${pctInactivos}%</span>
+            </div>
           </div>`;
+      }
+
+      const donutCenterNum = document.getElementById('donut-center-num');
+      if (donutCenterNum) {
+        animateCount(donutCenterNum, parseInt(sData.activos) || parseInt(sData.total) || 0);
       }
 
       if (ctxServ) {
         chartServidores = safeCreateChart(ctxServ, {
           type: 'doughnut',
           data: {
-            labels: ['Activos', 'Inactivos', 'Vacantes'],
+            labels: ['Activos', 'Vacantes', 'Inactivos'],
             datasets: [{
-              data: [sData.activos, sData.inactivos, sData.vacantes],
-              backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+              data: [parseInt(sData.activos) || 0, parseInt(sData.vacantes) || 0, parseInt(sData.inactivos) || 0],
+              backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
               borderColor: chartBorderColor,
               borderWidth: 3,
               hoverOffset: 8,
@@ -2026,9 +2088,9 @@ const DashboardModule = (() => {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: { position: 'bottom', labels: { color: legendColor, font: { size: 12, weight: '600' }, usePointStyle: true } }
+              legend: { display: false }
             },
-            cutout: '68%'
+            cutout: '72%'
           }
         });
       }
@@ -2060,11 +2122,17 @@ const DashboardModule = (() => {
 
       // Chart 4: Top Dependencias
       const ctxDep = document.getElementById('chart-by-dep')?.getContext('2d');
+      const depBadge = document.getElementById('db-dep-badge');
+      const totalDeps = (chart.porDependencia ? chart.porDependencia.length : 0) || 90;
+      if (depBadge) {
+        depBadge.textContent = `${totalDeps} Unidades Activas`;
+      }
+
       if (ctxDep && chart.porDependencia) {
         chartDep = safeCreateChart(ctxDep, {
           type: 'bar',
           data: {
-            labels: chart.porDependencia.map(d => truncate(d.dependencia, 20)),
+            labels: chart.porDependencia.map(d => truncate(d.dependencia, 22)),
             datasets: [{
               label: 'Servidores',
               data: chart.porDependencia.map(d => d.cantidad),
@@ -2207,7 +2275,9 @@ const DashboardModule = (() => {
 
     } catch (err) {
       console.error('[Dashboard Admin Error]:', err);
-      App.showToast('Error al cargar el dashboard: ' + err.message, 'error');
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('Error al cargar el dashboard: ' + err.message, 'error');
+      }
     }
   }
 
