@@ -12883,3 +12883,268 @@ select[id^="hor-filter-"] {
   border-radius: 9999px;
   background: linear-gradient(90deg, #0284c7, #38bdf8);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* SISTEMA DE RECUPERACIÓN DE CONTRASEÑA Y CAMBIO OBLIGATORIO (PROVISIONAL)   */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+.recovery-modal-overlay,
+.mandatory-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: overlay-fade-in 0.2s ease-out forwards;
+}
+
+.recovery-modal-card,
+.mandatory-modal-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  padding: 28px 32px 30px;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: modal-pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  position: relative;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .recovery-modal-overlay,
+[data-theme="dark"] .mandatory-modal-overlay {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+[data-theme="dark"] .recovery-modal-card,
+[data-theme="dark"] .mandatory-modal-card {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.recovery-modal-header,
+.mandatory-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.recovery-close-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.recovery-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+[data-theme="dark"] .recovery-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.recovery-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+  margin-bottom: 14px;
+}
+.recovery-icon-wrap svg {
+  width: 28px;
+  height: 28px;
+}
+
+.mandatory-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  margin-bottom: 14px;
+}
+.mandatory-icon-wrap svg {
+  width: 28px;
+  height: 28px;
+}
+
+.recovery-badge-tag,
+.mandatory-badge-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  margin-bottom: 8px;
+}
+.recovery-badge-tag {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+}
+.mandatory-badge-tag {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.recovery-title,
+.mandatory-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px;
+  letter-spacing: -0.3px;
+}
+[data-theme="dark"] .recovery-title,
+[data-theme="dark"] .mandatory-title {
+  color: #f8fafc;
+}
+
+.recovery-desc,
+.mandatory-desc {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #64748b;
+  margin: 0 0 16px;
+}
+[data-theme="dark"] .recovery-desc,
+[data-theme="dark"] .mandatory-desc {
+  color: #94a3b8;
+}
+
+.recovery-feedback {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.recovery-feedback.feedback-success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #065f46;
+}
+[data-theme="dark"] .recovery-feedback.feedback-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+.recovery-feedback.feedback-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #991b1b;
+}
+[data-theme="dark"] .recovery-feedback.feedback-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.recovery-actions,
+.mandatory-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+.recovery-actions button,
+.mandatory-actions button {
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.90rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Checklist de Políticas de Seguridad */
+.pass-policy-checklist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+}
+[data-theme="dark"] .pass-policy-checklist {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+.policy-item {
+  font-size: 0.76rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+[data-theme="dark"] .policy-item {
+  color: #94a3b8;
+}
+.policy-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  transition: all 0.2s ease;
+}
+.policy-item.valid {
+  color: #059669;
+  font-weight: 700;
+}
+[data-theme="dark"] .policy-item.valid {
+  color: #34d399;
+}
+.policy-item.valid .policy-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-pop-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

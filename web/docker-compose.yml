@@ -40,6 +40,11 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-talento360.notificaciones@gmail.com}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Talento 360 — Gobernación de Boyacá <talento360.notificaciones@gmail.com>}
     volumes:
       - ./services/auth-service:/app
       - /app/node_modules

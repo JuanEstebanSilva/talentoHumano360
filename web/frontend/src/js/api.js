@@ -133,6 +133,10 @@ const API = (() => {
     // Auth
     login: (username, password) =>
       request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+    forgotPassword: (email) =>
+      request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    changePassword: (data) =>
+      request('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
     verifyPassword: (username, password) =>
       request('/auth/verify-password', { method: 'POST', body: JSON.stringify({ username, password }) }),
     updateProfile: (data) =>

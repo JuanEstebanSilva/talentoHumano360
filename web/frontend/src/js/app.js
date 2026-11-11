@@ -1079,21 +1079,27 @@ const App = (() => {
 
     // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
     const alwaysAllowed = new Set(['settings', 'privacidad', 'terminos', 'accesibilidad']);
-    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn() && !alwaysAllowed.has(rawModule)) {
-      const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
-      if (scope === 'sst' && rawModule !== 'sst') {
-        return navigate('sst', { tab: options.tab || 'epidemiologico' });
+    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
+      if (Auth.mustChangePassword && Auth.mustChangePassword()) {
+        showMandatoryPasswordModal(Auth.getUser());
+        return;
       }
-      if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
-        return navigate('incapacidades');
-      }
-      if (scope === 'permisos') {
-        if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
-          return navigate('admin-requests', { tipo: 'permisos' });
+      if (!alwaysAllowed.has(rawModule)) {
+        const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
+        if (scope === 'sst' && rawModule !== 'sst') {
+          return navigate('sst', { tab: options.tab || 'epidemiologico' });
         }
-      }
-      if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
-        return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+        if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
+          return navigate('incapacidades');
+        }
+        if (scope === 'permisos') {
+          if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
+            return navigate('admin-requests', { tipo: 'permisos' });
+          }
+        }
+        if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
+          return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+        }
       }
     }
 
@@ -2923,6 +2929,300 @@ const App = (() => {
     } catch (_) {}
   }
 
+  // ─── Recuperación de Contraseña y Cambio Obligatorio ────────────────────────
+  function initPasswordRecoveryHandlers() {
+    // 1. Enlace "¿Olvidaste tu contraseña?"
+    const forgotLink = document.getElementById('link-forgot-password');
+    const forgotModal = document.getElementById('modal-forgot-password');
+    const forgotClose = document.getElementById('forgot-modal-close');
+    const forgotCancel = document.getElementById('forgot-btn-cancel');
+    const forgotForm = document.getElementById('form-forgot-password');
+    const forgotEmail = document.getElementById('forgot-email');
+    const forgotFeedback = document.getElementById('forgot-feedback');
+    const forgotSubmitBtn = document.getElementById('forgot-btn-submit');
+
+    const openForgotModal = (e) => {
+      if (e) e.preventDefault();
+      if (forgotFeedback) {
+        forgotFeedback.style.display = 'none';
+        forgotFeedback.className = 'recovery-feedback';
+        forgotFeedback.textContent = '';
+      }
+      if (forgotEmail) {
+        forgotEmail.value = '';
+        forgotEmail.disabled = false;
+      }
+      if (forgotSubmitBtn) {
+        forgotSubmitBtn.style.display = 'inline-flex';
+        forgotSubmitBtn.disabled = false;
+        const text = forgotSubmitBtn.querySelector('.btn-text');
+        const loader = forgotSubmitBtn.querySelector('.btn-loader');
+        if (text) text.style.display = 'inline-flex';
+        if (loader) loader.style.display = 'none';
+      }
+      if (forgotModal) forgotModal.style.display = 'flex';
+      setTimeout(() => { if (forgotEmail) forgotEmail.focus(); }, 150);
+    };
+
+    const closeForgotModal = () => {
+      if (forgotModal) forgotModal.style.display = 'none';
+    };
+
+    if (forgotLink) forgotLink.addEventListener('click', openForgotModal);
+    if (forgotClose) forgotClose.addEventListener('click', closeForgotModal);
+    if (forgotCancel) forgotCancel.addEventListener('click', closeForgotModal);
+
+    // Enviar solicitud de recuperación
+    if (forgotForm) {
+      forgotForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = (forgotEmail?.value || '').trim();
+        if (!email) {
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-error';
+            forgotFeedback.textContent = 'Por favor ingresa tu correo electrónico institucional.';
+            forgotFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        const btnText = forgotSubmitBtn?.querySelector('.btn-text');
+        const btnLoader = forgotSubmitBtn?.querySelector('.btn-loader');
+        if (forgotSubmitBtn) forgotSubmitBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoader) btnLoader.style.display = 'inline-flex';
+        if (forgotFeedback) forgotFeedback.style.display = 'none';
+
+        try {
+          const res = await API.forgotPassword(email);
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-success';
+            forgotFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>${res.message || 'Solicitud procesada con éxito.'}</span>
+            `;
+            forgotFeedback.style.display = 'flex';
+          }
+          if (forgotEmail) forgotEmail.disabled = true;
+          if (forgotSubmitBtn) forgotSubmitBtn.style.display = 'none';
+        } catch (err) {
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-error';
+            forgotFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>${err.message || 'Error al procesar la solicitud de recuperación.'}</span>
+            `;
+            forgotFeedback.style.display = 'flex';
+          }
+          if (forgotSubmitBtn) forgotSubmitBtn.disabled = false;
+          if (btnText) btnText.style.display = 'inline-flex';
+          if (btnLoader) btnLoader.style.display = 'none';
+        }
+      });
+    }
+
+    // Toggle para mostrar/ocultar contraseñas
+    document.querySelectorAll('.toggle-pass-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+      });
+    });
+
+    // Validación dinámica de política de contraseñas
+    const mandatoryNewPass = document.getElementById('mandatory-new-pass');
+    if (mandatoryNewPass) {
+      mandatoryNewPass.addEventListener('input', () => {
+        const val = mandatoryNewPass.value || '';
+        const lenValid = val.length >= 8;
+        const upperValid = /[A-Z]/.test(val);
+        const lowerValid = /[a-z]/.test(val);
+        const numValid = /[0-9]/.test(val);
+
+        const toggleReq = (id, isValid) => {
+          const el = document.getElementById(id);
+          if (el) {
+            if (isValid) el.classList.add('valid');
+            else el.classList.remove('valid');
+          }
+        };
+
+        toggleReq('req-len', lenValid);
+        toggleReq('req-upper', upperValid);
+        toggleReq('req-lower', lowerValid);
+        toggleReq('req-num', numValid);
+      });
+    }
+
+    // Manejador del formulario de cambio obligatorio
+    const mandatoryForm = document.getElementById('form-mandatory-password');
+    const mandatorySubmitBtn = document.getElementById('mandatory-btn-submit');
+    const mandatoryFeedback = document.getElementById('mandatory-feedback');
+    const mandatoryLogoutBtn = document.getElementById('mandatory-btn-logout');
+
+    if (mandatoryLogoutBtn) {
+      mandatoryLogoutBtn.addEventListener('click', () => {
+        Auth.clear();
+        const mandatoryModal = document.getElementById('modal-mandatory-password');
+        if (mandatoryModal) mandatoryModal.style.display = 'none';
+        showLogin();
+      });
+    }
+
+    if (mandatoryForm) {
+      mandatoryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const curPass = (document.getElementById('mandatory-current-pass')?.value || '').trim();
+        const newPass = (document.getElementById('mandatory-new-pass')?.value || '').trim();
+        const confPass = (document.getElementById('mandatory-confirm-pass')?.value || '').trim();
+
+        if (!curPass || !newPass || !confPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'Todos los campos son obligatorios.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass !== confPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña y su confirmación no coinciden.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass === curPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña debe ser diferente a la contraseña provisional actual.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass.length < 8 || !/[A-Z]/.test(newPass) || !/[a-z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña no cumple con los requisitos de seguridad institucional.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        const btnText = mandatorySubmitBtn?.querySelector('.btn-text');
+        const btnLoader = mandatorySubmitBtn?.querySelector('.btn-loader');
+        if (mandatorySubmitBtn) mandatorySubmitBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoader) btnLoader.style.display = 'inline-flex';
+        if (mandatoryFeedback) mandatoryFeedback.style.display = 'none';
+
+        try {
+          const res = await API.changePassword({
+            currentPassword: curPass,
+            newPassword: newPass,
+            confirmPassword: confPass
+          });
+
+          if (res.user) {
+            res.user.mustChangePassword = false;
+            Auth.save(res.token, res.user);
+          } else {
+            Auth.setMustChangePassword(false);
+          }
+
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-success';
+            mandatoryFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>${res.message || 'Contraseña actualizada exitosamente.'}</span>
+            `;
+            mandatoryFeedback.style.display = 'flex';
+          }
+
+          setTimeout(() => {
+            const mandatoryModal = document.getElementById('modal-mandatory-password');
+            if (mandatoryModal) mandatoryModal.style.display = 'none';
+            // Ingresar limpiamente a la plataforma
+            const user = Auth.getUser();
+            const landing = getDefaultLandingRoute(user);
+            showApp();
+            navigate(landing.module, landing.options);
+            showToast('Contraseña actualizada correctamente. ¡Bienvenido a Talento 360!', 'success');
+          }, 900);
+        } catch (err) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>${err.message || 'Error al actualizar la contraseña.'}</span>
+            `;
+            mandatoryFeedback.style.display = 'flex';
+          }
+        } finally {
+          if (mandatorySubmitBtn) mandatorySubmitBtn.disabled = false;
+          if (btnText) btnText.style.display = 'inline';
+          if (btnLoader) btnLoader.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  function showMandatoryPasswordModal(user) {
+    const mandatoryModal = document.getElementById('modal-mandatory-password');
+    if (!mandatoryModal) return;
+
+    // Ocultar pantalla de login y asegurar que no se carguen módulos por detrás
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'none', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'grid', 'important');
+
+    // Limpiar inputs del modal
+    const curInput = document.getElementById('mandatory-current-pass');
+    const newInput = document.getElementById('mandatory-new-pass');
+    const confInput = document.getElementById('mandatory-confirm-pass');
+    const feedback = document.getElementById('mandatory-feedback');
+
+    if (curInput) curInput.value = '';
+    if (newInput) newInput.value = '';
+    if (confInput) confInput.value = '';
+    if (feedback) {
+      feedback.style.display = 'none';
+      feedback.textContent = '';
+      feedback.className = 'recovery-feedback';
+    }
+
+    // Resetear checklist de políticas
+    ['req-len', 'req-upper', 'req-lower', 'req-num'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('valid');
+    });
+
+    mandatoryModal.style.display = 'flex';
+    setTimeout(() => { if (curInput) curInput.focus(); }, 150);
+  }
+
   // ─── Init ──────────────────────────────────────────────────────────────────
   function init() {
     // Configuración universal en Español para Flatpickr
@@ -3015,6 +3315,11 @@ const App = (() => {
           Auth.save(res.token, res.user);
           if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
             Auth.setAdminElevated(false);
+          }
+
+          if (res.user && res.user.mustChangePassword) {
+            showMandatoryPasswordModal(res.user);
+            return;
           }
           const landing = getDefaultLandingRoute(res.user);
 
@@ -3220,6 +3525,10 @@ const App = (() => {
     // Check existing session and cleanse stored user data
     if (Auth.isLoggedIn()) {
       const storedUser = Auth.getUser();
+      if (storedUser && storedUser.mustChangePassword) {
+        showMandatoryPasswordModal(storedUser);
+        return;
+      }
       if (storedUser && typeof storedUser === 'object') {
         let changed = false;
         if (!storedUser.modules || !Array.isArray(storedUser.modules)) {
@@ -3327,6 +3636,9 @@ const App = (() => {
         return origShowPicker.apply(this, arguments);
       };
     }
+
+    // Inicializar recuperación de contraseña y cambio obligatorio
+    initPasswordRecoveryHandlers();
 
     // FX: init effects engine
     if (typeof FX !== 'undefined') FX.init();

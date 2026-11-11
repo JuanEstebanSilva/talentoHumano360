@@ -123,8 +123,22 @@ const Auth = (() => {
     return ['dashboard'];
   }
 
+  function mustChangePassword() {
+    const user = getUser();
+    return Boolean(user && user.mustChangePassword);
+  }
+
+  function setMustChangePassword(val) {
+    const user = getUser();
+    if (user && typeof user === 'object') {
+      user.mustChangePassword = Boolean(val);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+  }
+
   function hasModuleAccess(moduleName) {
     if (!isLoggedIn()) return false;
+    if (mustChangePassword()) return false;
     const user = getUser();
     const mod = String(moduleName || '').toLowerCase().trim();
     if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad') {
@@ -221,5 +235,5 @@ const Auth = (() => {
     return false;
   }
 
-  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, isAdminElevated, setAdminElevated, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules };
+  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, isAdminElevated, setAdminElevated, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules, mustChangePassword, setMustChangePassword };
 })();
