@@ -1604,6 +1604,12 @@ const App = (() => {
 
     cancelBtn.addEventListener('click', () => {
       cleanupOverlay();
+      const unlockOverlay = document.getElementById('admin-unlock-dialog-overlay');
+      if (unlockOverlay && unlockOverlay.parentNode) {
+        unlockOverlay.parentNode.removeChild(unlockOverlay);
+      }
+      isAdminUnlocking = false;
+
       if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
       showLogin();
       showToast('Sesión finalizada. Inicie sesión nuevamente.', 'info');
@@ -1918,6 +1924,10 @@ const App = (() => {
           throw new Error((res && res.error) || 'Contraseña incorrecta.');
         }
       } catch (err) {
+        if (typeof Auth !== 'undefined' && Auth.isLoggedIn && !Auth.isLoggedIn()) {
+          cleanup();
+          return;
+        }
         if (errEl) {
           const errText = errEl.querySelector('.admin-unlock-error-text') || errEl;
           errText.textContent = err.message || 'Contraseña incorrecta. Por favor intente nuevamente.';
@@ -2004,6 +2014,26 @@ const App = (() => {
     if (typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
       try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
     }
+
+    // Limpiar diálogos flotantes u overlays residuales en document.body
+    const unlockOverlay = document.getElementById('admin-unlock-dialog-overlay');
+    if (unlockOverlay && unlockOverlay.parentNode) {
+      unlockOverlay.parentNode.removeChild(unlockOverlay);
+    }
+    isAdminUnlocking = false;
+
+    const reauthOverlay = document.getElementById('reauth-dialog-overlay');
+    if (reauthOverlay && reauthOverlay.parentNode) {
+      reauthOverlay.parentNode.removeChild(reauthOverlay);
+    }
+    isReauthenticating = false;
+
+    closeModal();
+
+    document.querySelectorAll('.admin-unlock-overlay, #admin-unlock-dialog-overlay, #reauth-dialog-overlay').forEach(el => {
+      try { el.remove(); } catch (_) {}
+    });
+
     const uInput = document.getElementById('login-username');
     const pInput = document.getElementById('login-password');
     const err = document.getElementById('login-error');

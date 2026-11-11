@@ -250,7 +250,7 @@ router.post('/verify-password', loginLimiter, async (req, res) => {
 
     if (userResult.rows.length === 0) {
       await bcrypt.compare(normalizedPass, DUMMY_HASH);
-      return res.status(401).json({ valid: false, error: 'Credenciales inválidas.' });
+      return res.status(400).json({ valid: false, error: 'Credenciales inválidas.' });
     }
 
     const user = userResult.rows[0];
@@ -273,7 +273,7 @@ router.post('/verify-password', loginLimiter, async (req, res) => {
     }
 
     if (!matches) {
-      return res.status(401).json({ valid: false, error: 'Contraseña incorrecta.' });
+      return res.status(400).json({ valid: false, error: 'Contraseña incorrecta.' });
     }
 
     return res.json({ valid: true, message: 'Contraseña verificada correctamente.' });

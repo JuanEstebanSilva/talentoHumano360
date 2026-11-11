@@ -55,7 +55,7 @@ const API = (() => {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      if (res.status === 401 && !url.includes('/auth/login')) {
+      if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/verify-password')) {
         // AUD-012 / AUD-013: Capturar borrador del formulario activo en sessionStorage
         try {
           if (typeof sessionStorage !== 'undefined') {
