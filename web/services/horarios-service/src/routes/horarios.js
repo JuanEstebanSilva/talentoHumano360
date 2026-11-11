@@ -891,7 +891,12 @@ router.post('/bulk', auth, async (req, res) => {
     let autoConsec = parseInt(maxConsecRes.rows[0]?.max_consec || 0, 10);
 
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+      const rawRow = rows[i];
+      // Normalizar claves de la fila para tolerar espacios al final o discrepancias en encabezados de Excel
+      const row = {};
+      for (const [k, v] of Object.entries(rawRow || {})) {
+        if (k != null) row[String(k).trim()] = v;
+      }
 
       // Consecutivo (editable / autoincrementable y sin colisiones entre hojas)
       let numConsecutivo = row.numero_consecutivo || row.consecutivo || row['No.'] || row['No'] || row['N°'] || row['Item'] || null;
@@ -947,17 +952,15 @@ router.post('/bulk', auth, async (req, res) => {
         try {
           const normNombre = apellidos_nombres.toUpperCase().trim();
           const pRes = await client.query(
-            `SELECT documento, cargo, dependencia FROM personas 
-             WHERE UPPER(TRIM(nombre)) = $1 
-                OR UPPER(TRIM(COALESCE(nombre,'') || ' ' || COALESCE(apellido,''))) = $1
-                OR UPPER(TRIM(COALESCE(apellido,'') || ' ' || COALESCE(nombre,''))) = $1
+            `SELECT cedula, nombre_completo FROM personas 
+             WHERE UPPER(TRIM(nombre_completo)) = $1 
+                OR UPPER(TRIM(COALESCE(primer_apellido,'') || ' ' || COALESCE(nombres,''))) = $1
+                OR UPPER(TRIM(COALESCE(nombres,'') || ' ' || COALESCE(primer_apellido,''))) = $1
              LIMIT 1`,
             [normNombre]
           );
           if (pRes.rows.length) {
-            documento = pRes.rows[0].documento;
-            if (!row.cargo && pRes.rows[0].cargo) row.cargo = pRes.rows[0].cargo;
-            if (!row.dependencia && pRes.rows[0].dependencia) row.dependencia = pRes.rows[0].dependencia;
+            documento = String(pRes.rows[0].cedula).trim();
           }
         } catch {
           // ignore lookup error
@@ -974,6 +977,24 @@ router.post('/bulk', auth, async (req, res) => {
         errors.push(`Fila ${i + 1}: El nombre del servidor público es obligatorio.`);
         skipped++;
         continue;
+      }
+
+      // Asegurar que la persona exista en 'personas' para cumplir con la clave foránea fk_horarios_personas
+      try {
+        const pCheck = await client.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [documento]);
+        if (!pCheck.rows.length) {
+          const parts = apellidos_nombres.trim().split(/\s+/);
+          const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
+          const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
+          await client.query(
+            `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (cedula) DO NOTHING`,
+            [documento, apellidos_nombres.toUpperCase(), pNom.toUpperCase(), pApe.toUpperCase()]
+          );
+        }
+      } catch (pErr) {
+        console.warn('[horarios-bulk] Aviso al registrar persona para integridad:', pErr.message);
       }
 
       // Estructura Institucional
@@ -1003,8 +1024,6 @@ router.post('/bulk', auth, async (req, res) => {
 
       if (modalidad === 'Presencial') {
         presencialCount++;
-        skipped++;
-        continue;
       }
 
       // Días / Horario específico
@@ -1593,6 +1612,20 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Asegurar existencia en 'personas' para cumplir con la clave foránea fk_horarios_personas
+    const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [upper(documento)]);
+    if (!pCheck.rows.length) {
+      const parts = (apellidos_nombres || '').trim().split(/\s+/);
+      const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
+      const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
+      await pool.query(
+        `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (cedula) DO NOTHING`,
+        [upper(documento), upper(apellidos_nombres || documento), pNom.toUpperCase(), pApe.toUpperCase()]
+      );
+    }
+
     const insertRes = await pool.query(
       `INSERT INTO horarios (
          numero_consecutivo, codigo, grado, secretaria,
@@ -1839,6 +1872,21 @@ router.put('/:id', auth, async (req, res) => {
         return res.status(400).json({
           error: `El servidor público ya cuenta con otro acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
         });
+      }
+    }
+
+    if (targetDoc) {
+      const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [targetDoc]);
+      if (!pCheck.rows.length) {
+        const parts = (apellidos_nombres || '').trim().split(/\s+/);
+        const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
+        const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
+        await pool.query(
+          `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (cedula) DO NOTHING`,
+          [targetDoc, upper(apellidos_nombres || targetDoc), pNom.toUpperCase(), pApe.toUpperCase()]
+        );
       }
     }
 
