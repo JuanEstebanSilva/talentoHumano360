@@ -78,7 +78,7 @@
   <link rel="preload" as="image" href="imgs/logoCondorBlanco.png" />
 
   <link rel="stylesheet" href="css/main.css?v=20261108_v4" />
-  <link rel="stylesheet" href="css/components.css?v=20261110_password_recovery_v1" />
+  <link rel="stylesheet" href="css/components.css?v=20261110_brand_identity_v2" />
   <link rel="stylesheet" href="css/animations.css?v=20261104_gemini_v1" />
   <link rel="stylesheet" href="css/legal.css?v=20261104_gemini_v1" />
   <link rel="stylesheet" href="css/admin.css?v=20261110_admin_unlock_highend" />
@@ -644,56 +644,73 @@
   <!-- ─── Modal de Recuperación de Contraseña (Olvidé mi contraseña) ─────── -->
   <div id="modal-forgot-password" class="modal-overlay recovery-modal-overlay" role="dialog" aria-modal="true" style="display:none">
     <div class="recovery-modal-card">
+      <!-- Encabezado Institucional con Identidad Talento 360 y Gobernación de Boyacá -->
       <div class="recovery-modal-header">
-        <div class="recovery-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
+        <div class="recovery-header-top">
+          <span class="recovery-badge-tag">Soporte Institucional</span>
+          <button type="button" class="recovery-close-btn" id="forgot-modal-close" aria-label="Cerrar modal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <button type="button" class="recovery-close-btn" id="forgot-modal-close" aria-label="Cerrar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+
+        <!-- Logo Oficial y Marca de la Plataforma (Sin fondos innecesarios en iconos) -->
+        <div class="recovery-brand-wrap">
+          <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="recovery-brand-condor" />
+          <div class="recovery-brand-text">
+            <div class="recovery-brand-title">
+              <span class="brand-talento">Talento</span><span class="brand-360">360</span>
+            </div>
+            <div class="recovery-brand-sub">GOBERNACIÓN DE BOYACÁ</div>
+          </div>
+        </div>
+
+        <h3 class="recovery-title">¿Olvidaste tu contraseña?</h3>
+        <p class="recovery-desc">
+          Ingresa tu dirección de correo electrónico institucional para validar tu vinculación y recibir una clave provisional segura.
+        </p>
       </div>
 
       <div class="recovery-modal-body">
-        <div class="recovery-badge-tag">Soporte Talento 360</div>
-        <h3 class="recovery-title">¿Olvidaste tu contraseña?</h3>
-        <p class="recovery-desc">
-          Ingresa tu dirección de correo electrónico institucional. Si tu cuenta está registrada y habilitada en la plataforma, recibirás una contraseña provisional e instrucciones para restablecer el acceso.
-        </p>
-
         <form id="form-forgot-password" novalidate>
-          <div class="form-group-new">
-            <label for="forgot-email" class="form-label-new">Correo Electrónico</label>
-            <div class="input-wrapper-new">
-              <svg class="input-icon-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="recovery-field-group">
+            <label for="forgot-email" class="recovery-field-label">Correo Electrónico Institucional</label>
+            <div class="recovery-input-wrap">
+              <svg class="recovery-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
-              <input type="email" id="forgot-email" class="form-input-new" placeholder="usuario@boyaca.gov.co" required autocomplete="email" />
+              <input type="email" id="forgot-email" class="recovery-input-control" placeholder="usuario@boyaca.gov.co" required autocomplete="email" />
             </div>
+          </div>
+
+          <div class="recovery-advisory-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span>Por motivos de seguridad, la clave provisional tiene una vigencia de 24 horas y el sistema te solicitará cambiarla en tu próximo inicio de sesión.</span>
           </div>
 
           <div id="forgot-feedback" class="recovery-feedback" style="display:none;" role="alert" aria-live="polite"></div>
 
-          <div class="recovery-actions">
-            <button type="button" class="btn btn-secondary" id="forgot-btn-cancel">
+          <div class="recovery-actions-bar">
+            <button type="button" class="btn-recovery-cancel" id="forgot-btn-cancel">
               Volver al inicio
             </button>
-            <button type="submit" class="btn btn-primary" id="forgot-btn-submit">
+            <button type="submit" class="btn-recovery-submit" id="forgot-btn-submit">
               <span class="btn-text">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;vertical-align:-2px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
                 </svg>
                 Enviar Instrucciones
               </span>
               <span class="btn-loader" style="display:none">
-                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
                 </svg>
                 Enviando correo...
@@ -709,48 +726,54 @@
   <div id="modal-mandatory-password" class="modal-overlay mandatory-modal-overlay" role="dialog" aria-modal="true" style="display:none">
     <div class="mandatory-modal-card">
       <div class="mandatory-modal-header">
-        <div class="mandatory-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <path d="M12 8v4" />
-            <path d="M12 16h.01" />
-          </svg>
+        <div class="mandatory-header-top">
+          <span class="mandatory-badge-tag">Seguridad Institucional</span>
         </div>
-        <div class="mandatory-badge-tag">Seguridad Institucional</div>
+
+        <div class="recovery-brand-wrap">
+          <img src="imgs/logoCondorBlanco.png" alt="Escudo Gobernación de Boyacá" class="recovery-brand-condor" />
+          <div class="recovery-brand-text">
+            <div class="recovery-brand-title">
+              <span class="brand-talento">Talento</span><span class="brand-360">360</span>
+            </div>
+            <div class="recovery-brand-sub">GOBERNACIÓN DE BOYACÁ</div>
+          </div>
+        </div>
+
         <h3 class="mandatory-title">Cambio Obligatorio de Contraseña</h3>
         <p class="mandatory-desc">
-          Has iniciado sesión utilizando una clave provisional. Por políticas de ciberseguridad institucional de la Gobernación de Boyacá, debes establecer tu nueva contraseña personal antes de continuar al sistema.
+          Has iniciado sesión con una clave provisional. Por políticas de ciberseguridad, debes establecer tu nueva contraseña personal antes de continuar.
         </p>
       </div>
 
       <div class="mandatory-modal-body">
         <form id="form-mandatory-password" novalidate>
           <!-- Contraseña Provisional Actual -->
-          <div class="form-group-new">
-            <label for="mandatory-current-pass" class="form-label-new">Contraseña Provisional Actual</label>
-            <div class="input-wrapper-new">
-              <svg class="input-icon-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="recovery-field-group">
+            <label for="mandatory-current-pass" class="recovery-field-label">Contraseña Provisional Actual</label>
+            <div class="recovery-input-wrap">
+              <svg class="recovery-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <input type="password" id="mandatory-current-pass" class="form-input-new" placeholder="Ingresa la clave recibida por correo" required autocomplete="current-password" />
-              <button type="button" class="input-toggle-new toggle-pass-btn" data-target="mandatory-current-pass" aria-label="Mostrar/ocultar clave">
+              <input type="password" id="mandatory-current-pass" class="recovery-input-control" placeholder="Ingresa la clave recibida por correo" required autocomplete="current-password" />
+              <button type="button" class="recovery-toggle-pass toggle-pass-btn" data-target="mandatory-current-pass" aria-label="Mostrar/ocultar clave">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
           </div>
 
           <!-- Nueva Contraseña -->
-          <div class="form-group-new">
-            <label for="mandatory-new-pass" class="form-label-new">Nueva Contraseña Personal</label>
-            <div class="input-wrapper-new">
-              <svg class="input-icon-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="recovery-field-group">
+            <label for="mandatory-new-pass" class="recovery-field-label">Nueva Contraseña Personal</label>
+            <div class="recovery-input-wrap">
+              <svg class="recovery-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="16" r="1" />
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <input type="password" id="mandatory-new-pass" class="form-input-new" placeholder="Mínimo 8 caracteres seguros" required autocomplete="new-password" />
-              <button type="button" class="input-toggle-new toggle-pass-btn" data-target="mandatory-new-pass" aria-label="Mostrar/ocultar clave">
+              <input type="password" id="mandatory-new-pass" class="recovery-input-control" placeholder="Mínimo 8 caracteres seguros" required autocomplete="new-password" />
+              <button type="button" class="recovery-toggle-pass toggle-pass-btn" data-target="mandatory-new-pass" aria-label="Mostrar/ocultar clave">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
@@ -773,14 +796,14 @@
           </div>
 
           <!-- Confirmar Nueva Contraseña -->
-          <div class="form-group-new" style="margin-top:12px;">
-            <label for="mandatory-confirm-pass" class="form-label-new">Confirmar Nueva Contraseña</label>
-            <div class="input-wrapper-new">
-              <svg class="input-icon-new" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="recovery-field-group" style="margin-top:12px;">
+            <label for="mandatory-confirm-pass" class="recovery-field-label">Confirmar Nueva Contraseña</label>
+            <div class="recovery-input-wrap">
+              <svg class="recovery-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <input type="password" id="mandatory-confirm-pass" class="form-input-new" placeholder="Repite tu nueva contraseña" required autocomplete="new-password" />
-              <button type="button" class="input-toggle-new toggle-pass-btn" data-target="mandatory-confirm-pass" aria-label="Mostrar/ocultar clave">
+              <input type="password" id="mandatory-confirm-pass" class="recovery-input-control" placeholder="Repite tu nueva contraseña" required autocomplete="new-password" />
+              <button type="button" class="recovery-toggle-pass toggle-pass-btn" data-target="mandatory-confirm-pass" aria-label="Mostrar/ocultar clave">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
@@ -788,16 +811,19 @@
 
           <div id="mandatory-feedback" class="recovery-feedback" style="display:none;" role="alert" aria-live="polite"></div>
 
-          <div class="mandatory-actions">
-            <button type="button" class="btn btn-secondary" id="mandatory-btn-logout">
+          <div class="mandatory-actions-bar">
+            <button type="button" class="btn-recovery-cancel" id="mandatory-btn-logout">
               Cerrar Sesión
             </button>
-            <button type="submit" class="btn btn-primary" id="mandatory-btn-submit">
+            <button type="submit" class="btn-recovery-submit" id="mandatory-btn-submit">
               <span class="btn-text">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
                 Actualizar y Acceder
               </span>
               <span class="btn-loader" style="display:none">
-                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
                 </svg>
                 Guardando...

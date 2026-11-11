@@ -12889,166 +12889,345 @@ select[id^="hor-filter-"] {
 /* ═══════════════════════════════════════════════════════════════════════════ */
 .recovery-modal-overlay,
 .mandatory-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 99999;
-  display: flex;
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100% !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  background: rgba(10, 24, 18, 0.72) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  z-index: 999999 !important;
   align-items: center;
   justify-content: center;
   padding: 16px;
   box-sizing: border-box;
-  animation: overlay-fade-in 0.2s ease-out forwards;
+  animation: overlay-fade-in 0.22s ease-out forwards;
+}
+
+.recovery-modal-overlay[style*="display: none"],
+.mandatory-modal-overlay[style*="display: none"] {
+  display: none !important;
+}
+.recovery-modal-overlay[style*="display: flex"],
+.mandatory-modal-overlay[style*="display: flex"] {
+  display: flex !important;
+}
+
+[data-theme="dark"] .recovery-modal-overlay,
+[data-theme="dark"] .mandatory-modal-overlay {
+  background: rgba(4, 12, 8, 0.82) !important;
 }
 
 .recovery-modal-card,
 .mandatory-modal-card {
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 20px;
+  border-radius: 22px;
   width: 100%;
   max-width: 480px;
-  padding: 28px 32px 30px;
-  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
   animation: modal-pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   position: relative;
   box-sizing: border-box;
 }
 
-[data-theme="dark"] .recovery-modal-overlay,
-[data-theme="dark"] .mandatory-modal-overlay {
-  background: rgba(0, 0, 0, 0.78);
-}
-
 [data-theme="dark"] .recovery-modal-card,
 [data-theme="dark"] .mandatory-modal-card {
-  background: #1e293b;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: #111c15;
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+/* Encabezado Institucional: Boyacá Emerald Gradient */
 .recovery-modal-header,
 .mandatory-modal-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  margin-bottom: 20px;
   position: relative;
+  background: linear-gradient(135deg, #092c1e 0%, #164e35 50%, #0d3824 100%);
+  padding: 22px 24px 20px;
+  text-align: center;
+  border-bottom: 2px solid rgba(209, 173, 42, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-.recovery-close-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #64748b;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+.recovery-header-top,
+.mandatory-header-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-.recovery-close-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #0f172a;
-}
-[data-theme="dark"] .recovery-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
-}
-
-.recovery-icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1.5px solid rgba(16, 185, 129, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #10b981;
-  margin-bottom: 14px;
-}
-.recovery-icon-wrap svg {
-  width: 28px;
-  height: 28px;
-}
-
-.mandatory-icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1.5px solid rgba(245, 158, 11, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #f59e0b;
-  margin-bottom: 14px;
-}
-.mandatory-icon-wrap svg {
-  width: 28px;
-  height: 28px;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
 .recovery-badge-tag,
 .mandatory-badge-tag {
-  display: inline-block;
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #a7f3d0;
+  border: 1px solid rgba(167, 243, 208, 0.35);
+  backdrop-filter: blur(4px);
 }
-.recovery-badge-tag {
-  background: rgba(16, 185, 129, 0.14);
-  color: #059669;
-}
+
 .mandatory-badge-tag {
-  background: rgba(245, 158, 11, 0.14);
-  color: #d97706;
+  color: #fde68a;
+  border-color: rgba(253, 230, 138, 0.35);
+  background: rgba(245, 158, 11, 0.18);
+}
+
+.recovery-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.recovery-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: rotate(90deg);
+}
+
+.recovery-close-btn svg {
+  width: 17px;
+  height: 17px;
+  background: transparent !important;
+}
+
+/* Brand Wrap con Logo Oficial */
+.recovery-brand-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.recovery-brand-condor {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.35));
+}
+
+.recovery-brand-text {
+  text-align: left;
+}
+
+.recovery-brand-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.recovery-brand-title .brand-talento {
+  color: #ffffff;
+}
+
+.recovery-brand-title .brand-360 {
+  color: #fbbf24; /* Boyacá Gold */
+}
+
+.recovery-brand-sub {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 2px;
 }
 
 .recovery-title,
 .mandatory-title {
-  font-size: 1.25rem;
+  font-size: 1.18rem;
   font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 8px;
-  letter-spacing: -0.3px;
-}
-[data-theme="dark"] .recovery-title,
-[data-theme="dark"] .mandatory-title {
-  color: #f8fafc;
+  color: #ffffff;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
 }
 
 .recovery-desc,
 .mandatory-desc {
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: #64748b;
-  margin: 0 0 16px;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.45;
+  margin: 0;
 }
-[data-theme="dark"] .recovery-desc,
-[data-theme="dark"] .mandatory-desc {
+
+/* Cuerpo del Modal */
+.recovery-modal-body,
+.mandatory-modal-body {
+  padding: 22px 24px;
+}
+
+.recovery-field-group {
+  margin-bottom: 16px;
+}
+
+.recovery-field-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #475569);
+  margin-bottom: 7px;
+}
+
+[data-theme="dark"] .recovery-field-label {
   color: #94a3b8;
+}
+
+/* Input con Icono Limpio (Sin fondo innecesario) */
+.recovery-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.recovery-input-icon {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: #64748b;
+  pointer-events: none;
+  transition: color 0.2s ease;
+  background: transparent !important; /* CERO fondo innecesario */
+  border: none !important;
+}
+
+.recovery-input-control {
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-color, #cbd5e1);
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #0f172a);
+  font-size: 0.94rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.recovery-input-control:focus,
+.recovery-input-control:focus-visible {
+  border-color: #005a36 !important;
+  box-shadow: 0 0 0 3.5px rgba(0, 90, 54, 0.18) !important;
+}
+
+.recovery-input-control:focus ~ .recovery-input-icon,
+.recovery-input-wrap:focus-within .recovery-input-icon {
+  color: #005a36 !important;
+}
+
+[data-theme="dark"] .recovery-input-control {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .recovery-input-control:focus {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 0 3.5px rgba(52, 211, 153, 0.2) !important;
+}
+
+[data-theme="dark"] .recovery-input-wrap:focus-within .recovery-input-icon {
+  color: #34d399 !important;
+}
+
+.recovery-toggle-pass {
+  position: absolute;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.recovery-toggle-pass:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="dark"] .recovery-toggle-pass:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.recovery-toggle-pass svg {
+  width: 18px;
+  height: 18px;
+  background: transparent !important;
+}
+
+/* Caja de Asesoría de Seguridad */
+.recovery-advisory-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: rgba(0, 90, 54, 0.05);
+  border: 1px solid rgba(0, 90, 54, 0.18);
+  font-size: 0.80rem;
+  color: #334155;
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.recovery-advisory-box svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: #005a36;
+  margin-top: 1px;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .recovery-advisory-box {
+  background: rgba(37, 77, 50, 0.18);
+  border-color: rgba(74, 222, 128, 0.25);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .recovery-advisory-box svg {
+  color: #4ade80;
 }
 
 .recovery-feedback {
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 11px;
   font-size: 0.85rem;
   line-height: 1.45;
   margin-bottom: 16px;
@@ -13076,22 +13255,88 @@ select[id^="hor-filter-"] {
   color: #fca5a5;
 }
 
-.recovery-actions,
-.mandatory-actions {
+/* Botones y Acciones */
+.recovery-actions-bar,
+.mandatory-actions-bar {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
 }
-.recovery-actions button,
-.mandatory-actions button {
-  min-height: 42px;
-  border-radius: 10px;
+
+[data-theme="dark"] .recovery-actions-bar,
+[data-theme="dark"] .mandatory-actions-bar {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-recovery-cancel {
+  padding: 10px 18px;
+  border-radius: 11px;
+  font-size: 0.88rem;
   font-weight: 700;
-  font-size: 0.90rem;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-recovery-cancel:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .btn-recovery-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .btn-recovery-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.btn-recovery-submit {
+  padding: 10px 22px;
+  border-radius: 11px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #005a36 0%, #00824b 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(0, 90, 54, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-recovery-submit:hover {
+  background: linear-gradient(135deg, #00482b 0%, #006e3f 100%);
+  box-shadow: 0 6px 20px rgba(0, 90, 54, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-recovery-submit:active {
+  transform: translateY(0);
+}
+
+.btn-recovery-submit .btn-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-recovery-submit svg {
+  width: 16px;
+  height: 16px;
+  background: transparent !important;
 }
 
 /* Checklist de Políticas de Seguridad */
