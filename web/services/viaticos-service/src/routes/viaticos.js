@@ -5,14 +5,27 @@ const { Pool } = require('pg');
 function parseDateInput(dStr) {
   if (!dStr) return null;
   const s = String(dStr).trim();
+  // Rechazo estricto de actos administrativos, resoluciones o números de acto en la fecha
+  if (/(?:RES|RESOLUCI[OÓ]N|DECRETO|ACTO|OFICIO|MEMORANDO)/i.test(s) || /^\d{3,5}\//.test(s)) {
+    return null;
+  }
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const [y, m, d] = s.substring(0, 10).split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return new Date(Date.UTC(y, m - 1, d));
+    }
+    return null;
   }
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) {
     const [, d, mo, y] = m.map(Number);
-    return new Date(Date.UTC(y, mo - 1, d));
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return new Date(Date.UTC(y, mo - 1, d));
+    }
+    return null;
+  }
+  if (/^[A-Za-z]/.test(s)) {
+    return null;
   }
   const dt = new Date(s);
   return isNaN(dt.getTime()) ? null : new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
@@ -161,7 +174,19 @@ async function ensureViaticosColumns() {
       SELECT DISTINCT anio FROM paquetes_viaticos
       ON CONFLICT (anio) DO NOTHING;
       INSERT INTO vigencias_viaticos(anio) VALUES (2027), (2026), (2025), (2024), (2023), (2022) ON CONFLICT (anio) DO NOTHING;
-      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT REFERENCES paquetes_viaticos(id_paquete) ON DELETE CASCADE;
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT;
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'viaticos_id_paquete_fkey' AND table_name = 'viaticos'
+        ) THEN
+          ALTER TABLE viaticos DROP CONSTRAINT viaticos_id_paquete_fkey;
+        END IF;
+        ALTER TABLE viaticos ADD CONSTRAINT viaticos_id_paquete_fkey FOREIGN KEY (id_paquete) REFERENCES paquetes_viaticos(id_paquete) ON DELETE RESTRICT;
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS numero_resolucion VARCHAR(120);
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS saldo NUMERIC(15,2);
       CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion ON viaticos(numero_resolucion);
@@ -497,27 +522,27 @@ router.put('/paquetes/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/viaticos/paquetes/:id — Eliminar un paquete y todos sus viáticos asociados
+// DELETE /api/viaticos/paquetes/:id — Eliminar un paquete (solo si no contiene viáticos asociados)
 router.delete('/paquetes/:id', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const idNum = parseInt(req.params.id, 10);
   if (!idNum || isNaN(idNum)) return res.status(400).json({ error: 'ID de paquete inválido.' });
   try {
-    // Proteger registros cerrados e históricos legalizados (AUD-NUEVO-007)
-    const checkLegalizados = await pool.query(
-      `SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1 AND estado = 'Legalizado'`,
+    // Proteger registros históricos y trazabilidad institucional: impedir eliminación de paquetes con viáticos
+    const checkViaticos = await pool.query(
+      `SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1`,
       [idNum]
     );
-    const countLegalizados = parseInt(checkLegalizados.rows[0].count, 10) || 0;
-    if (countLegalizados > 0) {
+    const countViaticos = parseInt(checkViaticos.rows[0].count, 10) || 0;
+    if (countViaticos > 0) {
       return res.status(400).json({
-        error: `No es posible eliminar el paquete de viáticos ${idNum}. Contiene ${countLegalizados} comisión(es) en estado Legalizado que deben preservarse por trazabilidad institucional.`
+        error: `No es posible eliminar el paquete presupuestal ${idNum}. Contiene ${countViaticos} comisión(es) de viático asociada(s). Para preservar la trazabilidad institucional y prevenir pérdida accidental de datos, un paquete con viáticos registrados no puede ser eliminado.`
       });
     }
 
     const r = await pool.query('DELETE FROM paquetes_viaticos WHERE id_paquete = $1 RETURNING *', [idNum]);
     if (!r.rows.length) return res.status(404).json({ error: 'Paquete no encontrado.' });
-    res.json({ message: 'Paquete y viáticos eliminados exitosamente.', paquete: r.rows[0] });
+    res.json({ message: 'Paquete eliminado exitosamente.', paquete: r.rows[0] });
   } catch (err) {
     console.error('[viaticos] delete paquete error:', err.message);
     res.status(500).json({ error: 'Error al eliminar paquete.' });
@@ -1161,9 +1186,12 @@ router.post('/', auth, async (req, res) => {
   // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
   let finalDias = null;
   if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
-    const parsedDias = parseInt(dias, 10);
-    if (!isNaN(parsedDias) && parsedDias > 0) {
-      finalDias = parsedDias;
+    const sDias = String(dias).trim();
+    if (/^\d+$/.test(sDias)) {
+      const parsedDias = parseInt(sDias, 10);
+      if (parsedDias > 0) {
+        finalDias = parsedDias;
+      }
     }
   }
   if (finalDias === null && dStart && dEnd) {
@@ -1524,7 +1552,7 @@ router.put('/:id', auth, async (req, res) => {
     await client.query('BEGIN');
 
     const curRes = await client.query(
-      'SELECT id_viatico, estado, valor_diario, observaciones, aprobado_por, saldo, soporte FROM viaticos WHERE id_viatico = $1 FOR UPDATE',
+      'SELECT id_viatico, estado, valor_diario, valor_total, observaciones, aprobado_por, saldo, soporte, dias, fecha_inicio, fecha_fin FROM viaticos WHERE id_viatico = $1 FOR UPDATE',
       [numId]
     );
     if (curRes.rowCount === 0) {
@@ -1559,19 +1587,29 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
-    const dStart = parseDateInput(fechaInicio);
-    const dEnd = parseDateInput(fechaFin);
+    const targetFechaInicio = fechaInicio !== undefined ? (fechaInicio || null) : currentViatico.fecha_inicio;
+    const targetFechaFin = fechaFin !== undefined ? (fechaFin || null) : currentViatico.fecha_fin;
+
+    const dStart = parseDateInput(targetFechaInicio);
+    const dEnd = parseDateInput(targetFechaFin);
     let finalDias = null;
     if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
-      const parsedDias = parseInt(dias, 10);
-      if (!isNaN(parsedDias) && parsedDias > 0) {
-        finalDias = parsedDias;
+      const sDias = String(dias).trim();
+      if (/^\d+$/.test(sDias)) {
+        const parsedDias = parseInt(sDias, 10);
+        if (parsedDias > 0) {
+          finalDias = parsedDias;
+        }
       }
     }
     if (finalDias === null) {
-      if (dStart && dEnd) {
-        finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
-      } else if (dias === undefined) {
+      if (fechaInicio !== undefined || fechaFin !== undefined) {
+        if (dStart && dEnd) {
+          finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
+        } else {
+          finalDias = null;
+        }
+      } else {
         finalDias = currentViatico.dias;
       }
     }
@@ -1608,7 +1646,7 @@ router.put('/:id', auth, async (req, res) => {
         id_paquete=COALESCE($19, id_paquete)
        WHERE id_viatico=$20`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo), upper(destino), motivo||'',
-       fechaInicio||'', fechaFin||'', finalDias, finalValorDiario, finalValorTotal,
+       targetFechaInicio, targetFechaFin, finalDias, finalValorDiario, finalValorTotal,
        targetStatus, obsFinal, finalAprobadoPor, tipoDestino||'Nacional', soporte||null,
        numeroResolucion||null, parseFloat(saldo)||null, id_paquete ? parseInt(id_paquete) : null, numId]
     );

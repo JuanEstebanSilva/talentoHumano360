@@ -4403,6 +4403,211 @@ const ViaticosModule = (() => {
     }
   }
 
+  // ─── Diccionario de equivalencias de Secretarías ──────────────────────────
+  const SECRETARIA_MAP = {
+    'DESPACHOGOBER': 'DESPACHO DEL GOBERNADOR',
+    'DESPACHO GOBERNADOR': 'DESPACHO DEL GOBERNADOR',
+    'HACIENDA': 'SECRETARÍA DE HACIENDA',
+    'PLANEACION': 'SECRETARÍA DE PLANEACIÓN',
+    'GENERAL': 'SECRETARÍA GENERAL',
+    'INFRAESTRUCTURA': 'SECRETARÍA DE INFRAESTRUCTURA',
+    'EDUCACION': 'SECRETARÍA DE EDUCACIÓN',
+    'AGRICULTURA': 'SECRETARÍA DE AGRICULTURA',
+    'INTEGRACION SOCIAL': 'SECRETARÍA DE INTEGRACIÓN SOCIAL',
+    'CULTURA': 'SECRETARÍA DE CULTURA Y PATRIMONIO',
+    'MINAS': 'SECRETARÍA DE MINAS Y ENERGÍA',
+    'GOBIERNO': 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
+    'DESARROLLOEMP': 'SECRETARÍA DE DESARROLLO EMPRESARIAL',
+    'CONTRATACION': 'SECRETARÍA DE CONTRATACIÓN',
+    'AMBIENTE': 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+    'TURISMO': 'SECRETARÍA DE TURISMO',
+    'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO',
+    'SALUD': 'SECRETARÍA DE SALUD',
+    'SECRETARIA DE SALUD': 'SECRETARÍA DE SALUD',
+    '704': 'SECRETARÍA DE SALUD',
+    '703': 'SECRETARÍA DE SALUD'
+  };
+
+  // ─── Conversor de número de serie de fecha de Excel ─────────────────────
+  function excelSerialToDate(serial) {
+    if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
+    const utcDays = Math.floor(serial - 25569);
+    const date = new Date(utcDays * 86400 * 1000);
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const y = date.getUTCFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
+  function isValidCalendarDate(d, m, y) {
+    const day = parseInt(d, 10);
+    const month = parseInt(m, 10);
+    const year = parseInt(y, 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (year < 1900 || year > 2100) return false;
+    if (month < 1 || month > 12) return false;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return day >= 1 && day <= daysInMonth;
+  }
+
+  function parseDateRobust(rawVal, resolucionStr, explicitDias) {
+    let expD = null;
+    if (explicitDias !== undefined && explicitDias !== null && String(explicitDias).trim() !== '') {
+      const sExp = String(explicitDias).trim();
+      if (/^\d+$/.test(sExp)) {
+        const parsed = parseInt(sExp, 10);
+        if (parsed > 0) expD = parsed;
+      }
+    }
+
+    if (rawVal == null || String(rawVal).trim() === '') {
+      return { start: null, end: null, dias: expD, raw: null };
+    }
+
+    // Las fechas de comisión NO deben extraerse de textos de resoluciones ni actos administrativos
+    const rawStr = String(rawVal).trim();
+    if (/(?:RES|RESOLUCI[OÓ]N|DECRETO|ACTO|OFICIO|MEMORANDO)/i.test(rawStr) || /^\d{3,5}\//.test(rawStr)) {
+      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+    }
+
+    if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
+      const sDate = excelSerialToDate(rawVal);
+      if (sDate) {
+        const [d, m, y] = sDate.split('/');
+        if (isValidCalendarDate(d, m, y)) {
+          return { start: sDate, end: sDate, dias: expD || 1, raw: rawVal };
+        }
+      }
+    }
+
+    if (rawVal instanceof Date) {
+      const d = String(rawVal.getUTCDate()).padStart(2, '0');
+      const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
+      const y = rawVal.getUTCFullYear();
+      if (isValidCalendarDate(d, m, y)) {
+        const dStr = `${d}/${m}/${y}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+    }
+
+    let s = String(rawVal).trim().replace(/\s+/g, '');
+
+    // Formato ISO YYYY-MM-DD
+    const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (isoMatch) {
+      const y = isoMatch[1];
+      const m = isoMatch[2].padStart(2, '0');
+      const d = isoMatch[3].padStart(2, '0');
+      if (isValidCalendarDate(d, m, y)) {
+        const dStr = `${d}/${m}/${y}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+    }
+
+    // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
+    s = s.replace(/\/203$/, '/2023');
+    s = s.replace(/\/024$/, '/2024');
+    s = s.replace(/\/204$/, '/2024');
+    s = s.replace(/(\d{1,2}\/\d{1,2})\/(\d{4})$/, '$1/$2');
+    s = s.replace(/,(\/\d{2}\/\d{4})$/, '$1');
+    s = s.replace(/\/(\d{2})\/(\d{4})$/, '/$1/$2');
+    s = s.replace(/\/096\/(\d{4})$/, '/06/$1');
+
+    // Fechas sin barra entre día y mes o mes y año (ej: 07,08,0908/2023 -> 07,08,09/08/2023)
+    s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)(\d{2})\/(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)\/(\d{2})(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2})\/(\d{2})(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
+
+    const parts = s.split('/').filter(p => p.length > 0);
+
+    if (parts.length === 3) {
+      let dayPart = parts[0];
+      let month = parts[1].padStart(2, '0');
+      let year = parts[2];
+      if (year.length === 2) year = '20' + year;
+      if (month.length === 3 && month.startsWith('0')) month = month.substring(1);
+
+      const days = dayPart.split(',').map(d => {
+        let cl = d.trim().replace(/^0+/, '') || '0';
+        if (cl.length === 3 && cl.startsWith('22')) cl = '22';
+        return cl;
+      }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
+
+      if (days.length > 0) {
+        const allDaysValid = days.every(d => isValidCalendarDate(d, month, year));
+        if (!allDaysValid) {
+          return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+        }
+        if (days.length > 1) {
+          const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
+          const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
+          return { start, end, dias: expD || days.length, raw: rawVal };
+        }
+        const single = `${days[0].padStart(2, '0')}/${month}/${year}`;
+        return { start: single, end: single, dias: expD || 1, raw: rawVal };
+      }
+    } else if (parts.length === 4) {
+      let day1Part = parts[0];
+      let m1Part = parts[1];
+      let day2Part = parts[2];
+      let m2Part = parts[3];
+
+      let year = '2023';
+      let month2 = '01';
+
+      if (m2Part.length === 4) {
+        year = m2Part;
+        month2 = day2Part.padStart(2, '0');
+        const d1Tokens = day1Part.split(',').filter(Boolean);
+        const d2Tokens = [m1Part];
+        const startMonth = month2;
+        const startValid = d1Tokens.every(d => isValidCalendarDate(d, startMonth, year));
+        const endValid = d2Tokens.every(d => isValidCalendarDate(d, month2, year));
+        if (startValid && endValid) {
+          const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
+          const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
+          return { start, end, dias: expD || (d1Tokens.length + d2Tokens.length), raw: rawVal };
+        }
+      }
+    } else if (parts.length >= 5) {
+      let year = parts[parts.length - 1];
+      if (year.length === 2) year = '20' + year;
+      let endMonth = parts[parts.length - 2].padStart(2, '0');
+      let endDays = parts[parts.length - 3].split(',').filter(Boolean);
+      let startMonth = parts[1].padStart(2, '0');
+      let startDays = parts[0].split(',').filter(Boolean);
+
+      const startValid = startDays.every(d => isValidCalendarDate(d, startMonth, year));
+      const endValid = endDays.every(d => isValidCalendarDate(d, endMonth, year));
+      if (startValid && endValid) {
+        const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
+        const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
+        const dias = expD || ((startDays.length || 1) + (endDays.length || 1));
+        return { start, end, dias, raw: rawVal };
+      }
+    }
+
+    const mMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (mMatch) {
+      let yr = mMatch[3];
+      if (yr.length === 2) yr = '20' + yr;
+      const d = mMatch[1].padStart(2, '0');
+      const mo = mMatch[2].padStart(2, '0');
+      if (isValidCalendarDate(d, mo, yr)) {
+        const dStr = `${d}/${mo}/${yr}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+    }
+
+    // Si el formato no corresponde a una fecha reconocible, no inventar fechas ni duración
+    return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+  }
+
   // ─── Procesar e Importar Excel vinculado a un Paquete ────────────────────────
   async function processAndImportPackageExcel(file, id_paquete) {
     return new Promise((resolve, reject) => {
@@ -4755,202 +4960,6 @@ const ViaticosModule = (() => {
       dropzone.classList.remove('excel-dropzone-dragover');
       if (e.dataTransfer.files && e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
     });
-
-    // ─── Diccionario de equivalencias de Secretarías ──────────────────────────
-    const SECRETARIA_MAP = {
-      'DESPACHOGOBER': 'DESPACHO DEL GOBERNADOR',
-      'DESPACHO GOBERNADOR': 'DESPACHO DEL GOBERNADOR',
-      'HACIENDA': 'SECRETARÍA DE HACIENDA',
-      'PLANEACION': 'SECRETARÍA DE PLANEACIÓN',
-      'GENERAL': 'SECRETARÍA GENERAL',
-      'INFRAESTRUCTURA': 'SECRETARÍA DE INFRAESTRUCTURA',
-      'EDUCACION': 'SECRETARÍA DE EDUCACIÓN',
-      'AGRICULTURA': 'SECRETARÍA DE AGRICULTURA',
-      'INTEGRACION SOCIAL': 'SECRETARÍA DE INTEGRACIÓN SOCIAL',
-      'CULTURA': 'SECRETARÍA DE CULTURA Y PATRIMONIO',
-      'MINAS': 'SECRETARÍA DE MINAS Y ENERGÍA',
-      'GOBIERNO': 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
-      'DESARROLLOEMP': 'SECRETARÍA DE DESARROLLO EMPRESARIAL',
-      'CONTRATACION': 'SECRETARÍA DE CONTRATACIÓN',
-      'AMBIENTE': 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
-      'TURISMO': 'SECRETARÍA DE TURISMO',
-      'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO',
-      'SALUD': 'SECRETARÍA DE SALUD',
-      'SECRETARIA DE SALUD': 'SECRETARÍA DE SALUD',
-      '704': 'SECRETARÍA DE SALUD',
-      '703': 'SECRETARÍA DE SALUD'
-    };
-
-    // ─── Conversor de número de serie de fecha de Excel ─────────────────────
-    function excelSerialToDate(serial) {
-      if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
-      const utcDays = Math.floor(serial - 25569);
-      const date = new Date(utcDays * 86400 * 1000);
-      const d = String(date.getUTCDate()).padStart(2, '0');
-      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const y = date.getUTCFullYear();
-      return `${d}/${m}/${y}`;
-    }
-
-    // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
-    function isValidCalendarDate(d, m, y) {
-      const day = parseInt(d, 10);
-      const month = parseInt(m, 10);
-      const year = parseInt(y, 10);
-      if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
-      if (year < 1900 || year > 2100) return false;
-      if (month < 1 || month > 12) return false;
-      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      return day >= 1 && day <= daysInMonth;
-    }
-
-    function parseDateRobust(rawVal, resolucionStr, explicitDias) {
-      const expD = (explicitDias !== undefined && explicitDias !== null && String(explicitDias).trim() !== '' && !isNaN(parseInt(explicitDias, 10)) && parseInt(explicitDias, 10) > 0)
-        ? parseInt(explicitDias, 10)
-        : null;
-
-      if (rawVal == null || String(rawVal).trim() === '') {
-        return { start: null, end: null, dias: expD, raw: null };
-      }
-
-      if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
-        const sDate = excelSerialToDate(rawVal);
-        if (sDate) {
-          const [d, m, y] = sDate.split('/');
-          if (isValidCalendarDate(d, m, y)) {
-            return { start: sDate, end: sDate, dias: expD || 1, raw: rawVal };
-          }
-        }
-      }
-
-      if (rawVal instanceof Date) {
-        const d = String(rawVal.getUTCDate()).padStart(2, '0');
-        const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
-        const y = rawVal.getUTCFullYear();
-        if (isValidCalendarDate(d, m, y)) {
-          const dStr = `${d}/${m}/${y}`;
-          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
-        }
-        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
-      }
-
-      let s = String(rawVal).trim().replace(/\s+/g, '');
-      const mResol = s.match(/^\d{3,4}\/(\d{1,2}\/\d{1,2}\/\d{2,4})$/);
-      if (mResol) s = mResol[1];
-
-      // Formato ISO YYYY-MM-DD
-      const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
-      if (isoMatch) {
-        const y = isoMatch[1];
-        const m = isoMatch[2].padStart(2, '0');
-        const d = isoMatch[3].padStart(2, '0');
-        if (isValidCalendarDate(d, m, y)) {
-          const dStr = `${d}/${m}/${y}`;
-          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
-        }
-        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
-      }
-
-      // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
-      s = s.replace(/\/203$/, '/2023');
-      s = s.replace(/\/024$/, '/2024');
-      s = s.replace(/\/204$/, '/2024');
-      s = s.replace(/(\d{1,2}\/\d{1,2})\/(\d{4})$/, '$1/$2');
-      s = s.replace(/,(\/\d{2}\/\d{4})$/, '$1');
-      s = s.replace(/\/(\d{2})\/(\d{4})$/, '/$1/$2');
-      s = s.replace(/\/096\/(\d{4})$/, '/06/$1');
-
-      // Fechas sin barra entre día y mes o mes y año (ej: 07,08,0908/2023 -> 07,08,09/08/2023)
-      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)(\d{2})\/(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)\/(\d{2})(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2})\/(\d{2})(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
-
-      const parts = s.split('/').filter(p => p.length > 0);
-
-      if (parts.length === 3) {
-        let dayPart = parts[0];
-        let month = parts[1].padStart(2, '0');
-        let year = parts[2];
-        if (year.length === 2) year = '20' + year;
-        if (month.length === 3 && month.startsWith('0')) month = month.substring(1);
-
-        const days = dayPart.split(',').map(d => {
-          let cl = d.trim().replace(/^0+/, '') || '0';
-          if (cl.length === 3 && cl.startsWith('22')) cl = '22';
-          return cl;
-        }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
-
-        if (days.length > 0) {
-          const allDaysValid = days.every(d => isValidCalendarDate(d, month, year));
-          if (!allDaysValid) {
-            return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
-          }
-          if (days.length > 1) {
-            const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
-            const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
-            return { start, end, dias: expD || days.length, raw: rawVal };
-          }
-          const single = `${days[0].padStart(2, '0')}/${month}/${year}`;
-          return { start: single, end: single, dias: expD || 1, raw: rawVal };
-        }
-      } else if (parts.length === 4) {
-        let day1Part = parts[0];
-        let m1Part = parts[1];
-        let day2Part = parts[2];
-        let m2Part = parts[3];
-
-        let year = '2023';
-        let month2 = '01';
-
-        if (m2Part.length === 4) {
-          year = m2Part;
-          month2 = day2Part.padStart(2, '0');
-          const d1Tokens = day1Part.split(',').filter(Boolean);
-          const d2Tokens = [m1Part];
-          const startMonth = month2;
-          const startValid = d1Tokens.every(d => isValidCalendarDate(d, startMonth, year));
-          const endValid = d2Tokens.every(d => isValidCalendarDate(d, month2, year));
-          if (startValid && endValid) {
-            const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
-            const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
-            return { start, end, dias: expD || (d1Tokens.length + d2Tokens.length), raw: rawVal };
-          }
-        }
-      } else if (parts.length >= 5) {
-        let year = parts[parts.length - 1];
-        if (year.length === 2) year = '20' + year;
-        let endMonth = parts[parts.length - 2].padStart(2, '0');
-        let endDays = parts[parts.length - 3].split(',').filter(Boolean);
-        let startMonth = parts[1].padStart(2, '0');
-        let startDays = parts[0].split(',').filter(Boolean);
-
-        const startValid = startDays.every(d => isValidCalendarDate(d, startMonth, year));
-        const endValid = endDays.every(d => isValidCalendarDate(d, endMonth, year));
-        if (startValid && endValid) {
-          const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
-          const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
-          const dias = expD || ((startDays.length || 1) + (endDays.length || 1));
-          return { start, end, dias, raw: rawVal };
-        }
-      }
-
-      const mMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-      if (mMatch) {
-        let yr = mMatch[3];
-        if (yr.length === 2) yr = '20' + yr;
-        const d = mMatch[1].padStart(2, '0');
-        const mo = mMatch[2].padStart(2, '0');
-        if (isValidCalendarDate(d, mo, yr)) {
-          const dStr = `${d}/${mo}/${yr}`;
-          return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
-        }
-        return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
-      }
-
-      // Si el formato no corresponde a una fecha reconocible, no inventar fechas ni duración
-      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
-    }
 
     // ─── Confirmación y procesamiento masivo con SheetJS ────────────────────
     confirmBtn.addEventListener('click', async () => {
