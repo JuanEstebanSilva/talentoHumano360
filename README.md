@@ -1,99 +1,244 @@
-# Talento 360 — Plataforma de Gestión de Talento Humano
+# Talento 360 — Sistema Integral de Gestión de Talento Humano
 
-[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Alpine-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2%2B-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639?logo=nginx&logoColor=white)](https://nginx.org/)
-[![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-005A9C)](https://www.w3.org/WAI/standards-guidelines/wcag/)
-[![Security Hardened](https://img.shields.io/badge/Security-Hardened%20(AUD--001--014)-brightgreen)](AUDITORIAS/)
-[![License](https://img.shields.io/badge/License-Gobernaci%C3%B3n%20de%20Boyac%C3%A1-355833)](LICENSE)
+<div align="center">
+  <img src="web/frontend/src/imgs/logoCondor.png" alt="Escudo de Boyacá" width="120" />
+  <h3>GOBERNACIÓN DE BOYACÁ</h3>
+  <p><strong>Subdirección de Talento Humano · Despacho del Gobernador</strong></p>
+  <p><em>Plataforma web gubernamental de alta disponibilidad, seguridad auditada y gestión 360° de la planta de personal departamental.</em></p>
 
-Plataforma web institucional de alta disponibilidad y seguridad para la administración integral del talento humano de la **Gobernación de Boyacá**. Diseñada para centralizar y automatizar la gestión de la planta de servidores públicos, modalidades laborales concertadas, comisiones de viáticos con motor normativo, trámites administrativos, vacaciones y **Seguridad y Salud en el Trabajo (SST)**.
-
-Construida con una arquitectura de microservicios desacoplados en **Node.js / Express**, base de datos relacional **PostgreSQL 16**, frontend SPA de alto rendimiento con interfaz reactiva, diseño accesible (WCAG 2.1 AA), generación de reportes ejecutivos en PDF de alta fidelidad y un blindaje exhaustivo de ciberseguridad y no-regresión operativa (**CWE-1236, OWASP Top 10, RBAC estricto**).
-
----
-
-## 📚 Documentación Clave
-
-- 🚀 **[Guía de Despliegue en Servidor Local Linux (On-Premise)](./GUIA_DESPLIEGUE_SERVIDOR_LINUX.md):** Manual paso a paso, amigable y detallado para instalar Ubuntu Server y correr los 10 contenedores en el servidor de la entidad.
-- 📁 **[Archivo Central de Auditorías y Certificaciones](./AUDITORIAS/):** Directorio consolidado con las auditorías técnicas, matrices de permisos y el informe consolidado maestro ([`AUDITORIA_FINAL_TALENTO_360.md`](./AUDITORIAS/AUDITORIA_FINAL_TALENTO_360.md)).
-- ☁️ **[Despliegue Alternativo en la Nube (Netlify + Render)](./docs/DEPLOY_NETLIFY_RENDER.md):** Guía de arquitectura para despliegue en entornos cloud.
-- 🎨 **[Manual de Marca y Colorimetría Institucional](./docs/branding/colorimetria.md):** Paleta visual y directrices de diseño oficial de la Gobernación de Boyacá.
+  [![Node.js](https://img.shields.io/badge/Node.js-20%2B%20LTS-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Alpine-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+  [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2%2B-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+  [![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639?style=for-the-badge&logo=nginx&logoColor=white)](https://nginx.org/)
+  [![Accessibility](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-005A9C?style=for-the-badge)](https://www.w3.org/WAI/standards-guidelines/wcag/)
+  [![Security Hardened](https://img.shields.io/badge/Security-Hardened%20(AUD--001--014)-005A36?style=for-the-badge)](AUDITORIAS/)
+  [![Boyacá Grande](https://img.shields.io/badge/Boyacá-Grande%20y%20Eficiente-D1AD2A?style=for-the-badge)](https://www.boyaca.gov.co)
+</div>
 
 ---
 
-## 🏛️ Módulos de la Plataforma
-
-- **📊 Dashboard Integral y Analítico:**
-  - Paneles adaptados dinámicamente por rol operativo (`admin`, `angela`, `blanca`, `doris`, `bergenet`).
-  - Indicadores KPI en tiempo real: servidores activos, plazas vacantes, inactivos/retirados y distribución departamental por secretarías.
-  - Generador de informes ejecutivos en **PDF de alta resolución**: formato institucional estandarizado en 2 páginas completas, gráficos vectoriales, cabecera limpia *Talento 360* y área oficial para firmas físicas o digitales.
-
-- **👥 Directorio y Gestión de Servidores Públicos:**
-  - Hoja de vida digital y administración integral de la planta institucional (personal activo, plazas vacantes enumeradas y servidores retirados con motivo y fecha formal de desvinculación).
-  - **Generación atómica de identificadores `REL`** (`REL00001`...): bloqueos consultivos de concurrencia para evitar colisiones en creación paralela.
-  - Flujo formal de retiro con congelamiento de antigüedad y flujo de **reincorporación / revinculación** que preserva el acumulado de tiempos de servicio.
-  - Homologación de niveles jerárquicos (*Directivo, Asesor, Profesional, Técnico, Asistencial*), validación estricta de 22 reglas institucionales de datos y catálogo geográfico **DIVIPOLA**.
-  - Motor de importación masiva desde plantillas Excel (`.xlsx`) con sanitización DTO, omisión de filas fantasma y reporte de inconsistencias.
-
-- **⏰ Horarios y Modalidades Laborales Especiales:**
-  - Administración de esquemas concertados: **Teletrabajo** (autónomo, suplementario, móvil), **Trabajo en Casa** y **Horario Flexible**.
-  - Control de concurrencia: prevención estricta de acuerdos simultáneos con traslape de fechas para un mismo funcionario.
-  - **Retorno automático a presencialidad:** motor que detecta acuerdos vencidos y los transiciona a `Caducada`, retornando al funcionario a presencialidad ordinaria sin tuplas redundantes.
-  - **Pausa y reanudación automática de vacaciones:** cuando un servidor activa una modalidad de *Trabajo en casa*, las vacaciones vigentes se pausan administrativamente y se reanudan al caducar el acuerdo.
-
-- **✈️ Comisiones y Viáticos (Motor Normativo):**
-  - Radicación, liquidación y seguimiento de comisiones departamentales (catálogo oficial de los **123 municipios de Boyacá**), nacionales y especiales.
-  - **Motor de liquidación automática 2024–2026:** evaluación de escalas salariales reglamentadas por decretos del Gobierno Nacional y Departamental, cálculo automático de pernoctadas y tarifas diarias oficiales.
-  - **Máquina de estados canónica:** flujo administrativo `Radicado` $\rightarrow$ `Aprobado` $\rightarrow$ `En Ejecución` $\rightarrow$ `Legalizado`.
-  - **Protección contable y fiscal:** bloqueo estricto que impide la eliminación física o alteración de comisiones en estado `Legalizado`, constituyendo soporte presupuestal cerrado y auditable.
-  - Carga diferida de soportes documentales bajo demanda (`GET /api/viaticos/:id/soporte`) para optimizar el rendimiento de la red.
-
-- **🏖️ Gestión de Vacaciones y Novedades:**
-  - Radicación de solicitudes de vacaciones ordinarias y compensadas.
-  - Cálculo dinámico de días hábiles descontando fines de semana y festivos oficiales de Colombia.
-  - Flujo de aprobación por talento humano y trazabilidad cronológica.
-
-- **📋 Trámites y Solicitudes Administrativas:**
-  - Gestión de permisos laborales remunerados, incapacidades médicas con soporte y licencias (maternidad, paternidad, luto, remuneradas y no remuneradas).
-
-- **🦺 Seguridad y Salud en el Trabajo (SST):**
-  - Vigilancia epidemiológica y seguimiento a Exámenes Médicos Ocupacionales (EMO).
-  - Matriz de entrega y dotación de Elementos de Protección Personal (EPP).
-  - Caracterización sociodemográfica de la planta institucional.
-
-- **🛡️ Centro de Monitoreo, Errores y Copias de Seguridad (Administrador Técnico):**
-  - **Consola de Errores e Incidentes:** captura global de excepciones con clasificación automática por severidad (`Critica`, `Alta`, `Media`, `Baja`), seguimiento de errores HTTP 404/500, inspección de stack trace y ciclo hacia estado `Resuelto`.
-  - **Resolución Segura de IP:** configuración de `trust proxy` en Express que previene la suplantación de identidad mediante cabeceras spoofeadas (`X-Real-IP`, `X-Forwarded-For`).
-  - **Copias de Seguridad (Backups) Nativas:** motor de respaldo en streaming mediante cliente nativo `pg` (sin llamadas inseguras al shell del sistema operativo), control de cuota de almacenamiento, descargas autenticadas con token Bearer y endpoint de verificación de integridad en sandbox con rollback transaccional automático.
+## 📖 Tabla de Contenidos
+1. [Visión General de la Plataforma](#-visión-general-de-la-plataforma)
+2. [Documentación y Auditorías Clave](#-documentación-y-auditorías-clave)
+3. [Módulos del Sistema y Galería Visual](#-módulos-del-sistema-y-galería-visual)
+   - [Autenticación, Recuperación e Identidad Institucional](#1-autenticación-recuperación-e-identidad-institucional)
+   - [Dashboard General y Analítica 360°](#2-dashboard-general-y-analítica-360)
+   - [Planta de Personal y Servidores Públicos](#3-planta-de-personal-y-servidores-públicos)
+   - [Estructura y Dependencias Departamentales](#4-estructura-y-dependencias-departamentales)
+   - [Gestión de Vacaciones y Días Hábiles](#5-gestión-de-vacaciones-y-días-hábiles)
+   - [Permisos y Solicitudes Administrativas](#6-permisos-y-solicitudes-administrativas)
+   - [Licencias de Maternidad, Paternidad y Luto](#7-licencias-de-maternidad-paternidad-y-luto)
+   - [Centro de Gestión de Incapacidades Médicas](#8-centro-de-gestión-de-incapacidades-médicas)
+   - [Monitoreo de Horarios y Modalidades Especiales](#9-monitoreo-de-horarios-y-modalidades-especiales)
+   - [Comisiones y Viáticos Departamentales](#10-comisiones-y-viáticos-departamentales-divipola)
+   - [Seguridad y Salud en el Trabajo (SST)](#11-seguridad-y-salud-en-el-trabajo-sst)
+   - [Copias de Seguridad y Respaldo (Backups)](#12-copias-de-seguridad-y-respaldo-backups)
+   - [Consola de Monitoreo Técnico de Incidentes](#13-consola-de-monitoreo-técnico-de-incidentes)
+4. [Arquitectura Tecnológica y Microservicios](#-arquitectura-tecnológica-y-microservicios)
+5. [Ciberseguridad y Blindaje Normativo](#-ciberseguridad-y-blindaje-normativo)
+6. [Credenciales, Roles y Perfiles del Sistema](#-credenciales-roles-y-perfiles-del-sistema)
+7. [Instalación y Despliegue Rápido](#-instalación-y-despliegue-rápido)
+8. [Paleta Gráfica y Colorimetría Oficial](#-paleta-gráfica-y-colorimetría-oficial)
+9. [Licencia y Uso Institucional](#-licencia-y-uso-institucional)
 
 ---
 
-## 🔒 Ciberseguridad y Aseguramiento Técnico (AUD-001 — AUD-014)
+## 🌟 Visión General de la Plataforma
 
-La plataforma cuenta con una arquitectura de seguridad robusta certificada mediante auditoría integral:
+**Talento 360** es la solución tecnológica oficial de la **Gobernación de Boyacá** concebida para unificar, digitalizar y optimizar todos los procesos administrativos, prestacionales y de bienestar de los servidores públicos de la administración central.
 
-| Hallazgo / Vector | Mitigación Implementada |
-|---|---|
-| **CWE-1236 (Formula / CSV Injection)** | Sanitización exhaustiva en `ExcelService` que neutraliza disparadores (`=`, `+`, `-`, `@`, `\|`, `%`, `\t`) anteponiendo `'` mientras preserva números negativos (`-1500`) y fechas válidas. Exportación CSV con prefijo UTF-8 Byte Order Mark (`\uFEFF`). |
-| **Control de Sesión y Expiración 401** | Interceptor centralizado en `api.js` que despliega un modal in-situ de autenticación (`z-index: 100000`) sin perder el contexto de la aplicación, complementado con captura y restauración segura de borradores de formularios (`saveCurrentFormDraft` / `restoreCurrentFormDraft`). |
-| **Protección Criptográfica JWT** | Validación de arranque que impide el inicio de los microservicios en entorno de producción si `JWT_SECRET` está ausente o utiliza valores predeterminados inseguros. |
-| **Control de Acceso Basado en Roles (RBAC)** | Modelo granular desacoplado del nombre de usuario basado en permisos (`employees:write`, `horarios:write`, `viaticos:write`, `admin:*`), garantizando aislamiento por área. |
-| **Integridad Referencial de Base de Datos** | 29 tablas normalizadas con claves foráneas estrictas, índices B-Tree de consulta rápida y protección referencial (`ON DELETE RESTRICT`) para expedientes y comisiones históricas. |
-| **Georreferenciación Oficial DIVIPOLA** | Catálogo oficial del DANE para los 123 municipios de Boyacá integrado en servidores y viáticos con autocompletado y validación de destino. |
+La plataforma sustituye trámites físicos dispersos por un ecosistema reactivo y auditable que integra:
+- Gestión integral de vinculaciones, retiros formales y revinculaciones con conservación histórica de tiempos de servicio.
+- Motor de liquidación automática de viáticos para los **123 municipios de Boyacá** con topes salariales normativos 2024–2026.
+- Control concertado de modalidades laborales (**Teletrabajo**, **Trabajo en Casa**, **Horario Flexible**) con desconvocatoria y retorno automático a presencialidad.
+- Sistema de Gestión de la Seguridad y Salud en el Trabajo (**SG-SST**) según el **Decreto 1072 de 2015**: EMO, PVE, AT/EL, dotación EPP e índice sociodemográfico.
+- Centro de copias de seguridad continuas y rotación preventiva con descargas autenticadas.
+- Experiencia de usuario accesible (**WCAG 2.1 AA**), soporte para modo claro/oscuro y diseño optimizado para dispositivos móviles y de escritorio.
 
 ---
 
-## 🏗️ Arquitectura y Microservicios
+## 📚 Documentación y Auditorías Clave
 
-El sistema opera bajo un entorno contenerizado orquestado mediante **Docker Compose**:
+- 🚀 **[Guía de Despliegue en Servidor Local Linux (On-Premise)](./GUIA_DESPLIEGUE_SERVIDOR_LINUX.md):** Manual paso a paso para desplegar en Ubuntu Server institucional.
+- 📁 **[Archivo Central de Auditorías y Certificaciones](./AUDITORIAS/):** Reportes de conformidad técnica y el informe consolidado maestro ([`AUDITORIA_FINAL_TALENTO_360.md`](./AUDITORIAS/AUDITORIA_FINAL_TALENTO_360.md)).
+- ☁️ **[Despliegue Alternativo en la Nube (Netlify + Render)](./docs/DEPLOY_NETLIFY_RENDER.md):** Especificación de arquitectura para entornos cloud.
+- 🎨 **[Manual de Marca y Colorimetría Institucional](./docs/branding/colorimetria.md):** Guía de estilos, tokens CSS y códigos hexadecimales oficiales.
+
+---
+
+## 🖼️ Módulos del Sistema y Galería Visual
+
+### 1. Autenticación, Recuperación e Identidad Institucional
+
+El acceso a la plataforma está protegido mediante autenticación con tokens **JWT firmados criptográficamente**, cookies `HttpOnly`, protección contra ataques de temporización (*timing attacks*) y un circuito completo de recuperación segura de claves institucionales.
+
+#### Acceso Principal y Restablecimiento de Credenciales
+| Inicio de Sesión Institucional | Recuperación de Contraseña (`#738993`) |
+|:---:|:---:|
+| ![Inicio de Sesión](docs/screenshots/01_login.png) | ![Recuperación de Contraseña](docs/screenshots/02_recuperacion_contrasena.png) |
+| *Acceso seguro con fondo oficial de la Gobernación de Boyacá y logotipo del Cóndor.* | *Envío de clave provisional con diseño compacto en gris institucional `#738993`.* |
+
+#### Políticas de Seguridad y Elevación Administrativa
+| Cambio Obligatorio de Clave Provisional | Confirmación y Elevación Admin (`#857352`) |
+|:---:|:---:|
+| ![Cambio Obligatorio de Clave](docs/screenshots/03_cambio_obligatorio_clave.png) | ![Desbloqueo Administrativo](docs/screenshots/05_desbloqueo_admin.png) |
+| *Validación dinámica de 4 criterios de robustez previo al primer acceso.* | *Diálogo de doble factor institucional con cabecera en ocre `#857352`.* |
+
+#### Compromiso Normativo y Habeas Data
+| Compromiso de Confidencialidad y Habeas Data |
+|:---:|
+| ![Compromiso de Confidencialidad](docs/screenshots/04_compromiso_confidencialidad_habeas_data.png) |
+| *Consentimiento obligatorio en cumplimiento de la Ley 1581 de 2012, Ley 1952 de 2019 y Ley 1273 de 2009.* |
+
+---
+
+### 2. Dashboard General y Analítica 360°
+
+Centro de control ejecutivo en tiempo real estructurado con **10 tarjetas KPI de liquid glass** dispuestas en una cuadrícula simétrica (2 filas de 5), gráficos de distribución de personal por sectoriales, estado de planta y exportación directa de informes oficiales en **PDF vectorial estandarizado** para firmas institucionales.
+
+![Dashboard Ejecutivo](docs/screenshots/06_dashboard_ejecutivo.png)
+
+* **Fila 1 (Planta y Carrera):** Servidores Activos, Plazas Vacantes, Nivel Jerárquico DAFP Mayoritario, Carrera Administrativa y Dependencias Activas.
+* **Fila 2 (Operaciones y Finanzas):** Presupuesto de Viáticos Comprometido, Total Comisiones de Servicio, Días de Incapacidad Médica, Elementos EPP en Bodega y Eficacia de Respaldos Automáticos.
+
+---
+
+### 3. Planta de Personal y Servidores Públicos
+
+Administración exhaustiva de las hojas de vida digitales de servidores públicos activos, en encargo, provisionales o retirados.
+
+![Servidores Públicos](docs/screenshots/07_servidores_publicos.png)
+
+- **Identificadores Atómicos `REL` (`REL00001`...):** Motor de concurrencia con bloqueos consultivos de base de datos que previene identificadores duplicados.
+- **Importador Masivo Excel (`.xlsx`):** Sanitización contra inyección de fórmulas (**CWE-1236**), validación de 22 reglas departamentales y descarte automático de filas vacías.
+- **Retiro y Revinculación:** Flujo formal de desvinculación por acto administrativo con congelamiento y preservación del histórico acumulado de antigüedad.
+
+---
+
+### 4. Estructura y Dependencias Departamentales
+
+Directorio interactivo de las secretarías, direcciones, oficinas asesoras y dependencias de la Gobernación de Boyacá, homologadas con códigos internos y distribución por sedes físicas departamentales.
+
+![Dependencias](docs/screenshots/08_dependencias.png)
+
+---
+
+### 5. Gestión de Vacaciones y Días Hábiles
+
+Módulo para radicación, cómputo y aprobación de períodos vacacionales ordinarios o compensados en dinero.
+
+![Vacaciones](docs/screenshots/09_solicitudes_vacaciones.png)
+
+- **Cómputo Oficial de Días Hábiles:** Motor de calendario nacional que descuenta sábados, domingos y días festivos colombianos (**Ley Emiliani / Ley 51 de 1983**).
+- **Interrupción y Reanudación Concertada:** Sincronización automática ante situaciones de incapacidad médica o activación de modalidades de trabajo en casa.
+
+---
+
+### 6. Permisos y Solicitudes Administrativas
+
+Gestión integral de permisos laborales remunerados reglamentarios (hasta 3 días hábiles), comisiones y justificaciones administrativas con trazabilidad de aprobaciones jerárquicas.
+
+![Permisos Administrativos](docs/screenshots/10_permisos_administrativos.png)
+
+---
+
+### 7. Licencias de Maternidad, Paternidad y Luto
+
+Trámite estructurado de licencias de ley con radicación de soportes hospitalarios o notariales:
+
+![Licencias](docs/screenshots/11_licencias_maternidad_paternidad.png)
+
+- **Maternidad:** 18 semanas de protección con validación de certificado médico de nacido vivo.
+- **Paternidad (Ley María):** 2 semanas remuneradas con soporte de registro civil de nacimiento.
+- **Luto (Ley 1280 de 2009):** 5 días hábiles remunerados ante parentesco de consanguinidad o afinidad.
+
+---
+
+### 8. Centro de Gestión de Incapacidades Médicas
+
+Control epidemiológico y financiero de incapacidades laborales de origen común y profesional desglosadas por Entidad Promotora de Salud (**EPS**):
+
+![Incapacidades Médicas](docs/screenshots/12_incapacidades_medicas.png)
+
+- **Desglose Analítico por EPS:** Seguimiento de días de reposo acumulados en Sanitas, Nueva EPS, Famisanar, Salud Total, ADRES, entre otras.
+- **Clasificación CIE-10:** Registro de diagnósticos médicos con control de prórrogas que superen los 180 días continuos para trámite de concepto de rehabilitación.
+
+---
+
+### 9. Monitoreo de Horarios y Modalidades Especiales
+
+Administración concertada de esquemas laborales modernos con control de presencia y cumplimiento normativo:
+
+![Monitoreo de Horarios](docs/screenshots/13_monitoreo_horarios.png)
+
+- **Teletrabajo (Ley 1221 de 2008 / Decreto 884 de 2012):** Modalidades autónoma, suplementaria y móvil.
+- **Trabajo en Casa (Ley 2088 de 2021):** Habilitación excepcional por contingencias o necesidades de servicio.
+- **Horario Flexible:** Ajuste de jornadas laborales para servidores con cargas familiares o estudio.
+- **Desconvocatoria y Caducidad Automática:** El sistema transiciona a `Caducada` los acuerdos vencidos, reintegrando al servidor a presencialidad sin duplicar registros.
+
+---
+
+### 10. Comisiones y Viáticos Departamentales (DIVIPOLA)
+
+Motor automatizado de liquidación de comisiones de servicio para el desplazamiento de servidores públicos en cumplimiento de funciones institucionales:
+
+![Viáticos y Comisiones](docs/screenshots/14_viaticos_comisiones.png)
+
+- **Catálogo Geográfico DIVIPOLA:** Cobertura oficial de los **123 municipios del departamento de Boyacá**, categorizados por provincia y distancia.
+- **Escalas Tarifarias 2024–2026:** Cálculo automático según el nivel jerárquico (*Directivo, Asesor, Profesional, Técnico, Asistencial*), viático completo con pernoctada o medio viático.
+- **Máquina de 4 Estados Canónicos:** `Radicado` $\rightarrow$ `Aprobado` $\rightarrow$ `En Ejecución` $\rightarrow$ `Legalizado`.
+- **Blindaje Contable y Fiscal:** Bloqueo inmutable contra edición o borrado de comisiones legalizadas con soporte presupuestal cerrado.
+
+---
+
+### 11. Seguridad y Salud en el Trabajo (SST)
+
+Módulo integral alineado con el Sistema de Gestión de la Seguridad y Salud en el Trabajo (**SG-SST**, Decreto 1072 de 2015 y Resolución 0312 de 2019):
+
+![Seguridad y Salud en el Trabajo](docs/screenshots/15_seguridad_salud_sst.png)
+
+- **Perfil Epidemiológico y EMO:** Registro y seguimiento a Exámenes Médicos Ocupacionales (ingreso, periódicos, egreso, post-incapacidad) y restricciones médico-laborales.
+- **Programas de Vigilancia Epidemiológica (PVE):** Gestión de casos direccionados a riesgo osteomuscular, psicosocial, cardiovascular, biológico y visual.
+- **Accidentes e Incidentes (AT / EL):** Trazabilidad de eventos laborales reportados ante la Administradora de Riesgos Laborales (ARL Positiva).
+- **Dotación y Stock de EPP:** Control de inventario físico, entregas con firma digital/constancia y alertas de reabastecimiento.
+- **Caracterización Sociodemográfica:** Batería analítica de variables de salud, vivienda, educación y entorno familiar de los servidores.
+
+---
+
+### 12. Copias de Seguridad y Respaldo (Backups)
+
+Centro de contingencia y resiliencia de datos para garantizar la continuidad operativa de la entidad:
+
+![Copias de Seguridad](docs/screenshots/16_copias_seguridad_backups.png)
+
+- **Automatización Dual:** Generación periódica programable (cada 30 minutos) y respaldo de consolidación diario al cierre de jornada (17:00).
+- **Descargas Protegidas:** Acceso autenticado mediante token administrativo `Bearer` y políticas de rotación preventiva que mantienen un límite configurable de archivos en disco.
+- **Verificación en Sandbox:** Algoritmo que comprueba la consistencia de los volcados SQL en un esquema transaccional aislado con *rollback* preventivo.
+
+---
+
+### 13. Consola de Monitoreo Técnico de Incidentes
+
+Supervisión continua en tiempo real de la estabilidad operativa del frontend y del clúster de microservicios:
+
+![Centro de Errores](docs/screenshots/17_monitoreo_errores_sistema.png)
+
+- **Captura Global de Excepciones:** Registro de errores no controlados de JavaScript, fallos de red en llamadas API y páginas 404 detectadas.
+- **Inspección de Pila (Stack Trace):** Detalle técnico de la traza de ejecución, función afectada, módulo y usuario implicado.
+- **Gestión de Estados:** Clasificación de severidad y ciclo de vida de incidentes (`Pendiente` $\rightarrow$ `Resuelto`).
+- **Resolución de IP Real:** Sanitización estricta de encabezados de proxy para auditoría forense.
+
+---
+
+## 🏗️ Arquitectura Tecnológica y Microservicios
+
+La plataforma implementa un modelo de **arquitectura desacoplada de microservicios** orientada al rendimiento, modularidad y fácil escalabilidad:
 
 ```mermaid
 flowchart TD
-    Client(["🌐 Navegador Web / Cliente"]) -->|HTTP Port 80| Nginx["Frontend Gateway (Nginx)<br/>talento360_frontend"]
+    Client(["🌐 Navegador Web / Cliente"]) -->|HTTP Puerto 80| Nginx["Frontend Gateway (Nginx)<br/>talento360_frontend"]
     
-    subgraph Microservicios ["Ecosistema de Microservicios Node.js"]
+    subgraph Microservicios ["Ecosistema de Microservicios Node.js (Express / REST)"]
         Nginx -->|/api/auth| Auth["Auth Service :3001<br/>talento360_auth"]
         Nginx -->|/api/employees| Emp["Employees Service :3002<br/>talento360_employees"]
         Nginx -->|/api/requests| Req["Requests Service :3003<br/>talento360_requests"]
@@ -105,7 +250,7 @@ flowchart TD
     end
 
     subgraph Persistencia ["Capa de Datos Relacional"]
-        Auth -->|Pool PG :5432| DB[("PostgreSQL 16 Alpine<br/>talento360_db<br/>Host: localhost:5434")]
+        Auth -->|Pool PG :5432| DB[("PostgreSQL 16 Alpine<br/>talento360_db<br/>Mapeo Host: localhost:5434")]
         Emp -->|Pool PG :5432| DB
         Req -->|Pool PG :5432| DB
         AdmReq -->|Pool PG :5432| DB
@@ -116,67 +261,62 @@ flowchart TD
     end
 ```
 
-### Detalle de Contenedores
+### Inventario de Contenedores Docker
 
-| Servicio | Contenedor | Puerto Interno | Puerto Host | Responsabilidad |
+| Servicio | Contenedor | Puerto Interno | Puerto Host | Responsabilidad Operativa |
 |---|---|---|---|---|
-| **Frontend Gateway** | `talento360_frontend` | `80` | `80` | Servidor Nginx SPA, reverse proxy hacia microservicios y distribución de estáticos |
-| **Auth Service** | `talento360_auth` | `3001` | Interno | Autenticación JWT, verificación de credenciales, roles y permisos granulares |
-| **Employees Service** | `talento360_employees` | `3002` | Interno | Planta de personal, secuencia `REL`, hojas de vida, retiros e importador masivo Excel |
-| **Requests Service** | `talento360_requests` | `3003` | Interno | Radicación, cómputo de días hábiles colombianos y aprobaciones de vacaciones |
-| **Admin Requests** | `talento360_admin_requests` | `3004` | Interno | Permisos remunerados, incapacidades médicas con soporte y licencias |
+| **Frontend Gateway** | `talento360_frontend` | `80` | `80` | Servidor Nginx SPA, reverse proxy HTTP/1.1 y distribución de estáticos |
+| **Auth Service** | `talento360_auth` | `3001` | Interno | Autenticación JWT, verificación de credenciales, roles y recuperación de claves |
+| **Employees Service** | `talento360_employees` | `3002` | Interno | Planta de personal, secuencia `REL`, retiros, revinculaciones e importación Excel |
+| **Requests Service** | `talento360_requests` | `3003` | Interno | Solicitudes y cómputo de días hábiles de vacaciones de ley |
+| **Admin Requests** | `talento360_admin_requests` | `3004` | Interno | Permisos remunerados, justificaciones administrativas y licencias |
 | **Viáticos Service** | `talento360_viaticos` | `3005` | Interno | Comisiones de servicio, motor tarifario 2024–2026, DIVIPOLA y estados canónicos |
-| **Dashboard Service** | `talento360_dashboard` | `3006` | Interno | Agregación de KPIs, consola de errores, generación de backups y reportes PDF |
-| **Horarios Service** | `talento360_horarios` | `3007` | Interno | Teletrabajo, trabajo en casa, horarios flexibles, caducidad y retorno a presencial |
-| **SST Service** | `talento360_sst` | `3008` | Interno | Vigilancia epidemiológica, EMO, dotación EPP y caracterización sociodemográfica |
-| **PostgreSQL Database** | `talento360_db` | `5432` | `5434` | Base de datos relacional (29 tablas, scripts de inicialización `01_` a `10_`) |
+| **Dashboard Service** | `talento360_dashboard` | `3006` | Interno | Agregación de 10 KPIs ejecutivos, consola de errores, backups y exportador PDF |
+| **Horarios Service** | `talento360_horarios` | `3007` | Interno | Teletrabajo, trabajo en casa, horarios flexibles, desconvocatorias y asistencia |
+| **SST Service** | `talento360_sst` | `3008` | Interno | SG-SST: perfil epidemiológico, EMO, inventario EPP, AT/EL y sociodemográfico |
+| **PostgreSQL Database** | `talento360_db` | `5432` | `5434` | Base de datos relacional (29 tablas normalizadas, esquemas `01_` a `10_`) |
 
 ---
 
-## 📸 Vistas de la Aplicación
+## 🔒 Ciberseguridad y Blindaje Normativo
 
-| Inicio de Sesión Institucional | Panel Principal (Dashboard Ejecutivo) |
-|:---:|:---:|
-| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+La plataforma ha sido rigurosamente auditada (**AUD-001** a **AUD-014**) para garantizar estándares de ciberseguridad gubernamental:
 
-| Directorio y Hoja de Vida de Servidores | Gestión de Vacaciones y Días Hábiles |
-|:---:|:---:|
-| ![Perfil](docs/screenshots/perfil.png) | ![Vacaciones](docs/screenshots/vacaciones.png) |
-
-| Permisos y Solicitudes Administrativas | Gestión de Incapacidades Médicas |
-|:---:|:---:|
-| ![Permisos](docs/screenshots/permisos.png) | ![Incapacidades](docs/screenshots/incapacidades.png) |
-
-| Licencias de Maternidad / Paternidad | Directorio de Dependencias y Secretarías |
-|:---:|:---:|
-| ![Licencias](docs/screenshots/licencia_maternidad.png) | ![Dependencias](docs/screenshots/dependencias.png) |
+| Vector / Hallazgo | Mitigación Técnica Implementada |
+|---|---|
+| **Formula Injection (CWE-1236)** | Sanitización exhaustiva en importación/exportación Excel y CSV. Neutralización de disparadores (`=`, `+`, `-`, `@`, `\|`, `%`) anteponiendo comilla simple `'` mientras se preservan valores numéricos negativos legítimos. Exportación con Byte Order Mark UTF-8 (`\uFEFF`). |
+| **Timing Attacks en Login** | Comparación con hash precomputado (`DUMMY_HASH`) cuando el usuario no existe en la base de datos, impidiendo la enumeración de cuentas por discrepancias en tiempos de respuesta. |
+| **Control de Sesión 401** | Interceptor centralizado que despliega un modal in-situ de autenticación (`z-index: 100000`) preservando el estado del usuario y respaldando automáticamente borradores de formularios activos (`saveCurrentFormDraft`). |
+| **Falsificación de IP (Spoofing)** | Configuración de `trust proxy` en Express que valida direcciones IP reales en arquitecturas de balanceo reverso de Nginx. |
+| **Control de Acceso Granular (RBAC)** | Desacople de autorizaciones por permisos explícitos (`employees:write`, `horarios:read`, `admin-backups:download`, `sst:*`). |
+| **Integridad de Base de Datos** | Claves foráneas estrictas, índices B-Tree de alto rendimiento y cláusulas `ON DELETE RESTRICT` para blindar expedientes históricos. |
 
 ---
 
-## 🎨 Identidad Institucional
+## 🔑 Credenciales, Roles y Perfiles del Sistema
 
-La interfaz gráfica y los informes oficiales en PDF aplican la identidad visual aprobada de la Gobernación de Boyacá:
+Para pruebas y despliegue inicial, la plataforma cuenta con las siguientes cuentas institucionales configuradas:
 
-- **Verde Boyacá Principal:** `#355833`
-- **Verde Oscuro Institucional:** `#1C331A`
-- **Amarillo Mostaza:** `#D1AD2A`
-- **Rojo Bandera:** `#C42B1C`
-- **Gris Pizarra / Neutro:** `#2D3748`
-
-Guía gráfica completa en [`docs/branding/README.md`](docs/branding/README.md).
+| Correo / Usuario | Contraseña | Perfil Institucional | Módulos y Alcance de Gestión |
+|---|---|---|---|
+| `alejoleo2022@gmail.com` | `@Alejo123` | **Administrador General** | Acceso irrestricto a todos los módulos (`*`), consola de errores y copias de seguridad. |
+| `silvaespejojuanesteban@gmail.com` | `admin123` | **Gestor de Respaldo y Horarios** | Acceso exclusivo asignado al **Centro de Monitoreo de Horarios** y **Copias de Seguridad (Backups)**. |
+| `admin` | `admin123` | **Administrador Local Base** | Gestión técnica del sistema e infraestructura local. |
+| `angela.ussa@boyaca.gov.co` | `@Angela123` | **Dirección de Talento Humano** | Gestión de planta de personal, creación de cargos, retiros y reportes ejecutivos. |
+| `blanca.soler@boyaca.gov.co` | `@Blanca123` | **Gestión de Personal** | Servidores públicos, novedades y actualización de expedientes. |
+| `doris.canon@boyaca.gov.co` | `@Doris123` | **Control de Jornadas y Horarios** | Modalidades laborales concertadas (teletrabajo, trabajo en casa, flexible). |
+| `bergenet.gutierrez@boyaca.gov.co` | `@Bergenet123` | **Viáticos y Comisiones** | Radicación y liquidación de comisiones en los 123 municipios boyacenses. |
+| `sandra.roa@boyaca.gov.co` | `Sandra@123` | **Especialista SG-SST** | Evaluaciones médicas (EMO), vigilancia epidemiológica, EPP y sociodemográfico. |
+| `luis.sanchez@boyaca.gov.co` | `Luis@456` | **Gestor de Incapacidades** | Radicación, prórrogas y seguimiento de incapacidades por EPS. |
 
 ---
 
-## 💻 Requisitos del Entorno
+## 🚀 Instalación y Despliegue Rápido
 
+### Prerrequisitos
 * **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (con Docker Compose v2+)
-* **[Node.js](https://nodejs.org/)** versión 20 LTS o superior (para ejecución de pruebas y herramientas locales)
+* **[Node.js](https://nodejs.org/)** versión 20 LTS o superior
 * **[Git](https://git-scm.com/)**
-* **Navegador web moderno** (Google Chrome, Microsoft Edge, Mozilla Firefox, Brave o Safari)
-
----
-
-## 🚀 Despliegue y Ejecución Local
 
 ### 1. Clonar el repositorio
 ```bash
@@ -185,117 +325,75 @@ cd talento360/web
 ```
 
 ### 2. Configurar variables de entorno
-Copia la plantilla de variables de entorno y ajusta las claves según tu configuración:
+```powershell
+# En Windows (PowerShell):
+Copy-Item .env.example .env
 
-* **En Windows (PowerShell):**
-  ```powershell
-  Copy-Item .env.example .env
-  ```
-* **En Linux / macOS / Bash:**
-  ```bash
-  cp .env.example .env
-  ```
+# En Linux / macOS / Bash:
+cp .env.example .env
+```
 
 > [!NOTE]
-> Para evitar colisiones con instancias locales de PostgreSQL instaladas en el puerto predeterminado 5432, el archivo `.env` mapea la base de datos contenerizada al puerto host **`5434:5432`** (`localhost:5434`).
+> Para evitar conflictos con instancias existentes de PostgreSQL en el puerto por defecto 5432, el archivo `.env` expone la base de datos contenerizada en el puerto host **`5434`** (`localhost:5434`).
 
 ### 3. Construir e iniciar los microservicios
 ```bash
 docker compose up --build -d
 ```
-Este comando inicializa la red interna `talento360_net`, levanta el contenedor de PostgreSQL ejecutando los scripts de inicialización `database/01_schema.sql` a `10_sst_module.sql`, compila las imágenes de los 8 microservicios Node.js e inicia el servidor web Nginx.
+Este comando:
+1. Crea la red interna privada `talento360_net`.
+2. Inicia el motor PostgreSQL 16 ejecutando automáticamente los esquemas SQL (`01_schema.sql` a `10_sst_module.sql`).
+3. Compila los 8 microservicios Node.js en contenedores independientes.
+4. Levanta el servidor web Nginx como proxy reverso de alto rendimiento.
 
-### 4. Acceder al sistema
-Abre tu navegador e ingresa a:
-👉 **[http://localhost](http://localhost)**
-
----
-
-## 🔑 Credenciales y Roles Institucionales
-
-El sistema cuenta con usuarios institucionales preconfigurados según su competencia administrativa:
-
-| Usuario / Correo | Contraseña | Perfil Institucional | Permisos y Alcance de Gestión |
-|---|---|---|---|
-| `admin` / `alejoleo2022@gmail.com` | `@Alejo123` | **Administrador Técnico** | Infraestructura, monitoreo de incidentes de error (`admin:errors`), gestión de copias de seguridad (`admin:backups`) y configuración global del sistema |
-| `angela.ussa` / `angela.ussa@boyaca.gov.co` | `@Angela123` | **Dirección de Talento Humano** | Gestión integral de servidores públicos (`employees:read`, `employees:write`), creación, retiros, importación masiva y reportes ejecutivos |
-| `blanca.soler` / `blanca.soler@boyaca.gov.co` | `@Blanca123` | **Gestión de Planta y Servidores** | Servidores públicos, novedades de personal, revinculaciones y actualización de expedientes (`employees:read`, `employees:write`) |
-| `doris.canon` / `doris.canon@boyaca.gov.co` | `@Doris123` | **Control de Horarios y Modalidades** | Administración de acuerdos de teletrabajo, trabajo en casa, horarios flexibles y seguimiento de vencimientos (`horarios:read`, `horarios:write`) |
-| `bergenet.gutierrez` / `bergenet.gutierrez@boyaca.gov.co` | `@Bergenet123` | **Gestión de Viáticos y Comisiones** | Radicación, liquidación normativa, autorizaciones y seguimiento de comisiones departamentales y nacionales (`viaticos:read`, `viaticos:write`) |
+### 4. Abrir en el navegador
+Ingresa a: **[http://localhost](http://localhost)**
 
 ---
 
-## 🧪 Pruebas Automatizadas y Certificación QA
+## 🎨 Paleta Gráfica y Colorimetría Oficial
 
-El repositorio cuenta con una batería integral de pruebas en vivo que validan el 100% de la funcionalidad de la plataforma:
+La plataforma refleja la identidad visual y el patrimonio de Boyacá mediante tokens de diseño estandarizados:
 
-### 1. Verificación Operacional de Ciclo de Vida Completo
-Evalúa en vivo las 7 acciones fundamentales solicitadas institucionalmente (**Subir, Descargar, Exportar, Crear, Editar, Ver y Eliminar**):
-```bash
-node scratch/test_complete_lifecycle_actions.js
-```
-* **Cobertura:** 39 casos de prueba evaluados contra microservicios en vivo.
-* **Resultado:** 100% aprobados (0 fallos).
-
-### 2. Certificación Maestra de No-Regresión (16 Suites Consolidadas)
-Ejecuta la auditoría integral que valida todas las correcciones de hardening (Prompts 00 al 13):
-```bash
-node scratch/run_all_prompts_audit_certification.js
-```
-* **Suites evaluadas:**
-  - `Prompt 01`: Parseo de fechas SQL y `safe_parse_date`.
-  - `Prompt 02`: Concurrencia atómica de identificadores `REL` y bloqueos consultivos.
-  - `Prompt 03`: Importación masiva Excel con DTO y descarte de filas fantasma.
-  - `Prompt 04`: Claves foráneas e integridad referencial (`personas`, `contactos`, `estados`).
-  - `Prompt 05`: Modalidades laborales, caducidades y sincronización con vacaciones.
-  - `Prompt 06`: Integración DIVIPOLA Boyacá (123 municipios oficiales).
-  - `Prompt 07`: Motor normativo de viáticos 2024–2026 y decretos salariales.
-  - `Prompt 08`: Máquina canónica de 4 estados de viáticos y protección contable.
-  - `Prompt 09`: Reestructuración RBAC institucional basada en permisos explícitos.
-  - `Prompt 10`: Mitigación de Formula Injection (CWE-1236) en XLSX y CSV con UTF-8 BOM.
-  - `Prompt 11`: Validación de secretos JWT al arranque y modal in-situ de expiración 401.
-  - `Prompt 12`: Consola de errores con clasificación por severidad, IP real y backups en streaming.
-  - `Prompt 13`: Certificación maestra QA final.
-  - `Verificación Frontend`: Integridad de scripts y estilos referenciados en `index.html`.
-  - `Verificación PostgreSQL`: 29 tablas activas, integridad referencial y cero índices inválidos.
-  - `No-Regresión Maestra`: Volúmenes 01, 02 y 03 combinados.
-
-### 3. Validación Sintáctica Global (AST Check)
-Verifica que ningún archivo de código contenga errores de sintaxis o referencias corruptas:
-```bash
-node -e "const { execSync } = require('child_process'); console.log(execSync('Get-ChildItem -Path web,database -Recurse -Filter \"*.js\" | ForEach-Object { node --check $_.FullName }', { shell: 'powershell', encoding: 'utf8' }));"
-```
+| Color | Código Hex | Uso Principal en la Plataforma |
+|---|---|---|
+| **Verde Boyacá Principal** | `#005A36` | Botones de acción principal, acentos institucionales y llamadas a la acción. |
+| **Verde Bosque Oscuro** | `#092C1E` | Fondos de sidebar institucional y contrastes de cabecera. |
+| **Gris Institucional Boyacá** | `#738993` | Cabeceras de modales de autenticación, bordes finos, etiquetas y cajas de asesoría. |
+| **Ocre Departamental** | `#857352` | Cabecera y distintivos del diálogo de confirmación/desbloqueo administrativo. |
+| **Oro Boyacá / Amarillo** | `#D1AD2A` / `#FBBF24` | Insignia numérica `360`, iconos de advertencia y destacados dorados. |
+| **Naranja Institucional** | `#D14600` | Botones de guardado de cambios en formularios y asistentes modales. |
+| **Rojo Bandera Boyacá** | `#C42B1C` | Indicadores de alerta, retiro de servidores y acciones destructivas. |
 
 ---
 
-## 🔄 Mantenimiento y Comandos Frecuentes
+## 🛠️ Comandos de Mantenimiento Frecuente
 
-Todos los comandos deben ejecutarse desde la carpeta `web/`:
+Ejecutar siempre desde la carpeta `web/`:
 
-| Operación | Comando |
-|---|---|
-| **Iniciar contenedores en segundo plano** | `docker compose up -d` |
-| **Recompilar e iniciar tras cambios de dependencias** | `docker compose up --build -d` |
-| **Recompilar un microservicio específico** | `docker compose up --build -d <servicio>` |
-| **Detener contenedores preservando datos** | `docker compose stop` |
-| **Reanudar contenedores detenidos** | `docker compose start` |
-| **Apagar y desmontar contenedores** | `docker compose down` |
-| **Inspeccionar estado y salud de los contenedores** | `docker compose ps` |
-| **Ver registros en tiempo real (logs globales)** | `docker compose logs -f` |
-| **Ver registros de un microservicio específico** | `docker compose logs -f <servicio>` |
-| **Reiniciar base de datos desde cero (recarga total)** | `docker compose down -v && docker compose up --build -d` |
+```powershell
+# Ver estado de los 10 contenedores
+docker compose ps
 
-### Sincronización en Entorno de Desarrollo
-- **Frontend (`frontend/src/`):** El código frontend está vinculado como volumen bind-mount (`:ro`) en el contenedor Nginx. Los cambios en archivos `.html`, `.css` y `.js` surten efecto de manera inmediata recargando el navegador con limpieza de caché (**`Ctrl + F5`** o **`Cmd + Shift + R`**).
-- **Microservicios Backend (`services/<servicio>/src/`):** Para propagar cambios en caliente a un microservicio en ejecución sin reconstruir la imagen Docker:
-  ```powershell
-  docker cp services/<servicio>/src/. talento360_<servicio>:/app/src/
-  docker restart talento360_<servicio>
-  ```
+# Ver registros en tiempo real (logs globales)
+docker compose logs -f
+
+# Reiniciar un microservicio específico
+docker compose restart <servicio>
+
+# Recargar el frontend en Nginx sin reiniciar contenedores
+docker exec talento360_frontend nginx -s reload
+
+# Detener los contenedores preservando datos
+docker compose stop
+
+# Apagar y desmontar el clúster
+docker compose down
+```
 
 ---
 
 ## 📄 Licencia y Uso Institucional
 
 Desarrollado para la **Gobernación de Boyacá** — Subdirección de Talento Humano.  
-Todos los derechos reservados © 2026.
+Todos los derechos reservados © 2026. Prohibida su reproducción o distribución sin autorización expresa de la entidad.
