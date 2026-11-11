@@ -3325,7 +3325,90 @@ const App = (() => {
       });
     }
 
-    // Login form
+    // Login form & Progressive Lockout
+    let loginLockoutInterval = null;
+
+    function handleLoginLockout(seconds, message) {
+      const errorEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+      const btnText = document.querySelector('#login-btn .btn-text');
+      const forgotLink = document.getElementById('link-forgot-password');
+
+      if (loginLockoutInterval) {
+        clearInterval(loginLockoutInterval);
+        loginLockoutInterval = null;
+      }
+
+      let remaining = Math.max(1, parseInt(seconds, 10) || 60);
+
+      const renderLockoutUi = () => {
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (errorEl) {
+          errorEl.className = 'form-error visible is-lockout';
+          errorEl.innerHTML = `
+            <div class="login-lockout-banner">
+              <div class="login-lockout-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <div class="login-lockout-content">
+                <div class="login-lockout-title">Acceso bloqueado por seguridad</div>
+                <div class="login-lockout-timer">Podrá intentar ingresar nuevamente en: <strong id="lockout-countdown-display">${formatted}</strong></div>
+                <div class="login-lockout-advice">
+                  ¿Olvidaste tu contraseña institucional? <a href="#" id="lockout-quick-recovery" class="lockout-link">Restablécela aquí de inmediato &rarr;</a>
+                </div>
+              </div>
+            </div>
+          `;
+
+          const recovBtn = document.getElementById('lockout-quick-recovery');
+          if (recovBtn) {
+            recovBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              document.getElementById('link-forgot-password')?.click();
+            });
+          }
+        }
+
+        if (btn) {
+          btn.disabled = true;
+          if (btnText) btnText.textContent = `Bloqueado (${formatted})`;
+        }
+
+        if (forgotLink) {
+          forgotLink.classList.add('forgot-link--highlight');
+        }
+      };
+
+      renderLockoutUi();
+
+      loginLockoutInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(loginLockoutInterval);
+          loginLockoutInterval = null;
+          if (btn) {
+            btn.disabled = false;
+            if (btnText) btnText.textContent = 'Iniciar sesión';
+          }
+          if (errorEl) {
+            errorEl.className = 'form-error visible';
+            errorEl.innerHTML = `El tiempo de espera ha finalizado. Ya puede intentar ingresar de nuevo o solicitar una clave provisional en '¿Olvidaste tu contraseña?'.`;
+          }
+          if (forgotLink) {
+            forgotLink.classList.remove('forgot-link--highlight');
+          }
+        } else {
+          renderLockoutUi();
+        }
+      }, 1000);
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
@@ -3339,7 +3422,7 @@ const App = (() => {
 
         if (!username || !password) {
           errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
-          errorEl.classList.add('visible');
+          errorEl.className = 'form-error visible';
           return;
         }
 
@@ -3350,6 +3433,10 @@ const App = (() => {
 
         try {
           const res = await API.login(username, password);
+          if (loginLockoutInterval) {
+            clearInterval(loginLockoutInterval);
+            loginLockoutInterval = null;
+          }
           if (res.user) {
             res.user.role = sanitizeRole(res.user.role);
             if (!res.user.jobTitle) {
@@ -3408,14 +3495,31 @@ const App = (() => {
             safeProceed();
           }
         } catch (err) {
-          errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
-          errorEl.classList.add('visible');
+          const data = err.data || {};
+          const isLocked = Boolean(data.isLocked || err.status === 429);
+          const retrySeconds = Number(data.retryAfterSeconds || 0);
+
+          if (isLocked && retrySeconds > 0) {
+            handleLoginLockout(retrySeconds, data.error || err.message);
+          } else {
+            errorEl.className = 'form-error visible';
+            errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
+            const forgotLink = document.getElementById('link-forgot-password');
+            if (data.suggestRecovery && forgotLink) {
+              forgotLink.classList.add('forgot-link--highlight');
+            }
+          }
           // FX: error shake + sound
           if (typeof FX !== 'undefined') FX.animateLoginError();
         } finally {
-          btn.disabled = false;
-          if (btnText) btnText.style.display = 'inline';
-          if (btnLoader) btnLoader.style.display = 'none';
+          if (!loginLockoutInterval) {
+            btn.disabled = false;
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoader) btnLoader.style.display = 'none';
+          } else {
+            if (btnLoader) btnLoader.style.display = 'none';
+            if (btnText) btnText.style.display = 'inline';
+          }
         }
       });
     }

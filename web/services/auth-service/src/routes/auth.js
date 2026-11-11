@@ -32,12 +32,130 @@ async function initDb() {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN DEFAULT FALSE;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+      CREATE TABLE IF NOT EXISTS auth_failed_logins (
+        identifier VARCHAR(160) PRIMARY KEY,
+        failed_attempts INT NOT NULL DEFAULT 0,
+        lockout_tier INT NOT NULL DEFAULT 0,
+        locked_until TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+        last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
     `);
   } catch (err) {
     console.warn('[auth] Verificación de columnas de esquema:', err.message);
   }
 }
 initDb();
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || req.ip || '127.0.0.1';
+}
+
+function formatLockoutTime(seconds) {
+  if (seconds < 60) {
+    return `${seconds} segundo${seconds === 1 ? '' : 's'}`;
+  }
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  if (sec === 0) {
+    return `${min} minuto${min === 1 ? '' : 's'}`;
+  }
+  return `${min} min y ${sec} s`;
+}
+
+async function getLockoutState(identifier) {
+  try {
+    const res = await pool.query(
+      `SELECT failed_attempts, lockout_tier, locked_until 
+       FROM auth_failed_logins 
+       WHERE identifier = $1 LIMIT 1`,
+      [identifier]
+    );
+    if (res.rows.length === 0) {
+      return { isLocked: false, failedAttempts: 0, lockoutTier: 0, remainingAttempts: 5, remainingSeconds: 0 };
+    }
+    const row = res.rows[0];
+    const now = Date.now();
+    const lockedUntil = row.locked_until ? new Date(row.locked_until).getTime() : 0;
+    if (lockedUntil > now) {
+      const remainingSeconds = Math.ceil((lockedUntil - now) / 1000);
+      return {
+        isLocked: true,
+        failedAttempts: row.failed_attempts,
+        lockoutTier: row.lockout_tier,
+        remainingAttempts: 0,
+        remainingSeconds
+      };
+    }
+    return {
+      isLocked: false,
+      failedAttempts: row.failed_attempts,
+      lockoutTier: row.lockout_tier,
+      remainingAttempts: Math.max(0, 5 - row.failed_attempts),
+      remainingSeconds: 0
+    };
+  } catch (err) {
+    console.warn('[auth] Error al consultar estado de bloqueo:', err.message);
+    return { isLocked: false, failedAttempts: 0, lockoutTier: 0, remainingAttempts: 5, remainingSeconds: 0 };
+  }
+}
+
+async function recordFailedAttempt(identifier) {
+  try {
+    const current = await getLockoutState(identifier);
+    const now = new Date();
+    
+    let newAttempts = current.failedAttempts + 1;
+    let newTier = current.lockoutTier;
+    let lockedUntil = null;
+    let isLocked = false;
+    let lockoutMinutes = 0;
+    let lockoutSeconds = 0;
+
+    if (newAttempts >= 5) {
+      // Progresión de bloqueo solicitada:
+      // A los 5 fallos (6to intento bloqueado) -> 1 minuto
+      // Si vuelve a fallar tras el 1er bloqueo -> 2 minutos
+      // Siguientes bloqueos progresan a 3 min y tope máximo de 4 minutos
+      newTier = Math.min(newTier + 1, 4);
+      lockoutMinutes = newTier; // 1, 2, 3 o 4 minutos
+      lockoutSeconds = lockoutMinutes * 60;
+      lockedUntil = new Date(Date.now() + lockoutSeconds * 1000);
+      isLocked = true;
+    }
+
+    await pool.query(
+      `INSERT INTO auth_failed_logins (identifier, failed_attempts, lockout_tier, locked_until, last_attempt)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (identifier) DO UPDATE
+       SET failed_attempts = $2, lockout_tier = $3, locked_until = $4, last_attempt = $5`,
+      [identifier, newAttempts, newTier, lockedUntil, now]
+    );
+
+    return {
+      isLocked,
+      failedAttempts: newAttempts,
+      remainingAttempts: Math.max(0, 5 - newAttempts),
+      lockoutTier: newTier,
+      lockoutMinutes,
+      retryAfterSeconds: lockoutSeconds
+    };
+  } catch (err) {
+    console.error('[auth] Error al registrar intento fallido:', err.message);
+    return { isLocked: false, failedAttempts: 1, remainingAttempts: 4, lockoutTier: 0, retryAfterSeconds: 0 };
+  }
+}
+
+async function clearLockout(identifier) {
+  try {
+    await pool.query(`DELETE FROM auth_failed_logins WHERE identifier = $1`, [identifier]);
+  } catch (err) {
+    console.warn('[auth] Error al limpiar intentos fallidos:', err.message);
+  }
+}
 
 function resolveJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -397,7 +515,22 @@ router.post('/login', loginLimiter, async (req, res) => {
     lookupUser = 'alejoleo2022@gmail.com';
   }
 
+  const userKey = 'user:' + lookupUser;
+
   try {
+    // 0. Comprobar bloqueo progresivo de seguridad de la cuenta antes de cualquier otra operación
+    const userLock = await getLockoutState(userKey);
+
+    if (userLock.isLocked) {
+      return res.status(429).json({
+        error: `Acceso bloqueado temporalmente por demasiados intentos fallidos. Por favor espere ${formatLockoutTime(userLock.remainingSeconds)} o utilice la opción '¿Olvidaste tu contraseña?'.`,
+        isLocked: true,
+        retryAfterSeconds: userLock.remainingSeconds,
+        lockoutTier: userLock.lockoutTier,
+        suggestRecovery: true
+      });
+    }
+
     // 1. Buscar si el usuario existe en la base de datos por email o prefijo
     let userResult;
     try {
@@ -437,10 +570,26 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // Mitigación de enumeración de usuarios y análisis de tiempos
+    // Mitigación de enumeración de usuarios y registro de intentos fallidos
     if (userResult.rows.length === 0) {
       await bcrypt.compare(normalizedPass, DUMMY_HASH);
-      return res.status(401).json({ error: 'Credenciales inválidas.' });
+      const act = await recordFailedAttempt(userKey);
+      if (act.isLocked) {
+        return res.status(429).json({
+          error: `Ha superado los 5 intentos permitidos. Por seguridad institucional, su acceso ha sido bloqueado por ${formatLockoutTime(act.retryAfterSeconds)}. Si olvidó su contraseña, recupérela haciendo clic en '¿Olvidaste tu contraseña?'.`,
+          isLocked: true,
+          retryAfterSeconds: act.retryAfterSeconds,
+          lockoutTier: act.lockoutTier,
+          suggestRecovery: true
+        });
+      }
+      return res.status(401).json({
+        error: `Credenciales inválidas. Le quedan ${act.remainingAttempts} intento${act.remainingAttempts === 1 ? '' : 's'} antes del bloqueo temporal del acceso.`,
+        isLocked: false,
+        failedAttempts: act.failedAttempts,
+        remainingAttempts: act.remainingAttempts,
+        suggestRecovery: act.remainingAttempts <= 2
+      });
     }
 
     const user = userResult.rows[0];
@@ -487,8 +636,27 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     if (!passwordMatches) {
-      return res.status(401).json({ error: 'Credenciales inválidas.' });
+      const act = await recordFailedAttempt(userKey);
+      if (act.isLocked) {
+        return res.status(429).json({
+          error: `Ha superado los 5 intentos permitidos. Por seguridad institucional, su acceso ha sido bloqueado por ${formatLockoutTime(act.retryAfterSeconds)}. Si olvidó su contraseña, recupérela haciendo clic en '¿Olvidaste tu contraseña?'.`,
+          isLocked: true,
+          retryAfterSeconds: act.retryAfterSeconds,
+          lockoutTier: act.lockoutTier,
+          suggestRecovery: true
+        });
+      }
+      return res.status(401).json({
+        error: `Credenciales inválidas. Le quedan ${act.remainingAttempts} intento${act.remainingAttempts === 1 ? '' : 's'} antes del bloqueo temporal del acceso.`,
+        isLocked: false,
+        failedAttempts: act.failedAttempts,
+        remainingAttempts: act.remainingAttempts,
+        suggestRecovery: act.remainingAttempts <= 2
+      });
     }
+
+    // Login exitoso: Limpiar intentos fallidos y bloqueos
+    await clearLockout(userKey);
 
     // Verificar si la contraseña provisional ha vencido
     if (user.debe_cambiar_password) {
@@ -706,6 +874,15 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       [tempHash, user.id_usuario]
     );
 
+    // Restablecer intentos fallidos y bloqueos temporales de la cuenta
+    try {
+      await Promise.all([
+        clearLockout('user:' + normalizedInput),
+        clearLockout('user:' + user.username.trim().toLowerCase()),
+        clearLockout('ip:' + getClientIp(req))
+      ]);
+    } catch (_) {}
+
     // 6. Enviar correo auténtico por SMTP Gmail
     try {
       const transporter = getMailTransporter();
@@ -868,6 +1045,15 @@ router.post('/change-password', async (req, res) => {
     );
 
     console.log(`[auth] Contraseña actualizada exitosamente para usuario id=${user.id_usuario} (${user.username}). Bandera de cambio obligatorio desactivada.`);
+
+    // Restablecer contadores y bloqueos tras cambio exitoso
+    try {
+      await Promise.all([
+        clearLockout('user:' + username.toLowerCase()),
+        clearLockout('user:' + user.username.toLowerCase()),
+        clearLockout('ip:' + getClientIp(req))
+      ]);
+    } catch (_) {}
 
     let allowedModules = ['dashboard'];
     const rLower = (user.rol || '').toLowerCase();

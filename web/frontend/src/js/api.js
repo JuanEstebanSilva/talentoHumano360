@@ -123,7 +123,10 @@ const API = (() => {
         }).catch(() => {});
       }
 
-      throw new Error(data.error || `Error ${res.status}`);
+      const err = new Error(data.error || `Error ${res.status}`);
+      err.data = data;
+      err.status = res.status;
+      throw err;
     }
 
     return data;
