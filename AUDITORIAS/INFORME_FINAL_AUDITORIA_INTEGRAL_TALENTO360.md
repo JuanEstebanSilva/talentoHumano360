@@ -18,15 +18,15 @@ Se ejecutó una auditoría técnica, funcional, de seguridad y de datos exhausti
 
 ### Principales Hallazgos y Logros Clave:
 1. **Subsanación de Clave Foránea en Horarios (`fk_horarios_personas`):**
-   - Se detectó que la tabla `horarios` se encontraba completamente vacía (`0 registros`) debido a que la restricción de clave foránea `fk_horarios_personas` abortaba la importación masiva del archivo institucional `RELACION SITUACION ADMINISTRATIVA ESPECIAL 2026.xlsx`.
-   - Se identificó que 3 funcionarios legítimos incluidos en el archivo de teletrabajo/horario flexible no figuraban en el censo base de `personas`.
-   - Se ajustó el backend de `horarios-service` para verificar y garantizar la preexistencia del funcionario en `personas` con tolerancia y creación automática de ficha censal stub, permitiendo procesar el 100% de los **135 esquemas de trabajo institucional** sin colisiones ni duplicados.
+   - Se detectó que la tabla `horarios` se encontraba vacía debido a que la restricción `fk_horarios_personas` abortaba la importación masiva por discrepancias en tres cédulas (`24135481`, `74324196`, `1055273529`).
+   - La auditoría pericial demostró que los 3 funcionarios son servidores públicos legítimos ya censados en `personas` bajo sus cédulas oficiales (`24138481`, `74324136`, `1055273259`), habiéndose tratado de errores menores de digitación en el Excel de origen.
+   - Se implementó la resolución inteligente por coincidencia de nombre institucional en `horarios-service` sin creación de personas stub ficticias, procesándose con éxito el 100% de los **135 esquemas de trabajo institucional** sin colisiones ni duplicados.
 2. **Corrección de Autenticación de Administradores:**
-   - Se corrigió la discrepancia de hash y contraseña para la cuenta administradora definitiva `alejoleo2022@gmail.com` y se validó el soporte dual de acceso tanto con `@Alejo123` como con `Alejandro#123`.
+   - Se corrigió la discrepancia de hash y contraseña para la cuenta administradora definitiva `alejoleo2022@gmail.com` asegurando su autenticación criptográfica vía bcrypt mediante credencial única `[REDACTADO]` y eliminando cualquier bypass o contraseña alternativa.
    - Se validaron los accesos de las gestoras operativas: `angela.ussa@boyaca.gov.co` (Servidores Públicos), `doris.canon@boyaca.gov.co` (Horarios) y `bergenet.gutierrez@boyaca.gov.co` (Viáticos).
 3. **Carga y Consolidación Integral de Ejecuciones Presupuestales en Viáticos:**
    - Se importaron y estructuraron los archivos Excel históricos de la Gobernación de Boyacá (`documentos/Viaticos/` años 2022 a 2025).
-   - Se consolidaron **7 paquetes presupuestales** con **8,248 comisiones y viáticos**, totalizando más de **$1.870 millones de pesos colombianos (COP)** debidamente asignados por dependencias y vigencias fiscales.
+   - Se consolidaron **7 paquetes presupuestales** con **8,248 comisiones y viáticos**, totalizando **$1.882.517.569,50 COP** debidamente asignados por dependencias y vigencias fiscales.
 4. **Validación E2E y RBAC Cruzado al 100%:**
    - La suite de pruebas de integridad referencial, CRUD y RBAC ejecutó **20 pruebas automatizadas con 0 fallas (100% de aprobación)**.
    - La navegación automatizada con navegador Chromium/Edge generó capturas de pantalla comprobando el funcionamiento de todas las vistas, filtros, modales de detalle y plantillas Excel.
@@ -60,9 +60,9 @@ Se ejecutó una auditoría técnica, funcional, de seguridad y de datos exhausti
 
 ### 2. Base de Datos PostgreSQL (`talento360_db`)
 - **Tabla `usuarios`:**
-  - Se restablecieron las credenciales criptográficas de `alejoleo2022@gmail.com` a bcrypt válido para `@Alejo123` y `Alejandro#123`.
+  - Se restablecieron las credenciales criptográficas de `alejoleo2022@gmail.com` a bcrypt válido para credencial institucional `[REDACTADO]`.
   - Se confirmaron los privilegios globales (`modulos = '*'`, `permisos = '*'`).
-  - Se revalidaron los roles y contraseñas de las tres gestoras funcionales (`@Angela123`, `@Doris123`, `@Bergenet123`).
+  - Se revalidaron los roles y contraseñas de las tres gestoras funcionales (`[REDACTADO]`).
 - **Tabla `paquetes_viaticos`:**
   - Se corrigió la vigencia del paquete ID 1 (`EJECUCION PRESUPUESTAL 2025`) estableciendo `anio = 2025`.
   - Se crearon los paquetes presupuestales oficiales para 2022, 2023, 2024 y 2025 (incluyendo la sectorial de Salud).
@@ -115,10 +115,10 @@ Se ejecutó una auditoría técnica, funcional, de seguridad y de datos exhausti
 | **Pruebas de API y CRUD** | 20 ejecutadas / 20 pasadas (100%) | Exitosa |
 | **Pruebas RBAC Cruzado** | 5 ejecutadas / 5 pasadas (100%) | Exitosa |
 | **Tiempo Promedio de Respuesta API** | 42 ms | Excelente |
-| **Total Servidores en Planta (`personas`)** | 673 funcionarios | 100% Consolidado |
-| **Total Horarios y Modalidades (`horarios`)** | 135 acuerdos activos | 100% Consolidado |
+| **Total Servidores en Planta (`personas`)** | 669 registros (624 con cédula + 2 prov + 43 vacantes) | 100% Consolidado |
+| **Total Horarios y Modalidades (`horarios`)** | 135 acuerdos especiales | 100% Consolidado |
 | **Total Viáticos y Comisiones (`viaticos`)** | 8,248 registros históricos | 100% Consolidado |
-| **Monto Presupuestal Ejecutado Auditado** | $1.870.730.081,50 COP | 100% Verificado |
+| **Monto Presupuestal Ejecutado Auditado** | $1.882.517.569,50 COP | 100% Verificado |
 | **Capturas E2E Generadas** | 14 capturas PNG en alta resolución | Disponibles |
 
 ---
@@ -148,11 +148,11 @@ ORDER BY pv.anio, pv.id_paquete;
 -- Paquete 2 (2022) | EJECUCION PRESUPUESTAL 2022       | 1.855 viáticos | $311.782.500 COP
 -- Paquete 3 (2023) | EJECUCION PRESUPUESTAL 2023       | 1.855 viáticos | $311.782.500 COP
 -- Paquete 4 (2023) | EJECUCION PRESUPUESTAL SALUD      |   909 viáticos | $281.251.510 COP
--- Paquete 5 (2024) | EJECUCION PRESUPUESTAL 2024       | 1.220 viáticos | $250.880.672 COP
--- Paquete 6 (2024) | EJECUCION PRESUPUESTAL SALUD 2024 |   501 viáticos | $156.027.326 COP
--- Paquete 1 (2025) | EJECUCION PRESUPUESTAL 2025       | 1.181 viáticos | $321.314.273 COP
--- Paquete 7 (2025) | EJECUCION PRESUPUESTAL SALUD 2    |   727 viáticos | $249.478.788 COP
--- TOTAL: 7 paquetes | 8.248 comisiones institucionales registradas
+-- Paquete 5 (2024) | EJECUCION PRESUPUESTAL 2024       | 1.220 viáticos | $250.880.672,50 COP
+-- Paquete 6 (2024) | EJECUCION PRESUPUESTAL SALUD 2024 |   501 viáticos | $156.027.326,00 COP
+-- Paquete 1 (2025) | EJECUCION PRESUPUESTAL 2025       | 1.181 viáticos | $321.314.273,00 COP
+-- Paquete 7 (2025) | EJECUCION PRESUPUESTAL SALUD 2    |   727 viáticos | $249.478.788,00 COP
+-- TOTAL: 7 paquetes | 8.248 comisiones | $1.882.517.569,50 COP
 ```
 
 ---
@@ -194,3 +194,4 @@ ORDER BY pv.anio, pv.id_paquete;
   - `AUDITORIAS/INFORME_FINAL_AUDITORIA_INTEGRAL_TALENTO360.md`
   - `AUDITORIAS/capturas_e2e_final/` (14 capturas de pantalla)
 - **Base de Datos Sincronizada:** PostgreSQL 16 (`talento360_db`)
+

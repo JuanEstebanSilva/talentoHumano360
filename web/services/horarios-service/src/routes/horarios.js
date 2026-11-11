@@ -979,22 +979,39 @@ router.post('/bulk', auth, async (req, res) => {
         continue;
       }
 
-      // Asegurar que la persona exista en 'personas' para cumplir con la clave foránea fk_horarios_personas
+      // Verificar que el funcionario exista en 'personas' para cumplir con fk_horarios_personas
+      let personaExiste = false;
       try {
         const pCheck = await client.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [documento]);
-        if (!pCheck.rows.length) {
-          const parts = apellidos_nombres.trim().split(/\s+/);
-          const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
-          const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
-          await client.query(
-            `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (cedula) DO NOTHING`,
-            [documento, apellidos_nombres.toUpperCase(), pNom.toUpperCase(), pApe.toUpperCase()]
-          );
+        if (pCheck.rows.length > 0) {
+          personaExiste = true;
+        } else {
+          // Si la cédula del archivo presenta discrepancia tipográfica, intentar resolver por coincidencia de nombre contra el censo
+          const nameTokens = apellidos_nombres.toUpperCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Z\s]/g, ' ')
+            .trim().split(/\s+/).filter(w => w.length > 2);
+
+          if (nameTokens.length >= 2) {
+            const conditions = nameTokens.map((_, idx) => `UPPER(TRANSLATE(nombre_completo, 'áéíóúÁÉÍÓÚñÑ', 'aeiouAEIOUnN')) LIKE '%' || $${idx + 1} || '%'`).join(' AND ');
+            const nCheck = await client.query(
+              `SELECT cedula, nombre_completo FROM personas WHERE ${conditions} LIMIT 1`,
+              nameTokens
+            );
+            if (nCheck.rows.length > 0) {
+              documento = String(nCheck.rows[0].cedula).trim();
+              personaExiste = true;
+            }
+          }
         }
       } catch (pErr) {
-        console.warn('[horarios-bulk] Aviso al registrar persona para integridad:', pErr.message);
+        console.warn('[horarios-bulk] Aviso al verificar persona institucional:', pErr.message);
+      }
+
+      if (!personaExiste) {
+        errors.push(`Fila ${i + 1}: El documento ${documento} (${apellidos_nombres}) no corresponde a ningún servidor público registrado en la planta institucional.`);
+        skipped++;
+        continue;
       }
 
       // Estructura Institucional
@@ -1024,6 +1041,8 @@ router.post('/bulk', auth, async (req, res) => {
 
       if (modalidad === 'Presencial') {
         presencialCount++;
+        skipped++;
+        continue;
       }
 
       // Días / Horario específico
@@ -1612,18 +1631,12 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Asegurar existencia en 'personas' para cumplir con la clave foránea fk_horarios_personas
+    // Verificar que el funcionario exista en 'personas' para cumplir con la clave foránea fk_horarios_personas
     const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [upper(documento)]);
     if (!pCheck.rows.length) {
-      const parts = (apellidos_nombres || '').trim().split(/\s+/);
-      const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
-      const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
-      await pool.query(
-        `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (cedula) DO NOTHING`,
-        [upper(documento), upper(apellidos_nombres || documento), pNom.toUpperCase(), pApe.toUpperCase()]
-      );
+      return res.status(400).json({
+        error: `El documento ${documento} no corresponde a ningún servidor público registrado en la planta institucional. Verifique el número de cédula o registre previamente al funcionario en Servidores Públicos.`
+      });
     }
 
     const insertRes = await pool.query(
@@ -1878,15 +1891,9 @@ router.put('/:id', auth, async (req, res) => {
     if (targetDoc) {
       const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [targetDoc]);
       if (!pCheck.rows.length) {
-        const parts = (apellidos_nombres || '').trim().split(/\s+/);
-        const pApe = parts.length > 2 ? parts.slice(0, 2).join(' ') : (parts[0] || 'SERVIDOR');
-        const pNom = parts.length > 2 ? parts.slice(2).join(' ') : (parts.slice(1).join(' ') || 'PUBLICO');
-        await pool.query(
-          `INSERT INTO personas (cedula, nombre_completo, nombres, primer_apellido)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (cedula) DO NOTHING`,
-          [targetDoc, upper(apellidos_nombres || targetDoc), pNom.toUpperCase(), pApe.toUpperCase()]
-        );
+        return res.status(400).json({
+          error: `El documento ${targetDoc} no corresponde a ningún servidor público registrado en la planta institucional.`
+        });
       }
     }
 

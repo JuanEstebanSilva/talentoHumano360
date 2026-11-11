@@ -10,9 +10,13 @@ const pool = new Pool({
 });
 
 async function resetPasswords() {
-  const hashAlejo = await bcrypt.hash('@Alejo123', 10);
-  const hashSilva = await bcrypt.hash('admin123', 10);
-  const hashAdmin = await bcrypt.hash('admin123', 10);
+  const adminPass = process.env.ADMIN_DEFAULT_PASSWORD || process.argv[2];
+  if (!adminPass) {
+    console.error('Error: Se requiere definir ADMIN_DEFAULT_PASSWORD o pasar la contraseña como argumento por CLI.');
+    process.exit(1);
+  }
+
+  const hashAdmin = await bcrypt.hash(adminPass, 10);
 
   // 1. Alejo Leo (Administrador)
   await pool.query(
@@ -22,25 +26,11 @@ async function resetPasswords() {
          password_reset_expires = NULL,
          estado = 'ACTIVO'
      WHERE LOWER(username) = $2`,
-    [hashAlejo, 'alejoleo2022@gmail.com']
+    [hashAdmin, 'alejoleo2022@gmail.com']
   );
-  console.log('✅ Updated alejoleo2022@gmail.com -> @Alejo123');
+  console.log('✅ Credencial de alejoleo2022@gmail.com actualizada a hash bcrypt seguro.');
 
-  // 2. Juan Esteban Silva (Gestor de Respaldo y Horarios)
-  await pool.query(
-    `UPDATE usuarios 
-     SET password = $1, 
-         debe_cambiar_password = false, 
-         password_reset_expires = NULL, 
-         estado = 'ACTIVO', 
-         modulos = 'admin-backups,horarios', 
-         permisos = 'admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete,horarios:read,horarios:write,horarios:delete' 
-     WHERE LOWER(username) = $2`,
-    [hashSilva, 'silvaespejojuanesteban@gmail.com']
-  );
-  console.log('✅ Updated silvaespejojuanesteban@gmail.com -> admin123');
-
-  // 3. Admin general
+  // 2. Admin general
   await pool.query(
     `UPDATE usuarios 
      SET password = $1, 
@@ -50,18 +40,16 @@ async function resetPasswords() {
      WHERE LOWER(username) = $2`,
     [hashAdmin, 'admin']
   );
-  console.log('✅ Updated admin -> admin123');
+  console.log('✅ Credencial de admin actualizada a hash bcrypt seguro.');
 
   const res = await pool.query(
-    `SELECT id_usuario, username, nombre, rol, estado, debe_cambiar_password, password 
+    `SELECT id_usuario, username, nombre, rol, estado, debe_cambiar_password 
      FROM usuarios 
-     WHERE username IN ('alejoleo2022@gmail.com', 'silvaespejojuanesteban@gmail.com', 'admin')`
+     WHERE username IN ('alejoleo2022@gmail.com', 'admin')`
   );
   
   for (const u of res.rows) {
-    const isAlejoMatch = await bcrypt.compare('@Alejo123', u.password);
-    const isAdmin123Match = await bcrypt.compare('admin123', u.password);
-    console.log(`User: ${u.username} | debe_cambiar: ${u.debe_cambiar_password} | matches @Alejo123: ${isAlejoMatch} | matches admin123: ${isAdmin123Match}`);
+    console.log(`User: ${u.username} | Estado: ${u.estado} | debe_cambiar: ${u.debe_cambiar_password}`);
   }
 
   await pool.end();

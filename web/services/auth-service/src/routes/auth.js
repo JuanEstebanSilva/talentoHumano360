@@ -618,19 +618,6 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // Compatibilidad segura para cuenta administradora definitiva y cuentas institucionales
-    if (!passwordMatches && (user.username === 'alejoleo2022@gmail.com' || user.username === 'alejoleo2022')) {
-      if (normalizedPass === 'Alejandro#123' || normalizedPass === '@Alejo123') {
-        passwordMatches = true;
-      }
-    }
-
-    if (!passwordMatches && (user.username === 'silvaespejojuanesteban@gmail.com' || user.username === 'admin')) {
-      if (normalizedPass === 'admin123' || normalizedPass === '@Admin123' || normalizedPass === 'Admin123#') {
-        passwordMatches = true;
-      }
-    }
-
     if (!passwordMatches) {
       const act = await recordFailedAttempt(userKey);
       if (act.isLocked) {
@@ -753,19 +740,6 @@ router.post('/verify-password', loginLimiter, async (req, res) => {
         matches = true;
       } else {
         await bcrypt.compare(normalizedPass, DUMMY_HASH);
-      }
-    }
-
-    // Compatibilidad segura para cuenta administradora definitiva y cuentas institucionales
-    if (!matches && (user.username === 'alejoleo2022@gmail.com' || user.username === 'alejoleo2022')) {
-      if (normalizedPass === 'Alejandro#123' || normalizedPass === '@Alejo123') {
-        matches = true;
-      }
-    }
-
-    if (!matches && (user.username === 'silvaespejojuanesteban@gmail.com' || user.username === 'admin')) {
-      if (normalizedPass === 'admin123' || normalizedPass === '@Admin123' || normalizedPass === 'Admin123#') {
-        matches = true;
       }
     }
 
