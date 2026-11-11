@@ -2466,7 +2466,7 @@ const App = (() => {
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123 / Alejandro#123):
+      // Para el Administrador técnico (alejoleo2022@gmail.com):
       setVisibility('li-nav-dashboard', true);
       setVisibility('nav-dashboard', true);
       setVisibility('li-admin-errors', true);

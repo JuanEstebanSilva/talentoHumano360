@@ -262,3 +262,11 @@ Usuarios del Sistema       14                    14                  Hash bcrypt
 1. **Acreditación Técnica Local:** Las correcciones implementadas resuelven de fondo las vulnerabilidades de seguridad, los problemas de integridad referencial y las discrepancias de datos identificadas, manteniendo intactas las reglas de negocio preexistentes.
 2. **Conservación de Datos:** No se realizaron eliminaciones masivas destructivas en Viáticos ni en Servidores Públicos. Los paquetes presupuestales se conservan íntegros reflejando fielmente la información entregada en los libros de origen.
 3. **Control de Ramas:** Todo el trabajo correctivo permanece confinado y verificado en la rama local `audit/correccion-integridad-institucional`, sin haberse realizado merges automáticos ni pushes a `main`, quedando en condiciones óptimas para revisión institucional.
+
+---
+
+## 12. ADENDA DE CIERRE Y CONCILIACIÓN FINAL
+Para la evidencia exhaustiva de cierre definitivo, matriz de 47 pruebas RBAC ejecutadas con payloads válidos en tiempo real, comparación directa fila por fila (1.855 filas) entre los paquetes 2 y 3 de Viáticos y la validación de exportación Excel contra PostgreSQL, consúltese el informe final consolidado:
+👉 **`AUDITORIAS/INFORME_CIERRE_FINAL_TALENTO360.md`**
+
+
