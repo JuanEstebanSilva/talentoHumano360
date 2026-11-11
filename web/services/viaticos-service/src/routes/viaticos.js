@@ -1211,7 +1211,7 @@ router.post('/', auth, async (req, res) => {
       `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,valor_total,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo,id_paquete)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id_viatico`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo)||'FUNCIONARIO PÚBLICO', upper(destino), motivo||'',
-       fechaInicio||today, fechaFin||today, finalDias, finalValorDiario, finalValorTotal,
+       fechaInicio || null, fechaFin || null, finalDias, finalValorDiario, finalValorTotal,
        estadoFinal, obsFinal, today, aprobadoPorVal, tipoDestino||'Nacional', soporte||null,
        (numeroResolucion||'').trim()||null, parseFloat(saldo)||null, pkgId]);
 
@@ -1422,7 +1422,7 @@ router.post('/bulk', auth, async (req, res) => {
                id_paquete = COALESCE(id_paquete, $17)
              WHERE id_viatico = $18`,
             [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
+             destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
              rowValorTotal, estado, finalObservaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
              numeroResolucion || null, saldo, targetPackageId, existingId]
           );
@@ -1435,7 +1435,7 @@ router.post('/bulk', auth, async (req, res) => {
              VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
              RETURNING id_viatico`,
             [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
+             destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
              rowValorTotal, estado, finalObservaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
              numeroResolucion || null, saldo, targetPackageId]
           );

@@ -4792,19 +4792,8 @@ const ViaticosModule = (() => {
 
     // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
     function parseDateRobust(rawVal, resolucionStr) {
-      if (rawVal == null || rawVal === '') {
-        if (resolucionStr) {
-          const m = String(resolucionStr).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-          if (m) {
-            const d = m[1].padStart(2, '0');
-            const mo = m[2].padStart(2, '0');
-            let yr = m[3];
-            if (yr.length === 2) yr = '20' + yr;
-            const dStr = `${d}/${mo}/${yr}`;
-            return { start: dStr, end: dStr, dias: 1, raw: rawVal };
-          }
-        }
-        return { start: '01/01/2023', end: '01/01/2023', dias: 1, raw: rawVal };
+      if (rawVal == null || String(rawVal).trim() === '') {
+        return { start: null, end: null, dias: 1, raw: null };
       }
 
       if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
@@ -4902,7 +4891,8 @@ const ViaticosModule = (() => {
         return { start: dStr, end: dStr, dias: 1, raw: rawVal };
       }
 
-      return { start: s, end: s, dias: 1, raw: rawVal };
+      // Si el formato no corresponde a una fecha reconocible, no inventar fechas
+      return { start: null, end: null, dias: 1, raw: rawVal, invalid: true };
     }
 
     // ─── Confirmación y procesamiento masivo con SheetJS ────────────────────

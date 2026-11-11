@@ -89,10 +89,16 @@ router.get('/stats', auth, async (_, res) => {
             )
           ) AS inactivos,
           COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+               OR p.cedula = 'PROV-00003'
+          ) AS agrupados,
+          COUNT(*) FILTER (
             WHERE NOT (
               COALESCE(p.es_vacante, false) = true 
               OR UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
               OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+              OR UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+              OR p.cedula = 'PROV-00003'
             )
             AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
             AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
@@ -275,6 +281,7 @@ router.get('/stats', auth, async (_, res) => {
         activos: parseInt(e.activos) || 0,
         inactivos: parseInt(e.inactivos) || 0,
         vacantes: parseInt(e.vacantes) || 0,
+        agrupados: parseInt(e.agrupados) || 0,
         totalDependencias: totalDeps,
         porNivel: cargosNivel.rows.map(r => ({ nivel: r.nivel, cantidad: parseInt(r.cantidad) || 0 })),
         porClasificacion: clasifEmpleo.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad) || 0 })),
@@ -422,10 +429,16 @@ router.get('/chart', auth, async (_, res) => {
             )
           ) AS inactivos,
           COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+               OR p.cedula = 'PROV-00003'
+          ) AS agrupados,
+          COUNT(*) FILTER (
             WHERE NOT (
               COALESCE(p.es_vacante, false) = true 
               OR UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
               OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+              OR UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+              OR p.cedula = 'PROV-00003'
             )
             AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
             AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
