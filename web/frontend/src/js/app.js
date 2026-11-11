@@ -1729,12 +1729,6 @@ const App = (() => {
         <div class="admin-unlock-top-accent"></div>
         <div class="admin-unlock-header">
           <div class="admin-unlock-top-row">
-            <div class="admin-unlock-chip-badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
-              <span>Control de Acceso</span>
-            </div>
             <button type="button" class="admin-unlock-close-btn" id="admin-unlock-btn-close" title="Cerrar (Esc)" aria-label="Cerrar">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
