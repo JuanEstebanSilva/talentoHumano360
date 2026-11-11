@@ -1763,7 +1763,7 @@ const App = (() => {
           </div>
           <h3 class="admin-unlock-title">Módulos del Sistema</h3>
           <p class="admin-unlock-subtitle">
-            Para acceder a los módulos y submódulos institucionales, confirme su contraseña de administrador.
+            ¿Estás seguro de que deseas desbloquear los módulos operativos? Confirma tu contraseña institucional para continuar.
           </p>
         </div>
 
@@ -1789,9 +1789,6 @@ const App = (() => {
               </div>
             </div>
             <div class="admin-unlock-role-pill">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
               <span>Admin</span>
             </div>
           </div>
@@ -1805,10 +1802,6 @@ const App = (() => {
               <span>Contraseña de Login</span>
             </label>
             <div class="admin-unlock-input-wrap">
-              <svg class="admin-unlock-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m21 2-2 2m-1.5 1.5L14 9l-3 3-2 2-4 4a2 2 0 0 1-2.83-2.83l4-4 2-2 3-3 3.5-3.5M20 7l-3-3"/>
-                <circle cx="7.5" cy="16.5" r="3.5"/>
-              </svg>
               <input
                 type="password"
                 id="admin-unlock-password"
@@ -1997,55 +1990,119 @@ const App = (() => {
 
   function promptAdminUnlockedOptions() {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    openModal(
-      'Módulos del Sistema (Desbloqueados)',
-      `
-        <div style="text-align: center; padding: 10px 4px 6px;">
-          <div style="width: 58px; height: 58px; margin: 0 auto 16px; background: rgba(16, 185, 129, 0.14); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    const adminEmail = user.username || user.email || 'alejoleo2022@gmail.com';
+    const adminName = user.nombre || user.name || 'Alejandro León';
+    const initials = (adminName || 'A').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AL';
+
+    // Limpiar overlays previos si existen
+    const existing = document.getElementById('admin-unlock-dialog-overlay');
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'admin-unlock-dialog-overlay';
+    overlay.className = 'admin-unlock-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Gestión de Módulos del Sistema');
+
+    overlay.innerHTML = `
+      <div class="admin-unlock-card">
+        <div class="admin-unlock-top-accent" style="background: linear-gradient(90deg, #0284c7 0%, #0369a1 50%, #0284c7 100%);"></div>
+        <div class="admin-unlock-header" style="background: radial-gradient(circle at 50% -10%, rgba(2, 132, 199, 0.30) 0%, transparent 65%), linear-gradient(145deg, #075985 0%, #0284c7 52%, #0369a1 100%); border-bottom: 2px solid rgba(2, 132, 199, 0.45);">
+          <div class="admin-unlock-top-row">
+            <button type="button" class="admin-unlock-close-btn" id="admin-unlocked-btn-close" title="Cerrar (Esc)" aria-label="Cerrar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-unlock-icon-container" style="background: rgba(255, 255, 255, 0.20); border-color: rgba(255, 255, 255, 0.45); box-shadow: 0 0 20px rgba(2, 132, 199, 0.35);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
             </svg>
           </div>
-          <h4 style="margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; color: var(--text-primary, #0f172a);">
-            Acceso Completo Habilitado
-          </h4>
-          <p style="font-size: 0.88rem; color: var(--text-secondary, #64748b); line-height: 1.5; margin-bottom: 16px;">
-            Actualmente cuenta con permisos de navegación en todos los módulos y submódulos de la Gobernación de Boyacá.
+          <h3 class="admin-unlock-title">Módulos del Sistema</h3>
+          <p class="admin-unlock-subtitle">
+            Acceso completo habilitado a todos los módulos y submódulos institucionales.
           </p>
+        </div>
 
-          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Servidores Públicos</span>
-            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Horarios</span>
-            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Viáticos</span>
-            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Seguridad y Salud (SST)</span>
+        <div class="admin-unlock-body">
+          <div class="admin-unlock-user-card">
+            <div class="admin-unlock-user-left">
+              <div class="admin-unlock-avatar" title="${escHtml(adminName)}" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                <span>${escHtml(initials)}</span>
+                <span class="admin-unlock-avatar-dot" title="Sesión activa"></span>
+              </div>
+              <div class="admin-unlock-user-details">
+                <div class="admin-unlock-user-name">${escHtml(adminName)}</div>
+                <div class="admin-unlock-user-email">${escHtml(adminEmail)}</div>
+              </div>
+            </div>
+            <div class="admin-unlock-role-pill" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border-color: rgba(2, 132, 199, 0.35);">
+              <span>Admin</span>
+            </div>
+          </div>
+
+          <div class="admin-unlock-advisory" style="background: rgba(2, 132, 199, 0.08); border-color: rgba(2, 132, 199, 0.35); color: #0369a1; margin-top: 0; margin-bottom: 14px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0284c7;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Actualmente cuentas con permisos activos en los módulos operativos del sistema:</span>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px;">
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Servidores Públicos</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Horarios</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Viáticos</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Seguridad y Salud (SST)</span>
+          </div>
+
+          <div class="admin-unlock-actions">
+            <button type="button" id="admin-unlocked-btn-lock" class="btn-unlock-cancel" style="color: #b91c1c; border-color: rgba(239, 68, 68, 0.45);">
+              Bloquear Módulos Ahora
+            </button>
+            <button type="button" id="admin-unlocked-btn-continue" class="btn-unlock-submit">
+              <span>Continuar al Dashboard</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
           </div>
         </div>
-      `,
-      [
-        {
-          text: 'Bloquear Módulos Ahora',
-          cls: 'btn btn-secondary',
-          onClick: () => {
-            closeModal();
-            if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
-              Auth.setAdminElevated(false);
-            }
-            applyNavigationPermissions(user);
-            showToast('Módulos institucionales bloqueados. Se requerirá contraseña para reingresar.', 'info');
-            navigate('admin-errors');
-          }
-        },
-        {
-          text: 'Continuar al Dashboard',
-          cls: 'btn btn-primary',
-          onClick: () => {
-            closeModal();
-            navigate('dashboard');
-          }
-        }
-      ]
-    );
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeOverlay = () => {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+
+    document.getElementById('admin-unlocked-btn-close')?.addEventListener('click', closeOverlay);
+    document.getElementById('admin-unlocked-btn-continue')?.addEventListener('click', () => {
+      closeOverlay();
+      navigate('dashboard');
+    });
+    document.getElementById('admin-unlocked-btn-lock')?.addEventListener('click', () => {
+      closeOverlay();
+      if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+        Auth.setAdminElevated(false);
+      }
+      applyNavigationPermissions(user);
+      showToast('Módulos institucionales bloqueados. Se requerirá contraseña para reingresar.', 'info');
+      navigate('admin-errors');
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay();
+    });
   }
 
   // ─── Login & App Views ──────────────────────────────────────────────────────

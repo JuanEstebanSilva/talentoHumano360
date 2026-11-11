@@ -1490,7 +1490,7 @@
 
 .admin-unlock-header {
   position: relative;
-  padding: 24px 28px 22px;
+  padding: 18px 24px 16px;
   background: radial-gradient(circle at 50% -10%, rgba(209, 173, 42, 0.28) 0%, transparent 65%),
               linear-gradient(145deg, #62543b 0%, #857352 52%, #4a3e2a 100%);
   color: #ffffff;
@@ -1499,10 +1499,11 @@
 }
 
 .admin-unlock-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  margin-bottom: 0;
+  z-index: 2;
 }
 
 .admin-unlock-chip-badge {
@@ -1510,8 +1511,8 @@
 }
 
 .admin-unlock-close-btn {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.32);
@@ -1530,9 +1531,9 @@
 }
 
 .admin-unlock-icon-container {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 12px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 10px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.14);
   border: 2px solid rgba(255, 255, 255, 0.35);
@@ -1543,9 +1544,14 @@
   color: #ffffff;
 }
 
+.admin-unlock-icon-container svg {
+  width: 22px;
+  height: 22px;
+}
+
 .admin-unlock-title {
-  margin: 0 0 6px;
-  font-size: 1.32rem;
+  margin: 0 0 4px;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.02em;
@@ -1553,14 +1559,15 @@
 }
 
 .admin-unlock-subtitle {
-  margin: 0;
-  font-size: 0.86rem;
+  margin: 0 auto;
+  font-size: 0.84rem;
   color: rgba(255, 255, 255, 0.92);
-  line-height: 1.45;
+  line-height: 1.4;
+  max-width: 390px;
 }
 
 .admin-unlock-body {
-  padding: 24px 28px;
+  padding: 22px 26px 24px;
 }
 
 .admin-unlock-user-card {
@@ -1572,7 +1579,7 @@
   border-radius: 14px;
   background: #f8fafc;
   border: 1.5px solid #738993;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .admin-unlock-user-left {
@@ -1586,7 +1593,7 @@
   position: relative;
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #857352 0%, #62543b 100%);
   color: #ffffff;
   font-weight: 800;
@@ -1600,8 +1607,8 @@
 
 .admin-unlock-avatar-dot {
   position: absolute;
-  bottom: -2px;
-  right: -2px;
+  bottom: 0px;
+  right: 0px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -1637,15 +1644,15 @@
 .admin-unlock-role-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   background: rgba(133, 115, 82, 0.12);
   color: #857352;
   border: 1px solid rgba(133, 115, 82, 0.35);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 20px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1678,18 +1685,12 @@
 }
 
 .admin-unlock-input-icon {
-  position: absolute;
-  left: 14px;
-  width: 18px;
-  height: 18px;
-  color: #738993;
-  pointer-events: none;
-  transition: color 0.2s;
+  display: none !important;
 }
 
 .admin-unlock-input {
   width: 100%;
-  padding: 12px 42px 12px 42px;
+  padding: 11px 44px 11px 14px;
   border-radius: 12px;
   border: 1.5px solid #738993;
   background: var(--bg-surface, #ffffff);
@@ -1709,12 +1710,8 @@
 .admin-unlock-input:focus,
 .admin-unlock-input:focus-visible {
   outline: none !important;
-  border-color: #857352 !important;
-  box-shadow: 0 0 0 3.5px rgba(133, 115, 82, 0.25) !important;
-}
-
-.admin-unlock-input:focus ~ .admin-unlock-input-icon {
-  color: #857352;
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.25) !important;
 }
 
 .admin-unlock-toggle-btn {
@@ -1736,7 +1733,7 @@
 
 .admin-unlock-toggle-btn:hover {
   background: rgba(115, 137, 147, 0.12);
-  color: #857352;
+  color: #0284c7;
 }
 
 .admin-unlock-advisory {
@@ -1788,8 +1785,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 22px;
-  padding-top: 18px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1.5px solid rgba(115, 137, 147, 0.25);
 }
 
@@ -1807,8 +1804,8 @@
 
 .btn-unlock-cancel:hover {
   background: rgba(115, 137, 147, 0.12);
-  color: #857352;
-  border-color: #857352;
+  color: #0284c7;
+  border-color: #0284c7;
   transform: translateY(-1px);
 }
 
@@ -1817,10 +1814,10 @@
   border-radius: 12px;
   font-weight: 700;
   font-size: 0.92rem;
-  background: linear-gradient(135deg, #254d32 0%, #15803d 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 14px rgba(37, 77, 50, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.38);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1829,9 +1826,9 @@
 }
 
 .btn-unlock-submit:hover {
-  background: linear-gradient(135deg, #1b3d26 0%, #166534 100%);
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(37, 77, 50, 0.45);
+  box-shadow: 0 8px 22px rgba(2, 132, 199, 0.48);
 }
 
 .btn-unlock-submit:active {
