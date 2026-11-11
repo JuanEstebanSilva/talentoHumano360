@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
+const fs = require('fs');
 const { Pool } = require('pg');
 
 const pool = new Pool(
@@ -149,28 +151,42 @@ function getMailTransporter() {
 
 function buildRecoveryPlainText(nombre, tempPassword) {
   const nombreDisplay = nombre && nombre.trim() ? nombre.trim() : 'Funcionario';
-  return `Hola, ${nombreDisplay}:
+  return `=====================================================
+TALENTO 360 — GOBERNACIÓN DE BOYACÁ
+Sistema Integral de Gestión de Talento Humano
+=====================================================
 
-Recibe un cordial saludo de parte del equipo de soporte de Talento 360, plataforma de gestión de talento humano de la Gobernación de Boyacá.
+Recuperación de Contraseña Institucional
 
-Hemos recibido una solicitud para recuperar el acceso a tu cuenta.
+Hola, ${nombreDisplay}:
 
-Tu contraseña provisional es:
+Recibe un cordial saludo de parte del equipo institucional de Talento 360, plataforma oficial de gestión de talento humano de la Gobernación de Boyacá.
+
+Hemos recibido una solicitud para recuperar el acceso a tu cuenta oficial.
+
+Tu contraseña provisional de acceso es:
+-----------------------------------------------------
 ${tempPassword}
+-----------------------------------------------------
 
-Por motivos de seguridad, esta contraseña tiene una vigencia limitada (24 horas) y deberás cambiarla inmediatamente después de iniciar sesión.
+⏱ VIGENCIA LIMITADA: 24 horas a partir de este momento.
 
-Si no solicitaste esta recuperación, comunícate inmediatamente con el administrador de la plataforma.
+IMPORTANTE (Paso Obligatorio): Por motivos estrictos de ciberseguridad institucional, deberás cambiar esta contraseña provisional inmediatamente después de iniciar sesión. El sistema te solicitará definir tu nueva contraseña personal antes de habilitar el acceso a los módulos operativos de la plataforma.
+
+Si tú no solicitaste este restablecimiento, desestima este mensaje; tu cuenta permanecerá resguardada. Si sospechas de alguna anomalía, comunícate de inmediato con el Administrador de Plataforma o la Dirección de Talento Humano.
 
 Atentamente,
 
-Equipo de Soporte
-Talento 360
-Gobernación de Boyacá`;
+Equipo de Gestión y Soporte
+Talento 360 — Gobernación de Boyacá
+Dirección de Talento Humano
+Palacio de la Torre — Plaza de Bolívar, Tunja, Boyacá`;
 }
 
-function buildRecoveryHtml(nombre, tempPassword) {
+function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
   const nombreDisplay = nombre && nombre.trim() ? nombre.trim() : 'Funcionario';
+  const loginUrl = appUrl && appUrl.startsWith('http') ? appUrl : 'http://localhost';
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -178,60 +194,156 @@ function buildRecoveryHtml(nombre, tempPassword) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recuperación de Contraseña — Talento 360</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9;padding:40px 15px;">
+<body style="margin:0;padding:0;background-color:#f4f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f4f6f8;padding:36px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 35px rgba(15,23,42,0.08);border:1px solid #e2e8f0;">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(15,23,42,0.10);border:1.5px solid #e2e8f0;">
+          
+          <!-- Top Multi-Color Accent Stripe -->
           <tr>
-            <td style="background:linear-gradient(135deg,#0d5233 0%,#1e7e46 100%);padding:36px 30px;text-align:center;">
-              <div style="display:inline-block;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:50px;padding:6px 18px;margin-bottom:12px;">
-                <span style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#fef08a;text-transform:uppercase;">Gobernación de Boyacá</span>
+            <td height="5" style="background:linear-gradient(90deg, #28871B 0%, #0d5233 28%, #D1AD2A 62%, #D14600 100%);line-height:5px;font-size:5px;">&nbsp;</td>
+          </tr>
+
+          <!-- Header Section with Official Branding -->
+          <tr>
+            <td style="background:#092e1f;background:radial-gradient(circle at 50% 0%, rgba(209, 173, 42, 0.22) 0%, transparent 70%), linear-gradient(145deg, #062316 0%, #0f4a33 55%, #08291c 100%);padding:36px 24px 32px;text-align:center;border-bottom:2px solid rgba(209, 173, 42, 0.45);">
+              
+              <!-- Official Coat of Arms / Cóndor Medallion -->
+              <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto 14px;">
+                <tr>
+                  <td align="center" style="width:76px;height:76px;border-radius:50%;background:#ffffff;border:2.5px solid #D1AD2A;box-shadow:0 8px 24px rgba(0,0,0,0.35);text-align:center;vertical-align:middle;padding:7px;">
+                    <img src="cid:logoCondor" alt="Escudo Gobernación de Boyacá" width="60" height="60" style="display:block;margin:0 auto;width:60px;height:60px;max-width:60px;border:0;outline:none;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Institutional Pill -->
+              <div style="display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(209,173,42,0.50);border-radius:30px;padding:4px 18px;margin-bottom:12px;">
+                <span style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:#FDE047;text-transform:uppercase;">GOBERNACIÓN DE BOYACÁ</span>
               </div>
-              <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;letter-spacing:-0.5px;">Talento 360</h1>
-              <p style="margin:6px 0 0;color:#e2e8f0;font-size:14px;font-weight:500;">Sistema Integral de Gestión de Talento Humano</p>
+
+              <!-- Application Wordmark -->
+              <div style="font-size:30px;font-weight:900;letter-spacing:-0.5px;line-height:1.15;margin:0;">
+                <span style="color:#ffffff;">Talento</span><span style="color:#D1AD2A;"> 360</span>
+              </div>
+              <div style="margin-top:6px;color:#cbd5e1;font-size:12.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">
+                Sistema Integral de Gestión de Talento Humano
+              </div>
             </td>
           </tr>
+
+          <!-- Body Content -->
           <tr>
-            <td style="padding:36px 32px 28px;">
-              <h2 style="margin:0 0 16px;color:#0f172a;font-size:20px;font-weight:700;">Recuperación de Contraseña</h2>
-              <p style="margin:0 0 14px;font-size:15px;color:#334155;">Hola, <strong style="color:#0f172a;">${nombreDisplay}</strong>:</p>
-              <p style="margin:0 0 18px;font-size:15px;color:#334155;">
-                Recibe un cordial saludo de parte del equipo de soporte de <strong>Talento 360</strong>, plataforma de gestión de talento humano de la Gobernación de Boyacá.
+            <td style="padding:36px 36px 28px;">
+              
+              <!-- Category Badge -->
+              <div style="display:inline-block;background:rgba(115,137,147,0.12);border:1px solid #738993;border-radius:20px;padding:4px 14px;margin-bottom:18px;">
+                <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#738993;text-transform:uppercase;">Seguridad &bull; Restablecimiento de Acceso</span>
+              </div>
+
+              <h2 style="margin:0 0 16px;color:#0f172a;font-size:22px;font-weight:800;letter-spacing:-0.3px;">
+                Recuperación de Contraseña
+              </h2>
+
+              <p style="margin:0 0 14px;font-size:15px;color:#334155;line-height:1.6;">
+                Hola, <strong style="color:#0f172a;">${nombreDisplay}</strong>:
               </p>
-              <p style="margin:0 0 22px;font-size:15px;color:#334155;">
-                Hemos recibido una solicitud para recuperar el acceso a tu cuenta en la plataforma.
+
+              <p style="margin:0 0 14px;font-size:15px;color:#334155;line-height:1.6;">
+                Recibe un cordial saludo de parte del equipo institucional de <strong>Talento 360</strong>. Hemos recibido una solicitud formal para recuperar y reanudar el acceso a tu cuenta en la plataforma.
               </p>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;">
+
+              <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
+                Tu contraseña provisional de acceso de un solo uso es:
+              </p>
+
+              <!-- Provisional Password Container -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0 26px;background:#f8fafc;border:1.5px solid #738993;border-radius:14px;box-shadow:0 4px 16px rgba(15,23,42,0.04);">
                 <tr>
-                  <td style="padding:22px;text-align:center;">
-                    <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;">Tu Contraseña Provisional</div>
-                    <div style="display:inline-block;background:#0d5233;color:#ffffff;font-family:'Courier New',Courier,monospace;font-size:24px;font-weight:800;letter-spacing:4px;padding:12px 26px;border-radius:8px;box-shadow:0 4px 12px rgba(13,82,51,0.25);">
-                      ${tempPassword}
+                  <td style="padding:26px 20px;text-align:center;">
+                    <div style="font-size:11.5px;font-weight:800;color:#738993;text-transform:uppercase;letter-spacing:1.8px;margin-bottom:12px;">
+                      TU CONTRASEÑA PROVISIONAL
                     </div>
-                    <div style="margin-top:12px;font-size:13px;color:#d97706;font-weight:600;">
-                      ⏱️ Vigencia: 24 horas a partir de este momento
+                    
+                    <!-- Credential Box -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:0 auto;">
+                      <tr>
+                        <td style="background:#093323;background:linear-gradient(135deg,#07261a 0%,#0f4a34 50%,#093323 100%);border:2px solid #D1AD2A;border-radius:12px;padding:14px 28px;box-shadow:0 6px 18px rgba(9,51,35,0.35);text-align:center;">
+                          <span style="font-family:'Consolas','Courier New',Courier,monospace;font-size:26px;font-weight:900;letter-spacing:4px;color:#ffffff;text-shadow:0 1px 2px rgba(0,0,0,0.5);display:inline-block;">
+                            ${tempPassword}
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Timer Pill -->
+                    <div style="margin-top:16px;">
+                      <span style="display:inline-block;background:rgba(209,70,0,0.08);border:1px solid rgba(209,70,0,0.32);border-radius:20px;padding:5px 14px;font-size:12.5px;color:#D14600;font-weight:700;">
+                        &#9201; Vigencia limitada: 24 horas a partir de este momento
+                      </span>
                     </div>
                   </td>
                 </tr>
               </table>
-              <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px 16px;border-radius:0 8px 8px 0;margin:22px 0;">
-                <p style="margin:0;font-size:13.5px;color:#1e40af;line-height:1.5;">
-                  <strong>Importante:</strong> Por motivos estrictos de seguridad institucional, deberás cambiar esta contraseña provisional <strong>inmediatamente después de iniciar sesión</strong>. El sistema no te permitirá acceder a los módulos hasta que definas tu nueva clave personal.
-                </p>
+
+              <!-- CTA Button: Iniciar Sesión -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:24px 0 24px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" align="center">
+                      <tr>
+                        <td style="background:#0d5233;background:linear-gradient(135deg,#0d5233 0%,#15803d 100%);border-radius:50px;box-shadow:0 4px 14px rgba(13,82,51,0.35);text-align:center;">
+                          <a href="${loginUrl}" target="_blank" style="display:inline-block;padding:13px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;letter-spacing:0.3px;color:#ffffff;text-decoration:none;border-radius:50px;">
+                            Iniciar Sesión en Talento 360 &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Advisory Box: Cambio obligatorio de contraseña -->
+              <div style="background:#fffbeb;border:1.5px solid #d97706;border-left:5px solid #d97706;padding:16px 18px;border-radius:10px;margin:22px 0 24px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="vertical-align:top;width:24px;padding-right:12px;">
+                      <span style="font-size:20px;line-height:1;">&#128274;</span>
+                    </td>
+                    <td style="vertical-align:top;font-size:13.5px;color:#78350f;line-height:1.55;">
+                      <strong style="color:#92400e;">Cambio obligatorio al iniciar sesión:</strong> Por motivos de ciberseguridad institucional, deberás cambiar esta clave provisional <strong>inmediatamente después de iniciar sesión</strong>. El sistema te solicitará definir tu nueva clave personal antes de habilitar el acceso a los módulos operativos.
+                    </td>
+                  </tr>
+                </table>
               </div>
-              <p style="margin:20px 0 0;font-size:13px;color:#64748b;line-height:1.5;">
-                Si tú no solicitaste esta recuperación de contraseña, por favor ignora este mensaje o repórtalo inmediatamente al administrador de la plataforma.
+
+              <!-- Safety Disclaimer -->
+              <p style="margin:22px 0 0;font-size:12.5px;color:#738993;line-height:1.55;">
+                &#128737;&#65039; Si no realizaste esta solicitud de restablecimiento, puedes desestimar este mensaje; tu cuenta permanecerá resguardada. Si consideras que se trata de un intento no autorizado, comunícate de inmediato con el Administrador de la plataforma o la Dirección de Talento Humano.
               </p>
             </td>
           </tr>
+
+          <!-- Footer Section -->
           <tr>
-            <td style="background:#f8fafc;padding:24px 32px;border-top:1px solid #e2e8f0;text-align:center;">
-              <p style="margin:0;font-size:13px;font-weight:700;color:#0f172a;">Equipo de Soporte de Talento 360</p>
-              <p style="margin:3px 0 0;font-size:12px;color:#64748b;">Dirección de Talento Humano — Gobernación de Boyacá</p>
-              <p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">Este es un mensaje institucional generado automáticamente. Por favor no responder a este correo.</p>
+            <td style="background:#f8fafc;padding:26px 32px;border-top:1.5px solid #e2e8f0;text-align:center;">
+              <div style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:0.2px;">
+                Equipo de Gestión y Soporte &bull; Talento 360
+              </div>
+              <div style="margin-top:4px;font-size:12px;color:#738993;">
+                Dirección de Talento Humano &middot; Gobernación de Boyacá
+              </div>
+              <div style="margin-top:2px;font-size:11.5px;color:#94a3b8;">
+                Palacio de la Torre &middot; Plaza de Bolívar, Tunja &middot; Boyacá, Colombia
+              </div>
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;line-height:1.4;">
+                Este es un mensaje institucional generado automáticamente por el sistema de autenticación de Talento 360. Por favor no respondas directamente a esta dirección de correo.
+              </div>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>
@@ -562,13 +674,34 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     try {
       const transporter = getMailTransporter();
       const mailFrom = process.env.MAIL_FROM || `Talento 360 — Gobernación de Boyacá <${process.env.SMTP_USER}>`;
+      const appUrl = process.env.APP_URL || 'http://localhost';
+
+      // Adjuntar el logo institucional oficial de Cóndor para renderizado inline sin bloqueo
+      const candidatePaths = [
+        path.join(__dirname, '../assets/logoCondor.png'),
+        path.join(__dirname, '../../../../frontend/src/imgs/logoCondor.png'),
+        '/app/src/assets/logoCondor.png'
+      ];
+      const validLogoPath = candidatePaths.find(p => {
+        try { return fs.existsSync(p); } catch { return false; }
+      });
+
+      const attachments = [];
+      if (validLogoPath) {
+        attachments.push({
+          filename: 'logoCondor.png',
+          path: validLogoPath,
+          cid: 'logoCondor'
+        });
+      }
 
       await transporter.sendMail({
         from: mailFrom,
         to: destinationEmail,
         subject: 'Recuperación de contraseña — Talento 360',
         text: buildRecoveryPlainText(user.nombre, tempPassword),
-        html: buildRecoveryHtml(user.nombre, tempPassword)
+        html: buildRecoveryHtml(user.nombre, tempPassword, appUrl),
+        attachments: attachments
       });
 
       console.log(`[auth-recovery] Correo de recuperación enviado exitosamente a: ${destinationEmail} (id_usuario=${user.id_usuario})`);
