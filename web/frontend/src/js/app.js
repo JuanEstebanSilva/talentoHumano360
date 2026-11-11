@@ -1680,52 +1680,99 @@ const App = (() => {
     isAdminUnlocking = true;
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const adminEmail = user.username || 'alejoleo2022@gmail.com';
+    const adminEmail = user.username || user.email || 'alejoleo2022@gmail.com';
+    const adminName = user.nombre || user.name || 'Alejandro León';
+    const initials = (adminName || 'A').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AL';
 
     const overlay = document.createElement('div');
     overlay.id = 'admin-unlock-dialog-overlay';
+    overlay.className = 'admin-unlock-overlay';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', 'Desbloquear Módulos Institucionales');
-    overlay.style.cssText = 'position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.25s ease;';
 
     overlay.innerHTML = `
-      <div style="background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); max-width: 460px; width: 100%; overflow: hidden; border: 1px solid var(--border-color, #e2e8f0); animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
-        <div style="background: linear-gradient(135deg, #005387 0%, #003659 100%); padding: 24px 26px; color: #fff; text-align: center; position: relative;">
-          <div style="width: 52px; height: 52px; margin: 0 auto 12px; background: rgba(234, 179, 8, 0.2); border: 2px solid rgba(234, 179, 8, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #facc15;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="admin-unlock-card">
+        <div class="admin-unlock-top-accent"></div>
+        <div class="admin-unlock-header">
+          <div class="admin-unlock-top-row">
+            <div class="admin-unlock-chip-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Control de Acceso</span>
+            </div>
+            <button type="button" class="admin-unlock-close-btn" id="admin-unlock-btn-close" title="Cerrar (Esc)" aria-label="Cerrar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-unlock-icon-container">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
           </div>
-          <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #ffffff; letter-spacing: -0.01em;">
-            Módulos del Sistema
-          </h3>
-          <p style="margin: 6px 0 0; font-size: 0.86rem; color: rgba(255,255,255,0.85); line-height: 1.45;">
+          <h3 class="admin-unlock-title">Módulos del Sistema</h3>
+          <p class="admin-unlock-subtitle">
             Para acceder a los módulos y submódulos institucionales, confirme su contraseña de administrador.
           </p>
         </div>
 
-        <form id="admin-unlock-form" style="padding: 24px;" novalidate>
-          <div id="admin-unlock-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500; border: 1px solid #fca5a5;"></div>
+        <form id="admin-unlock-form" class="admin-unlock-body" novalidate>
+          <div id="admin-unlock-error" class="admin-unlock-error-banner" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span class="admin-unlock-error-text"></span>
+          </div>
 
-          <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
-              Usuario Administrador
-            </label>
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f8fafc);">
-              <span style="font-size: 0.92rem; font-weight: 600; color: var(--text-primary, #1e293b);">${escHtml(adminEmail)}</span>
-              <span style="font-size: 0.72rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Admin</span>
+          <div class="admin-unlock-user-card">
+            <div class="admin-unlock-user-left">
+              <div class="admin-unlock-avatar" title="${escHtml(adminName)}">
+                <span>${escHtml(initials)}</span>
+                <span class="admin-unlock-avatar-dot" title="Sesión activa"></span>
+              </div>
+              <div class="admin-unlock-user-details">
+                <div class="admin-unlock-user-name">${escHtml(adminName)}</div>
+                <div class="admin-unlock-user-email">${escHtml(adminEmail)}</div>
+              </div>
+            </div>
+            <div class="admin-unlock-role-pill">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Admin</span>
             </div>
           </div>
 
-          <div style="margin-bottom: 22px;">
-            <label for="admin-unlock-password" style="display: block; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
-              Contraseña de Login
+          <div class="admin-unlock-field-group">
+            <label for="admin-unlock-password" class="admin-unlock-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Contraseña de Login</span>
             </label>
-            <div style="position: relative;">
-              <input type="password" id="admin-unlock-password" required autocomplete="current-password" placeholder="Ingrese su contraseña institucional" style="width: 100%; padding: 10px 42px 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
-              <button type="button" id="admin-unlock-pwd-toggle" aria-label="Mostrar contraseña" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted, #64748b); padding: 4px; display: flex; align-items: center; justify-content: center;">
+            <div class="admin-unlock-input-wrap">
+              <svg class="admin-unlock-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21 2-2 2m-1.5 1.5L14 9l-3 3-2 2-4 4a2 2 0 0 1-2.83-2.83l4-4 2-2 3-3 3.5-3.5M20 7l-3-3"/>
+                <circle cx="7.5" cy="16.5" r="3.5"/>
+              </svg>
+              <input
+                type="password"
+                id="admin-unlock-password"
+                class="admin-unlock-input"
+                required
+                autocomplete="current-password"
+                placeholder="Ingrese su contraseña institucional"
+              />
+              <button type="button" id="admin-unlock-pwd-toggle" class="admin-unlock-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-open">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
@@ -1736,14 +1783,22 @@ const App = (() => {
                 </svg>
               </button>
             </div>
+            <div class="admin-unlock-advisory">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span>Esta confirmación desbloqueará temporalmente los módulos operativos (Servidores, Horarios, Viáticos y SST).</span>
+            </div>
           </div>
 
-          <div style="display: flex; gap: 12px; justify-content: flex-end;">
-            <button type="button" id="admin-unlock-btn-cancel" class="btn btn-secondary" style="padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+          <div class="admin-unlock-actions">
+            <button type="button" id="admin-unlock-btn-cancel" class="btn-unlock-cancel">
               Cancelar
             </button>
-            <button type="submit" id="admin-unlock-btn-submit" class="btn btn-primary" style="padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; background: #005387; color: #fff; border: none; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,83,135,0.25);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button type="submit" id="admin-unlock-btn-submit" class="btn-unlock-submit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
               </svg>
@@ -1763,10 +1818,12 @@ const App = (() => {
     const errEl = overlay.querySelector('#admin-unlock-error');
     const form = overlay.querySelector('#admin-unlock-form');
     const cancelBtn = overlay.querySelector('#admin-unlock-btn-cancel');
+    const closeBtn = overlay.querySelector('#admin-unlock-btn-close');
     const submitBtn = overlay.querySelector('#admin-unlock-btn-submit');
+    const cardEl = overlay.querySelector('.admin-unlock-card');
 
     if (pwdInput) {
-      setTimeout(() => pwdInput.focus(), 100);
+      setTimeout(() => pwdInput.focus(), 120);
     }
 
     if (toggleBtn && pwdInput && eyeOpen && eyeClosed) {
@@ -1783,36 +1840,67 @@ const App = (() => {
       });
     }
 
+    let keydownHandler = null;
+
     function cleanup() {
       isAdminUnlocking = false;
+      if (keydownHandler) {
+        window.removeEventListener('keydown', keydownHandler);
+      }
       if (overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
     }
 
-    cancelBtn.addEventListener('click', () => {
+    function handleCancel() {
       cleanup();
       const current = activeModule || 'admin-errors';
       const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
       if (!technicalAdminRoutes.has(current)) {
         navigate('admin-errors');
       }
+    }
+
+    cancelBtn.addEventListener('click', handleCancel);
+    if (closeBtn) closeBtn.addEventListener('click', handleCancel);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) handleCancel();
     });
+
+    keydownHandler = (e) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+    window.addEventListener('keydown', keydownHandler);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const pwd = pwdInput ? pwdInput.value.trim() : '';
       if (!pwd) {
         if (errEl) {
-          errEl.textContent = 'Por favor ingrese su contraseña de login institucional.';
-          errEl.style.display = 'block';
+          const errText = errEl.querySelector('.admin-unlock-error-text') || errEl;
+          errText.textContent = 'Por favor ingrese su contraseña de login institucional.';
+          errEl.style.display = 'flex';
         }
+        if (cardEl) {
+          cardEl.classList.remove('shake');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('shake');
+        }
+        if (pwdInput) pwdInput.focus();
         return;
       }
 
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>Verificando...</span>';
+        submitBtn.innerHTML = `
+          <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+          </svg>
+          <span>Verificando...</span>
+        `;
       }
       if (errEl) errEl.style.display = 'none';
 
@@ -1831,8 +1919,14 @@ const App = (() => {
         }
       } catch (err) {
         if (errEl) {
-          errEl.textContent = err.message || 'Contraseña incorrecta. Por favor intente nuevamente.';
-          errEl.style.display = 'block';
+          const errText = errEl.querySelector('.admin-unlock-error-text') || errEl;
+          errText.textContent = err.message || 'Contraseña incorrecta. Por favor intente nuevamente.';
+          errEl.style.display = 'flex';
+        }
+        if (cardEl) {
+          cardEl.classList.remove('shake');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('shake');
         }
         if (pwdInput) {
           pwdInput.value = '';
@@ -1841,7 +1935,7 @@ const App = (() => {
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
               <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
             </svg>
@@ -1855,26 +1949,33 @@ const App = (() => {
   function promptAdminUnlockedOptions() {
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     openModal(
-      'Módulos Institucionales Desbloqueados',
+      'Módulos del Sistema (Desbloqueados)',
       `
-        <div style="text-align: center; padding: 12px 6px;">
-          <div style="width: 52px; height: 52px; margin: 0 auto 16px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981;">
+        <div style="text-align: center; padding: 10px 4px 6px;">
+          <div style="width: 58px; height: 58px; margin: 0 auto 16px; background: rgba(16, 185, 129, 0.14); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
             </svg>
           </div>
-          <p style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 8px; font-weight: 600;">
-            Actualmente cuenta con acceso total a todos los módulos y submódulos.
+          <h4 style="margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; color: var(--text-primary, #0f172a);">
+            Acceso Completo Habilitado
+          </h4>
+          <p style="font-size: 0.88rem; color: var(--text-secondary, #64748b); line-height: 1.5; margin-bottom: 16px;">
+            Actualmente cuenta con permisos de navegación en todos los módulos y submódulos de la Gobernación de Boyacá.
           </p>
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 0;">
-            Puede continuar navegando en los módulos institucionales o volver a bloquearlos para restringir la vista al entorno técnico (Centro de Errores y Copias de Seguridad).
-          </p>
+
+          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Servidores Públicos</span>
+            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Horarios</span>
+            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Viáticos</span>
+            <span style="font-size: 0.74rem; font-weight: 700; background: rgba(16, 185, 129, 0.12); color: #047857; padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.28);">✓ Seguridad y Salud (SST)</span>
+          </div>
         </div>
       `,
       [
         {
-          text: 'Bloquear Módulos',
+          text: 'Bloquear Módulos Ahora',
           cls: 'btn btn-secondary',
           onClick: () => {
             closeModal();
@@ -1887,7 +1988,7 @@ const App = (() => {
           }
         },
         {
-          text: 'Ir al Dashboard',
+          text: 'Continuar al Dashboard',
           cls: 'btn btn-primary',
           onClick: () => {
             closeModal();
