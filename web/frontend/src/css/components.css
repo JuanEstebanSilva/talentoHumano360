@@ -12935,9 +12935,9 @@ select[id^="hor-filter-"] {
 .mandatory-modal-card {
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.95);
-  border-radius: 18px;
-  width: 100%;
-  max-width: 440px;
+  border-radius: 20px;
+  width: 92%;
+  max-width: 650px;
   box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   animation: modal-pop-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -12958,7 +12958,7 @@ select[id^="hor-filter-"] {
   position: relative;
   background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.22) 0%, transparent 70%),
               linear-gradient(145deg, #586b74 0%, #738993 50%, #4a5a62 100%);
-  padding: 16px 20px 14px;
+  padding: 26px 36px 22px;
   text-align: center;
   border-bottom: 2px solid rgba(209, 173, 42, 0.50);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -12984,10 +12984,10 @@ select[id^="hor-filter-"] {
 
 .recovery-close-btn {
   position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 28px;
-  height: 28px;
+  top: 16px;
+  right: 18px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -13008,8 +13008,8 @@ select[id^="hor-filter-"] {
 }
 
 .recovery-close-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   background: transparent !important;
 }
 
@@ -13018,12 +13018,12 @@ select[id^="hor-filter-"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 14px;
+  margin-bottom: 12px;
 }
 
 .recovery-brand-condor {
-  height: 38px;
+  height: 48px;
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
@@ -13034,7 +13034,7 @@ select[id^="hor-filter-"] {
 }
 
 .recovery-brand-title {
-  font-size: 1.20rem;
+  font-size: 1.45rem;
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -13049,50 +13049,50 @@ select[id^="hor-filter-"] {
 }
 
 .recovery-brand-sub {
-  font-size: 0.64rem;
+  font-size: 0.74rem;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.90);
-  letter-spacing: 0.10em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-top: 2px;
 }
 
 .recovery-title,
 .mandatory-title {
-  font-size: 1.05rem;
+  font-size: 1.30rem;
   font-weight: 800;
   color: #ffffff;
-  margin: 0 0 4px;
+  margin: 0 0 8px;
   letter-spacing: -0.01em;
 }
 
 .recovery-desc,
 .mandatory-desc {
-  font-size: 0.78rem;
+  font-size: 0.90rem;
   color: rgba(255, 255, 255, 0.92);
-  line-height: 1.35;
+  line-height: 1.5;
   margin: 0 auto;
-  max-width: 380px;
+  max-width: 540px;
 }
 
 /* Cuerpo del Modal */
 .recovery-modal-body,
 .mandatory-modal-body {
-  padding: 16px 20px;
+  padding: 26px 36px 26px;
 }
 
 .recovery-field-group {
-  margin-bottom: 11px;
+  margin-bottom: 16px;
 }
 
 .recovery-field-label {
   display: block;
-  font-size: 0.73rem;
+  font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #738993; /* Gris institucional oficial #738993 */
-  margin-bottom: 4px;
+  margin-bottom: 7px;
 }
 
 [data-theme="dark"] .recovery-field-label {
@@ -13108,9 +13108,9 @@ select[id^="hor-filter-"] {
 
 .recovery-input-icon {
   position: absolute;
-  left: 11px;
-  width: 16px;
-  height: 16px;
+  left: 14px;
+  width: 19px;
+  height: 19px;
   color: #738993; /* Gris institucional oficial #738993 */
   pointer-events: none;
   transition: color 0.2s ease;
@@ -13120,13 +13120,13 @@ select[id^="hor-filter-"] {
 
 .recovery-input-control {
   width: 100%;
-  padding: 8px 12px 8px 36px;
-  height: 38px;
-  border-radius: 9px;
+  padding: 11px 16px 11px 44px;
+  height: 46px;
+  border-radius: 11px;
   border: 1.5px solid #738993; /* Gris institucional oficial #738993 */
   background: var(--bg-surface, #ffffff);
   color: var(--text-primary, #0f172a);
-  font-size: 0.88rem;
+  font-size: 0.96rem;
   font-weight: 500;
   box-sizing: border-box;
   outline: none !important;
@@ -13136,7 +13136,7 @@ select[id^="hor-filter-"] {
 .recovery-input-control::placeholder {
   color: #738993;
   opacity: 0.85;
-  font-size: 0.82rem;
+  font-size: 0.90rem;
 }
 
 .recovery-input-control:hover {
@@ -13175,10 +13175,10 @@ select[id^="hor-filter-"] {
 
 .recovery-toggle-pass {
   position: absolute;
-  right: 6px;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   background: transparent !important;
   border: none !important;
   cursor: pointer;
@@ -13205,8 +13205,8 @@ select[id^="hor-filter-"] {
 }
 
 .recovery-toggle-pass svg {
-  width: 16px;
-  height: 16px;
+  width: 19px;
+  height: 19px;
   background: transparent !important;
 }
 
@@ -13214,20 +13214,20 @@ select[id^="hor-filter-"] {
 .recovery-advisory-box {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 11px;
   background: rgba(115, 137, 147, 0.08); /* Fondo con gris institucional #738993 */
   border: 1.5px solid #738993; /* Borde con gris institucional #738993 */
-  font-size: 0.74rem;
+  font-size: 0.85rem;
   color: #254d32;
-  line-height: 1.35;
-  margin-bottom: 11px;
+  line-height: 1.48;
+  margin-bottom: 16px;
 }
 
 .recovery-advisory-box svg {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   color: #738993; /* Icono con gris institucional #738993 */
   margin-top: 1px;
@@ -13245,14 +13245,14 @@ select[id^="hor-filter-"] {
 }
 
 .recovery-feedback {
-  padding: 10px 12px;
-  border-radius: 9px;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  margin-bottom: 11px;
+  padding: 12px 16px;
+  border-radius: 11px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin-bottom: 16px;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
 }
 .recovery-feedback.feedback-success {
   background: rgba(16, 185, 129, 0.12);
@@ -13280,9 +13280,9 @@ select[id^="hor-filter-"] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
   border-top: 1.5px solid rgba(115, 137, 147, 0.35); /* Gris institucional #738993 */
 }
 
@@ -13292,10 +13292,10 @@ select[id^="hor-filter-"] {
 }
 
 .btn-recovery-cancel {
-  padding: 7px 14px;
-  height: 36px;
-  border-radius: 9px;
-  font-size: 0.82rem;
+  padding: 10px 20px;
+  height: 42px;
+  border-radius: 11px;
+  font-size: 0.88rem;
   font-weight: 700;
   background: transparent;
   color: #738993; /* Gris institucional oficial #738993 */
@@ -13326,10 +13326,10 @@ select[id^="hor-filter-"] {
 }
 
 .btn-recovery-submit {
-  padding: 7px 18px;
-  height: 36px;
-  border-radius: 9px;
-  font-size: 0.82rem;
+  padding: 10px 24px;
+  height: 42px;
+  border-radius: 11px;
+  font-size: 0.88rem;
   font-weight: 800;
   background: linear-gradient(135deg, #005a36 0%, #00824b 100%);
   color: #ffffff;
@@ -13338,7 +13338,7 @@ select[id^="hor-filter-"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   box-shadow: 0 4px 14px rgba(0, 90, 54, 0.35);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -13356,12 +13356,12 @@ select[id^="hor-filter-"] {
 .btn-recovery-submit .btn-text {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .btn-recovery-submit svg {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   background: transparent !important;
 }
 
@@ -13369,12 +13369,12 @@ select[id^="hor-filter-"] {
 .pass-policy-checklist {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
-  margin: 6px 0 8px;
-  padding: 6px 10px;
+  gap: 8px 14px;
+  margin: 10px 0 16px;
+  padding: 10px 16px;
   background: rgba(115, 137, 147, 0.06);
   border: 1.5px solid #738993; /* Gris institucional oficial #738993 */
-  border-radius: 8px;
+  border-radius: 11px;
 }
 [data-theme="dark"] .pass-policy-checklist {
   background: rgba(115, 137, 147, 0.12);
@@ -13382,19 +13382,19 @@ select[id^="hor-filter-"] {
 }
 
 .policy-item {
-  font-size: 0.72rem;
+  font-size: 0.80rem;
   color: #738993; /* Gris institucional oficial #738993 */
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   transition: color 0.2s ease;
 }
 [data-theme="dark"] .policy-item {
   color: #738993;
 }
 .policy-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #738993; /* Gris institucional oficial #738993 */
   transition: all 0.2s ease;
