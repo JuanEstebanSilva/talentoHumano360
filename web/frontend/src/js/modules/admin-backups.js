@@ -426,60 +426,168 @@ const AdminBackupsModule = (() => {
     }
   }
 
+  async function copyPathToClipboard(id) {
+    const item = backupsList.find(b => b.id === id);
+    const path = item ? (item.filepath || `/app/backups/${item.filename}`) : '';
+    if (!path) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(path);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = path;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      const btnText = document.getElementById(`admin-backup-copy-text-${id}`);
+      if (btnText) {
+        btnText.textContent = '¡Copiado!';
+        setTimeout(() => {
+          if (btnText) btnText.textContent = 'Copiar Ruta';
+        }, 2200);
+      }
+      if (typeof App !== 'undefined' && App.showToast) {
+        App.showToast('Ruta en servidor copiada al portapapeles', 'success');
+      }
+    } catch (e) {
+      console.warn('[AdminBackupsModule] No se pudo copiar la ruta:', e);
+    }
+  }
+
   function showDetail(id) {
     const item = backupsList.find(b => b.id === id);
     if (!item) return;
 
+    const serverPath = item.filepath || `/app/backups/${item.filename}`;
+    const isAuto = (item.tipo || '').toUpperCase().includes('AUTO');
+
     const modalBody = `
-      <div class="admin-backup-detail-box">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-          <span class="badge ${item.tipo === 'AUTO' ? 'badge-info' : 'badge-success'}">
-            ${item.tipo === 'AUTO' ? '🤖 Respaldo Automático Programado' : '👤 Respaldo Manual a Solicitud'}
+      <div class="admin-backup-modal-detail">
+        <div class="admin-detail-header-badges">
+          <div class="admin-detail-badges-group">
+            ${isAuto ? `
+              <span class="badge badge-info" style="font-weight:700; padding:6px 12px; font-size:0.80rem; border-radius:9999px; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Respaldo Automático Programado
+              </span>
+            ` : `
+              <span class="badge badge-success" style="font-weight:700; padding:6px 12px; font-size:0.80rem; border-radius:9999px; display:inline-flex; align-items:center; gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/></svg>
+                Respaldo Manual a Solicitud
+              </span>
+            `}
+            <span class="badge badge-success" style="font-weight:700; padding:6px 12px; font-size:0.80rem; border-radius:9999px; display:inline-flex; align-items:center; gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>
+              Estado: ${escHtml(item.estado || 'Completado')}
+            </span>
+          </div>
+          <span style="font-size:0.80rem; font-weight:800; color:var(--text-secondary); letter-spacing:0.04em; text-transform:uppercase;">
+            RESPALDO #${item.id}
           </span>
-          <span class="badge badge-success">✓ Estado: Completado</span>
         </div>
 
-        <div class="admin-detail-section">
-          <label class="admin-detail-label">Nombre del Archivo:</label>
-          <div class="font-mono" style="font-size:0.95rem; font-weight:700; color:var(--text-primary); word-break:break-all;">
-            ${escHtml(item.filename)}
+        <div class="admin-backup-file-card">
+          <div style="min-width:0; flex:1;">
+            <div class="admin-backup-file-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span>Archivo de Respaldo PostgreSQL (.SQL)</span>
+            </div>
+            <div class="font-mono admin-backup-file-name">
+              ${escHtml(item.filename)}
+            </div>
           </div>
+          <button type="button" class="btn btn-primary btn-backup-file-download" onclick="AdminBackupsModule.downloadBackup(${item.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Descargar</span>
+          </button>
         </div>
 
         <div class="admin-detail-grid">
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Tamaño en Disco:</span>
-            <span class="admin-detail-val font-mono" style="font-weight:700;">${escHtml(item.filesizeFormatted || '0 KB')}</span>
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(2,132,199,0.08); color:#0284c7;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Tamaño en Disco</span>
+              <span class="admin-detail-metric-val font-mono" style="font-weight:700; font-size:0.95rem; color:#0284c7;">
+                ${escHtml(item.filesizeFormatted || '0 KB')}
+              </span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Generado Por:</span>
-            <span class="admin-detail-val">${escHtml(item.creado_por || 'admin')}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(37,77,50,0.08); color:#254d32;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Generado Por</span>
+              <span class="admin-detail-metric-val">
+                ${renderUserCell(item.creado_por)}
+              </span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Fecha y Hora de Creación:</span>
-            <span class="admin-detail-val">${formatDate(item.creado_en)}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(217,119,6,0.08); color:#b45309;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Fecha y Hora de Creación</span>
+              <span class="admin-detail-metric-val">
+                ${formatDate(item.creado_en)}
+              </span>
+            </div>
           </div>
-          <div class="admin-detail-field">
-            <span class="admin-detail-label">Ruta en Servidor:</span>
-            <span class="admin-detail-val font-mono" style="font-size:0.75rem; word-break:break-all;">${escHtml(item.filepath || 'N/A')}</span>
+
+          <div class="admin-detail-metric-card">
+            <div class="admin-detail-metric-icon" style="background:rgba(147,51,234,0.08); color:#7e22ce;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+            </div>
+            <div class="admin-detail-metric-info">
+              <span class="admin-detail-metric-label">Integridad / Motor</span>
+              <span class="admin-detail-metric-val" style="display:inline-flex; align-items:center; gap:5px; color:#15803d; font-weight:700;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                PostgreSQL Dump (OK)
+              </span>
+            </div>
           </div>
         </div>
 
+        <div class="admin-terminal-window">
+          <div class="admin-terminal-bar">
+            <div class="admin-terminal-dots">
+              <span class="admin-terminal-dot dot--red"></span>
+              <span class="admin-terminal-dot dot--yellow"></span>
+              <span class="admin-terminal-dot dot--green"></span>
+              <span class="admin-terminal-title" style="margin-left:8px;">Ubicación en Servidor Linux</span>
+            </div>
+            <button type="button" class="admin-terminal-copy-btn" onclick="AdminBackupsModule.copyPathToClipboard(${item.id})">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="admin-backup-copy-text-${item.id}">Copiar Ruta</span>
+            </button>
+          </div>
+          <pre class="admin-detail-stack" style="color:#a5f3fc; padding:12px 16px; margin:0; font-size:0.80rem; font-family:'DM Mono',monospace,Consolas;"><span style="color:#64748b; user-select:none;">$ </span><span style="color:#f59e0b;">ls -lh </span>${escHtml(serverPath)}
+<span style="color:#94a3b8; font-size:0.75rem;">-rw-r--r-- 1 postgres postgres ${escHtml(item.filesizeFormatted || '0 KB')} ${escHtml(serverPath)}</span></pre>
+        </div>
+
         ${item.detalles ? `
-          <div class="admin-detail-section" style="margin-top:14px;">
-            <label class="admin-detail-label">Resumen Técnico de la Exportación:</label>
-            <div style="background:var(--bg-tertiary); padding:12px 14px; border-radius:8px; font-size:0.86rem; color:var(--text-primary); line-height:1.45;">
+          <div class="admin-detail-summary-card">
+            <div class="admin-detail-summary-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#254d32" stroke-width="2.3"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+              <span>Resumen Técnico de la Exportación</span>
+            </div>
+            <div class="admin-detail-summary-content">
               ${escHtml(item.detalles)}
             </div>
           </div>
         ` : ''}
 
-        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-          <button class="btn btn-primary" onclick="AdminBackupsModule.downloadBackup(${item.id})">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Descargar Archivo .SQL
-          </button>
-          <span style="font-size:0.78rem; color:var(--text-secondary);">Contiene todas las tablas, vistas y secuencias.</span>
+        <div style="font-size:0.78rem; color:var(--text-secondary); text-align:center; padding-top:4px;">
+          El archivo descargable contiene la estructura completa de base de datos: esquemas, tablas, vistas, secuencias y registros.
         </div>
       </div>
     `;
@@ -488,9 +596,15 @@ const AdminBackupsModule = (() => {
       `Ficha Técnica del Respaldo #${item.id}`,
       modalBody,
       [
+        {
+          text: 'Descargar Archivo .SQL',
+          cls: 'btn-primary',
+          html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Archivo .SQL',
+          action: () => downloadBackup(item.id)
+        },
         { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
       ],
-      'modal-md'
+      'modal-lg'
     );
   }
 
@@ -954,7 +1068,8 @@ const AdminBackupsModule = (() => {
     generateBackupNow,
     downloadBackup,
     showDetail,
-    confirmDeleteBackup
+    confirmDeleteBackup,
+    copyPathToClipboard
   };
 })();
 

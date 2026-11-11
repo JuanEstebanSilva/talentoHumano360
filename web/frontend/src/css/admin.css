@@ -1081,6 +1081,86 @@
   color: #15803d;
 }
 
+/* ─── Modal de Ficha Técnica de Respaldos (Gobernación de Boyacá) ────────── */
+.admin-backup-modal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-backup-file-card {
+  background: rgba(37, 77, 50, 0.05);
+  border: 1px solid rgba(37, 77, 50, 0.22);
+  border-left: 4px solid #254d32;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-backup-file-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #254d32;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.admin-backup-file-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.btn-backup-file-download {
+  padding: 8px 16px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-radius: 8px !important;
+  flex-shrink: 0;
+}
+
+.admin-detail-summary-card {
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-detail-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.04em;
+}
+
+.admin-detail-summary-content {
+  font-size: 0.88rem;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
 /* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
 [data-theme="dark"] .btn-slide--green {
   background: #1b3d26 !important;
@@ -1117,6 +1197,25 @@
 [data-theme="dark"] .admin-detail-msg-card {
   background: rgba(220, 38, 38, 0.1) !important;
   border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+[data-theme="dark"] .admin-backup-file-card {
+  background: rgba(37, 77, 50, 0.16) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  border-left-color: #34d399 !important;
+}
+
+[data-theme="dark"] .admin-backup-file-title {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .admin-detail-summary-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .admin-detail-summary-title {
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .btn-backup-pill-now,
