@@ -7221,14 +7221,15 @@ select option {
   transform: translateY(0.5px) scale(0.98) !important;
 }
 
-/* Botón Guardar Cambios Modo Edición en Wizards y Modales (#A5451B Terracota - Colorimetría Oficial) */
+/* Botón Guardar Cambios Modo Edición en Wizards y Modales (#D14600 Naranja Quemado - Colorimetría Oficial) */
 .modal-footer .btn-gold,
 #vit-save-btn.btn-gold,
 #emp-save-btn.btn-gold,
 #btn-save-horario.btn-gold,
 #req-save-btn.btn-gold,
 #adm-save-btn.btn-gold,
-#sst-save-btn.btn-gold {
+#sst-save-btn.btn-gold,
+#inc-save-btn.btn-gold {
   height: 42px !important;
   min-height: 42px !important;
   min-width: 154px !important;
@@ -7237,10 +7238,10 @@ select option {
   font-weight: 700 !important;
   font-size: 0.88rem !important;
   letter-spacing: 0.015em !important;
-  background: linear-gradient(135deg, #c05526 0%, #A5451B 50%, #883611 100%) !important;
+  background: linear-gradient(135deg, #eb5a0e 0%, #D14600 50%, #a83500 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #7c3110 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.2), 0 4px 14px rgba(165, 69, 27, 0.38) !important;
+  border: 1px solid #9e3200 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.2), 0 4px 14px rgba(209, 70, 0, 0.38) !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25) !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -7255,11 +7256,12 @@ select option {
 #btn-save-horario.btn-gold:hover,
 #req-save-btn.btn-gold:hover,
 #adm-save-btn.btn-gold:hover,
-#sst-save-btn.btn-gold:hover {
-  background: linear-gradient(135deg, #cd5d2a 0%, #b34d20 50%, #963d15 100%) !important;
+#sst-save-btn.btn-gold:hover,
+#inc-save-btn.btn-gold:hover {
+  background: linear-gradient(135deg, #f26618 0%, #de4c02 50%, #ba3b00 100%) !important;
   color: #ffffff !important;
-  border-color: #8c3813 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(165, 69, 27, 0.48) !important;
+  border-color: #b03800 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(209, 70, 0, 0.48) !important;
   transform: translateY(-1.5px) !important;
 }
 
@@ -7269,10 +7271,11 @@ select option {
 #btn-save-horario.btn-gold:active,
 #req-save-btn.btn-gold:active,
 #adm-save-btn.btn-gold:active,
-#sst-save-btn.btn-gold:active {
-  background: linear-gradient(135deg, #963d15 0%, #84330e 100%) !important;
+#sst-save-btn.btn-gold:active,
+#inc-save-btn.btn-gold:active {
+  background: linear-gradient(135deg, #ba3b00 0%, #9e3200 100%) !important;
   transform: translateY(0.5px) scale(0.98) !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(165, 69, 27, 0.25) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(209, 70, 0, 0.25) !important;
 }
 
 /* Micro-animaciones de íconos en botones wizard */
@@ -7355,11 +7358,12 @@ select option {
 [data-theme="dark"] #btn-save-horario.btn-gold,
 [data-theme="dark"] #req-save-btn.btn-gold,
 [data-theme="dark"] #adm-save-btn.btn-gold,
-[data-theme="dark"] #sst-save-btn.btn-gold {
-  background: linear-gradient(135deg, #b85023 0%, #A5451B 50%, #82330f 100%) !important;
+[data-theme="dark"] #sst-save-btn.btn-gold,
+[data-theme="dark"] #inc-save-btn.btn-gold {
+  background: linear-gradient(135deg, #eb5a0e 0%, #D14600 50%, #a03300 100%) !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 14px rgba(165, 69, 27, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 14px rgba(209, 70, 0, 0.35) !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
 }
 
@@ -7369,11 +7373,12 @@ select option {
 [data-theme="dark"] #btn-save-horario.btn-gold:hover,
 [data-theme="dark"] #req-save-btn.btn-gold:hover,
 [data-theme="dark"] #adm-save-btn.btn-gold:hover,
-[data-theme="dark"] #sst-save-btn.btn-gold:hover {
-  background: linear-gradient(135deg, #c75727 0%, #af491c 50%, #8f3912 100%) !important;
+[data-theme="dark"] #sst-save-btn.btn-gold:hover,
+[data-theme="dark"] #inc-save-btn.btn-gold:hover {
+  background: linear-gradient(135deg, #f26618 0%, #de4c02 50%, #ba3b00 100%) !important;
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 18px rgba(165, 69, 27, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 18px rgba(209, 70, 0, 0.48) !important;
   transform: translateY(-1.5px) !important;
 }
 
@@ -12313,7 +12318,7 @@ select[id^="hor-filter-"] {
 
 .btn-gold:hover {
   transform: translateY(-1.5px) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(165, 69, 27, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(209, 70, 0, 0.48) !important;
 }
 
 .btn-primary:active,
