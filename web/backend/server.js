@@ -26,8 +26,8 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    // Permitir despliegues en Netlify y Render
-    if (origin.endsWith('.netlify.app') || origin.endsWith('.onrender.com')) {
+    // Permitir despliegues en Netlify, Render, Vercel y Cloudflare Pages
+    if (origin.endsWith('.netlify.app') || origin.endsWith('.onrender.com') || origin.endsWith('.vercel.app') || origin.endsWith('.pages.dev')) {
       return callback(null, true);
     }
     return callback(new Error(`CORS bloqueado para el origen no autorizado: ${origin}`));
