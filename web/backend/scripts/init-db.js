@@ -62,6 +62,7 @@ const SQL_FILES = [
   '27_clean_transactional_inserts.sql',
   '28_viaticos_valor_total_drop_expression.sql',
   '29_password_recovery.sql',
+  '30_clean_servidores_publicos.sql',
 ];
 
 function findDatabaseDir() {
@@ -334,6 +335,31 @@ async function runSafeMigrations(client) {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // 9. Migración 30: Limpieza controlada de datos de prueba de servidores públicos
+  if (!(await isMigrationRecorded(client, '30_clean_servidores_publicos'))) {
+    if (await tableExists(client, 'rel_principal')) {
+      console.log('[Talento 360 DB Migration] Ejecutando migración 30: limpieza de datos de prueba en servidores públicos...');
+      await client.query(`
+        ALTER TABLE IF EXISTS horarios DROP CONSTRAINT IF EXISTS fk_horarios_personas;
+        ALTER TABLE IF EXISTS viaticos DROP CONSTRAINT IF EXISTS fk_viaticos_personas;
+        DELETE FROM rel_principal;
+        DELETE FROM personas;
+        DELETE FROM contactos;
+        DELETE FROM educacion;
+        DELETE FROM estados WHERE id_estado NOT IN ('EST001', 'EST002', 'EST003', 'EST004', 'EST005');
+        ALTER SEQUENCE IF EXISTS seq_personas_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_contactos_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_educacion_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_rel_principal_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_prov_cedula RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_estados_id RESTART WITH 6;
+      `);
+      await recordMigration(client, '30_clean_servidores_publicos', 'Limpieza completa de datos de prueba de servidores publicos');
+      results.migrationsRecorded.push('30_clean_servidores_publicos');
+      console.log('✅ [Migración 30] Servidores públicos limpiados y secuencias reiniciadas a estado cero.');
+    }
+  }
 
   console.log('✅ Migraciones aditivas verificadas sin alterar ni eliminar datos existentes.');
   return results;
