@@ -3523,17 +3523,24 @@ const ViaticosModule = (() => {
       return `
       <div class="viaticos-pkg-card viaticos-folder-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
         <div class="viaticos-folder-card-body">
-          <div class="viaticos-folder-header-row">
-            <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-                <line x1="9" y1="11" x2="11" y2="11"></line>
-                <line x1="9" y1="18" x2="13" y2="18"></line>
-              </svg>
+          <div class="viaticos-folder-header-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+              <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                  <line x1="9" y1="11" x2="11" y2="11"></line>
+                  <line x1="9" y1="18" x2="13" y2="18"></line>
+                </svg>
+              </div>
+              <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
             </div>
-            <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
+            ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <div class="viaticos-presupuesto-badge" title="Presupuesto Asignado: ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}" style="display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; background:rgba(22, 163, 74, 0.09); border:1px solid rgba(22, 163, 74, 0.22); color:#15803d; font-size:11.5px; font-weight:800; white-space:nowrap; flex-shrink:0;">
+                <span style="font-size:11px;">💰</span> ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}
+              </div>
+            ` : ''}
           </div>
 
           <div class="viaticos-folder-subtitle">
@@ -3555,12 +3562,6 @@ const ViaticosModule = (() => {
               <span class="viaticos-pkg-stat-val is-approved" title="${pkg.valor_aprobado_formatted || '$ 0'}">${pkg.valor_aprobado_formatted || '$ 0'}</span>
               <span class="viaticos-pkg-stat-lbl">Aprobado</span>
             </div>
-            ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
-            <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
-            <div class="viaticos-pkg-stat-item">
-              <span class="viaticos-pkg-stat-val" style="color:var(--color-primary); font-size:12px; font-weight:700;" title="${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}">${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}</span>
-              <span class="viaticos-pkg-stat-lbl">Presupuesto</span>
-            </div>` : ''}
           </div>
 
           <div class="viaticos-folder-file-center" title="Archivo Excel fuente: ${escHtml(fileName)}">
