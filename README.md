@@ -275,6 +275,7 @@ El desarrollador o administrador de sistemas que reciba este proyecto cuenta con
 * Arquitectura técnica detallada: [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 * Guía de instalación desde cero: [`docs/INSTALACION.md`](docs/INSTALACION.md).
 * Guía de despliegue on-premise: [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
+* Guía de despliegue continuo en nube (GitHub `main` + Vercel + Render + Neon): [`docs/DEPLOY_VERCEL_RENDER_NEON.md`](docs/DEPLOY_VERCEL_RENDER_NEON.md).
 * Manual de mantenimiento y backups: [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md).
 * Solución de problemas comunes: [`docs/SOLUCION_PROBLEMAS.md`](docs/SOLUCION_PROBLEMAS.md).
 * Inventario de archivos históricos archivados: `Adicionales/Inventario_Adicionales.md` (archivo local).

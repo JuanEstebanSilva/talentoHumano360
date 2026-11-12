@@ -18,6 +18,7 @@ Este directorio contiene la documentación técnica oficial, manuales de arquite
 | **[`SOLUCION_PROBLEMAS.md`](SOLUCION_PROBLEMAS.md)** | Guía de diagnóstico rápido y resolución de incidentes comunes (puertos, tokens, importaciones, Docker). | Soporte Técnico y Operaciones |
 | **[`INFORME_ORGANIZACION_FINAL_TALENTO360.md`](INFORME_ORGANIZACION_FINAL_TALENTO360.md)** | Acta técnica detallada del proceso de depuración, categorización de componentes y cierre institucional. | Líderes de Proyecto y Auditoría |
 | **[`INFORME_AUDITORIA_CIERRE_FINAL_20261111.md`](INFORME_AUDITORIA_CIERRE_FINAL_20261111.md)** | Dictamen consolidado de auditoría técnica con 148 pruebas superadas y 100% de subsanaciones. | Auditores Técnicos y Dirección de Talento |
+| **[`DEPLOY_VERCEL_RENDER_NEON.md`](DEPLOY_VERCEL_RENDER_NEON.md)** | Guía técnica de despliegue continuo en nube (GitHub `main` + Vercel + Render + Neon PostgreSQL) con protección absoluta de datos. | Administradores de Sistemas y DevOps |
 
 ---
 

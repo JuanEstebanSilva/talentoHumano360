@@ -1,0 +1,57 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Talento 360 — Render Blueprint (Infraestructura como Código)
+# Arquitectura Cloud: GitHub (main) + Vercel (Frontend) + Render (Backend) + Neon (PostgreSQL)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: talento360-backend
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      # Base de datos Neon PostgreSQL (usar cadena Pooled en DATABASE_URL; nunca commitear credenciales)
+      - key: DATABASE_URL
+        sync: false
+      # Regla de protección de datos: mantener en false en producción una vez inicializada la BD
+      - key: AUTO_INIT_DB
+        value: "false"
+      # CORS y URLs públicas (configurar con la URL real de Vercel y Render en el Dashboard)
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: ALLOW_VERCEL_PREVIEWS
+        value: "false"
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: BACKEND_PUBLIC_URL
+        sync: false
+      # Correo electrónico institucional (Gmail SMTP con App Password)
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_SECURE
+        value: "true"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

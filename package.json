@@ -5,8 +5,10 @@
   "description": "Talento 360 — Plataforma de Gestión de Talento Humano",
   "scripts": {
     "start": "node web/backend/server.js",
-    "build": "node -e \"console.log('Build completed successfully')\"",
-    "db:init": "node web/backend/scripts/init-db.js"
+    "build": "node scripts/build-frontend-env.js",
+    "db:init": "node web/backend/scripts/init-db.js",
+    "db:migrate": "node web/backend/scripts/init-db.js --migrate-only",
+    "db:status": "node web/backend/scripts/init-db.js --status"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,6 +22,6 @@
     "xlsx": "^0.18.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

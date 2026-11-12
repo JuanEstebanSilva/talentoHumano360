@@ -223,7 +223,7 @@ async function sendAndStoreNotification(id) {
   let approveUrl = null;
   let rejectUrl = null;
   if (row.jefe_correo) {
-    const baseUrl = (process.env.APP_PUBLIC_URL || 'http://localhost').replace(/\/+$/, '');
+    const baseUrl = (process.env.BACKEND_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || process.env.APP_PUBLIC_URL || 'http://localhost').replace(/\/+$/, '');
     const approveToken = jwt.sign(
       { idSolicitud: id, accion: 'Aprobada', email: row.jefe_correo, scope: 'jefe_decision' },
       JWT_SECRET,
