@@ -235,7 +235,7 @@ router.get('/stats', auth, async (_, res) => {
         GROUP BY eps
         ORDER BY cantidad DESC
         LIMIT 5
-      `),
+      `).catch(() => ({ rows: [] })),
       // Estadísticas de Educación y Formación Académica
       pool.query(`
         SELECT
@@ -243,7 +243,7 @@ router.get('/stats', auth, async (_, res) => {
           COUNT(*) FILTER (WHERE tiene_diplomado = true) AS con_diplomado,
           COUNT(*) FILTER (WHERE matricula_profesional IS NOT NULL AND matricula_profesional != '' AND matricula_profesional != 'NO APLICA') AS con_matricula
         FROM educacion
-      `),
+      `).catch(() => ({ rows: [{ con_postgrado: 0, con_diplomado: 0, con_matricula: 0 }] })),
       // Inventario EPP y Documentos Institucionales
       pool.query(`
         SELECT
@@ -251,14 +251,14 @@ router.get('/stats', auth, async (_, res) => {
           (SELECT COALESCE(SUM(stock_total), 0) FROM sst_inventario_epp) AS stock_total_unidades,
           (SELECT COUNT(*) FILTER (WHERE stock_total <= stock_minimo) FROM sst_inventario_epp) AS en_alerta_stock,
           (SELECT COUNT(*) FROM documentos_institucionales WHERE activo = true) AS documentos_activos
-      `),
+      `).catch(() => ({ rows: [{ referencias_epp: 0, stock_total_unidades: 0, en_alerta_stock: 0, documentos_activos: 0 }] })),
       // Última Copia de Seguridad
       pool.query(`
         SELECT TO_CHAR(creado_en, 'DD/MM/YYYY HH12:MI AM') AS ultimo_backup
         FROM system_backups
         ORDER BY id DESC
         LIMIT 1
-      `)
+      `).catch(() => ({ rows: [{ ultimo_backup: 'Sin copias registradas' }] }))
     ]);
 
     const e = empleados.rows[0];
@@ -266,26 +266,26 @@ router.get('/stats', auth, async (_, res) => {
     const ar = adminReqs.rows[0];
     const vi = viaticos.rows[0];
     const depData = dependenciasCount.rows[0] || {};
-    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 90;
+    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 0;
     const h = horariosStats.rows[0] || {};
     const vd = viaticosDetalle.rows[0] || {};
     const sst = sstStats.rows[0] || {};
     const sis = sistemaStats.rows[0] || {};
     const edu = educacionStats.rows[0] || {};
     const inv = inventarioStats.rows[0] || {};
-    const ultBkp = ultimoBackupRes.rows[0]?.ultimo_backup || 'Automático (Cada 30 min)';
+    const ultBkp = ultimoBackupRes.rows[0]?.ultimo_backup || 'Sin copias registradas';
 
     res.json({
       empleados: {
-        total: parseInt(e.total) || 669,
-        totalRegistrosCensales: parseInt(e.total) || 669,
-        personasNaturales: parseInt(e.activos) || 625,
-        activos: parseInt(e.activos) || 625,
+        total: parseInt(e.total) || 0,
+        totalRegistrosCensales: parseInt(e.total) || 0,
+        personasNaturales: parseInt(e.activos) || 0,
+        activos: parseInt(e.activos) || 0,
         inactivos: parseInt(e.inactivos) || 0,
-        vacantes: parseInt(e.vacantes) || 43,
-        agrupados: parseInt(e.agrupados) || 1,
-        posicionesAgrupadas: (parseInt(e.agrupados) || 1) * 2,
-        posicionesFuente: (parseInt(e.total) || 669) + (parseInt(e.agrupados) || 1),
+        vacantes: parseInt(e.vacantes) || 0,
+        agrupados: parseInt(e.agrupados) || 0,
+        posicionesAgrupadas: (parseInt(e.agrupados) || 0) * 2,
+        posicionesFuente: parseInt(e.total) || 0,
         totalDependencias: totalDeps,
         porNivel: cargosNivel.rows.map(r => ({ nivel: r.nivel, cantidad: parseInt(r.cantidad) || 0 })),
         porClasificacion: clasifEmpleo.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad) || 0 })),
@@ -488,7 +488,7 @@ router.get('/chart', auth, async (_, res) => {
     ]);
 
     const s = servRes.rows[0];
-    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 90;
+    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 0;
 
     res.json({
       porTipo: byType.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad)||0 })),
