@@ -1837,7 +1837,7 @@ const DashboardModule = (() => {
               <span class="db-section-badge">Módulo 01</span>
               <h2 class="db-section-title">🏛️ Planta de Personal y Carrera Administrativa</h2>
             </div>
-            <span class="db-section-subtitle" id="db-sub-servidores">105 Dependencias Institucionales</span>
+            <span class="db-section-subtitle" id="db-sub-servidores">0 Dependencias</span>
           </div>
 
           <div class="charts-grid">
@@ -1914,7 +1914,7 @@ const DashboardModule = (() => {
               <span class="db-section-badge">Módulo 02</span>
               <h2 class="db-section-title">💼 Viáticos, Movilidad Institucional y Cobertura Sectorial</h2>
             </div>
-            <span class="db-section-subtitle" id="db-sub-viaticos">1,181 Comisiones Oficiales</span>
+            <span class="db-section-subtitle" id="db-sub-viaticos">0 Comisiones Oficiales</span>
           </div>
 
           <div class="charts-grid">
@@ -1930,7 +1930,7 @@ const DashboardModule = (() => {
               <div class="chart-wrap" id="wrap-chart-by-dep" style="height:260px;"><canvas id="chart-by-dep"></canvas></div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.78rem;font-weight:700;color:var(--text-secondary);">
                 <span>🏛️ Cobertura Organizacional</span>
-                <span class="badge" id="db-dep-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">105 Unidades Activas</span>
+                <span class="badge" id="db-dep-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">0 Unidades Activas</span>
               </div>
             </div>
 
@@ -2281,14 +2281,16 @@ const DashboardModule = (() => {
         vacantes: vacantesEmp,
         total: totalEmp,
       };
-      const totalS = (parseInt(sData.total) || (parseInt(sData.activos) + parseInt(sData.vacantes) + parseInt(sData.inactivos))) || 0;
+      const totalS = (parseInt(sData.activos) || 0) + (parseInt(sData.vacantes) || 0) + (parseInt(sData.inactivos) || 0);
       const pctActivos = totalS > 0 ? ((parseInt(sData.activos) / totalS) * 100).toFixed(1) : '0.0';
       const pctVacantes = totalS > 0 ? ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1) : '0.0';
       const pctInactivos = totalS > 0 ? ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1) : '0.0';
 
       // ─── 1. RENDERIZADO DE LAS 10 TARJETAS STATS PRINCIPALES (2 FILAS DE 5) ──
       const grid = document.getElementById('db-stats-grid');
-      const totalDeps = parseInt(chart.totalDependencias || stats.dependencias?.total || emp.totalDependencias) || 0;
+      const topDeps = chart.porDependencia || [];
+      const activeDepsCount = topDeps.filter(d => (d.cantidad || d.total || 0) > 0).length;
+      const totalDeps = activosEmp > 0 ? (parseInt(chart.totalDependencias || stats.dependencias?.total || emp.totalDependencias) || activeDepsCount) : 0;
       if (grid) {
         grid.innerHTML = `
           <!-- ── FILA 1: GESTIÓN DE PLANTA, SERVIDORES Y CARRERA (5 TARJETAS) ── -->
@@ -2434,6 +2436,15 @@ const DashboardModule = (() => {
       animateCount(document.getElementById('sv-adm'), sol.diasSolicitados || 0);
       animateCount(document.getElementById('sv-sst'), sst.stockTotalUnidades || 0);
 
+      const subServ = document.getElementById('db-sub-servidores');
+      if (subServ) {
+        subServ.textContent = activosEmp > 0 ? `${activosEmp.toLocaleString('es-CO')} en Planta · ${activeDepsCount} Dependencias con Personal` : '0 Dependencias con Personal';
+      }
+      const subVit = document.getElementById('db-sub-viaticos');
+      if (subVit) {
+        subVit.textContent = `${(vit.total || 0).toLocaleString('es-CO')} Comisiones Oficiales`;
+      }
+
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
       // ─── 2. SECCIÓN 1: SERVIDORES PÚBLICOS (Dona + Formación + Niveles) ────
@@ -2547,7 +2558,7 @@ const DashboardModule = (() => {
       // ─── 3. SECCIÓN 2: VIÁTICOS Y COBERTURA SECTORIAL ───────────────────────
       const ctxDep = document.getElementById('chart-by-dep')?.getContext('2d');
       const depBadge = document.getElementById('db-dep-badge');
-      if (depBadge) depBadge.textContent = `${totalDeps} Unidades Activas`;
+      if (depBadge) depBadge.textContent = `${activeDepsCount} Dependencias con Personal`;
 
       if (ctxDep && chart.porDependencia) {
         chartDep = safeCreateChart(ctxDep, {
