@@ -208,56 +208,9 @@ app.all('/api/admin/run-migrations', async (req, res) => {
   }
 });
 
-// ─── Importación de Microservicios ───────────────────────────────────────────
-const authRoutes          = require('../services/auth-service/src/routes/auth');
-const employeesRoutes     = require('../services/employees-service/src/routes/employees');
-const requestsRoutes      = require('../services/requests-service/src/routes/requests');
-const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
-const incapacidadesRoutes = require('../services/admin-requests-service/src/routes/incapacidades');
-const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
-const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
-const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
-const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
-const sstRoutes           = require('../services/sst-service/src/routes/sst');
-
-// ─── Montaje de Rutas API ─────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/employees', employeesRoutes);
-app.use('/api/requests', requestsRoutes);
-app.use('/api/admin-requests', adminRequestsRoutes);
-app.use('/api/incapacidades', incapacidadesRoutes);
-app.use('/api/viaticos', viaticosRoutes);
-// Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
-app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {
-  req.url = '/destinos' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
-  viaticosRoutes(req, res, next);
-});
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/horarios', horariosRoutes);
-app.use('/api/sst', sstRoutes);
-
-// Manejador 404 para rutas API no encontradas
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
-});
-
-// Manejador global de errores
-app.use((err, req, res, next) => {
-  console.error('[Talento 360 API Error]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Error interno del servidor en Talento 360'
-  });
-});
-
-// ─── Arranque del Servidor ────────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`\n=============================================================`);
-  console.log(`🚀 Talento 360 Backend Unificado escuchando en puerto ${PORT}`);
-  console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
-  console.log(`=============================================================\n`);
-
-  // Verificación segura al arranque (opt-in explícito): jamás ejecuta reinicializaciones ni borrados destructivos
+// ─── Arranque Ordenado del Servidor ───────────────────────────────────────────
+async function startServer() {
+  // 1. Verificación/inicialización segura ANTES de importar microservicios (evita condiciones de carrera CREATE TABLE en PostgreSQL)
   if (process.env.AUTO_INIT_DB === 'true') {
     try {
       await initDatabase({ migrateOnly: false, forceWipeConfirmed: false, cliMode: false });
@@ -267,4 +220,56 @@ app.listen(PORT, async () => {
   } else {
     console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
   }
-});
+
+  // 2. Importación de Microservicios
+  const authRoutes          = require('../services/auth-service/src/routes/auth');
+  const employeesRoutes     = require('../services/employees-service/src/routes/employees');
+  const requestsRoutes      = require('../services/requests-service/src/routes/requests');
+  const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
+  const incapacidadesRoutes = require('../services/admin-requests-service/src/routes/incapacidades');
+  const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
+  const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
+  const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
+  const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
+  const sstRoutes           = require('../services/sst-service/src/routes/sst');
+
+  // 3. Montaje de Rutas API
+  app.use('/api/auth', authRoutes);
+  app.use('/api/employees', employeesRoutes);
+  app.use('/api/requests', requestsRoutes);
+  app.use('/api/admin-requests', adminRequestsRoutes);
+  app.use('/api/incapacidades', incapacidadesRoutes);
+  app.use('/api/viaticos', viaticosRoutes);
+  // Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
+  app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {
+    req.url = '/destinos' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+    viaticosRoutes(req, res, next);
+  });
+  app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/horarios', horariosRoutes);
+  app.use('/api/sst', sstRoutes);
+
+  // Manejador 404 para rutas API no encontradas
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
+  });
+
+  // Manejador global de errores
+  app.use((err, req, res, next) => {
+    console.error('[Talento 360 API Error]', err);
+    res.status(err.status || 500).json({
+      error: err.message || 'Error interno del servidor en Talento 360'
+    });
+  });
+
+  // 4. Inicio de escucha HTTP
+  app.listen(PORT, () => {
+    console.log(`\n=============================================================`);
+    console.log(`🚀 Talento 360 Backend Unificado escuchando en puerto ${PORT}`);
+    console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
+    console.log(`=============================================================\n`);
+  });
+}
+
+startServer();
