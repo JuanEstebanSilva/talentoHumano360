@@ -20,3 +20,4 @@ VALUES ('31_paquetes_viaticos_presupuesto_inicial', 'Columna presupuesto_inicial
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;
+
