@@ -16,18 +16,54 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // Configuración de CORS segura con lista de orígenes permitidos
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost', 'http://localhost:80', 'http://127.0.0.1', 'http://127.0.0.1:80'];
+function normalizeOrigin(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return '';
+  try {
+    return new URL(urlStr.trim()).origin;
+  } catch {
+    return urlStr.trim().replace(/\/+$/, '');
+  }
+}
+
+const explicitEnvOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(normalizeOrigin).filter(Boolean)
+  : [];
+
+const configuredFrontendOrigins = [process.env.APP_PUBLIC_URL, process.env.APP_URL]
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
+const defaultDevOrigins = ['http://localhost', 'http://localhost:80', 'http://127.0.0.1', 'http://127.0.0.1:80'];
+const allowedOrigins = Array.from(new Set([
+  ...defaultDevOrigins,
+  ...explicitEnvOrigins,
+  ...configuredFrontendOrigins,
+]));
+const hasStrictCors = explicitEnvOrigins.length > 0;
+
+if (process.env.NODE_ENV === 'production' && !hasStrictCors && configuredFrontendOrigins.length === 0) {
+  console.warn('[CORS] Aviso: ALLOWED_ORIGINS no está definida. Se permiten temporalmente subdominios HTTPS de Vercel/Render; defina ALLOWED_ORIGINS en Render con su dominio exacto de Vercel.');
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir peticiones sin header Origin (CLI, curl, microservicios internos) o en dev
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    // Permitir peticiones sin header Origin (CLI, curl, health checks internos) o entorno dev
+    if (!origin || process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    // Permitir despliegues en Netlify y Render
-    if (origin.endsWith('.netlify.app') || origin.endsWith('.onrender.com')) {
+    const cleanOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+    // En producción con ALLOWED_ORIGINS definida: solo permitir previews de Vercel si se habilitan explícitamente
+    if (hasStrictCors) {
+      if (process.env.ALLOW_VERCEL_PREVIEWS === 'true' && cleanOrigin.startsWith('https://') && cleanOrigin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS bloqueado para el origen no autorizado: ${origin}`));
+    }
+    // Antes de configurar ALLOWED_ORIGINS en el panel de Render, aceptar dominios HTTPS de Vercel y Render
+    if (cleanOrigin.startsWith('https://') && (cleanOrigin.endsWith('.vercel.app') || cleanOrigin.endsWith('.onrender.com'))) {
       return callback(null, true);
     }
     return callback(new Error(`CORS bloqueado para el origen no autorizado: ${origin}`));
@@ -172,62 +208,68 @@ app.all('/api/admin/run-migrations', async (req, res) => {
   }
 });
 
-// ─── Importación de Microservicios ───────────────────────────────────────────
-const authRoutes          = require('../services/auth-service/src/routes/auth');
-const employeesRoutes     = require('../services/employees-service/src/routes/employees');
-const requestsRoutes      = require('../services/requests-service/src/routes/requests');
-const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
-const incapacidadesRoutes = require('../services/admin-requests-service/src/routes/incapacidades');
-const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
-const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
-const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
-const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
-const sstRoutes           = require('../services/sst-service/src/routes/sst');
-
-// ─── Montaje de Rutas API ─────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/employees', employeesRoutes);
-app.use('/api/requests', requestsRoutes);
-app.use('/api/admin-requests', adminRequestsRoutes);
-app.use('/api/incapacidades', incapacidadesRoutes);
-app.use('/api/viaticos', viaticosRoutes);
-// Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
-app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {
-  req.url = '/destinos' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
-  viaticosRoutes(req, res, next);
-});
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/horarios', horariosRoutes);
-app.use('/api/sst', sstRoutes);
-
-// Manejador 404 para rutas API no encontradas
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
-});
-
-// Manejador global de errores
-app.use((err, req, res, next) => {
-  console.error('[Talento 360 API Error]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Error interno del servidor en Talento 360'
-  });
-});
-
-// ─── Arranque del Servidor ────────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`\n=============================================================`);
-  console.log(`🚀 Talento 360 Backend Unificado escuchando en puerto ${PORT}`);
-  console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
-  console.log(`=============================================================\n`);
-
-  // Auto-inicializar base de datos y correr migraciones en cada arranque
-  if (process.env.AUTO_INIT_DB !== 'false') {
+// ─── Arranque Ordenado del Servidor ───────────────────────────────────────────
+async function startServer() {
+  // 1. Verificación/inicialización segura ANTES de importar microservicios (evita condiciones de carrera CREATE TABLE en PostgreSQL)
+  if (process.env.AUTO_INIT_DB === 'true') {
     try {
-      const forceInit = process.env.FORCE_DB_INIT === 'true';
-      await initDatabase({ force: forceInit });
+      await initDatabase({ migrateOnly: false, forceWipeConfirmed: false, cliMode: false });
     } catch (dbErr) {
       console.warn('[Talento 360 DB Auto-Init] Aviso al verificar base de datos:', dbErr.message);
     }
+  } else {
+    console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
   }
-});
+
+  // 2. Importación de Microservicios
+  const authRoutes          = require('../services/auth-service/src/routes/auth');
+  const employeesRoutes     = require('../services/employees-service/src/routes/employees');
+  const requestsRoutes      = require('../services/requests-service/src/routes/requests');
+  const adminRequestsRoutes = require('../services/admin-requests-service/src/routes/admin-requests');
+  const incapacidadesRoutes = require('../services/admin-requests-service/src/routes/incapacidades');
+  const viaticosRoutes      = require('../services/viaticos-service/src/routes/viaticos');
+  const dashboardRoutes     = require('../services/dashboard-service/src/routes/dashboard');
+  const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
+  const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
+  const sstRoutes           = require('../services/sst-service/src/routes/sst');
+
+  // 3. Montaje de Rutas API
+  app.use('/api/auth', authRoutes);
+  app.use('/api/employees', employeesRoutes);
+  app.use('/api/requests', requestsRoutes);
+  app.use('/api/admin-requests', adminRequestsRoutes);
+  app.use('/api/incapacidades', incapacidadesRoutes);
+  app.use('/api/viaticos', viaticosRoutes);
+  // Rutas de catálogo unificado DIVIPOLA / Municipios / Destinos
+  app.get(['/api/destinos', '/api/municipios', '/api/divipola'], (req, res, next) => {
+    req.url = '/destinos' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+    viaticosRoutes(req, res, next);
+  });
+  app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/horarios', horariosRoutes);
+  app.use('/api/sst', sstRoutes);
+
+  // Manejador 404 para rutas API no encontradas
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
+  });
+
+  // Manejador global de errores
+  app.use((err, req, res, next) => {
+    console.error('[Talento 360 API Error]', err);
+    res.status(err.status || 500).json({
+      error: err.message || 'Error interno del servidor en Talento 360'
+    });
+  });
+
+  // 4. Inicio de escucha HTTP
+  app.listen(PORT, () => {
+    console.log(`\n=============================================================`);
+    console.log(`🚀 Talento 360 Backend Unificado escuchando en puerto ${PORT}`);
+    console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
+    console.log(`=============================================================\n`);
+  });
+}
+
+startServer();

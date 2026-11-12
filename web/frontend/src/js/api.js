@@ -132,6 +132,29 @@ const API = (() => {
     return data;
   }
 
+  async function downloadAuthorizedFile(pathUrl, nombreArchivo = 'archivo', fallbackError = 'No se pudo descargar el archivo.') {
+    const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(pathUrl, { headers });
+    if (!res.ok) {
+      let msg = fallbackError;
+      try {
+        const errData = await res.json();
+        if (errData && errData.error) msg = errData.error;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreArchivo || 'archivo';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
   return {
     // Auth
     login: (username, password) =>
@@ -245,6 +268,8 @@ const API = (() => {
     getLicenciasCatalogs: () => request('/admin-requests/catalogs/licencias'),
     getAdminRequestSoportes: (id) => request(`/admin-requests/${id}/soportes`),
     getAdminRequestSoporteUrl: (id, sid) => `${BASE}/admin-requests/${id}/soportes/${sid}`,
+    downloadAdminRequestSoporte: (id, sid, nombreArchivo = 'soporte') =>
+      downloadAuthorizedFile(`${BASE}/admin-requests/${id}/soportes/${sid}`, nombreArchivo, 'No se pudo descargar el soporte.'),
     reenviarNotificacionAdminRequest: (id) =>
       request(`/admin-requests/${id}/reenviar-notificacion`, { method: 'POST' }),
 
@@ -263,6 +288,8 @@ const API = (() => {
     deleteIncapacidad: (id) => request(`/admin-requests/incapacidades/${id}`, { method: 'DELETE' }),
     getIncapacidadSoportes: (id) => request(`/admin-requests/incapacidades/${id}/soportes`),
     getIncapacidadSoporteUrl: (id, sid) => `${BASE}/admin-requests/incapacidades/${id}/soportes/${sid}`,
+    downloadIncapacidadSoporte: (id, sid, nombreArchivo = 'soporte_incapacidad') =>
+      downloadAuthorizedFile(`${BASE}/admin-requests/incapacidades/${id}/soportes/${sid}`, nombreArchivo, 'No se pudo descargar el soporte de incapacidad.'),
 
     // Viáticos
     getViaticos: (params = {}) => request('/viaticos?' + new URLSearchParams(params)),
@@ -376,22 +403,10 @@ const API = (() => {
     deleteDocumentoInstitucional: (id, service = 'admin-requests') =>
       request(`/${service}/governance/documentos/${id}`, { method: 'DELETE' }),
     downloadDocumentoInstitucional: async (id, nombreArchivo = 'Documento_Institucional', service = 'admin-requests', versionId = null) => {
-      const token = Auth.getToken();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const pathUrl = versionId
         ? `${BASE}/${service}/governance/documentos/${id}/versiones/${versionId}/download`
         : `${BASE}/${service}/governance/documentos/${id}/download`;
-      const res = await fetch(pathUrl, { headers });
-      if (!res.ok) throw new Error('No se pudo descargar el documento institucional.');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = nombreArchivo;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      return downloadAuthorizedFile(pathUrl, nombreArchivo, 'No se pudo descargar el documento institucional.');
     },
 
     // Administración Técnica: Monitoreo de Errores y Copias de Seguridad

@@ -2,7 +2,12 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch (err) {
+  console.warn('[auth] nodemailer no disponible al cargar módulo:', err.message);
+}
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
@@ -248,19 +253,23 @@ function generateSecureTemporaryPassword() {
 }
 
 function getMailTransporter() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  if (!nodemailer) {
+    throw new Error('Dependencia nodemailer no instalada en el entorno del servidor.');
+  }
+  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
     host: host,
     port: port,
-    secure: port === 465,
-    auth: {
+    secure: secure,
+    auth: (user && pass) ? {
       user: user,
       pass: pass
-    },
+    } : undefined,
     tls: {
       rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false'
     }
@@ -618,19 +627,6 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // Compatibilidad segura para cuenta administradora definitiva y cuentas institucionales
-    if (!passwordMatches && (user.username === 'alejoleo2022@gmail.com' || user.username === 'alejoleo2022')) {
-      if (normalizedPass === 'Alejandro#123' || normalizedPass === '@Alejo123') {
-        passwordMatches = true;
-      }
-    }
-
-    if (!passwordMatches && (user.username === 'silvaespejojuanesteban@gmail.com' || user.username === 'admin')) {
-      if (normalizedPass === 'admin123' || normalizedPass === '@Admin123' || normalizedPass === 'Admin123#') {
-        passwordMatches = true;
-      }
-    }
-
     if (!passwordMatches) {
       const act = await recordFailedAttempt(userKey);
       if (act.isLocked) {
@@ -756,19 +752,6 @@ router.post('/verify-password', loginLimiter, async (req, res) => {
       }
     }
 
-    // Compatibilidad segura para cuenta administradora definitiva y cuentas institucionales
-    if (!matches && (user.username === 'alejoleo2022@gmail.com' || user.username === 'alejoleo2022')) {
-      if (normalizedPass === 'Alejandro#123' || normalizedPass === '@Alejo123') {
-        matches = true;
-      }
-    }
-
-    if (!matches && (user.username === 'silvaespejojuanesteban@gmail.com' || user.username === 'admin')) {
-      if (normalizedPass === 'admin123' || normalizedPass === '@Admin123' || normalizedPass === 'Admin123#') {
-        matches = true;
-      }
-    }
-
     if (!matches) {
       return res.status(400).json({ valid: false, error: 'Contraseña incorrecta.' });
     }
@@ -883,7 +866,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     try {
       const transporter = getMailTransporter();
       const mailFrom = process.env.MAIL_FROM || `Talento 360 — Gobernación de Boyacá <${process.env.SMTP_USER}>`;
-      const appUrl = process.env.APP_URL || 'http://localhost';
+      const appUrl = process.env.APP_PUBLIC_URL || process.env.APP_URL || 'http://localhost';
 
       // Adjuntar el logo institucional oficial de Cóndor para renderizado inline sin bloqueo
       const candidatePaths = [
