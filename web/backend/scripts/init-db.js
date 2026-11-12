@@ -63,6 +63,7 @@ const SQL_FILES = [
   '28_viaticos_valor_total_drop_expression.sql',
   '29_password_recovery.sql',
   '30_clean_servidores_publicos.sql',
+  '31_paquetes_viaticos_presupuesto_inicial.sql',
 ];
 
 function findDatabaseDir() {
@@ -358,6 +359,18 @@ async function runSafeMigrations(client) {
       await recordMigration(client, '30_clean_servidores_publicos', 'Limpieza completa de datos de prueba de servidores publicos');
       results.migrationsRecorded.push('30_clean_servidores_publicos');
       console.log('✅ [Migración 30] Servidores públicos limpiados y secuencias reiniciadas a estado cero.');
+    }
+  }
+
+  // 10. Migración 31: Presupuesto inicial en paquetes_viaticos
+  if (await tableExists(client, 'paquetes_viaticos')) {
+    await client.query(`
+      ALTER TABLE paquetes_viaticos ADD COLUMN IF NOT EXISTS presupuesto_inicial NUMERIC(15,2) DEFAULT NULL;
+    `);
+    if (!(await isMigrationRecorded(client, '31_paquetes_viaticos_presupuesto_inicial'))) {
+      await recordMigration(client, '31_paquetes_viaticos_presupuesto_inicial', 'Columna presupuesto_inicial en paquetes_viaticos');
+      results.migrationsRecorded.push('31_paquetes_viaticos_presupuesto_inicial');
+      console.log('✅ [Migración 31] Columna presupuesto_inicial asegurada en paquetes_viaticos.');
     }
   }
 

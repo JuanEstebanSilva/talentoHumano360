@@ -449,6 +449,7 @@ router.get('/paquetes', auth, async (req, res) => {
         p.archivo_origen,
         p.anio,
         p.descripcion,
+        p.presupuesto_inicial,
         p.creado_por,
         p.creado_en,
         p.actualizado_en,
@@ -462,12 +463,14 @@ router.get('/paquetes', auth, async (req, res) => {
         COALESCE(SUM(v.valor_total) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada')), 0)::numeric(15,2) AS valor_aprobado
       FROM paquetes_viaticos p
       LEFT JOIN viaticos v ON v.id_paquete = p.id_paquete
-      GROUP BY p.id_paquete, p.nombre, p.archivo_origen, p.anio, p.descripcion, p.creado_por, p.creado_en, p.actualizado_en
+      GROUP BY p.id_paquete, p.nombre, p.archivo_origen, p.anio, p.descripcion, p.presupuesto_inicial, p.creado_por, p.creado_en, p.actualizado_en
       ORDER BY p.anio DESC, p.id_paquete DESC
     `;
     const rows = await pool.query(q);
     res.json(rows.rows.map(r => ({
       ...r,
+      presupuesto_inicial: r.presupuesto_inicial ? parseFloat(r.presupuesto_inicial) : null,
+      presupuesto_inicial_formatted: r.presupuesto_inicial ? formatCurrency(r.presupuesto_inicial) : null,
       valor_aprobado_formatted: formatCurrency(r.valor_aprobado)
     })));
   } catch (err) {
@@ -479,15 +482,17 @@ router.get('/paquetes', auth, async (req, res) => {
 // POST /api/viaticos/paquetes — Crear un nuevo paquete de viáticos
 router.post('/paquetes', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const { nombre, archivoOrigen, anio, descripcion } = req.body;
+  const { nombre, archivoOrigen, anio, descripcion, presupuestoInicial, presupuesto_inicial } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre del paquete o Excel es requerido.' });
   const finalYear = parseInt(anio) || new Date().getFullYear();
+  const rawPres = presupuestoInicial !== undefined ? presupuestoInicial : presupuesto_inicial;
+  const finalPresupuesto = rawPres !== undefined && rawPres !== null && String(rawPres).trim() !== '' ? (parseFloat(rawPres) || null) : null;
   try {
     await pool.query('INSERT INTO vigencias_viaticos(anio) VALUES($1) ON CONFLICT (anio) DO NOTHING', [finalYear]);
     const r = await pool.query(
-      `INSERT INTO paquetes_viaticos(nombre, archivo_origen, anio, descripcion, creado_por)
-       VALUES($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre.trim(), (archivoOrigen || '').trim() || null, finalYear, descripcion || null, req.user.username || 'admin']
+      `INSERT INTO paquetes_viaticos(nombre, archivo_origen, anio, descripcion, presupuesto_inicial, creado_por)
+       VALUES($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nombre.trim(), (archivoOrigen || '').trim() || null, finalYear, descripcion || null, finalPresupuesto, req.user.username || 'admin']
     );
     res.status(201).json(r.rows[0]);
   } catch (err) {
@@ -500,8 +505,10 @@ router.post('/paquetes', auth, async (req, res) => {
 router.put('/paquetes/:id', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
-  const { nombre, anio, descripcion, archivoOrigen } = req.body;
+  const { nombre, anio, descripcion, archivoOrigen, presupuestoInicial, presupuesto_inicial } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre del paquete es requerido.' });
+  const rawPres = presupuestoInicial !== undefined ? presupuestoInicial : presupuesto_inicial;
+  const finalPresupuesto = rawPres !== undefined ? (rawPres !== null && String(rawPres).trim() !== '' ? (parseFloat(rawPres) || null) : null) : undefined;
   try {
     const r = await pool.query(
       `UPDATE paquetes_viaticos 
@@ -509,10 +516,13 @@ router.put('/paquetes/:id', auth, async (req, res) => {
            anio = COALESCE($2, anio),
            descripcion = COALESCE($3, descripcion),
            archivo_origen = COALESCE($4, archivo_origen),
+           presupuesto_inicial = ${finalPresupuesto !== undefined ? '$5' : 'presupuesto_inicial'},
            actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_paquete = $5
+       WHERE id_paquete = ${finalPresupuesto !== undefined ? '$6' : '$5'}
        RETURNING *`,
-      [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, parseInt(id)]
+      finalPresupuesto !== undefined
+        ? [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, finalPresupuesto, parseInt(id)]
+        : [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, parseInt(id)]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Paquete no encontrado.' });
     res.json(r.rows[0]);
@@ -1637,18 +1647,22 @@ router.put('/:id', auth, async (req, res) => {
       finalAprobadoPor = req.user.name || req.user.username || 'ADMINISTRACIÓN';
     }
 
+    const targetSaldo = saldo !== undefined
+      ? (saldo !== null && String(saldo).trim() !== '' && !isNaN(parseFloat(saldo)) ? parseFloat(saldo) : null)
+      : currentViatico.saldo;
+
     await client.query(
       `UPDATE viaticos SET dependencia=$1, apellidos_nombres=$2, documento=$3, cargo=$4, destino=$5, motivo=$6,
         fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, valor_total=$11,
         estado=$12, observaciones=$13, aprobado_por=$14,
         tipo_destino=COALESCE($15, tipo_destino), soporte=COALESCE($16, soporte),
-        numero_resolucion=COALESCE($17, numero_resolucion), saldo=COALESCE($18, saldo),
+        numero_resolucion=COALESCE($17, numero_resolucion), saldo=$18,
         id_paquete=COALESCE($19, id_paquete)
        WHERE id_viatico=$20`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo), upper(destino), motivo||'',
        targetFechaInicio, targetFechaFin, finalDias, finalValorDiario, finalValorTotal,
        targetStatus, obsFinal, finalAprobadoPor, tipoDestino||'Nacional', soporte||null,
-       numeroResolucion||null, parseFloat(saldo)||null, id_paquete ? parseInt(id_paquete) : null, numId]
+       numeroResolucion||null, targetSaldo, id_paquete ? parseInt(id_paquete) : null, numId]
     );
 
     const historialNota = statusChanged

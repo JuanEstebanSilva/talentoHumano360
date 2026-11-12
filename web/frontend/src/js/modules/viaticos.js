@@ -41,6 +41,7 @@ const ViaticosModule = (() => {
   let mainContainer = null;
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+  let aprobadoSearchTimeout = null;
 
   function getInitials(name) {
     if (!name) return 'VT';
@@ -876,7 +877,8 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Valor Total Registrado ($ COP)</label>
-              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="this.dataset.autoCalculated = 'false'" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="ViaticosModule.onValorTotalManualChange()" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <div class="form-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Calculado automáticamente (Días × Diario) o editable según acto administrativo.</div>
             </div>
 
             <div class="form-group">
@@ -886,12 +888,14 @@ const ViaticosModule = (() => {
 
             <div class="form-group">
               <label class="form-label">Saldo Presupuestal ($ COP)</label>
-              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo||'')}" ${dis} />
+              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo != null ? r.saldo : '')}" oninput="ViaticosModule.onSaldoManualInput()" ${dis} />
+              <div id="vf-saldo-hint" class="form-hint" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Descontado automáticamente según valor total registrado.</div>
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Aprobado Por</label>
-              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+            <div class="form-group span-2 autocomplete-wrapper">
+              <label class="form-label" for="vf-aprobado">Aprobado Por</label>
+              <input id="vf-aprobado" class="form-input" placeholder="Escriba nombre o cédula del funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" oninput="ViaticosModule.onAprobadoInput(this.value)" autocomplete="off" ${dis} />
+              <div id="vf-aprobado-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -1027,6 +1031,7 @@ const ViaticosModule = (() => {
       }
     }
     calcTotal();
+    initSaldoPresupuestal(r);
     onEstadoChange();
   }
 
@@ -1259,6 +1264,74 @@ const ViaticosModule = (() => {
     App.showToast('Selección de servidor limpiada. Escriba nombre o cédula para buscar otro servidor.', 'info');
   }
 
+  // ─── Autocompletado de Servidores en "Aprobado Por" ─────────────────────────
+  function onAprobadoInput(val) {
+    clearTimeout(aprobadoSearchTimeout);
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (!drop) return;
+    const query = (val || '').trim();
+    if (query.length < 2) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+      return;
+    }
+    aprobadoSearchTimeout = setTimeout(async () => {
+      try {
+        const res = await (API.buscarServidor ? API.buscarServidor(query, 6) : API.getEmployees({ q: query, limit: 6 }));
+        const list = res.data || [];
+        if (!list.length) {
+          drop.style.display = 'none';
+          drop.innerHTML = '';
+          return;
+        }
+        drop.innerHTML = list.map(emp => {
+          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empPayload = JSON.stringify({
+            nombre_completo: emp.nombre_completo || '',
+            cedula: emp.cedula || ''
+          }).replace(/"/g, '&quot;');
+          return `
+            <div class="autocomplete-item" onclick="ViaticosModule.selectAprobador(${empPayload})">
+              <div class="autocomplete-item-avatar">${initial}</div>
+              <div class="autocomplete-item-body">
+                <div class="autocomplete-item-header">
+                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
+                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+                </div>
+                <div class="autocomplete-item-meta">
+                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Servidor Público')} • ${escHtml(emp.dependencia || 'Gobernación de Boyacá')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        drop.style.display = 'block';
+      } catch (_) {
+        drop.style.display = 'none';
+      }
+    }, 200);
+  }
+
+  function selectAprobador(emp) {
+    const input = document.getElementById('vf-aprobado');
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (drop) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+    }
+    if (!input || !emp) return;
+    const nombre = (emp.nombre_completo || '').trim();
+    const doc = (emp.cedula || '').trim();
+    if (nombre && doc) {
+      input.value = `${nombre} - C.C. ${doc}`;
+    } else {
+      input.value = nombre || doc;
+    }
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
   function bindServidorLockGuards() {
     const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-dep'];
     fields.forEach(id => {
@@ -1391,9 +1464,127 @@ const ViaticosModule = (() => {
         el.dataset.autoCalculated = 'true';
       }
     }
+    updateCalculatedSaldo();
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
+  }
+
+  // ─── Gestión de Saldo Presupuestal Dinámico ───────────────────────────────
+  function getActivePackageOrFallback(pkgId = null) {
+    if (state.activePackage) return state.activePackage;
+    if (pkgId && Array.isArray(state.packages)) {
+      return state.packages.find(p => p.id_paquete === pkgId) || null;
+    }
+    return (Array.isArray(state.packages) && state.packages[0]) ? state.packages[0] : null;
+  }
+
+  function initSaldoPresupuestal(r = {}) {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    const pkgId = r?.id_paquete || (state.activePackage ? state.activePackage.id_paquete : null);
+    const activePkg = getActivePackageOrFallback(pkgId);
+    const pkgPresupuesto = (activePkg && activePkg.presupuesto_inicial != null && !isNaN(parseFloat(activePkg.presupuesto_inicial)))
+      ? parseFloat(activePkg.presupuesto_inicial)
+      : null;
+
+    let saldoBase = null;
+
+    if (currentFormIsEdit && r) {
+      const currentSaldo = (r.saldo != null && !isNaN(parseFloat(r.saldo))) ? parseFloat(r.saldo) : null;
+      const currentTotal = (r.valorTotal != null && !isNaN(parseFloat(r.valorTotal))) ? parseFloat(r.valorTotal) : 0;
+
+      if (pkgPresupuesto != null && currentSaldo != null && Math.abs(currentSaldo - pkgPresupuesto) < 0.01) {
+        // En la captura de pantalla: el registro se guardó con el saldo base idéntico al presupuesto inicial
+        // sin descontar aún el valor total registrado.
+        saldoBase = pkgPresupuesto;
+      } else if (currentSaldo != null) {
+        saldoBase = currentSaldo + currentTotal;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    } else {
+      // Creación de nuevo registro:
+      let ultimoSaldo = null;
+      if (Array.isArray(state.data) && state.data.length > 0) {
+        for (const item of state.data) {
+          if (item.saldo != null && !isNaN(parseFloat(item.saldo))) {
+            ultimoSaldo = parseFloat(item.saldo);
+            break;
+          }
+        }
+      }
+      if (ultimoSaldo != null) {
+        saldoBase = ultimoSaldo;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    }
+
+    if (saldoBase != null && saldoBase > 0) {
+      saldoInput.dataset.saldoBase = String(saldoBase);
+      const currentVal = saldoInput.value ? parseFloat(saldoInput.value) : null;
+      const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+
+      if (!currentFormIsEdit || currentVal === null || Math.abs(currentVal - saldoBase) < 0.01) {
+        updateCalculatedSaldo();
+      } else {
+        const hint = document.getElementById('vf-saldo-hint');
+        if (hint) {
+          hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong>`;
+        }
+      }
+    }
+  }
+
+  function updateCalculatedSaldo() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    if (saldoInput.dataset.manuallyEdited === 'true' && saldoInput.value !== '') {
+      return;
+    }
+
+    const saldoBase = parseFloat(saldoInput.dataset.saldoBase);
+    if (isNaN(saldoBase) || saldoBase <= 0) return;
+
+    const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+    const nuevoSaldo = Math.max(0, Math.round(saldoBase - vTotal));
+
+    saldoInput.value = nuevoSaldo;
+
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong>`;
+    }
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
+  function onSaldoManualInput() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    saldoInput.dataset.manuallyEdited = 'true';
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `<span style="color:#d97706;">Saldo editado manualmente.</span> <a href="javascript:void(0)" onclick="ViaticosModule.resetSaldoPresupuestal()" style="color:var(--color-primary); text-decoration:underline; font-weight:600; margin-left:4px;">Recalcular automático</a>`;
+    }
+  }
+
+  function resetSaldoPresupuestal() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    delete saldoInput.dataset.manuallyEdited;
+    updateCalculatedSaldo();
+  }
+
+  function onValorTotalManualChange() {
+    const el = document.getElementById('vf-vtotal');
+    if (el) el.dataset.autoCalculated = 'false';
+    updateCalculatedSaldo();
   }
 
   function onEstadoChange() {
@@ -2039,7 +2230,12 @@ const ViaticosModule = (() => {
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',
       aprobadoPor: document.getElementById('vf-aprobado')?.value.trim() || '',
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
-      saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
+      saldo: (function() {
+        const val = document.getElementById('vf-saldo')?.value;
+        if (val === undefined || val === null || String(val).trim() === '') return null;
+        const num = parseFloat(val);
+        return isNaN(num) ? null : num;
+      })(),
       soporte: currentUploadedFile || null,
       id_paquete: (state.activePackage ? state.activePackage.id_paquete : (parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.packages && state.packages[0] ? state.packages[0].id_paquete : null))),
     };
@@ -3001,6 +3197,15 @@ const ViaticosModule = (() => {
         const toggleBtn = document.getElementById('vit-dropdown-toggle');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
       }
+
+      const dropApr = document.getElementById('vf-aprobado-autocomplete-list');
+      if (dropApr && dropApr.style.display !== 'none') {
+        const wrapApr = dropApr.closest('.autocomplete-wrapper');
+        if (!wrapApr || !wrapApr.contains(e.target)) {
+          dropApr.style.display = 'none';
+          dropApr.innerHTML = '';
+        }
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -3336,6 +3541,12 @@ const ViaticosModule = (() => {
               <span class="viaticos-pkg-stat-val is-approved" title="${pkg.valor_aprobado_formatted || '$ 0'}">${pkg.valor_aprobado_formatted || '$ 0'}</span>
               <span class="viaticos-pkg-stat-lbl">Aprobado</span>
             </div>
+            ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+            <div class="viaticos-pkg-stat-divider" aria-hidden="true"></div>
+            <div class="viaticos-pkg-stat-item">
+              <span class="viaticos-pkg-stat-val" style="color:var(--color-primary); font-size:12px; font-weight:700;" title="${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}">${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}</span>
+              <span class="viaticos-pkg-stat-lbl">Presupuesto</span>
+            </div>` : ''}
           </div>
 
           <div class="viaticos-folder-file-center" title="Archivo Excel fuente: ${escHtml(fileName)}">
@@ -3966,6 +4177,11 @@ const ViaticosModule = (() => {
         </div>
 
         <div class="form-group floating-group">
+          <label class="form-label" for="vpkg-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+          <input id="vpkg-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" placeholder="Ej: 50000000" autocomplete="off" />
+        </div>
+
+        <div class="form-group floating-group">
           <label class="form-label" for="vpkg-desc">Descripción o Notas (Opcional)</label>
           <textarea id="vpkg-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" autocomplete="off"></textarea>
         </div>
@@ -4004,6 +4220,9 @@ const ViaticosModule = (() => {
           return;
         }
 
+        const presupuestoVal = document.getElementById('vpkg-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
+
         const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
@@ -4015,7 +4234,8 @@ const ViaticosModule = (() => {
             nombre,
             anio,
             archivoOrigen,
-            descripcion
+            descripcion,
+            presupuestoInicial
           });
 
           // 2. Si se adjuntó un archivo Excel, parsearlo e importar sus filas
@@ -4165,6 +4385,8 @@ const ViaticosModule = (() => {
               <span class="vpkg-badge-metric">📊 <strong>${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</strong> viáticos</span>
               <span class="vpkg-badge-metric is-pending">⏳ <strong>${(pkg.pendientes || 0).toLocaleString('es-CO')}</strong> pendientes</span>
               <span class="vpkg-badge-metric is-approved">💰 <strong>${pkg.valor_aprobado_formatted || '$ 0'}</strong> aprobado</span>
+              ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <span class="vpkg-badge-metric" style="color:var(--color-primary);">🏦 <strong>${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}</strong> presupuesto</span>` : ''}
             </div>
           </div>
         </div>
@@ -4189,6 +4411,11 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="form-group floating-group">
+            <label class="form-label" for="vedit-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+            <input id="vedit-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" value="${pkg.presupuesto_inicial != null ? pkg.presupuesto_inicial : ''}" placeholder="Ej: 50000000" autocomplete="off" />
+          </div>
+
+          <div class="form-group floating-group">
             <label class="form-label" for="vedit-desc">Descripción o Notas de la Vigencia</label>
             <textarea id="vedit-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales">${escHtml(pkg.descripcion || '')}</textarea>
           </div>
@@ -4208,6 +4435,8 @@ const ViaticosModule = (() => {
         const anio = parseInt(document.getElementById('vedit-anio')?.value, 10) || pkg.anio;
         const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
         const descripcion = document.getElementById('vedit-desc')?.value.trim();
+        const presupuestoVal = document.getElementById('vedit-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
 
         if (!nombre) {
           App.showToast('El nombre es requerido.', 'warning');
@@ -4218,7 +4447,7 @@ const ViaticosModule = (() => {
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
         try {
-          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
+          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion, presupuestoInicial });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
           App.closeModal(true);
@@ -5315,10 +5544,17 @@ const ViaticosModule = (() => {
     openAdvancedFiltersModal,
     goPage,
     calcTotal,
+    onValorTotalManualChange,
+    initSaldoPresupuestal,
+    updateCalculatedSaldo,
+    onSaldoManualInput,
+    resetSaldoPresupuestal,
     onNombreInput,
     onDocInput,
     selectEmployee,
     clearSelectedEmployee,
+    onAprobadoInput,
+    selectAprobador,
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,

@@ -40,3 +40,4 @@ VALUES ('30_clean_servidores_publicos', 'Limpieza completa de datos de prueba de
 ON CONFLICT (version) DO NOTHING;
 
 COMMIT;
+
