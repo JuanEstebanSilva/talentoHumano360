@@ -145,7 +145,8 @@ const ViaticosModule = (() => {
     if (typeof val === 'number') return isNaN(val) ? null : val;
     let s = String(val).trim();
     if (!s) return null;
-    s = s.replace(/[\$\sCOPcop]/g, '');
+    const isNegative = s.includes('-') || (s.startsWith('(') && s.endsWith(')'));
+    s = s.replace(/[\$\sCOPcop\(\)\-]/g, '');
     if (!s) return null;
     if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
       s = s.replace(/\./g, '').replace(',', '.');
@@ -155,7 +156,8 @@ const ViaticosModule = (() => {
       s = s.replace(',', '.');
     }
     const num = parseFloat(s);
-    return isNaN(num) ? null : num;
+    if (isNaN(num)) return null;
+    return isNegative ? -num : num;
   }
 
   // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
@@ -1522,9 +1524,11 @@ const ViaticosModule = (() => {
       }
     }
 
-    if (saldoBase != null && saldoBase > 0) {
+    if (saldoBase != null && !isNaN(saldoBase)) {
       saldoInput.dataset.saldoBase = String(saldoBase);
-      const currentVal = saldoInput.value ? parseFloat(saldoInput.value) : null;
+      const currentVal = (saldoInput.value !== undefined && saldoInput.value !== null && saldoInput.value.trim() !== '' && !isNaN(parseFloat(saldoInput.value)))
+        ? parseFloat(saldoInput.value)
+        : null;
       const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
 
       if (!currentFormIsEdit || currentVal === null || Math.abs(currentVal - saldoBase) < 0.01) {
@@ -1532,7 +1536,8 @@ const ViaticosModule = (() => {
       } else {
         const hint = document.getElementById('vf-saldo-hint');
         if (hint) {
-          hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong>`;
+          const saldoCalculado = Math.round(saldoBase - vTotal);
+          hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${saldoCalculado < 0 ? 'color:#dc2626;' : ''}">$ ${Number(saldoCalculado).toLocaleString('es-CO')}${saldoCalculado < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
         }
       }
     }
@@ -1547,16 +1552,25 @@ const ViaticosModule = (() => {
     }
 
     const saldoBase = parseFloat(saldoInput.dataset.saldoBase);
-    if (isNaN(saldoBase) || saldoBase <= 0) return;
+    if (isNaN(saldoBase)) return;
 
     const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
-    const nuevoSaldo = Math.max(0, Math.round(saldoBase - vTotal));
+    // Permite saldos negativos si la comisión oficial supera la disponibilidad presupuestal
+    const nuevoSaldo = Math.round(saldoBase - vTotal);
 
     saldoInput.value = nuevoSaldo;
 
+    if (nuevoSaldo < 0) {
+      saldoInput.style.color = '#dc2626';
+      saldoInput.style.fontWeight = '700';
+    } else {
+      saldoInput.style.color = '';
+      saldoInput.style.fontWeight = '';
+    }
+
     const hint = document.getElementById('vf-saldo-hint');
     if (hint) {
-      hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong>`;
+      hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${nuevoSaldo < 0 ? 'color:#dc2626;' : ''}">$ ${Number(nuevoSaldo).toLocaleString('es-CO')}${nuevoSaldo < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
     }
 
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
