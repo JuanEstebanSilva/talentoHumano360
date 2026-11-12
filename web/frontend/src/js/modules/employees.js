@@ -2543,6 +2543,15 @@ const EmployeesModule = (() => {
     }, 40);
   }
 
+  const isInvalidValue = (val) => {
+    if (!val) return true;
+    const s = String(val).trim().toUpperCase();
+    return !s || [
+      'NO REGISTRADO', 'NO REGISTRADA', 'SIN ASIGNAR', 'NO REPORTADO', 'NO REPORTADA',
+      'N/A', 'NONE', 'NULL', 'CARGO NO REGISTRADO', 'DEPENDENCIA NO REGISTRADA', 'VACIO', 'SIN SELECCIONAR'
+    ].includes(s);
+  };
+
   function extractNombresApellidos(emp = {}) {
     let nombres = emp.nombres || '';
     let apellidos = emp.apellidos || [emp.primerApellido, emp.segundoApellido].filter(Boolean).join(' ') || '';
@@ -2610,21 +2619,27 @@ const EmployeesModule = (() => {
 
     const isEdit = Boolean(emp.cedula || emp.id);
 
-    const isInvalidValue = (val) => {
-      if (!val) return true;
-      const s = String(val).trim().toUpperCase();
-      return !s || [
-        'NO REGISTRADO', 'NO REGISTRADA', 'SIN ASIGNAR', 'NO REPORTADO', 'NO REPORTADA',
-        'N/A', 'NONE', 'NULL', 'CARGO NO REGISTRADO', 'DEPENDENCIA NO REGISTRADA', 'VACIO', 'SIN SELECCIONAR'
-      ].includes(s);
-    };
-
     const cleanEmpDep = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
     const cleanEmpCargo = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
     const cleanEmpEncargo = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
     const cleanEmpClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
     const cleanEmpEstudios = isInvalidValue(emp.estudios) ? '' : emp.estudios.trim();
     const cleanEmpInst = isInvalidValue(emp.institucionEstudios) ? '' : emp.institucionEstudios.trim();
+
+    // Pre-poblar cargos iniciales en el template HTML para disponibilidad inmediata
+    const initialDep = cleanEmpDep ? cleanEmpDep.toUpperCase() : '';
+    const initialCargosList = (initialDep && cats.cargosPorDependencia && cats.cargosPorDependencia[initialDep])
+      ? cats.cargosPorDependencia[initialDep]
+      : (cats.cargos || []);
+    const seenInitialCargos = new Set();
+    const initialAvailableCargos = [];
+    for (const item of initialCargosList) {
+      const u = (item.cargo || item || '').toUpperCase().trim();
+      if (u && !seenInitialCargos.has(u)) {
+        seenInitialCargos.add(u);
+        initialAvailableCargos.push(typeof item === 'object' ? item : { cargo: item });
+      }
+    }
 
     const defaultSituacion = (() => {
       if (!isEdit) return '';
@@ -2771,7 +2786,8 @@ const EmployeesModule = (() => {
             <div class="form-group span-2">
               <label class="form-label" for="ef-cargo">Denominación del Cargo Titular <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
               <select id="ef-cargo" class="filter-select">
-                <option value="${escHtml(cleanEmpCargo)}">${escHtml(cleanEmpCargo || '(Sin seleccionar / Vacío)')}</option>
+                <option value="">(Sin seleccionar / Vacío)</option>
+                ${initialAvailableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${cleanEmpCargo && c.cargo.toUpperCase() === cleanEmpCargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
                 <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
               </select>
             </div>
@@ -2890,7 +2906,8 @@ const EmployeesModule = (() => {
                 <div class="form-group span-2">
                   <label class="form-label" for="ef-encargo-denominacion">Denominación del Cargo en Encargo <span style="font-size:11px; color:var(--text-muted);">(Carga dinámica según dependencia o personalizada)</span></label>
                   <select id="ef-encargo-denominacion" class="filter-select">
-                    <option value="${escHtml(cleanEmpEncargo)}">${escHtml(cleanEmpEncargo || '(Sin seleccionar / Vacío)')}</option>
+                    <option value="">(Sin seleccionar / Vacío)</option>
+                    ${initialAvailableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${cleanEmpEncargo && c.cargo.toUpperCase() === cleanEmpEncargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
                     <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
                   </select>
                   <small style="font-size:11px; color:var(--text-muted);">Cargo temporal en el cual se encuentra encargado el servidor.</small>
@@ -3131,7 +3148,7 @@ const EmployeesModule = (() => {
 
     const updateCargosForDep = (selectedDep, currentCargo = '', currentEncargoCargo = '') => {
       const cleanDep = (selectedDep || '').trim().toUpperCase();
-      let rawList = (cleanDep && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
+      let rawList = (cleanDep && cats.cargosPorDependencia && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
 
       // Deduplicación estricta por denominación de cargo
       const seenCargos = new Set();
