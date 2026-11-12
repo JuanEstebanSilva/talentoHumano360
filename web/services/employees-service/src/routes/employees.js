@@ -1215,9 +1215,9 @@ router.post('/', auth, async (req, res) => {
       ));
 
     // Inserción en personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA')?.toUpperCase();
-    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ')?.toUpperCase();
-    const expedidaLugar = `${mpioExp}, ${deptoExp}`;
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
+    const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
+    const expedidaLugar = (mpioExp && deptoExp) ? `${mpioExp}, ${deptoExp}` : (mpioExp || deptoExp || null);
     await client.query(
       `INSERT INTO personas (
          id_persona, cedula, primer_apellido, segundo_apellido, nombres, nombre_completo,
@@ -1254,7 +1254,7 @@ router.post('/', auth, async (req, res) => {
       [
         contactId,
         clean(direccion)?.toUpperCase() || 'NO REGISTRADO',
-        clean(ciudad)?.toUpperCase() || 'TUNJA, BOYACÁ',
+        clean(ciudad)?.toUpperCase() || null,
         telFijoValidado.valor || null,
         primaryCelular,
         celularesValidados.celulares,
@@ -1730,7 +1730,7 @@ router.put('/:cedula', auth, async (req, res) => {
     // Actualizar personas
     const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
     const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
-    const expedidaLugar = mpioExp ? `${mpioExp}${deptoExp ? ', ' + deptoExp : ''}` : null;
+    const expedidaLugar = (mpioExp && deptoExp) ? `${mpioExp}, ${deptoExp}` : (mpioExp || deptoExp || null);
     await client.query(
       `UPDATE personas
        SET nombre_completo=$1, primer_apellido=$2, segundo_apellido=$3, nombres=$4,

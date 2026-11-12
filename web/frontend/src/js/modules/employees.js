@@ -1794,8 +1794,16 @@ const EmployeesModule = (() => {
       const cleanCargo = sanitizeText(emp.cargoTitular || emp.cargoBase || emp.cargoActual || 'Cargo no asignado');
       const cleanCod = sanitizeText(emp.codigoTitular || emp.codigoBase || emp.codigoActual || 'N/A');
       const cleanGra = sanitizeText(emp.gradoTitular || emp.gradoBase || emp.gradoActual || 'N/A');
-      const cleanMuni = sanitizeText(emp.municipioExpedicion || emp.ciudadExpedicion || emp.expedida || 'Tunja');
-      const cleanDepto = sanitizeText(emp.departamentoExpedicion || 'Boyacá');
+      const rawMuni = sanitizeText(emp.municipioExpedicion || emp.ciudadExpedicion || emp.expedida || '');
+      const rawDepto = sanitizeText(emp.departamentoExpedicion || '');
+      let textoExpedida = 'No registrada';
+      if (rawMuni && rawDepto) {
+        textoExpedida = `${rawMuni}, ${rawDepto}`;
+      } else if (rawMuni) {
+        textoExpedida = rawMuni;
+      } else if (rawDepto) {
+        textoExpedida = rawDepto;
+      }
       const isProv = Boolean(emp.documento_pendiente || (emp.cedula && emp.cedula.startsWith('PROV-')));
       const cedulaText = isProv ? `${emp.cedula} (ID Temporal)` : (emp.cedula ? formattedCc : 'Sin Cédula');
       const cedulaRaw = emp.cedula || '';
@@ -1884,7 +1892,7 @@ const EmployeesModule = (() => {
         }
                 </div>
                 <div class="ficha-card-sub">
-                  Expedida en: <strong>${escHtml(cleanMuni)}, ${escHtml(cleanDepto)}</strong>
+                  Expedida en: <strong>${escHtml(textoExpedida)}</strong>
                 </div>
               </div>
 
@@ -2273,7 +2281,14 @@ const EmployeesModule = (() => {
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:2px;">
                     <span style="font-size:12px; font-weight:700; color:var(--text-muted); min-width:90px;">Residencia:</span>
                     <span style="font-size:13px; color:var(--text-primary);">
-                      📍 ${escHtml(sanitizeText(emp.direccion || 'No registrada'))}, ${escHtml(sanitizeText(emp.ciudad || 'Tunja, Boyacá'))}
+                      📍 ${(() => {
+                        const dir = sanitizeText(emp.direccion || '');
+                        const ciu = sanitizeText(emp.ciudad || '');
+                        if (dir && ciu) return `${escHtml(dir)}, ${escHtml(ciu)}`;
+                        if (dir) return escHtml(dir);
+                        if (ciu) return escHtml(ciu);
+                        return 'No registrada';
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -3286,6 +3301,10 @@ const EmployeesModule = (() => {
     const updateMunicipiosForDepto = (selectedDepto, currentMpio = '') => {
       if (!mpioExpSelect) return;
       const cleanDepto = (selectedDepto || '').trim().toUpperCase();
+      if (!cleanDepto) {
+        mpioExpSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>';
+        return;
+      }
       let mpios = cats.divipola.municipiosPorDepto[cleanDepto] || [];
       // Para Boyacá, TUNJA aparece siempre de primer municipio
       if (cleanDepto === 'BOYACÁ' || cleanDepto === 'BOYACA') {

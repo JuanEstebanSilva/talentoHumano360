@@ -163,9 +163,9 @@ class EmployeeImportService {
           }
 
           // Regla 10: Auto-asignar Departamento usando tabla DIVIPOLA
-          let ciudadExp = (funcionario.expedida || 'TUNJA').trim().toUpperCase();
-          let deptoExp = 'BOYACÁ';
-          if (divipolaMap.has(ciudadExp.toLowerCase())) {
+          let ciudadExp = funcionario.expedida ? funcionario.expedida.trim().toUpperCase() : null;
+          let deptoExp = null;
+          if (ciudadExp && divipolaMap.has(ciudadExp.toLowerCase())) {
             deptoExp = divipolaMap.get(ciudadExp.toLowerCase());
           }
 
@@ -504,9 +504,9 @@ class EmployeeImportService {
                 funcionario.segundoApellido || '',
                 funcionario.nombres || (funcionario.es_vacante ? 'PLAZA VACANTE' : 'NO REGISTRADO'),
                 funcionario.nombreCompleto,
-                funcionario.es_vacante ? null : (funcionario.expedida || 'TUNJA'),
-                funcionario.es_vacante ? null : deptoExp,
-                funcionario.es_vacante ? null : ciudadExp,
+                funcionario.es_vacante ? null : (funcionario.expedida || null),
+                funcionario.es_vacante ? null : (deptoExp || null),
+                funcionario.es_vacante ? null : (ciudadExp || null),
                 funcionario.es_vacante ? null : (funcionario.tipoSangre || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : (funcionario.tipoDiscapacidad || null),
                 funcionario.es_vacante ? null : (funcionario.fechaNacimientoStr || 'NO REGISTRADO'),
@@ -526,7 +526,7 @@ class EmployeeImportService {
               [
                 newContactId,
                 funcionario.es_vacante ? null : (contacto.direccion || 'NO REGISTRADO'),
-                funcionario.es_vacante ? null : (contacto.ciudad || 'TUNJA, BOYACA'),
+                funcionario.es_vacante ? null : (contacto.ciudad || null),
                 funcionario.es_vacante ? null : (contacto.telefonoFijo || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : (contacto.celular || 'NO REGISTRADO'),
                 funcionario.es_vacante ? null : contacto.celulares,
