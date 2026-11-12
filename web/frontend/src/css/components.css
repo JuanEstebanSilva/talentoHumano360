@@ -1332,10 +1332,10 @@
 .filter-group.is-floated > label,
 .filter-group:focus-within > .filter-label,
 .filter-group:focus-within > label,
-.filter-group:has(.filter-input:not(:placeholder-shown)) > .filter-label,
-.filter-group:has(.filter-input:not(:placeholder-shown)) > label,
-.filter-group:has(input:not(:placeholder-shown)) > .filter-label,
-.filter-group:has(input:not(:placeholder-shown)) > label {
+.filter-group:has(.filter-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > .filter-label,
+.filter-group:has(.filter-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > label,
+.filter-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > .filter-label,
+.filter-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;
@@ -2424,8 +2424,8 @@ tbody tr:last-child td {
 .form-group.floating-group.is-floated > label,
 .form-group.floating-group:focus-within > .form-label,
 .form-group.floating-group:focus-within > label,
-.form-group.floating-group:has(.form-input:not(:placeholder-shown)) > .form-label,
-.form-group.floating-group:has(input:not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(.form-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > .form-label,
 .form-group.floating-group:has(textarea:not(:placeholder-shown)) > .form-label {
   top: 7px !important;
   font-size: 0.72rem !important;
@@ -2462,15 +2462,18 @@ tbody tr:last-child td {
 }
 
 /* Ocultar placeholder mientras la etiqueta está en reposo para evitar colisión visual */
-.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder,
-.filter-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))) .filter-input::placeholder {
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder,
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .flatpickr-input-custom::placeholder,
+.filter-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))) .filter-input::placeholder {
   color: transparent !important;
   opacity: 0 !important;
 }
 
 .form-group.floating-group:focus-within .form-input::placeholder,
+.form-group.floating-group:focus-within .flatpickr-input-custom::placeholder,
 .form-group.floating-group.is-floated .form-input::placeholder,
-.form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+.form-group.floating-group.is-floated .flatpickr-input-custom::placeholder,
+.form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) .form-input::placeholder,
 .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
 .filter-group:focus-within .filter-input::placeholder,
 .filter-group.is-floated .filter-input::placeholder {
@@ -2480,8 +2483,10 @@ tbody tr:last-child td {
 }
 
 [data-theme="dark"] .form-group.floating-group:focus-within .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group:focus-within .flatpickr-input-custom::placeholder,
 [data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder,
-[data-theme="dark"] .form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group.is-floated .flatpickr-input-custom::placeholder,
+[data-theme="dark"] .form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) .form-input::placeholder,
 [data-theme="dark"] .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
 [data-theme="dark"] .filter-group:focus-within .filter-input::placeholder,
 [data-theme="dark"] .filter-group.is-floated .filter-input::placeholder {
@@ -11469,7 +11474,7 @@ select[id^="hor-filter-"] {
 /* Estado flotante: la etiqueta vive adentro y sube al escribir o al tener valor */
 .adv-filter-field.is-floated label,
 .adv-filter-field:focus-within label,
-.adv-filter-field:has(input:not(:placeholder-shown)) label {
+.adv-filter-field:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;

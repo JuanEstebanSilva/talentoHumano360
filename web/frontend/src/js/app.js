@@ -657,12 +657,26 @@ const App = (() => {
             // Sincronización con etiquetas flotantes
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
-              if (currentVal || dateStr) group.classList.add('is-floated');
-              if (instance.altInput) {
+              if (currentVal || dateStr || input.value) {
+                group.classList.add('is-floated');
+              } else {
+                group.classList.remove('is-floated');
+              }
+              if (instance.altInput && !instance.altInput._hasFloatListeners) {
+                instance.altInput._hasFloatListeners = true;
                 instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
                 instance.altInput.addEventListener('blur', () => {
                   group.classList.remove('is-focused');
-                  if (!input.value) group.classList.remove('is-floated');
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  }
+                });
+                instance.altInput.addEventListener('input', () => {
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  } else {
+                    group.classList.add('is-floated');
+                  }
                 });
               }
             }
@@ -797,7 +811,7 @@ const App = (() => {
         }
 
         const label = group.querySelector('.form-label, .filter-label, label');
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
@@ -812,10 +826,13 @@ const App = (() => {
           let hasVal = false;
           if (control.matches('select')) {
             hasVal = Boolean(control.value && String(control.value).trim() !== '');
-          } else if (control.type === 'date' || control._flatpickr) {
-            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
           } else {
-            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+            if (fp) {
+              hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+            } else {
+              hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            }
           }
 
           if (hasVal) {
@@ -902,17 +919,33 @@ const App = (() => {
     try {
       const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
         group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
           hasVal = Boolean(control.value && String(control.value).trim() !== '');
           group.classList.add('is-select');
-        } else if (control.type === 'date' || control._flatpickr) {
-          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
         } else {
-          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+          if (fp) {
+            hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
         }
         if (hasVal) {
           group.classList.add('is-floated');
