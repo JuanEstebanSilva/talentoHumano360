@@ -85,6 +85,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       err.valor = String(rawIng);
       throw err;
     }
+  } else if (!esVacante) {
+    // Si no se le ingresa fecha de ingreso, al registrar guarda la fecha del día del registro (hoy)
+    fechaIngreso = new Date();
   }
 
   const rawEnc = rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO'];

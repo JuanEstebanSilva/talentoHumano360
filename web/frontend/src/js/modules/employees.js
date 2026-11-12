@@ -2901,7 +2901,7 @@ const EmployeesModule = (() => {
         <div id="tab-form-tiempos" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
             <div class="form-group span-2">
-              <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso</label>
+              <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso <span style="font-size:11px; color:var(--text-muted);">(Por defecto: Fecha actual de registro)</span></label>
               <input id="ef-fecha-ingreso" type="date" class="form-input" value="${escHtml(emp.fechaIngreso || '')}" />
               <div id="ef-tiempo-calc-display" class="ef-calc-display-val">
                 ${emp.tiempoServicioCalculado ? `Tiempo: ${escHtml(emp.tiempoServicioCalculado)}` : ''}
@@ -3989,7 +3989,17 @@ const EmployeesModule = (() => {
       opec: document.getElementById('ef-opec')?.value.trim() || null,
       situacion,
       tipoDiscapacidad,
-      fechaIngreso: document.getElementById('ef-fecha-ingreso')?.value || null,
+      fechaIngreso: (() => {
+        const val = document.getElementById('ef-fecha-ingreso')?.value?.trim();
+        if (val) return val;
+        // Si no se le ingresa fecha de ingreso, al guardar guarda la fecha del día del registro (hoy)
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Bogota',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(new Date());
+      })(),
       fechaEncargo,
       otroTiempoPeriodos,
       otroTiempoGobernacion: document.getElementById('ef-periodos-total-display')?.textContent.replace('Otro Tiempo acumulado: ', '') || null,

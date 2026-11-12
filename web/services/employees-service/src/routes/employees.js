@@ -1303,7 +1303,16 @@ router.post('/', auth, async (req, res) => {
     );
 
     // Cálculo de tiempo de servicio y tiempo total en gobernación
-    const dateIngPost = parseExcelDate(fechaIngreso);
+    // Si no se le ingresa fecha de ingreso, al guardar guarda la fecha del día del registro (hoy)
+    const hoyColombia = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+
+    const finalFechaIngreso = clean(fechaIngreso) || hoyColombia;
+    const dateIngPost = parseExcelDate(finalFechaIngreso);
     const tiempoCalcPost = dateIngPost ? calcularDiferenciaFechasExacta(dateIngPost) : null;
     const tiempoTotalPost = sumarTiemposExactos(
       tiempoCalcPost,
@@ -1331,8 +1340,8 @@ router.post('/', auth, async (req, res) => {
         expValidada.acumuladoTexto || null,
         JSON.stringify(expValidada.periodos),
         tiempoTotalGobernacionStr,
-        fechaIngreso || null,
-        tiempoCalcPost ? tiempoCalcPost.texto : null,
+        finalFechaIngreso,
+        tiempoCalcPost ? tiempoCalcPost.texto : '0 años, 0 meses, 0 días',
         fechaEncargo || null,
         clean(encargoDenominacion)?.toUpperCase() || null,
         clean(encargoCodigo)?.toUpperCase() || null,
