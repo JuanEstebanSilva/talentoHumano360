@@ -3815,6 +3815,11 @@ textarea,
   color: #f0abfc !important;
   border-color: rgba(184, 75, 167, 0.4) !important;
 }
+[data-theme="dark"] .badge--sin-viatico {
+  background: rgba(100, 116, 139, 0.2) !important;
+  color: #94a3b8 !important;
+  border-color: rgba(100, 116, 139, 0.4) !important;
+}
 [data-theme="dark"] .badge--licencia {
   background: rgba(209, 173, 42, 0.2) !important;
   color: var(--color-mustard) !important;

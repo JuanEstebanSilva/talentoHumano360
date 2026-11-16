@@ -65,6 +65,7 @@ const SQL_FILES = [
   '30_clean_servidores_publicos.sql',
   '31_paquetes_viaticos_presupuesto_inicial.sql',
   '32_clean_servidores_horarios_viaticos.sql',
+  '33_viaticos_estado_sin_viatico.sql',
 ];
 
 function findDatabaseDir() {
@@ -428,6 +429,29 @@ async function runSafeMigrations(client) {
       await recordMigration(client, '32_clean_servidores_horarios_viaticos', 'Limpieza completa de datos en servidores publicos, horarios y viaticos');
       results.migrationsRecorded.push('32_clean_servidores_horarios_viaticos');
       console.log('✅ [Migración 32] Servidores públicos, horarios y viáticos limpiados y secuencias reiniciadas a estado cero.');
+    }
+  }
+
+  // 12. Migración 33: Soporte para estado 'Sin Viático' en tabla viáticos
+  if (!(await isMigrationRecorded(client, '33_viaticos_estado_sin_viatico'))) {
+    if (await tableExists(client, 'viaticos')) {
+      await client.query(`
+        ALTER TABLE viaticos DROP CONSTRAINT IF EXISTS chk_viaticos_estado;
+        ALTER TABLE viaticos ADD CONSTRAINT chk_viaticos_estado
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Sin Viático', 'Sin Viáticos', 'Rechazado', 'Anulado'));
+        UPDATE viaticos
+        SET estado = 'Sin Viático', valor_total = 0, valor_diario = 0
+        WHERE (
+          LOWER(observaciones) LIKE '%sin viatico%' 
+          OR LOWER(observaciones) LIKE '%sin viático%' 
+          OR LOWER(observaciones) LIKE '%sin viaticos%' 
+          OR LOWER(observaciones) LIKE '%sin viáticos%'
+          OR LOWER(estado) LIKE '%sin viatic%'
+        ) AND estado != 'Sin Viático';
+      `);
+      await recordMigration(client, '33_viaticos_estado_sin_viatico', 'Soporte para estado Sin Viático en modulo de viaticos');
+      results.migrationsRecorded.push('33_viaticos_estado_sin_viatico');
+      console.log('✅ [Migración 33] Estado Sin Viático habilitado en la tabla viáticos.');
     }
   }
 

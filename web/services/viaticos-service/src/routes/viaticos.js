@@ -235,7 +235,12 @@ async function ensureViaticosColumns() {
         ) THEN
           ALTER TABLE viaticos
           ADD CONSTRAINT chk_viaticos_estado
-          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'));
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado', 'Sin Viático', 'Sin Viáticos'));
+        ELSE
+          ALTER TABLE viaticos DROP CONSTRAINT chk_viaticos_estado;
+          ALTER TABLE viaticos
+          ADD CONSTRAINT chk_viaticos_estado
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado', 'Sin Viático', 'Sin Viáticos'));
         END IF;
       END $$;
     `);
@@ -278,23 +283,36 @@ const CANONICAL_STATUSES = [
   'En Ejecución',
   'Legalizado',
   'Rechazado',
-  'Anulado'
+  'Anulado',
+  'Sin Viático'
 ];
 
 const VALID_TRANSITIONS = {
-  'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
-  'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+  'Radicado': ['Aprobado', 'Rechazado', 'Anulado', 'Sin Viático'],
+  'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado', 'Sin Viático'],
   'En Ejecución': ['Legalizado', 'Anulado'],
   'Legalizado': [], // Terminal
   'Rechazado': [],  // Terminal
-  'Anulado': []     // Terminal
+  'Anulado': [],     // Terminal
+  'Sin Viático': ['Aprobado', 'Anulado']
 };
 
-function normalizeStatus(s) {
+function isSinViaticoText(str) {
+  if (!str) return false;
+  const s = String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return /sin\s*viatico/i.test(s);
+}
+
+function normalizeStatus(s, obs) {
+  if (isSinViaticoText(s) || isSinViaticoText(obs)) return 'Sin Viático';
   if (!s) return 'Radicado';
   const raw = String(s).trim();
   if (CANONICAL_STATUSES.includes(raw)) return raw;
-  const e = raw.toLowerCase();
+  const e = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (e.includes('sin viatic')) return 'Sin Viático';
   if (e === 'aprobada' || e.includes('aprobad')) return 'Aprobado';
   if (e === 'finalizada' || e.includes('legaliz') || e.includes('finaliz')) return 'Legalizado';
   if (e.includes('ejecuci')) return 'En Ejecución';
@@ -321,6 +339,9 @@ function validateTransition(currentStatus, targetStatus) {
     }
     if (normCurrent === 'Legalizado') {
       return { valid: false, error: 'El viático ya se encuentra en estado Legalizado (doble legalización impedida).' };
+    }
+    if (normCurrent === 'Sin Viático') {
+      return { valid: false, error: 'El viático ya se encuentra en estado Sin Viático.' };
     }
     return { valid: false, error: `El viático ya se encuentra en estado "${normCurrent}".` };
   }
@@ -455,9 +476,10 @@ router.get('/paquetes', auth, async (req, res) => {
         p.actualizado_en,
         COUNT(v.id_viatico)::int AS total_viaticos,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Radicado', 'Pendiente', 'En revisión'))::int AS pendientes,
-        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada'))::int AS aprobadas,
+        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada', 'Sin Viático', 'Sin Viáticos'))::int AS aprobadas,
         COUNT(v.id_viatico) FILTER (WHERE v.estado = 'En Ejecución')::int AS en_ejecucion,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Legalizado', 'Finalizada'))::int AS legalizadas,
+        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Sin Viático', 'Sin Viáticos'))::int AS sin_viatico,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Rechazado', 'Rechazada'))::int AS rechazadas,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Anulado', 'Anulada'))::int AS anuladas,
         COALESCE(SUM(v.valor_total) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada')), 0)::numeric(15,2) AS valor_aprobado
@@ -903,9 +925,10 @@ router.get('/stats', auth, async (req, res) => {
     const r = await pool.query(`
       SELECT COUNT(*)::int AS total,
              COUNT(*) FILTER (WHERE v.estado IN ('Radicado', 'Pendiente', 'En revisión'))::int AS pendientes,
-             COUNT(*) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada'))::int AS aprobadas,
+             COUNT(*) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada', 'Sin Viático', 'Sin Viáticos'))::int AS aprobadas,
              COUNT(*) FILTER (WHERE v.estado = 'En Ejecución')::int AS en_ejecucion,
              COUNT(*) FILTER (WHERE v.estado IN ('Legalizado', 'Finalizada'))::int AS legalizadas,
+             COUNT(*) FILTER (WHERE v.estado IN ('Sin Viático', 'Sin Viáticos'))::int AS sin_viatico,
              COUNT(*) FILTER (WHERE v.estado IN ('Rechazado', 'Rechazada'))::int AS rechazadas,
              COUNT(*) FILTER (WHERE v.estado IN ('Anulado', 'Anulada'))::int AS anuladas,
              COALESCE(SUM(v.valor_total), 0)::numeric(15,2) AS valor_registrado_total,
@@ -1283,6 +1306,7 @@ router.post('/bulk', auth, async (req, res) => {
   let inserted = 0;
   let updated = 0;
   let skipped = 0;
+  let skippedDuplicates = 0;
   let totalValor = 0;
   const errors = [];
 
@@ -1356,17 +1380,21 @@ router.post('/bulk', auth, async (req, res) => {
         WHERE id_paquete = $1 OR id_paquete IS NULL
       `, [targetPackageId]);
       for (const ex of existRes.rows) {
-        const key = `${ex.nom}|${ex.fecha_inicio || ''}|${ex.dest || ''}`;
-        existingMap.set(key, ex.id_viatico);
+        const nomUpper = upper(ex.nom);
+        const destUpper = upper(ex.dest);
+        const key = `${nomUpper}|${ex.fecha_inicio || ''}|${destUpper}`;
+        if (!existingMap.has(key)) existingMap.set(key, ex.id_viatico);
         if (ex.numero_resolucion) {
-          existingMap.set(`RESOL:${ex.numero_resolucion.replace(/\s+/g, '').toUpperCase()}`, ex.id_viatico);
+          const cleanResol = ex.numero_resolucion.replace(/\s+/g, '').toUpperCase();
+          const rKey = `RESOL:${nomUpper}|${cleanResol}`;
+          if (!existingMap.has(rKey)) existingMap.set(rKey, ex.id_viatico);
         }
       }
     } catch (exErr) {
       console.warn('[viaticos-bulk] Warning cargando viáticos existentes:', exErr.message);
     }
 
-    // 3. Procesar e insertar / actualizar filas
+    // 3. Procesar e insertar filas (en viáticos se conserva el primer registro y se omiten duplicados posteriores)
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       let persona = (row.persona || row.apellidos_nombres || row.nombreCompleto || row.nombre || row['Servidor Público'] || row['Nombre Completo'] || row['NOMBRE'] || '').toString().trim();
@@ -1390,8 +1418,10 @@ router.post('/bulk', auth, async (req, res) => {
           dias = Math.max(1, Math.round((dE - dS) / (1000 * 60 * 60 * 24)) + 1);
         }
       }
-      const estado = normalizeStatus(row.estado || row['Estado'] || 'Aprobada');
-      const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
+      const rawObs = (row.observaciones || row.notas || row['Observaciones'] || row['OBSERVACIONES'] || row['Notas'] || row['NOTAS'] || row['Comentarios'] || row['COMENTARIOS'] || row.comentarios || '').toString().trim();
+      const rawEstado = (row.estado || row['Estado'] || row['ESTADO'] || '').toString().trim();
+      const rawMotivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || '').toString().trim();
+
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
       const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
       const saldo = cleanMoney(pickFirst(row, ['saldo', 'SALDO', 'Saldo', 'saldo_cop', 'SALDO_COP', 'SALDO COP']));
@@ -1400,15 +1430,22 @@ router.post('/bulk', auth, async (req, res) => {
         'Total', 'TOTAL', 'Total Viático', 'Total Viatico', 'TOTAL VIATICO',
         'valor', 'VALOR'
       ]);
-      const rowValorTotal = cleanMoney(rawTotal);
+      let rowValorTotal = cleanMoney(rawTotal);
 
       // valorDiario es opcional e informativo, no determina ni sobrescribe el valor total
       const rawDiario = pickFirst(row, [
         'valorDiario', 'valor_diario', 'Valor Diario', 'VALOR DIARIO', 'VALOR_DIARIO',
         'Tarifa Diaria', 'TARIFA DIARIA', 'Tarifa', 'TARIFA', 'Diario', 'DIARIO'
       ]);
-      const valorDiario = cleanMoney(rawDiario) || 0;
-      if (rowValorTotal !== null) totalValor += rowValorTotal;
+      let valorDiario = cleanMoney(rawDiario) || 0;
+
+      // Detección exhaustiva de "Sin Viático" / "Sin Viáticos"
+      const esSinViatico = isSinViaticoText(rawObs) || isSinViaticoText(rawEstado) || isSinViaticoText(rawMotivo) || (rowValorTotal === 0 && (!rawEstado || rawEstado === '0' || /aprob|sin/i.test(rawEstado)));
+      let estado = esSinViatico ? 'Sin Viático' : normalizeStatus(rawEstado || 'Aprobada', rawObs);
+      if (esSinViatico) {
+        rowValorTotal = 0;
+        valorDiario = 0;
+      }
 
       if (!persona) {
         errors.push(`Fila ${i + 1}: Nombre de servidor no especificado.`);
@@ -1432,17 +1469,23 @@ router.post('/bulk', auth, async (req, res) => {
 
       const pUpper = upper(persona);
       const destUpper = upper(destino);
-      const keyPrimary = `${pUpper}|${fechaInicio}|${destUpper}`;
-      const resolKey = numeroResolucion ? `RESOL:${numeroResolucion.replace(/\s+/g, '').toUpperCase()}` : null;
+      const cleanResol = numeroResolucion ? numeroResolucion.replace(/\s+/g, '').toUpperCase() : '';
+      const keyPrimary = `${pUpper}|${fechaInicio || ''}|${destUpper}`;
+      const resolKey = cleanResol ? `RESOL:${pUpper}|${cleanResol}` : null;
       const existingId = existingMap.get(keyPrimary) || (resolKey ? existingMap.get(resolKey) : null);
 
+      if (existingId) {
+        // En viáticos: se conserva el PRIMER registro procesado y se omite cualquier duplicado posterior
+        skipped++;
+        skippedDuplicates++;
+        warnings.push(`Fila ${i + 1}: Registro duplicado para "${persona}" ${numeroResolucion ? `(Resolución: ${numeroResolucion})` : ''} omitido; se conserva el primer registro procesado.`);
+        continue;
+      }
+
       let documentoFinal = (documento || '').trim() || null;
-      let finalObservaciones = (observaciones || '').trim();
+      let finalObservaciones = (rawObs || '').trim();
 
       // AUD-NUEVO-008: Validar si la cédula existe en la tabla personas (fk_viaticos_personas)
-      // Si la cédula es externa (p.ej. contratista, exfuncionario, comisión interinstitucional),
-      // preservamos el documento en las observaciones y asignamos null al campo de clave foránea
-      // para evitar que la restricción de integridad aborte la carga masiva.
       if (documentoFinal && !peopleCedulaSet.has(documentoFinal)) {
         finalObservaciones = (finalObservaciones ? finalObservaciones + ' | ' : '') + `[Cédula externa reportada: ${documentoFinal}]`;
         warnings.push(`Fila ${i + 1}: Servidor "${persona}" con documento "${documentoFinal}" no figura en censo de planta; registrado con comisión válida y cédula preservada en observaciones.`);
@@ -1452,55 +1495,27 @@ router.post('/bulk', auth, async (req, res) => {
       try {
         await client.query('SAVEPOINT row_sp');
 
-        if (existingId) {
-          await client.query(
-            `UPDATE viaticos SET
-               dependencia = COALESCE(NULLIF($1, ''), dependencia),
-               apellidos_nombres = $2,
-               documento = COALESCE($3, documento),
-               cargo = COALESCE(NULLIF($4, ''), cargo),
-               destino = $5,
-               motivo = $6,
-               fecha_inicio = $7,
-               fecha_fin = $8,
-               dias = $9,
-               valor_diario = $10,
-               valor_total = COALESCE($11, valor_total),
-               estado = $12,
-               observaciones = $13,
-               tipo_destino = $14,
-               numero_resolucion = COALESCE($15, numero_resolucion),
-               saldo = COALESCE($16, saldo),
-               id_paquete = COALESCE(id_paquete, $17)
-             WHERE id_viatico = $18`,
-            [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
-             rowValorTotal, estado, finalObservaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
-             numeroResolucion || null, saldo, targetPackageId, existingId]
-          );
-          updated++;
-        } else {
-          const r = await client.query(
-            `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
-                                  fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, observaciones,
-                                  fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo, id_paquete)
-             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-             RETURNING id_viatico`,
-            [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
-             rowValorTotal, estado, finalObservaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
-             numeroResolucion || null, saldo, targetPackageId]
-          );
-          const newId = r.rows[0].id_viatico;
-          existingMap.set(keyPrimary, newId);
-          if (resolKey) existingMap.set(resolKey, newId);
+        const r = await client.query(
+          `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
+                                fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, observaciones,
+                                fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo, id_paquete)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+           RETURNING id_viatico`,
+          [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
+           destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
+           rowValorTotal, estado, finalObservaciones || (esSinViatico ? 'SIN VIÁTICOS' : 'Importado desde Excel'), today, 'SISTEMA', tipoDestino,
+           numeroResolucion || null, saldo, targetPackageId]
+        );
+        const newId = r.rows[0].id_viatico;
+        existingMap.set(keyPrimary, newId);
+        if (resolKey) existingMap.set(resolKey, newId);
 
-          await client.query(
-            'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
-            [newId, estado, 'Importado masivamente vía Excel', req.user.username || 'web']
-          );
-          inserted++;
-        }
+        await client.query(
+          'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
+          [newId, estado, 'Importado masivamente vía Excel', req.user.username || 'web']
+        );
+        inserted++;
+        if (rowValorTotal !== null) totalValor += rowValorTotal;
 
         await client.query('RELEASE SAVEPOINT row_sp');
       } catch (rowErr) {
@@ -1513,13 +1528,14 @@ router.post('/bulk', auth, async (req, res) => {
 
     await client.query('COMMIT');
     res.json({
-      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${updated} actualizados.`,
+      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${skippedDuplicates} duplicados omitidos (conservando el primer registro).`,
       id_paquete: targetPackageId,
       nombre_paquete: targetPackageName,
       resumen: {
         totalFilas: rows.length,
         insertados: inserted,
-        actualizados: updated,
+        actualizados: 0,
+        duplicadosOmitidos: skippedDuplicates,
         omitidos: skipped,
         advertencias: warnings.length,
         totalValor,

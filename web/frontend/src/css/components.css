@@ -1881,6 +1881,18 @@ tbody tr:last-child td {
   box-shadow: 0 0 6px rgba(168, 85, 247, 0.7);
 }
 
+.badge--sin-viatico {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.12) 0%, rgba(71, 85, 105, 0.18) 100%);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  box-shadow: 0 2px 5px rgba(100, 116, 139, 0.1);
+}
+
+.badge--sin-viatico::before {
+  background: #64748b;
+  box-shadow: 0 0 6px rgba(100, 116, 139, 0.7);
+}
+
 .badge--permiso {
   background: rgba(0, 123, 199, 0.12);
   color: var(--color-navy);
@@ -2174,6 +2186,17 @@ tbody tr:last-child td {
 .status-card-opt--finalizada:hover {
   border-color: var(--color-purple);
   box-shadow: 0 4px 14px rgba(184, 75, 167, 0.15);
+}
+
+.status-card-opt--sin-viatico .status-opt-icon {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.status-card-opt--sin-viatico:hover {
+  border-color: #64748b;
+  box-shadow: 0 4px 14px rgba(100, 116, 139, 0.15);
 }
 
 /* ─── Pagination ─────────────────────────────────────────────────────────── */

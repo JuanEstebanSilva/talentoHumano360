@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ViaticosModule = (() => {
-  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'];
+  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Sin Viático', 'Rechazado', 'Anulado'];
   const DEPENDENCIAS_LIST = [
     'Todas',
     'DESPACHO DEL GOBERNADOR',
@@ -237,8 +237,15 @@ const ViaticosModule = (() => {
     'Canadá', 'Italia', 'Suiza', 'Costa Rica', 'Uruguay', 'Otro País'
   ];
 
+  function isSinViaticoText(str) {
+    if (!str) return false;
+    const s = String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return /sin\s*viatico/i.test(s);
+  }
+
   function badgeClass(estado) {
-    const e = (estado || '').toLowerCase();
+    const e = (estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (e.includes('sin viatic')) return 'badge--sin-viatico';
     if (e.includes('aprobad'))   return 'badge--aprobada';
     if (e.includes('legaliz') || e.includes('finaliz')) return 'badge--finalizada';
     if (e.includes('ejecuci') || e.includes('revis'))   return 'badge--revision';
@@ -2286,6 +2293,13 @@ const ViaticosModule = (() => {
       cls: 'status-card-opt--finalizada',
     },
     {
+      id: 'sin_viatico',
+      name: 'Sin Viático',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+      desc: 'Comisión oficial autorizada sin asignación de viáticos monetarios',
+      cls: 'status-card-opt--sin-viatico',
+    },
+    {
       id: 'rechazado',
       name: 'Rechazado',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -2311,12 +2325,13 @@ const ViaticosModule = (() => {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const ALLOWED_MAP = {
-      'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
-      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+      'Radicado': ['Aprobado', 'Rechazado', 'Anulado', 'Sin Viático'],
+      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado', 'Sin Viático'],
       'En Ejecución': ['Legalizado', 'Anulado'],
       'Legalizado': [],
       'Rechazado': [],
-      'Anulado': []
+      'Anulado': [],
+      'Sin Viático': ['Aprobado', 'Anulado']
     };
     const currentStatus = r.estado || 'Radicado';
     const allowedNext = ALLOWED_MAP[currentStatus] || [];
@@ -4913,6 +4928,24 @@ const ViaticosModule = (() => {
 
               const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal, explicitDias) : { start: null, end: null, dias: explicitDias ? parseInt(explicitDias, 10) : null };
 
+              let detectedObs = obsVal;
+              let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destVal);
+              if (!hasSinViaticoText) {
+                for (let c = 0; c < row.length; c++) {
+                  if (c !== colNom && isSinViaticoText(row[c])) {
+                    hasSinViaticoText = true;
+                    if (!detectedObs) detectedObs = String(row[c]).trim();
+                    break;
+                  }
+                }
+              }
+
+              const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+              const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+              const finalValor = esSinViatico ? 0 : valor;
+              const finalValorDiario = (esSinViatico || !dInfo.dias || dInfo.dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dInfo.dias).toFixed(2)) : 0);
+              const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
+
               allRows.push({
                 persona: nomStr,
                 dependencia: (typeof SECRETARIA_MAP !== 'undefined' && SECRETARIA_MAP[sheetName.trim().toUpperCase()]) || sheetName,
@@ -4921,10 +4954,10 @@ const ViaticosModule = (() => {
                 fechaInicio: dInfo.start,
                 fechaFin: dInfo.end,
                 dias: dInfo.dias,
-                valorDiario: (dInfo.dias > 0 && valor > 0) ? parseFloat((valor / dInfo.dias).toFixed(2)) : 0,
-                valorTotal: valor,
-                estado: (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada',
-                observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+                valorDiario: finalValorDiario,
+                valorTotal: finalValor,
+                estado: finalEstado,
+                observaciones: finalObs,
                 numeroResolucion: resolVal,
                 saldo: saldoVal,
                 id_paquete
@@ -5344,8 +5377,24 @@ const ViaticosModule = (() => {
 
             const dInfo = parseDateRobust(rawFecha, resolVal, explicitDias);
             const dias = dInfo.dias;
-            const valorDiario = (dias > 0 && valor > 0) ? parseFloat((valor / dias).toFixed(2)) : 0;
-            const estado = (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada';
+
+            let detectedObs = obsVal;
+            let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destinoVal);
+            if (!hasSinViaticoText) {
+              for (let c = 0; c < row.length; c++) {
+                if (c !== colNombre && isSinViaticoText(row[c])) {
+                  hasSinViaticoText = true;
+                  if (!detectedObs) detectedObs = String(row[c]).trim();
+                  break;
+                }
+              }
+            }
+
+            const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+            const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+            const finalValor = esSinViatico ? 0 : valor;
+            const finalValorDiario = (esSinViatico || !dias || dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dias).toFixed(2)) : 0);
+            const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
 
             allRows.push({
               persona: nomStr,
@@ -5355,10 +5404,10 @@ const ViaticosModule = (() => {
               fechaInicio: dInfo.start,
               fechaFin: dInfo.end,
               dias,
-              valorDiario,
-              valorTotal: valor,
-              estado,
-              observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+              valorDiario: finalValorDiario,
+              valorTotal: finalValor,
+              estado: finalEstado,
+              observaciones: finalObs,
               numeroResolucion: resolVal,
               saldo: saldoVal,
               hoja: sheetName
