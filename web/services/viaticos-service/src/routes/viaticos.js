@@ -173,7 +173,6 @@ async function ensureViaticosColumns() {
       INSERT INTO vigencias_viaticos(anio)
       SELECT DISTINCT anio FROM paquetes_viaticos
       ON CONFLICT (anio) DO NOTHING;
-      INSERT INTO vigencias_viaticos(anio) VALUES (2027), (2026), (2025), (2024), (2023), (2022) ON CONFLICT (anio) DO NOTHING;
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT;
       DO $$
       BEGIN
@@ -1332,6 +1331,7 @@ router.post('/bulk', auth, async (req, res) => {
          RETURNING id_paquete, nombre`,
         [pkgName, fileName || null, pkgYear, `Importado desde archivo Excel (${rows.length} registros)`, req.user.username || 'admin']
       );
+      await client.query('INSERT INTO vigencias_viaticos (anio) VALUES ($1) ON CONFLICT (anio) DO NOTHING', [pkgYear]);
       targetPackageId = pkgRes.rows[0].id_paquete;
       targetPackageName = pkgRes.rows[0].nombre;
     } else {

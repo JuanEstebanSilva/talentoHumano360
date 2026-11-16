@@ -34,3 +34,4 @@ VALUES ('33_viaticos_estado_sin_viatico', 'Soporte para estado Sin Viático en m
 ON CONFLICT (version) DO UPDATE SET applied_at = NOW();
 
 COMMIT;
+
