@@ -60,3 +60,4 @@ VALUES ('34_clean_all_viaticos_zero', 'Limpieza total a estado cero de viaticos,
 ON CONFLICT (version) DO UPDATE SET applied_at = NOW();
 
 COMMIT;
+

@@ -208,12 +208,16 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
         COALESCE(ca.cargo, cb.cargo, 'PROFESIONAL UNIVERSITARIO') AS cargo,
         COALESCE(ca.codigo, cb.codigo, '') AS codigo,
         COALESCE(ca.grado, cb.grado, '') AS grado,
-        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia
+        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia,
+        COALESCE(con.celular, con.telefono_fijo, '') AS telefono,
+        COALESCE(con.celular, '') AS celular,
+        COALESCE(con.telefono_fijo, '') AS telefono_fijo
       FROM rel_principal r
       JOIN personas p ON p.id_persona = r.id_persona
       LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
       LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
       LEFT JOIN cargos cb ON cb.id_cargo = r.id_cargo_base
+      LEFT JOIN contactos con ON con.id_contacto = r.id_contacto
       LEFT JOIN estados e ON e.id_estado = r.id_estado
       ${whereQuery}
       ORDER BY 
@@ -243,23 +247,33 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
         sec = depUpper || 'SECRETARÍA GENERAL';
       }
 
+      const rawGrado = (row.grado || '').toString().trim();
+      const cleanGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+
+      const rawTel = (row.telefono || row.celular || row.telefono_fijo || '').toString().trim();
+      const cleanTelefono = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
+
       return {
         cedula: row.cedula,
         documento: row.cedula,
         nombre_completo: row.nombre_completo,
         nombreCompleto: row.nombre_completo,
         persona: row.nombre_completo,
+        apellidos_nombres: row.nombre_completo,
         cargo: row.cargo,
         cargoActual: row.cargo,
         cargo_actual: row.cargo,
-        codigo: row.codigo,
-        codigoActual: row.codigo,
-        codigo_actual: row.codigo,
-        grado: row.grado,
-        gradoActual: row.grado,
-        grado_actual: row.grado,
-        dependencia: row.dependencia,
+        codigo: row.codigo || 'N/A',
+        codigoActual: row.codigo || 'N/A',
+        codigo_actual: row.codigo || 'N/A',
+        grado: cleanGrado,
+        gradoActual: cleanGrado,
+        grado_actual: cleanGrado,
+        dependencia: row.dependencia || 'Sin dependencia',
         secretaria: sec,
+        telefono: cleanTelefono,
+        celular: cleanTelefono,
+        telefono_fijo: (row.telefono_fijo && row.telefono_fijo.trim()) || 'N/A',
       };
     });
 
@@ -731,6 +745,14 @@ router.get('/', auth, async (req, res) => {
           edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
           edadAnios: esVacante ? null : (edadCalc ? edadCalc.anios : null),
           dependencia: clean(r.dependencia),
+          secretaria: (() => {
+            const depUpper = (clean(r.dependencia) || '').toUpperCase().trim();
+            if (depUpper.includes('SECRETARÍA') || depUpper.includes('SECRETARIA')) return depUpper;
+            if (depUpper.includes('TALENTO HUMANO') || depUpper.includes('SISTEMAS') || depUpper.includes('SERVICIOS GENERALES')) return 'SECRETARÍA GENERAL';
+            if (depUpper.includes('GOBERNADOR') || depUpper.includes('DESPACHO')) return 'DESPACHO DEL GOBERNADOR';
+            if (depUpper.includes('JURÍDICA') || depUpper.includes('JURIDICA')) return 'OFICINA ASESORA JURÍDICA';
+            return depUpper || 'SECRETARÍA GENERAL';
+          })(),
           cargoActual: clean(r.cargo_actual),
           cargo_actual: clean(r.cargo_actual),
           cargo: clean(r.cargo_actual || r.cargo_base),
@@ -739,7 +761,7 @@ router.get('/', auth, async (req, res) => {
           codigo: clean(r.codigo_actual || r.codigo_base),
           gradoActual: clean(r.grado_actual),
           grado_actual: clean(r.grado_actual),
-          grado: clean(r.grado_actual || r.grado_base),
+          grado: clean(r.grado_actual || r.grado_base) || 'N/A',
           nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           cargoBase: clean(r.cargo_base),
@@ -751,6 +773,7 @@ router.get('/', auth, async (req, res) => {
           celular: esVacante ? null : (celularesArr[0] || r.celular),
           celulares: esVacante ? [] : celularesArr,
           telefonoFijo: esVacante ? null : r.telefono_fijo,
+          telefono: esVacante ? null : (celularesArr[0] || r.celular || r.telefono_fijo || 'N/A'),
           direccion: esVacante ? null : clean(r.direccion),
           ciudad: esVacante ? null : clean(r.ciudad),
           estudios: esVacante ? null : clean(r.estudios),

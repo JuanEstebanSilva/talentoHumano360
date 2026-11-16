@@ -671,24 +671,24 @@ const ViaticosModule = (() => {
     if (prevTab) {
       buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     }
 
-    if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
-    }
-
-    // Botón de Guardar/Crear disponible en todo momento sin requerir llegar a la última pestaña
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      if (nextTab) {
+        buttonsHtml += `<button type="button" class="btn btn-wizard-submit" id="vit-save-btn" disabled title="Complete los pasos del formulario para crear el viático">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      } else {
+        const docVal = (document.getElementById('vf-doc')?.value || '').trim();
+        const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
+        const isComplete = Boolean(docVal && nomVal);
+        buttonsHtml += `<button type="button" class="btn btn-primary ${isComplete ? 'btn-wizard-submit-ready' : ''}" id="vit-save-btn" ${isComplete ? '' : 'disabled title="Debe asociar un servidor público antes de crear el viático"'} onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      }
     }
 
     if (nextTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -762,13 +762,34 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="vf-cargo">Cargo Actual</label>
+              <label class="form-label" for="vf-cargo">Cargo Institucional</label>
               <input id="vf-cargo" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
 
+            <div style="display:flex; gap:10px;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-codigo">Código</label>
+                <input id="vf-codigo" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Código..." enterkeyhint="next" value="${escHtml(r.codigo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-grado">Grado</label>
+                <input id="vf-grado" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Grado..." inputmode="numeric" enterkeyhint="next" value="${escHtml(r.grado||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-dep">Dependencia</label>
+              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Dependencia..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-secretaria">Secretaría</label>
+              <input id="vf-secretaria" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría..." enterkeyhint="next" value="${escHtml(r.secretaria||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
             <div class="form-group span-2">
-              <label class="form-label" for="vf-dep">Dependencia / Secretaría</label>
-              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              <label class="form-label" for="vf-telefono">Teléfono de Contacto (Opcional)</label>
+              <input id="vf-telefono" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Teléfono o celular..." enterkeyhint="next" value="${escHtml(r.telefono||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
           </div>
         </div>
@@ -1049,8 +1070,6 @@ const ViaticosModule = (() => {
     if (!emp || (!emp.nombre_completo && !emp.persona)) return '';
     const name = emp.nombre_completo || emp.persona || '';
     const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
-    const dep = emp.dependencia || 'Sin dependencia';
     const initial = name.trim().charAt(0).toUpperCase() || 'S';
     const situacion = emp.situacion || emp.situacion_laboral || emp.estado || 'Activo';
 
@@ -1069,16 +1088,6 @@ const ViaticosModule = (() => {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Cambiar Servidor
         </button>
-      </div>
-      <div class="servidor-loaded-details">
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Cargo:</span>
-          <span class="pill-val">${escHtml(cargo)}</span>
-        </div>
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Dependencia:</span>
-          <span class="pill-val">${escHtml(dep)}</span>
-        </div>
       </div>
     `;
   }
@@ -1104,17 +1113,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1147,17 +1167,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1175,62 +1206,79 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
+
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
     const cardEl = document.getElementById('vf-servidor-card');
 
-    const name = emp.nombre_completo || emp.persona || '';
-    const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || '';
-    const dep = emp.dependencia || '';
+    const name = (emp.nombre_completo || emp.persona || '').toString().trim();
+    const doc = (emp.cedula || emp.documento || '').toString().trim();
+    const cargo = (emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado').toString().trim();
+    const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+    const codigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+    const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+    const grado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+    const rawDept = (emp.dependencia || '').toString().trim();
+    const dep = (rawDept && rawDept !== '—') ? rawDept : 'Sin dependencia';
+    const rawSec = (emp.secretaria || '').toString().trim();
+    const sec = (rawSec && rawSec !== '—') ? rawSec : 'SECRETARÍA GENERAL';
+    const rawTel = (emp.telefono || emp.celular || emp.telefono_fijo || '').toString().trim();
+    const tel = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
 
-    if (nombreInput) {
-      nombreInput.value = name;
-      nombreInput.readOnly = true;
-      nombreInput.setAttribute('readonly', 'readonly');
-      nombreInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      nombreInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (docInput) {
-      docInput.value = doc;
-      docInput.readOnly = true;
-      docInput.setAttribute('readonly', 'readonly');
-      docInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      docInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (cargoInput) {
-      cargoInput.value = cargo;
-      cargoInput.readOnly = true;
-      cargoInput.setAttribute('readonly', 'readonly');
-      cargoInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      cargoInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (depInput) {
-      depInput.value = dep;
-      depInput.readOnly = true;
-      depInput.setAttribute('readonly', 'readonly');
-      depInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      depInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
+    const allInputs = [
+      { el: nombreInput, val: name },
+      { el: docInput, val: doc },
+      { el: cargoInput, val: cargo },
+      { el: codigoInput, val: codigo },
+      { el: gradoInput, val: grado },
+      { el: depInput, val: dep },
+      { el: secInput, val: sec },
+      { el: telInput, val: tel }
+    ];
 
-    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
-    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
-
-    if (cardEl) {
-      cardEl.innerHTML = renderViaticoServidorCardHtml(emp);
-      cardEl.style.display = 'block';
-    }
-
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    allInputs.forEach(({ el, val }) => {
       if (el) {
+        el.value = val;
+        el.readOnly = true;
+        el.setAttribute('readonly', 'readonly');
+        el.classList.add('field-locked-readonly', 'input-locked-servidor');
+        el.title = 'Dato institucional protegido de la planta de personal. No modificable.';
         el.classList.add('input-flash-sync');
         setTimeout(() => el.classList.remove('input-flash-sync'), 1800);
       }
     });
 
+    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
+    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
+
+    if (cardEl) {
+      cardEl.innerHTML = renderViaticoServidorCardHtml({
+        nombre_completo: name,
+        cedula: doc,
+        cargo,
+        codigo,
+        grado,
+        dependencia: dep,
+        secretaria: sec,
+        telefono: tel,
+        situacion: emp.situacion || emp.situacion_laboral || emp.estado || 'Activo'
+      });
+      cardEl.style.display = 'block';
+    }
+
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
+    // Actualizar footer del wizard para habilitar Crear Viático si está en la última pestaña
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    if (curActiveTab) {
+      updateViaticosWizardFooter(curActiveTab);
     }
 
     App.showToast(`Servidor oficial vinculado: ${name}`, 'success');
@@ -1241,12 +1289,16 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
     const cardEl = document.getElementById('vf-servidor-card');
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
 
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    [nombreInput, docInput, cargoInput, codigoInput, gradoInput, depInput, secInput, telInput].forEach(el => {
       if (el) {
         el.value = '';
         el.readOnly = false;
@@ -1342,7 +1394,7 @@ const ViaticosModule = (() => {
   }
 
   function bindServidorLockGuards() {
-    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-dep'];
+    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-codigo', 'vf-grado', 'vf-dep', 'vf-secretaria', 'vf-telefono'];
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -2234,7 +2286,11 @@ const ViaticosModule = (() => {
       persona: nombre,
       documento: document.getElementById('vf-doc')?.value.trim() || '',
       dependencia: document.getElementById('vf-dep')?.value.trim() || '',
+      secretaria: document.getElementById('vf-secretaria')?.value.trim() || '',
       cargo: document.getElementById('vf-cargo')?.value.trim() || '',
+      codigo: document.getElementById('vf-codigo')?.value.trim() || '',
+      grado: document.getElementById('vf-grado')?.value.trim() || '',
+      telefono: document.getElementById('vf-telefono')?.value.trim() || '',
       tipoDestino,
       destino,
       motivo: document.getElementById('vf-motivo')?.value.trim() || '',

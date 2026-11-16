@@ -2344,7 +2344,7 @@ const EmployeesModule = (() => {
 
     if (currentFormIsVacante) {
       footerEl.innerHTML = `
-        <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>
         <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
       `;
       return;
@@ -2356,7 +2356,7 @@ const EmployeesModule = (() => {
 
     let html = '';
     if (isFirst) {
-      html += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      html += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     } else {
       const prevTab = EMP_FORM_TABS[currentIdx - 1];
       html += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
@@ -2374,15 +2374,22 @@ const EmployeesModule = (() => {
     }
 
     if (!isLast) {
+      if (!currentFormIsEdit) {
+        html += `<button type="button" class="btn btn-wizard-submit" id="emp-save-btn" disabled title="Complete los pasos del formulario para registrar el servidor">${saveCheckSvg}<span>Crear Servidor</span></button>`;
+      }
       const nextTab = EMP_FORM_TABS[currentIdx + 1];
-      html += `<button type="button" class="btn btn-primary btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
+      html += `<button type="button" class="btn btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
         <span>Continuar</span>${arrowNextSvg}
       </button>`;
     } else {
       if (currentFormIsEdit) {
         html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">${saveCheckSvg}<span>Actualizar Servidor</span></button>`;
       } else {
-        html += `<button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.saveCreate()">${saveCheckSvg}<span>Crear Servidor</span></button>`;
+        const nom = (document.getElementById('ef-nombres')?.value || '').trim();
+        const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
+        const cc = (document.getElementById('ef-cedula')?.value || '').trim();
+        const isValid = Boolean(nom && ape && cc);
+        html += `<button type="button" class="btn btn-primary ${isValid ? 'btn-wizard-submit-ready' : ''}" id="emp-save-btn" ${isValid ? '' : 'disabled title="Complete nombres, apellidos y cédula obligatorios para registrar el servidor"'} onclick="EmployeesModule.saveCreate()">${saveCheckSvg}<span>Crear Servidor</span></button>`;
       }
     }
 
@@ -2485,8 +2492,8 @@ const EmployeesModule = (() => {
     currentFormIsVacante = false;
     await loadCatalogs();
     App.openModal('Nuevo Servidor Público', buildForm(), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
+      { text: 'Cancelar', cls: 'btn-wizard-cancel', action: () => App.closeModal() },
+      { text: 'Continuar', cls: 'btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -2523,8 +2530,8 @@ const EmployeesModule = (() => {
     currentFormIsVacante = Boolean(emp.es_vacante || emp.situacion === 'VACANTE' || (emp.nombreCompleto && emp.nombreCompleto.startsWith('PLAZA VACANTE')));
     await loadCatalogs();
     App.openModal('Editar Servidor Público', buildForm(emp), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
+      { text: 'Cancelar', cls: 'btn-wizard-cancel', action: () => App.closeModal() },
+      { text: 'Continuar', cls: 'btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -3128,6 +3135,36 @@ const EmployeesModule = (() => {
         e.target.value = e.target.value.replace(/[^\d]/g, '');
       });
     }
+
+    // Validación reactiva de campos obligatorios para activar botón Crear Servidor
+    const checkRequiredEmpFields = () => {
+      if (currentFormIsEdit) return;
+      const saveBtn = document.getElementById('emp-save-btn');
+      if (!saveBtn) return;
+      const nom = (document.getElementById('ef-nombres')?.value || '').trim();
+      const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
+      const cc = (document.getElementById('ef-cedula')?.value || '').trim();
+      const isValid = Boolean(nom && ape && cc);
+
+      const activeTab = document.querySelector('.form-tabs .form-tab-btn.active')?.getAttribute('data-tab');
+      const isLastTab = activeTab === EMP_FORM_TABS[EMP_FORM_TABS.length - 1];
+      if (isLastTab) {
+        saveBtn.disabled = !isValid;
+        if (isValid) {
+          saveBtn.classList.add('btn-wizard-submit-ready');
+          saveBtn.removeAttribute('title');
+        } else {
+          saveBtn.classList.remove('btn-wizard-submit-ready');
+          saveBtn.setAttribute('title', 'Complete nombres, apellidos y cédula obligatorios para registrar el servidor');
+        }
+      }
+    };
+    ['ef-nombres', 'ef-apellidos', 'ef-cedula'].forEach(id => {
+      const inp = document.getElementById(id);
+      if (inp) {
+        inp.addEventListener('input', checkRequiredEmpFields);
+      }
+    });
 
     // 3. Regla 1: Dependencia y Cargo (Carga dinámica y deduplicada según dependencia para Titular y Encargo)
     const depSelect = document.getElementById('ef-dep');
