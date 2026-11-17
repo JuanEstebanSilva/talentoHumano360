@@ -1056,17 +1056,14 @@ const HorariosModule = (() => {
       buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     }
 
+    const docVal = (document.getElementById('horario-documento')?.value || '').trim();
+    const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
+    const isComplete = Boolean(docVal && nomVal);
+
     if (isEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm(${currentScheduleModalItem.id_horario})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      if (nextTab) {
-        buttonsHtml += `<button type="button" class="btn btn-wizard-submit" id="btn-save-horario" disabled title="Complete todos los pasos del formulario para crear el esquema">${saveCheckSvg}<span>Crear Esquema</span></button>`;
-      } else {
-        const docVal = (document.getElementById('horario-documento')?.value || '').trim();
-        const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
-        const isComplete = Boolean(docVal && nomVal);
-        buttonsHtml += `<button type="button" class="btn btn-primary ${isComplete ? 'btn-wizard-submit-ready' : ''}" id="btn-save-horario" ${isComplete ? '' : 'disabled title="Debe asociar un servidor público antes de guardar"'} onclick="HorariosModule.submitScheduleForm()">${saveCheckSvg}<span>Crear Esquema</span></button>`;
-      }
+      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${isComplete ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Debe asociar un servidor público antes de guardar"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
     }
 
     if (nextTab) {
@@ -1746,6 +1743,10 @@ const HorariosModule = (() => {
       if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
         App.refreshFloatingLabels(document.getElementById('modal-body'));
       }
+      const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+      if (curActiveTab) {
+        updateHorariosWizardFooter(curActiveTab);
+      }
       App.showToast('Selección de servidor limpiada. Busque por nombre o cédula para asociar otro funcionario.', 'info');
     };
 
@@ -2143,7 +2144,7 @@ const HorariosModule = (() => {
     const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
     const modalidad = modalidadRadio ? modalidadRadio.value : 'Presencial';
 
-    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value || null;
+    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value || new Date().toISOString().split('T')[0];
     const fecha_fin = document.getElementById('horario-fecha-fin')?.value || null;
     const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || 
       (modalidad === 'Teletrabajo' ? '2 días / semana' : modalidad === 'Horario flexible' ? '8 horas / día' : modalidad === 'Trabajo en casa' ? 'No aplica' : 'Jornada ordinaria');
@@ -2165,15 +2166,6 @@ const HorariosModule = (() => {
       return;
     }
 
-    if (!fecha_inicio) {
-      if (typeof App !== 'undefined' && App.markFieldInvalid) {
-        App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia del esquema es obligatoria.');
-      } else {
-        App.showToast('La fecha de inicio del esquema es obligatoria.', 'warning');
-      }
-      return;
-    }
-
     if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('horario-fecha-fin', 'La fecha de terminación debe ser posterior o igual a la fecha de inicio.');
@@ -2185,7 +2177,7 @@ const HorariosModule = (() => {
 
     // Validación de número consecutivo para nuevos registros (no dejar disminuir del último que está)
     if (!existingId) {
-      const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
+      const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : currentMinConsecutivo;
       if (!cVal || cVal < currentMinConsecutivo) {
         if (typeof App !== 'undefined' && App.markFieldInvalid) {
           App.markFieldInvalid('horario-consecutivo', `El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`);

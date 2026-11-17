@@ -192,6 +192,7 @@ const App = (() => {
   let modalCloseSeq = 0;
   let modalIsEditForm = false;
   let modalInitialSnapshot = null;
+  let modalUserInteracted = false;
 
   function captureModalFormSnapshot() {
     const body = document.getElementById('modal-body');
@@ -201,16 +202,27 @@ const App = (() => {
     controls.forEach(ctrl => {
       if (ctrl.id === 'modal-search') return;
       if (ctrl.type === 'checkbox' || ctrl.type === 'radio') {
-        values.push(`${ctrl.name || ctrl.id}:${ctrl.checked}`);
+        values.push(`${ctrl.name || ctrl.id || ctrl.className}:${ctrl.checked}`);
       } else {
-        values.push(`${ctrl.name || ctrl.id}:${ctrl.value}`);
+        values.push(`${ctrl.name || ctrl.id || ctrl.className}:${ctrl.value}`);
       }
     });
     return values.join('|:::|');
   }
 
   function isModalDirty() {
-    if (!modalIsEditForm || modalInitialSnapshot === null) return false;
+    if (modalInitialSnapshot === null) return false;
+    const box = document.querySelector('.modal-box');
+    const title = document.getElementById('modal-title')?.textContent || '';
+    const lowerTitle = title.toLowerCase();
+    // Eximir modales que no son formularios de captura/edición
+    if (
+      lowerTitle.includes('filtro') ||
+      lowerTitle.includes('confirmar') ||
+      (box && (box.classList.contains('modal-filter') || box.classList.contains('modal-ficha')))
+    ) {
+      return false;
+    }
     const current = captureModalFormSnapshot();
     return current !== modalInitialSnapshot;
   }
@@ -218,6 +230,7 @@ const App = (() => {
   function markFormClean() {
     modalIsEditForm = false;
     modalInitialSnapshot = null;
+    modalUserInteracted = false;
     removeUnsavedChangesPrompt();
   }
 
@@ -282,19 +295,72 @@ const App = (() => {
     const titleEl = document.getElementById('modal-title');
     const bodyEl = document.getElementById('modal-body');
     const footerEl = document.getElementById('modal-footer');
+    const closeBtn = document.getElementById('modal-close');
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
 
     removeUnsavedChangesPrompt();
 
-    // Detectar si el modal corresponde a un formulario de edición
+    // Configurar botón Cancelar / Cerrar en la cabecera superior derecha
     const lowerTitle = String(title || '').toLowerCase();
+    const isWizardOrMajorForm = 
+      (customClass && (
+        customClass.includes('modal-wizard') ||
+        customClass.includes('modal-form-emp') ||
+        customClass.includes('modal-schedule') ||
+        customClass.includes('modal-viatico') ||
+        customClass.includes('modal-wide') ||
+        customClass.includes('modal-lg')
+      )) ||
+      lowerTitle.includes('servidor') ||
+      lowerTitle.includes('horario') ||
+      lowerTitle.includes('viático') ||
+      lowerTitle.includes('viatico');
+
+    const isNonFormModal = 
+      (customClass && (customClass.includes('modal-ficha') || customClass.includes('modal-filter') || customClass.includes('modal-package'))) ||
+      lowerTitle.includes('ficha') ||
+      lowerTitle.includes('detalle') ||
+      lowerTitle.includes('confirmar') ||
+      lowerTitle.includes('filtro') ||
+      lowerTitle.includes('histórico anual') ||
+      lowerTitle.includes('historico anual') ||
+      lowerTitle.includes('ejecución presupuestal') ||
+      lowerTitle.includes('ejecucion presupuestal') ||
+      lowerTitle.includes('carpeta');
+
+    if (closeBtn) {
+      if (isWizardOrMajorForm && !isNonFormModal) {
+        closeBtn.className = 'modal-close is-cancel-btn btn-wizard-cancel';
+        closeBtn.innerHTML = '<span>Cancelar</span>';
+        closeBtn.title = 'Cancelar formulario y salir';
+        closeBtn.setAttribute('aria-label', 'Cancelar formulario');
+      } else {
+        closeBtn.className = 'modal-close';
+        closeBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+        closeBtn.title = 'Cerrar';
+        closeBtn.setAttribute('aria-label', 'Cerrar modal');
+      }
+    }
+
+    // Detectar si el modal corresponde a un formulario de edición
     const hasEditAction = Array.isArray(footerButtons) && footerButtons.some(b =>
       (b.cls && b.cls.includes('btn-gold')) ||
       (b.text && (b.text.toLowerCase().includes('guardar cambios') || b.text.toLowerCase().includes('actualizar')))
     );
     modalIsEditForm = lowerTitle.includes('editar') || hasEditAction;
     modalInitialSnapshot = null;
+    modalUserInteracted = false;
+
+    // Escuchar cambios tempranos del usuario en el cuerpo del modal
+    const markInteraction = () => { modalUserInteracted = true; };
+    bodyEl.addEventListener('input', markInteraction, { passive: true, once: true });
+    bodyEl.addEventListener('change', markInteraction, { passive: true, once: true });
 
     modalCloseSeq++; // Invalidate any running closeModal animation callbacks
 
@@ -330,6 +396,9 @@ const App = (() => {
       footerEl.appendChild(el);
     });
 
+    // Capturar snapshot inicial
+    modalInitialSnapshot = captureModalFormSnapshot();
+
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
@@ -337,7 +406,7 @@ const App = (() => {
     setTimeout(() => {
       initDatePickers(bodyEl);
       initFormUX(bodyEl);
-      if (modalIsEditForm) {
+      if (!modalUserInteracted) {
         modalInitialSnapshot = captureModalFormSnapshot();
       }
     }, 140);
@@ -957,7 +1026,7 @@ const App = (() => {
   }
 
   function closeModal(force = false) {
-    if (force !== true && modalIsEditForm && isModalDirty()) {
+    if (force !== true && isModalDirty()) {
       showUnsavedChangesPrompt();
       return;
     }
@@ -3718,6 +3787,13 @@ const App = (() => {
 
     // Modal close - Únicamente mediante los botones del modal/formulario (con confirmación si hay cambios)
     document.getElementById('modal-close')?.addEventListener('click', () => closeModal(false));
+
+    // Clic en fondo exterior (modal-overlay) con confirmación si hay cambios
+    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'modal-overlay') {
+        closeModal(false);
+      }
+    });
 
     // Tecla Escape para modales y confirmación de descarte de cambios
     document.addEventListener('keydown', (e) => {

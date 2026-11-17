@@ -674,17 +674,14 @@ const ViaticosModule = (() => {
       buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     }
 
+    const docVal = (document.getElementById('vf-doc')?.value || '').trim();
+    const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
+    const isComplete = Boolean(docVal && nomVal);
+
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      if (nextTab) {
-        buttonsHtml += `<button type="button" class="btn btn-wizard-submit" id="vit-save-btn" disabled title="Complete los pasos del formulario para crear el viático">${saveCheckSvg}<span>Crear Viático</span></button>`;
-      } else {
-        const docVal = (document.getElementById('vf-doc')?.value || '').trim();
-        const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
-        const isComplete = Boolean(docVal && nomVal);
-        buttonsHtml += `<button type="button" class="btn btn-primary ${isComplete ? 'btn-wizard-submit-ready' : ''}" id="vit-save-btn" ${isComplete ? '' : 'disabled title="Debe asociar un servidor público antes de crear el viático"'} onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
-      }
+      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${isComplete ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Debe asociar un servidor público antes de crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
     }
 
     if (nextTab) {
@@ -1093,7 +1090,29 @@ const ViaticosModule = (() => {
   }
 
   // ─── Autocompletado de Servidores (Por Nombre y Por Cédula) ─────────────────
+  function updateViaticosSaveBtnState() {
+    if (currentFormIsEdit) return;
+    const saveBtn = document.getElementById('vit-save-btn');
+    if (!saveBtn) return;
+    const docVal = (document.getElementById('vf-doc')?.value || '').trim();
+    const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
+    const isComplete = Boolean(docVal && nomVal);
+    saveBtn.disabled = !isComplete;
+    if (isComplete) {
+      saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
+      saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.removeAttribute('title');
+      saveBtn.onclick = () => ViaticosModule.saveCreate();
+    } else {
+      saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
+      saveBtn.setAttribute('title', 'Debe asociar un servidor público antes de crear el viático');
+      saveBtn.onclick = null;
+    }
+  }
+
   function onNombreInput(val) {
+    updateViaticosSaveBtnState();
     clearTimeout(employeeSearchTimeout);
     const drop = document.getElementById('vf-autocomplete-list');
     if (!drop) return;
@@ -1148,6 +1167,7 @@ const ViaticosModule = (() => {
   }
 
   function onDocInput(val) {
+    updateViaticosSaveBtnState();
     clearTimeout(employeeSearchTimeout);
     const drop = document.getElementById('vf-doc-autocomplete-list');
     if (!drop) return;
@@ -1317,6 +1337,11 @@ const ViaticosModule = (() => {
 
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    if (curActiveTab) {
+      updateViaticosWizardFooter(curActiveTab);
     }
 
     if (nombreInput) {
@@ -2241,8 +2266,8 @@ const ViaticosModule = (() => {
     const doc = document.getElementById('vf-doc')?.value.trim();
     const rawDestino = document.getElementById('vf-destino')?.value?.trim();
     const destino = rawDestino || 'TUNJA, BOYACÁ';
-    const fi = document.getElementById('vf-fi')?.value;
-    const ff = document.getElementById('vf-ff')?.value;
+    let fi = document.getElementById('vf-fi')?.value;
+    let ff = document.getElementById('vf-ff')?.value;
 
     if (!nombre) {
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
@@ -2263,12 +2288,10 @@ const ViaticosModule = (() => {
     }
 
     if (!fi) {
-      if (typeof App !== 'undefined' && App.markFieldInvalid) {
-        App.markFieldInvalid('vf-fi', 'La fecha de inicio de la comisión es requerida.');
-      } else {
-        App.showToast('La fecha de inicio de la comisión es requerida.', 'warning');
-      }
-      return null;
+      fi = new Date().toISOString().split('T')[0];
+    }
+    if (!ff) {
+      ff = fi;
     }
 
     if (fi && ff && new Date(ff) < new Date(fi)) {
@@ -2293,7 +2316,7 @@ const ViaticosModule = (() => {
       telefono: document.getElementById('vf-telefono')?.value.trim() || '',
       tipoDestino,
       destino,
-      motivo: document.getElementById('vf-motivo')?.value.trim() || '',
+      motivo: document.getElementById('vf-motivo')?.value.trim() || 'Comisión de servicios',
       fechaInicio: fi || '',
       fechaFin: ff || '',
       dias: parseInt(document.getElementById('vf-dias')?.value) || 1,
@@ -4091,7 +4114,8 @@ const ViaticosModule = (() => {
         try {
           await API.createViaticosAnio({ anio, descripcion });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
           App.showToast(`Histórico anual para la vigencia fiscal ${anio} creado exitosamente.`, 'success');
           await loadYears();
           await loadPackages();
@@ -4331,7 +4355,8 @@ const ViaticosModule = (() => {
           }
 
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
           App.showToast(`Carpeta "${nombre}" (${anio}) creada exitosamente.`, 'success');
           await loadPackages();
           if (state.activeView === 'year_packages') {
