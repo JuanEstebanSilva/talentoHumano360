@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ViaticosModule = (() => {
-  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'];
+  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Sin Viático', 'Rechazado', 'Anulado'];
   const DEPENDENCIAS_LIST = [
     'Todas',
     'DESPACHO DEL GOBERNADOR',
@@ -41,6 +41,7 @@ const ViaticosModule = (() => {
   let mainContainer = null;
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+  let aprobadoSearchTimeout = null;
 
   function getInitials(name) {
     if (!name) return 'VT';
@@ -144,7 +145,8 @@ const ViaticosModule = (() => {
     if (typeof val === 'number') return isNaN(val) ? null : val;
     let s = String(val).trim();
     if (!s) return null;
-    s = s.replace(/[\$\sCOPcop]/g, '');
+    const isNegative = s.includes('-') || (s.startsWith('(') && s.endsWith(')'));
+    s = s.replace(/[\$\sCOPcop\(\)\-]/g, '');
     if (!s) return null;
     if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
       s = s.replace(/\./g, '').replace(',', '.');
@@ -154,7 +156,8 @@ const ViaticosModule = (() => {
       s = s.replace(',', '.');
     }
     const num = parseFloat(s);
-    return isNaN(num) ? null : num;
+    if (isNaN(num)) return null;
+    return isNegative ? -num : num;
   }
 
   // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
@@ -234,8 +237,15 @@ const ViaticosModule = (() => {
     'Canadá', 'Italia', 'Suiza', 'Costa Rica', 'Uruguay', 'Otro País'
   ];
 
+  function isSinViaticoText(str) {
+    if (!str) return false;
+    const s = String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return /sin\s*viatico/i.test(s);
+  }
+
   function badgeClass(estado) {
-    const e = (estado || '').toLowerCase();
+    const e = (estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (e.includes('sin viatic')) return 'badge--sin-viatico';
     if (e.includes('aprobad'))   return 'badge--aprobada';
     if (e.includes('legaliz') || e.includes('finaliz')) return 'badge--finalizada';
     if (e.includes('ejecuci') || e.includes('revis'))   return 'badge--revision';
@@ -661,24 +671,24 @@ const ViaticosModule = (() => {
     if (prevTab) {
       buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     }
 
-    if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
-    }
-
-    // Botón de Guardar/Crear disponible en todo momento sin requerir llegar a la última pestaña
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      if (nextTab) {
+        buttonsHtml += `<button type="button" class="btn btn-wizard-submit" id="vit-save-btn" disabled title="Complete los pasos del formulario para crear el viático">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      } else {
+        const docVal = (document.getElementById('vf-doc')?.value || '').trim();
+        const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
+        const isComplete = Boolean(docVal && nomVal);
+        buttonsHtml += `<button type="button" class="btn btn-primary ${isComplete ? 'btn-wizard-submit-ready' : ''}" id="vit-save-btn" ${isComplete ? '' : 'disabled title="Debe asociar un servidor público antes de crear el viático"'} onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      }
     }
 
     if (nextTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -752,13 +762,34 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="vf-cargo">Cargo Actual</label>
+              <label class="form-label" for="vf-cargo">Cargo Institucional</label>
               <input id="vf-cargo" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
 
+            <div style="display:flex; gap:10px;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-codigo">Código</label>
+                <input id="vf-codigo" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Código..." enterkeyhint="next" value="${escHtml(r.codigo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-grado">Grado</label>
+                <input id="vf-grado" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Grado..." inputmode="numeric" enterkeyhint="next" value="${escHtml(r.grado||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-dep">Dependencia</label>
+              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Dependencia..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-secretaria">Secretaría</label>
+              <input id="vf-secretaria" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría..." enterkeyhint="next" value="${escHtml(r.secretaria||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
             <div class="form-group span-2">
-              <label class="form-label" for="vf-dep">Dependencia / Secretaría</label>
-              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              <label class="form-label" for="vf-telefono">Teléfono de Contacto (Opcional)</label>
+              <input id="vf-telefono" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Teléfono o celular..." enterkeyhint="next" value="${escHtml(r.telefono||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
           </div>
         </div>
@@ -876,7 +907,8 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Valor Total Registrado ($ COP)</label>
-              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="this.dataset.autoCalculated = 'false'" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="ViaticosModule.onValorTotalManualChange()" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <div class="form-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Calculado automáticamente (Días × Diario) o editable según acto administrativo.</div>
             </div>
 
             <div class="form-group">
@@ -886,12 +918,14 @@ const ViaticosModule = (() => {
 
             <div class="form-group">
               <label class="form-label">Saldo Presupuestal ($ COP)</label>
-              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo||'')}" ${dis} />
+              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo != null ? r.saldo : '')}" oninput="ViaticosModule.onSaldoManualInput()" ${dis} />
+              <div id="vf-saldo-hint" class="form-hint" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Descontado automáticamente según valor total registrado.</div>
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Aprobado Por</label>
-              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+            <div class="form-group span-2 autocomplete-wrapper">
+              <label class="form-label" for="vf-aprobado">Aprobado Por</label>
+              <input id="vf-aprobado" class="form-input" placeholder="Escriba nombre o cédula del funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" oninput="ViaticosModule.onAprobadoInput(this.value)" autocomplete="off" ${dis} />
+              <div id="vf-aprobado-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -1027,6 +1061,7 @@ const ViaticosModule = (() => {
       }
     }
     calcTotal();
+    initSaldoPresupuestal(r);
     onEstadoChange();
   }
 
@@ -1035,8 +1070,6 @@ const ViaticosModule = (() => {
     if (!emp || (!emp.nombre_completo && !emp.persona)) return '';
     const name = emp.nombre_completo || emp.persona || '';
     const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
-    const dep = emp.dependencia || 'Sin dependencia';
     const initial = name.trim().charAt(0).toUpperCase() || 'S';
     const situacion = emp.situacion || emp.situacion_laboral || emp.estado || 'Activo';
 
@@ -1055,16 +1088,6 @@ const ViaticosModule = (() => {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Cambiar Servidor
         </button>
-      </div>
-      <div class="servidor-loaded-details">
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Cargo:</span>
-          <span class="pill-val">${escHtml(cargo)}</span>
-        </div>
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Dependencia:</span>
-          <span class="pill-val">${escHtml(dep)}</span>
-        </div>
       </div>
     `;
   }
@@ -1090,17 +1113,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1133,17 +1167,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1161,62 +1206,79 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
+
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
     const cardEl = document.getElementById('vf-servidor-card');
 
-    const name = emp.nombre_completo || emp.persona || '';
-    const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || '';
-    const dep = emp.dependencia || '';
+    const name = (emp.nombre_completo || emp.persona || '').toString().trim();
+    const doc = (emp.cedula || emp.documento || '').toString().trim();
+    const cargo = (emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado').toString().trim();
+    const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+    const codigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+    const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+    const grado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+    const rawDept = (emp.dependencia || '').toString().trim();
+    const dep = (rawDept && rawDept !== '—') ? rawDept : 'Sin dependencia';
+    const rawSec = (emp.secretaria || '').toString().trim();
+    const sec = (rawSec && rawSec !== '—') ? rawSec : 'SECRETARÍA GENERAL';
+    const rawTel = (emp.telefono || emp.celular || emp.telefono_fijo || '').toString().trim();
+    const tel = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
 
-    if (nombreInput) {
-      nombreInput.value = name;
-      nombreInput.readOnly = true;
-      nombreInput.setAttribute('readonly', 'readonly');
-      nombreInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      nombreInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (docInput) {
-      docInput.value = doc;
-      docInput.readOnly = true;
-      docInput.setAttribute('readonly', 'readonly');
-      docInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      docInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (cargoInput) {
-      cargoInput.value = cargo;
-      cargoInput.readOnly = true;
-      cargoInput.setAttribute('readonly', 'readonly');
-      cargoInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      cargoInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (depInput) {
-      depInput.value = dep;
-      depInput.readOnly = true;
-      depInput.setAttribute('readonly', 'readonly');
-      depInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      depInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
+    const allInputs = [
+      { el: nombreInput, val: name },
+      { el: docInput, val: doc },
+      { el: cargoInput, val: cargo },
+      { el: codigoInput, val: codigo },
+      { el: gradoInput, val: grado },
+      { el: depInput, val: dep },
+      { el: secInput, val: sec },
+      { el: telInput, val: tel }
+    ];
 
-    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
-    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
-
-    if (cardEl) {
-      cardEl.innerHTML = renderViaticoServidorCardHtml(emp);
-      cardEl.style.display = 'block';
-    }
-
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    allInputs.forEach(({ el, val }) => {
       if (el) {
+        el.value = val;
+        el.readOnly = true;
+        el.setAttribute('readonly', 'readonly');
+        el.classList.add('field-locked-readonly', 'input-locked-servidor');
+        el.title = 'Dato institucional protegido de la planta de personal. No modificable.';
         el.classList.add('input-flash-sync');
         setTimeout(() => el.classList.remove('input-flash-sync'), 1800);
       }
     });
 
+    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
+    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
+
+    if (cardEl) {
+      cardEl.innerHTML = renderViaticoServidorCardHtml({
+        nombre_completo: name,
+        cedula: doc,
+        cargo,
+        codigo,
+        grado,
+        dependencia: dep,
+        secretaria: sec,
+        telefono: tel,
+        situacion: emp.situacion || emp.situacion_laboral || emp.estado || 'Activo'
+      });
+      cardEl.style.display = 'block';
+    }
+
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+
+    // Actualizar footer del wizard para habilitar Crear Viático si está en la última pestaña
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    if (curActiveTab) {
+      updateViaticosWizardFooter(curActiveTab);
     }
 
     App.showToast(`Servidor oficial vinculado: ${name}`, 'success');
@@ -1227,12 +1289,16 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
     const cardEl = document.getElementById('vf-servidor-card');
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
 
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    [nombreInput, docInput, cargoInput, codigoInput, gradoInput, depInput, secInput, telInput].forEach(el => {
       if (el) {
         el.value = '';
         el.readOnly = false;
@@ -1259,8 +1325,76 @@ const ViaticosModule = (() => {
     App.showToast('Selección de servidor limpiada. Escriba nombre o cédula para buscar otro servidor.', 'info');
   }
 
+  // ─── Autocompletado de Servidores en "Aprobado Por" ─────────────────────────
+  function onAprobadoInput(val) {
+    clearTimeout(aprobadoSearchTimeout);
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (!drop) return;
+    const query = (val || '').trim();
+    if (query.length < 2) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+      return;
+    }
+    aprobadoSearchTimeout = setTimeout(async () => {
+      try {
+        const res = await (API.buscarServidor ? API.buscarServidor(query, 6) : API.getEmployees({ q: query, limit: 6 }));
+        const list = res.data || [];
+        if (!list.length) {
+          drop.style.display = 'none';
+          drop.innerHTML = '';
+          return;
+        }
+        drop.innerHTML = list.map(emp => {
+          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empPayload = JSON.stringify({
+            nombre_completo: emp.nombre_completo || '',
+            cedula: emp.cedula || ''
+          }).replace(/"/g, '&quot;');
+          return `
+            <div class="autocomplete-item" onclick="ViaticosModule.selectAprobador(${empPayload})">
+              <div class="autocomplete-item-avatar">${initial}</div>
+              <div class="autocomplete-item-body">
+                <div class="autocomplete-item-header">
+                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
+                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+                </div>
+                <div class="autocomplete-item-meta">
+                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Servidor Público')} • ${escHtml(emp.dependencia || 'Gobernación de Boyacá')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        drop.style.display = 'block';
+      } catch (_) {
+        drop.style.display = 'none';
+      }
+    }, 200);
+  }
+
+  function selectAprobador(emp) {
+    const input = document.getElementById('vf-aprobado');
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (drop) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+    }
+    if (!input || !emp) return;
+    const nombre = (emp.nombre_completo || '').trim();
+    const doc = (emp.cedula || '').trim();
+    if (nombre && doc) {
+      input.value = `${nombre} - C.C. ${doc}`;
+    } else {
+      input.value = nombre || doc;
+    }
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
   function bindServidorLockGuards() {
-    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-dep'];
+    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-codigo', 'vf-grado', 'vf-dep', 'vf-secretaria', 'vf-telefono'];
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1391,9 +1525,139 @@ const ViaticosModule = (() => {
         el.dataset.autoCalculated = 'true';
       }
     }
+    updateCalculatedSaldo();
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
+  }
+
+  // ─── Gestión de Saldo Presupuestal Dinámico ───────────────────────────────
+  function getActivePackageOrFallback(pkgId = null) {
+    if (state.activePackage) return state.activePackage;
+    if (pkgId && Array.isArray(state.packages)) {
+      return state.packages.find(p => p.id_paquete === pkgId) || null;
+    }
+    return (Array.isArray(state.packages) && state.packages[0]) ? state.packages[0] : null;
+  }
+
+  function initSaldoPresupuestal(r = {}) {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    const pkgId = r?.id_paquete || (state.activePackage ? state.activePackage.id_paquete : null);
+    const activePkg = getActivePackageOrFallback(pkgId);
+    const pkgPresupuesto = (activePkg && activePkg.presupuesto_inicial != null && !isNaN(parseFloat(activePkg.presupuesto_inicial)))
+      ? parseFloat(activePkg.presupuesto_inicial)
+      : null;
+
+    let saldoBase = null;
+
+    if (currentFormIsEdit && r) {
+      const currentSaldo = (r.saldo != null && !isNaN(parseFloat(r.saldo))) ? parseFloat(r.saldo) : null;
+      const currentTotal = (r.valorTotal != null && !isNaN(parseFloat(r.valorTotal))) ? parseFloat(r.valorTotal) : 0;
+
+      if (pkgPresupuesto != null && currentSaldo != null && Math.abs(currentSaldo - pkgPresupuesto) < 0.01) {
+        // En la captura de pantalla: el registro se guardó con el saldo base idéntico al presupuesto inicial
+        // sin descontar aún el valor total registrado.
+        saldoBase = pkgPresupuesto;
+      } else if (currentSaldo != null) {
+        saldoBase = currentSaldo + currentTotal;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    } else {
+      // Creación de nuevo registro:
+      let ultimoSaldo = null;
+      if (Array.isArray(state.data) && state.data.length > 0) {
+        for (const item of state.data) {
+          if (item.saldo != null && !isNaN(parseFloat(item.saldo))) {
+            ultimoSaldo = parseFloat(item.saldo);
+            break;
+          }
+        }
+      }
+      if (ultimoSaldo != null) {
+        saldoBase = ultimoSaldo;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    }
+
+    if (saldoBase != null && !isNaN(saldoBase)) {
+      saldoInput.dataset.saldoBase = String(saldoBase);
+      const currentVal = (saldoInput.value !== undefined && saldoInput.value !== null && saldoInput.value.trim() !== '' && !isNaN(parseFloat(saldoInput.value)))
+        ? parseFloat(saldoInput.value)
+        : null;
+      const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+
+      if (!currentFormIsEdit || currentVal === null || Math.abs(currentVal - saldoBase) < 0.01) {
+        updateCalculatedSaldo();
+      } else {
+        const hint = document.getElementById('vf-saldo-hint');
+        if (hint) {
+          const saldoCalculado = Math.round(saldoBase - vTotal);
+          hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${saldoCalculado < 0 ? 'color:#dc2626;' : ''}">$ ${Number(saldoCalculado).toLocaleString('es-CO')}${saldoCalculado < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
+        }
+      }
+    }
+  }
+
+  function updateCalculatedSaldo() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    if (saldoInput.dataset.manuallyEdited === 'true' && saldoInput.value !== '') {
+      return;
+    }
+
+    const saldoBase = parseFloat(saldoInput.dataset.saldoBase);
+    if (isNaN(saldoBase)) return;
+
+    const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+    // Permite saldos negativos si la comisión oficial supera la disponibilidad presupuestal
+    const nuevoSaldo = Math.round(saldoBase - vTotal);
+
+    saldoInput.value = nuevoSaldo;
+
+    if (nuevoSaldo < 0) {
+      saldoInput.style.color = '#dc2626';
+      saldoInput.style.fontWeight = '700';
+    } else {
+      saldoInput.style.color = '';
+      saldoInput.style.fontWeight = '';
+    }
+
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${nuevoSaldo < 0 ? 'color:#dc2626;' : ''}">$ ${Number(nuevoSaldo).toLocaleString('es-CO')}${nuevoSaldo < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
+    }
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
+  function onSaldoManualInput() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    saldoInput.dataset.manuallyEdited = 'true';
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `<span style="color:#d97706;">Saldo editado manualmente.</span> <a href="javascript:void(0)" onclick="ViaticosModule.resetSaldoPresupuestal()" style="color:var(--color-primary); text-decoration:underline; font-weight:600; margin-left:4px;">Recalcular automático</a>`;
+    }
+  }
+
+  function resetSaldoPresupuestal() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    delete saldoInput.dataset.manuallyEdited;
+    updateCalculatedSaldo();
+  }
+
+  function onValorTotalManualChange() {
+    const el = document.getElementById('vf-vtotal');
+    if (el) el.dataset.autoCalculated = 'false';
+    updateCalculatedSaldo();
   }
 
   function onEstadoChange() {
@@ -2022,7 +2286,11 @@ const ViaticosModule = (() => {
       persona: nombre,
       documento: document.getElementById('vf-doc')?.value.trim() || '',
       dependencia: document.getElementById('vf-dep')?.value.trim() || '',
+      secretaria: document.getElementById('vf-secretaria')?.value.trim() || '',
       cargo: document.getElementById('vf-cargo')?.value.trim() || '',
+      codigo: document.getElementById('vf-codigo')?.value.trim() || '',
+      grado: document.getElementById('vf-grado')?.value.trim() || '',
+      telefono: document.getElementById('vf-telefono')?.value.trim() || '',
       tipoDestino,
       destino,
       motivo: document.getElementById('vf-motivo')?.value.trim() || '',
@@ -2039,7 +2307,12 @@ const ViaticosModule = (() => {
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',
       aprobadoPor: document.getElementById('vf-aprobado')?.value.trim() || '',
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
-      saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
+      saldo: (function() {
+        const val = document.getElementById('vf-saldo')?.value;
+        if (val === undefined || val === null || String(val).trim() === '') return null;
+        const num = parseFloat(val);
+        return isNaN(num) ? null : num;
+      })(),
       soporte: currentUploadedFile || null,
       id_paquete: (state.activePackage ? state.activePackage.id_paquete : (parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.packages && state.packages[0] ? state.packages[0].id_paquete : null))),
     };
@@ -2076,6 +2349,13 @@ const ViaticosModule = (() => {
       cls: 'status-card-opt--finalizada',
     },
     {
+      id: 'sin_viatico',
+      name: 'Sin Viático',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+      desc: 'Comisión oficial autorizada sin asignación de viáticos monetarios',
+      cls: 'status-card-opt--sin-viatico',
+    },
+    {
       id: 'rechazado',
       name: 'Rechazado',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -2101,12 +2381,13 @@ const ViaticosModule = (() => {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const ALLOWED_MAP = {
-      'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
-      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+      'Radicado': ['Aprobado', 'Rechazado', 'Anulado', 'Sin Viático'],
+      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado', 'Sin Viático'],
       'En Ejecución': ['Legalizado', 'Anulado'],
       'Legalizado': [],
       'Rechazado': [],
-      'Anulado': []
+      'Anulado': [],
+      'Sin Viático': ['Aprobado', 'Anulado']
     };
     const currentStatus = r.estado || 'Radicado';
     const allowedNext = ALLOWED_MAP[currentStatus] || [];
@@ -3001,6 +3282,15 @@ const ViaticosModule = (() => {
         const toggleBtn = document.getElementById('vit-dropdown-toggle');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
       }
+
+      const dropApr = document.getElementById('vf-aprobado-autocomplete-list');
+      if (dropApr && dropApr.style.display !== 'none') {
+        const wrapApr = dropApr.closest('.autocomplete-wrapper');
+        if (!wrapApr || !wrapApr.contains(e.target)) {
+          dropApr.style.display = 'none';
+          dropApr.innerHTML = '';
+        }
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -3304,17 +3594,24 @@ const ViaticosModule = (() => {
       return `
       <div class="viaticos-pkg-card viaticos-folder-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
         <div class="viaticos-folder-card-body">
-          <div class="viaticos-folder-header-row">
-            <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-                <line x1="9" y1="11" x2="11" y2="11"></line>
-                <line x1="9" y1="18" x2="13" y2="18"></line>
-              </svg>
+          <div class="viaticos-folder-header-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+              <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                  <line x1="9" y1="11" x2="11" y2="11"></line>
+                  <line x1="9" y1="18" x2="13" y2="18"></line>
+                </svg>
+              </div>
+              <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
             </div>
-            <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
+            ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <div class="viaticos-presupuesto-badge" title="Presupuesto Asignado: ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}" style="display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; background:rgba(22, 163, 74, 0.09); border:1px solid rgba(22, 163, 74, 0.22); color:#15803d; font-size:11.5px; font-weight:800; white-space:nowrap; flex-shrink:0;">
+                <span style="font-size:11px;">💰</span> ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}
+              </div>
+            ` : ''}
           </div>
 
           <div class="viaticos-folder-subtitle">
@@ -3966,6 +4263,11 @@ const ViaticosModule = (() => {
         </div>
 
         <div class="form-group floating-group">
+          <label class="form-label" for="vpkg-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+          <input id="vpkg-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" placeholder="Ej: 50000000" autocomplete="off" />
+        </div>
+
+        <div class="form-group floating-group">
           <label class="form-label" for="vpkg-desc">Descripción o Notas (Opcional)</label>
           <textarea id="vpkg-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" autocomplete="off"></textarea>
         </div>
@@ -4004,6 +4306,9 @@ const ViaticosModule = (() => {
           return;
         }
 
+        const presupuestoVal = document.getElementById('vpkg-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
+
         const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
@@ -4015,7 +4320,8 @@ const ViaticosModule = (() => {
             nombre,
             anio,
             archivoOrigen,
-            descripcion
+            descripcion,
+            presupuestoInicial
           });
 
           // 2. Si se adjuntó un archivo Excel, parsearlo e importar sus filas
@@ -4165,6 +4471,8 @@ const ViaticosModule = (() => {
               <span class="vpkg-badge-metric">📊 <strong>${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</strong> viáticos</span>
               <span class="vpkg-badge-metric is-pending">⏳ <strong>${(pkg.pendientes || 0).toLocaleString('es-CO')}</strong> pendientes</span>
               <span class="vpkg-badge-metric is-approved">💰 <strong>${pkg.valor_aprobado_formatted || '$ 0'}</strong> aprobado</span>
+              ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <span class="vpkg-badge-metric" style="color:var(--color-primary);">🏦 <strong>${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}</strong> presupuesto</span>` : ''}
             </div>
           </div>
         </div>
@@ -4189,6 +4497,11 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="form-group floating-group">
+            <label class="form-label" for="vedit-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+            <input id="vedit-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" value="${pkg.presupuesto_inicial != null ? pkg.presupuesto_inicial : ''}" placeholder="Ej: 50000000" autocomplete="off" />
+          </div>
+
+          <div class="form-group floating-group">
             <label class="form-label" for="vedit-desc">Descripción o Notas de la Vigencia</label>
             <textarea id="vedit-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales">${escHtml(pkg.descripcion || '')}</textarea>
           </div>
@@ -4208,6 +4521,8 @@ const ViaticosModule = (() => {
         const anio = parseInt(document.getElementById('vedit-anio')?.value, 10) || pkg.anio;
         const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
         const descripcion = document.getElementById('vedit-desc')?.value.trim();
+        const presupuestoVal = document.getElementById('vedit-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
 
         if (!nombre) {
           App.showToast('El nombre es requerido.', 'warning');
@@ -4218,7 +4533,7 @@ const ViaticosModule = (() => {
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
         try {
-          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
+          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion, presupuestoInicial });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
           App.closeModal(true);
@@ -4669,6 +4984,24 @@ const ViaticosModule = (() => {
 
               const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal, explicitDias) : { start: null, end: null, dias: explicitDias ? parseInt(explicitDias, 10) : null };
 
+              let detectedObs = obsVal;
+              let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destVal);
+              if (!hasSinViaticoText) {
+                for (let c = 0; c < row.length; c++) {
+                  if (c !== colNom && isSinViaticoText(row[c])) {
+                    hasSinViaticoText = true;
+                    if (!detectedObs) detectedObs = String(row[c]).trim();
+                    break;
+                  }
+                }
+              }
+
+              const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+              const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+              const finalValor = esSinViatico ? 0 : valor;
+              const finalValorDiario = (esSinViatico || !dInfo.dias || dInfo.dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dInfo.dias).toFixed(2)) : 0);
+              const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
+
               allRows.push({
                 persona: nomStr,
                 dependencia: (typeof SECRETARIA_MAP !== 'undefined' && SECRETARIA_MAP[sheetName.trim().toUpperCase()]) || sheetName,
@@ -4677,10 +5010,10 @@ const ViaticosModule = (() => {
                 fechaInicio: dInfo.start,
                 fechaFin: dInfo.end,
                 dias: dInfo.dias,
-                valorDiario: (dInfo.dias > 0 && valor > 0) ? parseFloat((valor / dInfo.dias).toFixed(2)) : 0,
-                valorTotal: valor,
-                estado: (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada',
-                observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+                valorDiario: finalValorDiario,
+                valorTotal: finalValor,
+                estado: finalEstado,
+                observaciones: finalObs,
                 numeroResolucion: resolVal,
                 saldo: saldoVal,
                 id_paquete
@@ -5100,8 +5433,24 @@ const ViaticosModule = (() => {
 
             const dInfo = parseDateRobust(rawFecha, resolVal, explicitDias);
             const dias = dInfo.dias;
-            const valorDiario = (dias > 0 && valor > 0) ? parseFloat((valor / dias).toFixed(2)) : 0;
-            const estado = (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada';
+
+            let detectedObs = obsVal;
+            let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destinoVal);
+            if (!hasSinViaticoText) {
+              for (let c = 0; c < row.length; c++) {
+                if (c !== colNombre && isSinViaticoText(row[c])) {
+                  hasSinViaticoText = true;
+                  if (!detectedObs) detectedObs = String(row[c]).trim();
+                  break;
+                }
+              }
+            }
+
+            const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+            const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+            const finalValor = esSinViatico ? 0 : valor;
+            const finalValorDiario = (esSinViatico || !dias || dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dias).toFixed(2)) : 0);
+            const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
 
             allRows.push({
               persona: nomStr,
@@ -5111,10 +5460,10 @@ const ViaticosModule = (() => {
               fechaInicio: dInfo.start,
               fechaFin: dInfo.end,
               dias,
-              valorDiario,
-              valorTotal: valor,
-              estado,
-              observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+              valorDiario: finalValorDiario,
+              valorTotal: finalValor,
+              estado: finalEstado,
+              observaciones: finalObs,
               numeroResolucion: resolVal,
               saldo: saldoVal,
               hoja: sheetName
@@ -5315,10 +5664,17 @@ const ViaticosModule = (() => {
     openAdvancedFiltersModal,
     goPage,
     calcTotal,
+    onValorTotalManualChange,
+    initSaldoPresupuestal,
+    updateCalculatedSaldo,
+    onSaldoManualInput,
+    resetSaldoPresupuestal,
     onNombreInput,
     onDocInput,
     selectEmployee,
     clearSelectedEmployee,
+    onAprobadoInput,
+    selectAprobador,
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,

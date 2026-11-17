@@ -657,12 +657,26 @@ const App = (() => {
             // Sincronización con etiquetas flotantes
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
-              if (currentVal || dateStr) group.classList.add('is-floated');
-              if (instance.altInput) {
+              if (currentVal || dateStr || input.value) {
+                group.classList.add('is-floated');
+              } else {
+                group.classList.remove('is-floated');
+              }
+              if (instance.altInput && !instance.altInput._hasFloatListeners) {
+                instance.altInput._hasFloatListeners = true;
                 instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
                 instance.altInput.addEventListener('blur', () => {
                   group.classList.remove('is-focused');
-                  if (!input.value) group.classList.remove('is-floated');
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  }
+                });
+                instance.altInput.addEventListener('input', () => {
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  } else {
+                    group.classList.add('is-floated');
+                  }
                 });
               }
             }
@@ -797,7 +811,7 @@ const App = (() => {
         }
 
         const label = group.querySelector('.form-label, .filter-label, label');
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
@@ -812,10 +826,13 @@ const App = (() => {
           let hasVal = false;
           if (control.matches('select')) {
             hasVal = Boolean(control.value && String(control.value).trim() !== '');
-          } else if (control.type === 'date' || control._flatpickr) {
-            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
           } else {
-            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+            if (fp) {
+              hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+            } else {
+              hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            }
           }
 
           if (hasVal) {
@@ -902,17 +919,33 @@ const App = (() => {
     try {
       const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
         group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
           hasVal = Boolean(control.value && String(control.value).trim() !== '');
           group.classList.add('is-select');
-        } else if (control.type === 'date' || control._flatpickr) {
-          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
         } else {
-          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+          if (fp) {
+            hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
         }
         if (hasVal) {
           group.classList.add('is-floated');
@@ -1572,7 +1605,12 @@ const App = (() => {
     isReauthenticating = true;
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const currentUsername = user.username || '';
+    const prefillUser = user.username || user.email || (function() {
+      try {
+        const u = JSON.parse(localStorage.getItem('h360_user') || '{}');
+        return u.username || u.email || '';
+      } catch (_) { return ''; }
+    })() || '';
 
     const overlay = document.createElement('div');
     overlay.id = 'reauth-dialog-overlay';
@@ -1600,17 +1638,17 @@ const App = (() => {
           <div id="reauth-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500;"></div>
 
           <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
-              Usuario Institucional
+            <label for="reauth-username" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Institucional o Correo
             </label>
-            <input type="text" id="reauth-username" readonly style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f1f5f9); color: var(--text-primary, #334155); font-weight: 600; cursor: not-allowed; box-sizing: border-box;" />
+            <input type="text" id="reauth-username" autocomplete="username" placeholder="Ingresa tu correo o usuario institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); font-weight: 600; font-size: 0.95rem; box-sizing: border-box; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="margin-bottom: 22px;">
             <label for="reauth-password" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
               Contraseña
             </label>
-            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem;" />
+            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); box-sizing: border-box; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -1628,7 +1666,9 @@ const App = (() => {
     document.body.appendChild(overlay);
 
     const userInput = overlay.querySelector('#reauth-username');
-    if (userInput) userInput.value = currentUsername;
+    if (userInput && prefillUser) {
+      userInput.value = prefillUser;
+    }
 
     const pwdInput = overlay.querySelector('#reauth-password');
     const errEl = overlay.querySelector('#reauth-error');
@@ -1636,7 +1676,18 @@ const App = (() => {
     const cancelBtn = overlay.querySelector('#reauth-btn-cancel');
     const submitBtn = overlay.querySelector('#reauth-btn-submit');
 
-    if (pwdInput) {
+    if (userInput) {
+      userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (pwdInput) pwdInput.focus();
+        }
+      });
+    }
+
+    if (userInput && !userInput.value) {
+      setTimeout(() => userInput.focus(), 80);
+    } else if (pwdInput) {
       setTimeout(() => pwdInput.focus(), 80);
     }
 
@@ -1665,12 +1716,24 @@ const App = (() => {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const enteredUser = (userInput?.value || '').trim() || prefillUser;
       const pwd = pwdInput ? pwdInput.value : '';
+
+      if (!enteredUser) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingresa tu usuario institucional o correo electrónico.';
+          errEl.style.display = 'block';
+        }
+        if (userInput) userInput.focus();
+        return;
+      }
+
       if (!pwd) {
         if (errEl) {
           errEl.textContent = 'Por favor ingresa tu contraseña institucional.';
           errEl.style.display = 'block';
         }
+        if (pwdInput) pwdInput.focus();
         return;
       }
 
@@ -1681,7 +1744,7 @@ const App = (() => {
       if (errEl) errEl.style.display = 'none';
 
       try {
-        const res = await API.login(currentUsername, pwd);
+        const res = await API.login(enteredUser, pwd);
         if (res && res.token && res.user) {
           if (res.user) {
             res.user.role = sanitizeRole(res.user.role);

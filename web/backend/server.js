@@ -135,9 +135,12 @@ app.get('/api/db-status', async (_, res) => {
       `).catch(() => ({ rows: [] }));
 
       const countPersonas = await client.query('SELECT count(*) FROM personas').catch(() => ({ rows: [{ count: -1 }] }));
+      const countRel = await client.query('SELECT count(*) FROM rel_principal').catch(() => ({ rows: [{ count: -1 }] }));
+      const countContactos = await client.query('SELECT count(*) FROM contactos').catch(() => ({ rows: [{ count: -1 }] }));
+      const countEducacion = await client.query('SELECT count(*) FROM educacion').catch(() => ({ rows: [{ count: -1 }] }));
+      const countEstados = await client.query('SELECT count(*) FROM estados').catch(() => ({ rows: [{ count: -1 }] }));
       const countViaticos = await client.query('SELECT count(*) FROM viaticos').catch(() => ({ rows: [{ count: -1 }] }));
       const countHorarios = await client.query('SELECT count(*) FROM horarios').catch(() => ({ rows: [{ count: -1 }] }));
-      const countRel = await client.query('SELECT count(*) FROM rel_principal').catch(() => ({ rows: [{ count: -1 }] }));
 
       return res.json({
         status: 'connected',
@@ -150,6 +153,9 @@ app.get('/api/db-status', async (_, res) => {
         counts: {
           personas: parseInt(countPersonas.rows[0].count),
           rel_principal: parseInt(countRel.rows[0].count),
+          contactos: parseInt(countContactos.rows[0].count),
+          educacion: parseInt(countEducacion.rows[0].count),
+          estados: parseInt(countEstados.rows[0].count),
           viaticos: parseInt(countViaticos.rows[0].count),
           horarios: parseInt(countHorarios.rows[0].count),
         },
@@ -219,6 +225,18 @@ async function startServer() {
     }
   } else {
     console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
+  }
+
+  // 1.1 Ejecución segura de migraciones pendientes registradas (idempotente vía schema_migrations)
+  try {
+    const client = await pool.connect();
+    try {
+      await runMigrations(client);
+    } finally {
+      client.release();
+    }
+  } catch (migErr) {
+    console.warn('[Talento 360 Migraciones] Aviso al verificar migraciones seguras:', migErr.message);
   }
 
   // 2. Importación de Microservicios

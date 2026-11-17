@@ -1332,10 +1332,10 @@
 .filter-group.is-floated > label,
 .filter-group:focus-within > .filter-label,
 .filter-group:focus-within > label,
-.filter-group:has(.filter-input:not(:placeholder-shown)) > .filter-label,
-.filter-group:has(.filter-input:not(:placeholder-shown)) > label,
-.filter-group:has(input:not(:placeholder-shown)) > .filter-label,
-.filter-group:has(input:not(:placeholder-shown)) > label {
+.filter-group:has(.filter-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > .filter-label,
+.filter-group:has(.filter-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > label,
+.filter-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > .filter-label,
+.filter-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;
@@ -1881,6 +1881,18 @@ tbody tr:last-child td {
   box-shadow: 0 0 6px rgba(168, 85, 247, 0.7);
 }
 
+.badge--sin-viatico {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.12) 0%, rgba(71, 85, 105, 0.18) 100%);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  box-shadow: 0 2px 5px rgba(100, 116, 139, 0.1);
+}
+
+.badge--sin-viatico::before {
+  background: #64748b;
+  box-shadow: 0 0 6px rgba(100, 116, 139, 0.7);
+}
+
 .badge--permiso {
   background: rgba(0, 123, 199, 0.12);
   color: var(--color-navy);
@@ -2176,6 +2188,17 @@ tbody tr:last-child td {
   box-shadow: 0 4px 14px rgba(184, 75, 167, 0.15);
 }
 
+.status-card-opt--sin-viatico .status-opt-icon {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.status-card-opt--sin-viatico:hover {
+  border-color: #64748b;
+  box-shadow: 0 4px 14px rgba(100, 116, 139, 0.15);
+}
+
 /* ─── Pagination ─────────────────────────────────────────────────────────── */
 .pagination {
   display: flex;
@@ -2424,8 +2447,8 @@ tbody tr:last-child td {
 .form-group.floating-group.is-floated > label,
 .form-group.floating-group:focus-within > .form-label,
 .form-group.floating-group:focus-within > label,
-.form-group.floating-group:has(.form-input:not(:placeholder-shown)) > .form-label,
-.form-group.floating-group:has(input:not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(.form-input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) > .form-label,
+.form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) > .form-label,
 .form-group.floating-group:has(textarea:not(:placeholder-shown)) > .form-label {
   top: 7px !important;
   font-size: 0.72rem !important;
@@ -2462,15 +2485,18 @@ tbody tr:last-child td {
 }
 
 /* Ocultar placeholder mientras la etiqueta está en reposo para evitar colisión visual */
-.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder,
-.filter-group:not(.is-floated):not(:focus-within):not(:has(input:not(:placeholder-shown))) .filter-input::placeholder {
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .form-input::placeholder,
+.form-group.floating-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))):not(:has(textarea:not(:placeholder-shown))) .flatpickr-input-custom::placeholder,
+.filter-group:not(.is-floated):not(:focus-within):not(:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown))) .filter-input::placeholder {
   color: transparent !important;
   opacity: 0 !important;
 }
 
 .form-group.floating-group:focus-within .form-input::placeholder,
+.form-group.floating-group:focus-within .flatpickr-input-custom::placeholder,
 .form-group.floating-group.is-floated .form-input::placeholder,
-.form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+.form-group.floating-group.is-floated .flatpickr-input-custom::placeholder,
+.form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) .form-input::placeholder,
 .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
 .filter-group:focus-within .filter-input::placeholder,
 .filter-group.is-floated .filter-input::placeholder {
@@ -2480,8 +2506,10 @@ tbody tr:last-child td {
 }
 
 [data-theme="dark"] .form-group.floating-group:focus-within .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group:focus-within .flatpickr-input-custom::placeholder,
 [data-theme="dark"] .form-group.floating-group.is-floated .form-input::placeholder,
-[data-theme="dark"] .form-group.floating-group:has(input:not(:placeholder-shown)) .form-input::placeholder,
+[data-theme="dark"] .form-group.floating-group.is-floated .flatpickr-input-custom::placeholder,
+[data-theme="dark"] .form-group.floating-group:has(input:not([type="hidden"]):not([type="date"]):not(:placeholder-shown)) .form-input::placeholder,
 [data-theme="dark"] .form-group.floating-group:has(textarea:not(:placeholder-shown)) .form-input::placeholder,
 [data-theme="dark"] .filter-group:focus-within .filter-input::placeholder,
 [data-theme="dark"] .filter-group.is-floated .filter-input::placeholder {
@@ -3450,6 +3478,128 @@ select option {
 .autocomplete-item-meta {
   font-size: var(--text-xs);
   color: var(--color-slate);
+}
+
+/* ─── Autocompletado Moderno y Estético de Servidores Públicos ─── */
+.servidor-autocomplete-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+  margin: 2px 0 !important;
+  background: transparent !important;
+}
+.servidor-autocomplete-item:last-child {
+  border-bottom: none !important;
+}
+.servidor-autocomplete-item:hover,
+.servidor-autocomplete-item.is-selected {
+  background: #f0fdf4 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12) !important;
+  transform: translateX(3px) !important;
+}
+.sai-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.28) !important;
+}
+.sai-content {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+.sai-row-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-bottom: 3px !important;
+}
+.sai-name {
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.sai-badge-cc {
+  font-family: monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+  padding: 2px 7px !important;
+  border-radius: 6px !important;
+  border: 1px solid #cbd5e1 !important;
+  flex-shrink: 0 !important;
+}
+.sai-row-meta {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  font-size: 11.5px !important;
+  color: #64748b !important;
+}
+.sai-cargo-pill {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+}
+.sai-nivel-pill {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+}
+.sai-dep-pill {
+  color: #64748b !important;
+  font-size: 11px !important;
+}
+
+[data-theme="dark"] .servidor-autocomplete-item:hover,
+[data-theme="dark"] .servidor-autocomplete-item.is-selected {
+  background: rgba(16, 185, 129, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+[data-theme="dark"] .sai-name {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .sai-badge-cc {
+  background: #334155 !important;
+  color: #cbd5e1 !important;
+  border-color: #475569 !important;
+}
+[data-theme="dark"] .sai-cargo-pill {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .sai-nivel-pill {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] .sai-dep-pill {
+  color: #94a3b8 !important;
 }
 
 /* Destination Toggle */
@@ -7151,12 +7301,11 @@ select option {
   user-select: none !important;
 }
 
-/* Botón Principal Estable (Continuar, Crear Viático, Crear Servidor, Crear Horario) */
+/* Botón Principal Estable (Crear Viático, Crear Servidor, Crear Horario) */
 .modal-footer .btn-primary,
-.modal-footer .btn-wizard-next,
-#btn-wizard-next,
-#vit-save-btn,
-#emp-save-btn,
+#btn-save-horario:not(:disabled),
+#vit-save-btn:not(:disabled),
+#emp-save-btn:not(:disabled),
 #btn-save-vpkg,
 #btn-update-vpkg {
   min-width: 154px !important;
@@ -7170,10 +7319,9 @@ select option {
 }
 
 .modal-footer .btn-primary:hover,
-.modal-footer .btn-wizard-next:hover,
-#btn-wizard-next:hover,
-#vit-save-btn:hover,
-#emp-save-btn:hover,
+#btn-save-horario:not(:disabled):hover,
+#vit-save-btn:not(:disabled):hover,
+#emp-save-btn:not(:disabled):hover,
 #btn-save-vpkg:hover,
 #btn-update-vpkg:hover {
   background: linear-gradient(135deg, #28a9c7 0%, #1a7c93 100%) !important;
@@ -7183,12 +7331,91 @@ select option {
 }
 
 .modal-footer .btn-primary:active,
-.modal-footer .btn-wizard-next:active,
-#btn-wizard-next:active,
-#vit-save-btn:active,
-#emp-save-btn:active {
+#btn-save-horario:not(:disabled):active,
+#vit-save-btn:not(:disabled):active,
+#emp-save-btn:not(:disabled):active {
   transform: translateY(0.5px) scale(0.98) !important;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(22, 110, 130, 0.25) !important;
+}
+
+/* Botón Continuar Estable y Prominente (Verde Institucional Grande, Bonito y Atractivo) */
+.modal-footer .btn-wizard-next,
+#btn-wizard-next,
+.btn-wizard-next {
+  min-width: 154px !important;
+  padding: 0 24px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: 1px solid #047857 !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(16, 185, 129, 0.38) !important;
+  cursor: pointer !important;
+}
+
+.modal-footer .btn-wizard-next:hover,
+#btn-wizard-next:hover,
+.btn-wizard-next:hover {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%) !important;
+  border-color: #059669 !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+}
+
+.modal-footer .btn-wizard-next:active,
+#btn-wizard-next:active,
+.btn-wizard-next:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+}
+
+/* Botón Cancelar en Wizards y Modales (Rosadito Suave y Elegante) */
+.modal-footer .btn-wizard-cancel,
+.btn-wizard-cancel,
+#btn-wizard-cancel {
+  min-width: 116px !important;
+  padding: 0 18px !important;
+  font-weight: 600 !important;
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  border: 1.5px solid #fecdd3 !important;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08) !important;
+  cursor: pointer !important;
+}
+
+.modal-footer .btn-wizard-cancel:hover,
+.btn-wizard-cancel:hover,
+#btn-wizard-cancel:hover {
+  background: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #be123c !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.16) !important;
+}
+
+.modal-footer .btn-wizard-cancel:active,
+.btn-wizard-cancel:active,
+#btn-wizard-cancel:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+}
+
+/* Estado Deshabilitado en Gris para Botones de Guardar / Crear en Pasos Previos */
+#btn-save-horario:disabled,
+#btn-save-horario.is-disabled,
+#vit-save-btn:disabled,
+#vit-save-btn.is-disabled,
+#emp-save-btn:disabled,
+#emp-save-btn.is-disabled,
+.modal-footer .btn-wizard-submit:disabled,
+.modal-footer .btn-wizard-submit.is-disabled {
+  min-width: 154px !important;
+  padding: 0 20px !important;
+  background: #f1f5f9 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.65 !important;
+  pointer-events: auto !important;
 }
 
 /* Botón Secundario Estable (Cancelar, Anterior) */
@@ -7334,22 +7561,64 @@ select option {
 }
 
 [data-theme="dark"] .modal-footer .btn-primary,
-[data-theme="dark"] .modal-footer .btn-wizard-next,
-[data-theme="dark"] #btn-wizard-next,
-[data-theme="dark"] #vit-save-btn,
-[data-theme="dark"] #emp-save-btn {
+[data-theme="dark"] #btn-save-horario:not(:disabled),
+[data-theme="dark"] #vit-save-btn:not(:disabled),
+[data-theme="dark"] #emp-save-btn:not(:disabled) {
   background: linear-gradient(135deg, #1f94b0 0%, #135f70 100%) !important;
   border-color: #176e82 !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-primary:hover,
-[data-theme="dark"] .modal-footer .btn-wizard-next:hover,
-[data-theme="dark"] #btn-wizard-next:hover,
-[data-theme="dark"] #vit-save-btn:hover,
-[data-theme="dark"] #emp-save-btn:hover {
+[data-theme="dark"] #btn-save-horario:not(:disabled):hover,
+[data-theme="dark"] #vit-save-btn:not(:disabled):hover,
+[data-theme="dark"] #emp-save-btn:not(:disabled):hover {
   background: linear-gradient(135deg, #25a5c4 0%, #166e82 100%) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(31, 148, 176, 0.35) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-wizard-next,
+[data-theme="dark"] #btn-wizard-next,
+[data-theme="dark"] .btn-wizard-next {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45) !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-wizard-next:hover,
+[data-theme="dark"] #btn-wizard-next:hover,
+[data-theme="dark"] .btn-wizard-next:hover {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.55) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-wizard-cancel,
+[data-theme="dark"] .btn-wizard-cancel,
+[data-theme="dark"] #btn-wizard-cancel {
+  background: rgba(225, 29, 72, 0.14) !important;
+  color: #fda4af !important;
+  border: 1.5px solid rgba(225, 29, 72, 0.35) !important;
+}
+
+[data-theme="dark"] .modal-footer .btn-wizard-cancel:hover,
+[data-theme="dark"] .btn-wizard-cancel:hover,
+[data-theme="dark"] #btn-wizard-cancel:hover {
+  background: rgba(225, 29, 72, 0.25) !important;
+  border-color: #fda4af !important;
+}
+
+[data-theme="dark"] #btn-save-horario:disabled,
+[data-theme="dark"] #btn-save-horario.is-disabled,
+[data-theme="dark"] #vit-save-btn:disabled,
+[data-theme="dark"] #vit-save-btn.is-disabled,
+[data-theme="dark"] #emp-save-btn:disabled,
+[data-theme="dark"] #emp-save-btn.is-disabled,
+[data-theme="dark"] .modal-footer .btn-wizard-submit:disabled,
+[data-theme="dark"] .modal-footer .btn-wizard-submit.is-disabled {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #64748b !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-gold,
@@ -10607,7 +10876,7 @@ input.flatpickr-input:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .servidor-loaded-avatar {
@@ -11469,7 +11738,7 @@ select[id^="hor-filter-"] {
 /* Estado flotante: la etiqueta vive adentro y sube al escribir o al tener valor */
 .adv-filter-field.is-floated label,
 .adv-filter-field:focus-within label,
-.adv-filter-field:has(input:not(:placeholder-shown)) label {
+.adv-filter-field:has(input:not([type="hidden"]):not([type="date"]):not([type="checkbox"]):not([type="radio"]):not(:placeholder-shown)) label {
   top: 7px !important;
   font-size: 0.72rem !important;
   font-weight: 700 !important;

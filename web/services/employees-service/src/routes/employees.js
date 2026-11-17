@@ -208,12 +208,16 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
         COALESCE(ca.cargo, cb.cargo, 'PROFESIONAL UNIVERSITARIO') AS cargo,
         COALESCE(ca.codigo, cb.codigo, '') AS codigo,
         COALESCE(ca.grado, cb.grado, '') AS grado,
-        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia
+        COALESCE(d.dependencia, 'SECRETARÍA GENERAL') AS dependencia,
+        COALESCE(con.celular, con.telefono_fijo, '') AS telefono,
+        COALESCE(con.celular, '') AS celular,
+        COALESCE(con.telefono_fijo, '') AS telefono_fijo
       FROM rel_principal r
       JOIN personas p ON p.id_persona = r.id_persona
       LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
       LEFT JOIN cargos ca ON ca.id_cargo = r.id_cargo_actual
       LEFT JOIN cargos cb ON cb.id_cargo = r.id_cargo_base
+      LEFT JOIN contactos con ON con.id_contacto = r.id_contacto
       LEFT JOIN estados e ON e.id_estado = r.id_estado
       ${whereQuery}
       ORDER BY 
@@ -243,23 +247,33 @@ router.get(['/buscar', '/buscar-servidor', '/lookup'], auth, async (req, res) =>
         sec = depUpper || 'SECRETARÍA GENERAL';
       }
 
+      const rawGrado = (row.grado || '').toString().trim();
+      const cleanGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+
+      const rawTel = (row.telefono || row.celular || row.telefono_fijo || '').toString().trim();
+      const cleanTelefono = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
+
       return {
         cedula: row.cedula,
         documento: row.cedula,
         nombre_completo: row.nombre_completo,
         nombreCompleto: row.nombre_completo,
         persona: row.nombre_completo,
+        apellidos_nombres: row.nombre_completo,
         cargo: row.cargo,
         cargoActual: row.cargo,
         cargo_actual: row.cargo,
-        codigo: row.codigo,
-        codigoActual: row.codigo,
-        codigo_actual: row.codigo,
-        grado: row.grado,
-        gradoActual: row.grado,
-        grado_actual: row.grado,
-        dependencia: row.dependencia,
+        codigo: row.codigo || 'N/A',
+        codigoActual: row.codigo || 'N/A',
+        codigo_actual: row.codigo || 'N/A',
+        grado: cleanGrado,
+        gradoActual: cleanGrado,
+        grado_actual: cleanGrado,
+        dependencia: row.dependencia || 'Sin dependencia',
         secretaria: sec,
+        telefono: cleanTelefono,
+        celular: cleanTelefono,
+        telefono_fijo: (row.telefono_fijo && row.telefono_fijo.trim()) || 'N/A',
       };
     });
 
@@ -731,6 +745,14 @@ router.get('/', auth, async (req, res) => {
           edadCalculada: esVacante ? null : (edadCalc ? edadCalc.texto : 'No disponible'),
           edadAnios: esVacante ? null : (edadCalc ? edadCalc.anios : null),
           dependencia: clean(r.dependencia),
+          secretaria: (() => {
+            const depUpper = (clean(r.dependencia) || '').toUpperCase().trim();
+            if (depUpper.includes('SECRETARÍA') || depUpper.includes('SECRETARIA')) return depUpper;
+            if (depUpper.includes('TALENTO HUMANO') || depUpper.includes('SISTEMAS') || depUpper.includes('SERVICIOS GENERALES')) return 'SECRETARÍA GENERAL';
+            if (depUpper.includes('GOBERNADOR') || depUpper.includes('DESPACHO')) return 'DESPACHO DEL GOBERNADOR';
+            if (depUpper.includes('JURÍDICA') || depUpper.includes('JURIDICA')) return 'OFICINA ASESORA JURÍDICA';
+            return depUpper || 'SECRETARÍA GENERAL';
+          })(),
           cargoActual: clean(r.cargo_actual),
           cargo_actual: clean(r.cargo_actual),
           cargo: clean(r.cargo_actual || r.cargo_base),
@@ -739,7 +761,7 @@ router.get('/', auth, async (req, res) => {
           codigo: clean(r.codigo_actual || r.codigo_base),
           gradoActual: clean(r.grado_actual),
           grado_actual: clean(r.grado_actual),
-          grado: clean(r.grado_actual || r.grado_base),
+          grado: clean(r.grado_actual || r.grado_base) || 'N/A',
           nivelActual: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           nivel: inferirNivelCargo(r.cargo_actual, r.codigo_actual, r.nivel_actual),
           cargoBase: clean(r.cargo_base),
@@ -751,6 +773,7 @@ router.get('/', auth, async (req, res) => {
           celular: esVacante ? null : (celularesArr[0] || r.celular),
           celulares: esVacante ? [] : celularesArr,
           telefonoFijo: esVacante ? null : r.telefono_fijo,
+          telefono: esVacante ? null : (celularesArr[0] || r.celular || r.telefono_fijo || 'N/A'),
           direccion: esVacante ? null : clean(r.direccion),
           ciudad: esVacante ? null : clean(r.ciudad),
           estudios: esVacante ? null : clean(r.estudios),
@@ -1215,9 +1238,9 @@ router.post('/', auth, async (req, res) => {
       ));
 
     // Inserción en personas
-    const mpioExp = clean(municipioExpedicion || ciudadExpedicion || 'TUNJA')?.toUpperCase();
-    const deptoExp = clean(departamentoExpedicion || 'BOYACÁ')?.toUpperCase();
-    const expedidaLugar = `${mpioExp}, ${deptoExp}`;
+    const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
+    const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
+    const expedidaLugar = (mpioExp && deptoExp) ? `${mpioExp}, ${deptoExp}` : (mpioExp || deptoExp || null);
     await client.query(
       `INSERT INTO personas (
          id_persona, cedula, primer_apellido, segundo_apellido, nombres, nombre_completo,
@@ -1254,7 +1277,7 @@ router.post('/', auth, async (req, res) => {
       [
         contactId,
         clean(direccion)?.toUpperCase() || 'NO REGISTRADO',
-        clean(ciudad)?.toUpperCase() || 'TUNJA, BOYACÁ',
+        clean(ciudad)?.toUpperCase() || null,
         telFijoValidado.valor || null,
         primaryCelular,
         celularesValidados.celulares,
@@ -1303,7 +1326,16 @@ router.post('/', auth, async (req, res) => {
     );
 
     // Cálculo de tiempo de servicio y tiempo total en gobernación
-    const dateIngPost = parseExcelDate(fechaIngreso);
+    // Si no se le ingresa fecha de ingreso, al guardar guarda la fecha del día del registro (hoy)
+    const hoyColombia = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(new Date());
+
+    const finalFechaIngreso = clean(fechaIngreso) || hoyColombia;
+    const dateIngPost = parseExcelDate(finalFechaIngreso);
     const tiempoCalcPost = dateIngPost ? calcularDiferenciaFechasExacta(dateIngPost) : null;
     const tiempoTotalPost = sumarTiemposExactos(
       tiempoCalcPost,
@@ -1331,8 +1363,8 @@ router.post('/', auth, async (req, res) => {
         expValidada.acumuladoTexto || null,
         JSON.stringify(expValidada.periodos),
         tiempoTotalGobernacionStr,
-        fechaIngreso || null,
-        tiempoCalcPost ? tiempoCalcPost.texto : null,
+        finalFechaIngreso,
+        tiempoCalcPost ? tiempoCalcPost.texto : '0 años, 0 meses, 0 días',
         fechaEncargo || null,
         clean(encargoDenominacion)?.toUpperCase() || null,
         clean(encargoCodigo)?.toUpperCase() || null,
@@ -1730,7 +1762,7 @@ router.put('/:cedula', auth, async (req, res) => {
     // Actualizar personas
     const mpioExp = clean(municipioExpedicion || ciudadExpedicion)?.toUpperCase() || null;
     const deptoExp = clean(departamentoExpedicion)?.toUpperCase() || null;
-    const expedidaLugar = mpioExp ? `${mpioExp}${deptoExp ? ', ' + deptoExp : ''}` : null;
+    const expedidaLugar = (mpioExp && deptoExp) ? `${mpioExp}, ${deptoExp}` : (mpioExp || deptoExp || null);
     await client.query(
       `UPDATE personas
        SET nombre_completo=$1, primer_apellido=$2, segundo_apellido=$3, nombres=$4,
