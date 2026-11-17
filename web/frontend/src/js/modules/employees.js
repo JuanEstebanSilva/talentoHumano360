@@ -2344,8 +2344,7 @@ const EmployeesModule = (() => {
 
     if (currentFormIsVacante) {
       footerEl.innerHTML = `
-        <button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
+        <button type="button" class="btn btn-primary btn-wizard-submit-ready" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
       `;
       return;
     }
@@ -2355,21 +2354,10 @@ const EmployeesModule = (() => {
     const isLast = currentIdx === EMP_FORM_TABS.length - 1;
 
     let html = '';
-    if (isFirst) {
-      html += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
-    } else {
+    if (!isFirst) {
       const prevTab = EMP_FORM_TABS[currentIdx - 1];
-      html += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
+      html += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
         ${arrowPrevSvg}<span>Anterior</span>
-      </button>`;
-    }
-
-    html += `<div style="display:flex; align-items:center; gap:8px;">`;
-
-    // Si está en edición y no es la última pestaña, permitir guardado directo
-    if (currentFormIsEdit && !isLast) {
-      html += `<button type="button" class="btn btn-gold" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios directamente">
-        ${saveCheckSvg}<span>Guardar Cambios</span>
       </button>`;
     }
 
@@ -2379,23 +2367,19 @@ const EmployeesModule = (() => {
     const cc = (document.getElementById('ef-cedula')?.value || '').trim();
     const isValid = Boolean(nom && ape && cc);
 
+    if (currentFormIsEdit) {
+      html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios">${saveCheckSvg}<span>${isLast ? 'Actualizar Servidor' : 'Guardar Cambios'}</span></button>`;
+    } else {
+      html += `<button type="button" class="btn ${isValid ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${isValid ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
+    }
+
     if (!isLast) {
-      if (!currentFormIsEdit) {
-        html += `<button type="button" class="btn ${isValid ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${isValid ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
-      }
       const nextTab = EMP_FORM_TABS[currentIdx + 1];
       html += `<button type="button" class="btn btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
         <span>Continuar</span>${arrowNextSvg}
       </button>`;
-    } else {
-      if (currentFormIsEdit) {
-        html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">${saveCheckSvg}<span>Actualizar Servidor</span></button>`;
-      } else {
-        html += `<button type="button" class="btn ${isValid ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${isValid ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
-      }
     }
 
-    html += `</div>`;
     footerEl.innerHTML = html;
   }
 

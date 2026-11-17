@@ -7301,20 +7301,21 @@ select option {
   user-select: none !important;
 }
 
-/* Botón Principal Estable (Crear Viático, Crear Servidor, Crear Horario) */
+/* Botón Principal Estable (Crear Viático, Crear Servidor, Crear Horario) - Verde Azulado / Azul Verdoso Vibrante */
 .modal-footer .btn-primary,
 #btn-save-horario:not(:disabled),
 #vit-save-btn:not(:disabled),
 #emp-save-btn:not(:disabled),
+.btn-wizard-submit-ready,
 #btn-save-vpkg,
 #btn-update-vpkg {
   min-width: 154px !important;
   padding: 0 22px !important;
   font-weight: 700 !important;
-  background: linear-gradient(135deg, #2299b5 0%, #166e82 100%) !important;
-  border: 1px solid #166475 !important;
+  background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%) !important;
+  border: 1px solid #0369a1 !important;
   color: #ffffff !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), inset 0 -1px 0 rgba(0, 0, 0, 0.15), 0 4px 14px rgba(22, 110, 130, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 4px 14px rgba(2, 132, 199, 0.38) !important;
   cursor: pointer !important;
 }
 
@@ -7322,28 +7323,34 @@ select option {
 #btn-save-horario:not(:disabled):hover,
 #vit-save-btn:not(:disabled):hover,
 #emp-save-btn:not(:disabled):hover,
+.btn-wizard-submit-ready:hover,
 #btn-save-vpkg:hover,
 #btn-update-vpkg:hover {
-  background: linear-gradient(135deg, #28a9c7 0%, #1a7c93 100%) !important;
-  border-color: #1a7589 !important;
+  background: linear-gradient(135deg, #14b8a6 0%, #0369a1 100%) !important;
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
   transform: translateY(-1.5px) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(22, 110, 130, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.50), 0 6px 20px rgba(2, 132, 199, 0.48) !important;
 }
 
 .modal-footer .btn-primary:active,
 #btn-save-horario:not(:disabled):active,
 #vit-save-btn:not(:disabled):active,
-#emp-save-btn:not(:disabled):active {
+#emp-save-btn:not(:disabled):active,
+.btn-wizard-submit-ready:active {
   transform: translateY(0.5px) scale(0.98) !important;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(22, 110, 130, 0.25) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(2, 132, 199, 0.25) !important;
 }
 
-/* Botón Continuar Estable y Prominente (Verde Institucional Grande, Bonito y Atractivo) */
+/* Botón Continuar y Anterior Estable y Prominente (Verde Esmeralda Institucional Vibrante, Bonito y Atractivo) */
 .modal-footer .btn-wizard-next,
 #btn-wizard-next,
-.btn-wizard-next {
-  min-width: 154px !important;
-  padding: 0 24px !important;
+.btn-wizard-next,
+.modal-footer .btn-wizard-prev,
+#btn-wizard-prev,
+.btn-wizard-prev {
+  min-width: 140px !important;
+  padding: 0 22px !important;
   font-weight: 700 !important;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   border: 1px solid #047857 !important;
@@ -7354,16 +7361,23 @@ select option {
 
 .modal-footer .btn-wizard-next:hover,
 #btn-wizard-next:hover,
-.btn-wizard-next:hover {
+.btn-wizard-next:hover,
+.modal-footer .btn-wizard-prev:hover,
+#btn-wizard-prev:hover,
+.btn-wizard-prev:hover {
   background: linear-gradient(135deg, #34d399 0%, #059669 100%) !important;
   border-color: #059669 !important;
+  color: #ffffff !important;
   transform: translateY(-1.5px) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(16, 185, 129, 0.5) !important;
 }
 
 .modal-footer .btn-wizard-next:active,
 #btn-wizard-next:active,
-.btn-wizard-next:active {
+.btn-wizard-next:active,
+.modal-footer .btn-wizard-prev:active,
+#btn-wizard-prev:active,
+.btn-wizard-prev:active {
   transform: translateY(0.5px) scale(0.98) !important;
 }
 
@@ -7418,10 +7432,8 @@ select option {
   pointer-events: auto !important;
 }
 
-/* Botón Secundario Estable (Cancelar, Anterior) */
-.modal-footer .btn-secondary,
-.modal-footer .btn-wizard-prev,
-#btn-wizard-prev {
+/* Botón Secundario Genérico */
+.modal-footer .btn-secondary {
   min-width: 116px !important;
   padding: 0 18px !important;
   font-weight: 600 !important;
@@ -7432,9 +7444,7 @@ select option {
   cursor: pointer !important;
 }
 
-.modal-footer .btn-secondary:hover,
-.modal-footer .btn-wizard-prev:hover,
-#btn-wizard-prev:hover {
+.modal-footer .btn-secondary:hover {
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
   color: #0f172a !important;
@@ -7442,9 +7452,7 @@ select option {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 }
 
-.modal-footer .btn-secondary:active,
-.modal-footer .btn-wizard-prev:active,
-#btn-wizard-prev:active {
+.modal-footer .btn-secondary:active {
   transform: translateY(0.5px) scale(0.98) !important;
 }
 
@@ -7542,18 +7550,14 @@ select option {
 }
 
 /* Modo Oscuro en Footers y Botones de Modal */
-[data-theme="dark"] .modal-footer .btn-secondary,
-[data-theme="dark"] .modal-footer .btn-wizard-prev,
-[data-theme="dark"] #btn-wizard-prev {
+[data-theme="dark"] .modal-footer .btn-secondary {
   background: #1e293b !important;
   color: #e2e8f0 !important;
   border-color: #334155 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
-[data-theme="dark"] .modal-footer .btn-secondary:hover,
-[data-theme="dark"] .modal-footer .btn-wizard-prev:hover,
-[data-theme="dark"] #btn-wizard-prev:hover {
+[data-theme="dark"] .modal-footer .btn-secondary:hover {
   background: #334155 !important;
   color: #ffffff !important;
   border-color: #475569 !important;
@@ -7563,23 +7567,29 @@ select option {
 [data-theme="dark"] .modal-footer .btn-primary,
 [data-theme="dark"] #btn-save-horario:not(:disabled),
 [data-theme="dark"] #vit-save-btn:not(:disabled),
-[data-theme="dark"] #emp-save-btn:not(:disabled) {
-  background: linear-gradient(135deg, #1f94b0 0%, #135f70 100%) !important;
-  border-color: #176e82 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+[data-theme="dark"] #emp-save-btn:not(:disabled),
+[data-theme="dark"] .btn-wizard-submit-ready {
+  background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%) !important;
+  border-color: #0284c7 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-primary:hover,
 [data-theme="dark"] #btn-save-horario:not(:disabled):hover,
 [data-theme="dark"] #vit-save-btn:not(:disabled):hover,
-[data-theme="dark"] #emp-save-btn:not(:disabled):hover {
-  background: linear-gradient(135deg, #25a5c4 0%, #166e82 100%) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(31, 148, 176, 0.35) !important;
+[data-theme="dark"] #emp-save-btn:not(:disabled):hover,
+[data-theme="dark"] .btn-wizard-submit-ready:hover {
+  background: linear-gradient(135deg, #14b8a6 0%, #0284c7 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(13, 148, 136, 0.45) !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-wizard-next,
 [data-theme="dark"] #btn-wizard-next,
-[data-theme="dark"] .btn-wizard-next {
+[data-theme="dark"] .btn-wizard-next,
+[data-theme="dark"] .modal-footer .btn-wizard-prev,
+[data-theme="dark"] #btn-wizard-prev,
+[data-theme="dark"] .btn-wizard-prev {
   background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
   border-color: #10b981 !important;
   box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45) !important;
@@ -7588,7 +7598,10 @@ select option {
 
 [data-theme="dark"] .modal-footer .btn-wizard-next:hover,
 [data-theme="dark"] #btn-wizard-next:hover,
-[data-theme="dark"] .btn-wizard-next:hover {
+[data-theme="dark"] .btn-wizard-next:hover,
+[data-theme="dark"] .modal-footer .btn-wizard-prev:hover,
+[data-theme="dark"] #btn-wizard-prev:hover,
+[data-theme="dark"] .btn-wizard-prev:hover {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   box-shadow: 0 6px 20px rgba(5, 150, 105, 0.55) !important;
 }
@@ -12807,9 +12820,9 @@ select[id^="hor-filter-"] {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.50) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -12842,7 +12855,9 @@ select[id^="hor-filter-"] {
 }
 
 [data-theme="dark"] .modal-unsaved-backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="dark"] .modal-unsaved-card {

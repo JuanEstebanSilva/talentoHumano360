@@ -654,6 +654,35 @@ const ViaticosModule = (() => {
   let currentFormEditId = null;
   const VIATICOS_TABS = ['tab-vit-servidor', 'tab-vit-comision', 'tab-vit-liquidacion', 'tab-vit-soporte'];
 
+  function checkRequiredViaticoFields() {
+    const doc = (document.getElementById('vf-doc')?.value || '').trim();
+    const nom = (document.getElementById('vf-nombre')?.value || '').trim();
+    const dest = (document.getElementById('vf-destino')?.value || '').trim();
+    const fi = (document.getElementById('vf-fi')?.value || '').trim();
+    const motivo = (document.getElementById('vf-motivo')?.value || '').trim();
+    return Boolean(doc && nom && dest && fi && motivo);
+  }
+
+  function updateViaticosSaveBtnState() {
+    if (currentFormIsEdit) return;
+    const saveBtn = document.getElementById('vit-save-btn');
+    if (!saveBtn) return;
+    const isComplete = checkRequiredViaticoFields();
+    saveBtn.disabled = !isComplete;
+    if (isComplete) {
+      saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
+      saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.removeAttribute('title');
+      saveBtn.onclick = () => ViaticosModule.saveCreate();
+    } else {
+      saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
+      saveBtn.setAttribute('disabled', 'disabled');
+      saveBtn.setAttribute('title', 'Complete servidor, destino, fecha de inicio y motivo para crear el viático');
+      saveBtn.onclick = null;
+    }
+  }
+
   function updateViaticosWizardFooter(tabId) {
     const footer = document.getElementById('modal-footer');
     if (!footer) return;
@@ -669,19 +698,15 @@ const ViaticosModule = (() => {
     let buttonsHtml = '';
 
     if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     }
 
-    const docVal = (document.getElementById('vf-doc')?.value || '').trim();
-    const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
-    const isComplete = Boolean(docVal && nomVal);
+    const isComplete = checkRequiredViaticoFields();
 
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${isComplete ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Debe asociar un servidor público antes de crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${isComplete ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Complete servidor, destino, fecha de inicio y motivo para crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
     }
 
     if (nextTab) {
@@ -1060,6 +1085,15 @@ const ViaticosModule = (() => {
     calcTotal();
     initSaldoPresupuestal(r);
     onEstadoChange();
+
+    ['vf-doc', 'vf-nombre', 'vf-destino', 'vf-fi', 'vf-motivo'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateViaticosSaveBtnState);
+        el.addEventListener('change', updateViaticosSaveBtnState);
+      }
+    });
+    updateViaticosSaveBtnState();
   }
 
   // ─── Tarjeta Informativa de Servidor Vinculado (Lectura & Integridad) ────
@@ -1090,27 +1124,6 @@ const ViaticosModule = (() => {
   }
 
   // ─── Autocompletado de Servidores (Por Nombre y Por Cédula) ─────────────────
-  function updateViaticosSaveBtnState() {
-    if (currentFormIsEdit) return;
-    const saveBtn = document.getElementById('vit-save-btn');
-    if (!saveBtn) return;
-    const docVal = (document.getElementById('vf-doc')?.value || '').trim();
-    const nomVal = (document.getElementById('vf-nombre')?.value || '').trim();
-    const isComplete = Boolean(docVal && nomVal);
-    saveBtn.disabled = !isComplete;
-    if (isComplete) {
-      saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
-      saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
-      saveBtn.removeAttribute('title');
-      saveBtn.onclick = () => ViaticosModule.saveCreate();
-    } else {
-      saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
-      saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
-      saveBtn.setAttribute('title', 'Debe asociar un servidor público antes de crear el viático');
-      saveBtn.onclick = null;
-    }
-  }
-
   function onNombreInput(val) {
     updateViaticosSaveBtnState();
     clearTimeout(employeeSearchTimeout);
@@ -1300,6 +1313,7 @@ const ViaticosModule = (() => {
     if (curActiveTab) {
       updateViaticosWizardFooter(curActiveTab);
     }
+    updateViaticosSaveBtnState();
 
     App.showToast(`Servidor oficial vinculado: ${name}`, 'success');
     onDatesChange();
@@ -1343,6 +1357,7 @@ const ViaticosModule = (() => {
     if (curActiveTab) {
       updateViaticosWizardFooter(curActiveTab);
     }
+    updateViaticosSaveBtnState();
 
     if (nombreInput) {
       nombreInput.focus();
@@ -1494,6 +1509,7 @@ const ViaticosModule = (() => {
     const previewText = document.getElementById('vf-dest-preview-text');
     if (hiddenDest) hiddenDest.value = destText;
     if (previewText) previewText.textContent = destText || 'Sin definir';
+    updateViaticosSaveBtnState();
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
@@ -2264,12 +2280,13 @@ const ViaticosModule = (() => {
   function readForm() {
     const nombre = document.getElementById('vf-nombre')?.value.trim();
     const doc = document.getElementById('vf-doc')?.value.trim();
-    const rawDestino = document.getElementById('vf-destino')?.value?.trim();
-    const destino = rawDestino || 'TUNJA, BOYACÁ';
-    let fi = document.getElementById('vf-fi')?.value;
-    let ff = document.getElementById('vf-ff')?.value;
+    const destino = document.getElementById('vf-destino')?.value?.trim();
+    const fi = document.getElementById('vf-fi')?.value?.trim();
+    const ff = document.getElementById('vf-ff')?.value?.trim() || fi;
+    const motivo = document.getElementById('vf-motivo')?.value?.trim();
 
     if (!nombre) {
+      switchFormTab('tab-vit-servidor');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-nombre', 'El nombre del funcionario es requerido.');
       } else {
@@ -2279,6 +2296,7 @@ const ViaticosModule = (() => {
     }
 
     if (!doc) {
+      switchFormTab('tab-vit-servidor');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-doc', 'El documento de identidad es requerido.');
       } else {
@@ -2287,18 +2305,42 @@ const ViaticosModule = (() => {
       return null;
     }
 
-    if (!fi) {
-      fi = new Date().toISOString().split('T')[0];
+    if (!destino) {
+      switchFormTab('tab-vit-comision');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-depto', 'Debe seleccionar el departamento y municipio de destino.');
+      } else {
+        App.showToast('Debe seleccionar el destino de la comisión.', 'warning');
+      }
+      return null;
     }
-    if (!ff) {
-      ff = fi;
+
+    if (!fi) {
+      switchFormTab('tab-vit-comision');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-fi', 'La fecha de inicio de la comisión es requerida.');
+      } else {
+        App.showToast('La fecha de inicio de la comisión es requerida.', 'warning');
+      }
+      return null;
     }
 
     if (fi && ff && new Date(ff) < new Date(fi)) {
+      switchFormTab('tab-vit-comision');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-ff', 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.');
       } else {
         App.showToast('La fecha de finalización debe ser posterior o igual a la fecha de inicio.', 'error');
+      }
+      return null;
+    }
+
+    if (!motivo) {
+      switchFormTab('tab-vit-comision');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-motivo', 'El motivo de la comisión es requerido.');
+      } else {
+        App.showToast('El motivo de la comisión es requerido.', 'warning');
       }
       return null;
     }
@@ -2316,9 +2358,9 @@ const ViaticosModule = (() => {
       telefono: document.getElementById('vf-telefono')?.value.trim() || '',
       tipoDestino,
       destino,
-      motivo: document.getElementById('vf-motivo')?.value.trim() || 'Comisión de servicios',
-      fechaInicio: fi || '',
-      fechaFin: ff || '',
+      motivo,
+      fechaInicio: fi,
+      fechaFin: ff,
       dias: parseInt(document.getElementById('vf-dias')?.value) || 1,
       valorDiario: parseFloat(document.getElementById('vf-vdiario')?.value) || 0,
       valorTotal: (function() {

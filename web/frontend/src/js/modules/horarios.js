@@ -1035,6 +1035,51 @@ const HorariosModule = (() => {
   const HORARIOS_FORM_TABS = ['tab-hor-servidor', 'tab-hor-esquema', 'tab-hor-acto'];
   let currentScheduleModalItem = null;
 
+  function checkRequiredHorarioFields() {
+    const docVal = (document.getElementById('horario-documento')?.value || '').trim();
+    const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
+    if (!docVal || !nomVal) return false;
+
+    const modRadio = document.querySelector('input[name="modalidad_radio"]:checked');
+    if (!modRadio) return false;
+    const mod = modRadio.value;
+
+    if (mod === 'Teletrabajo') {
+      const dias = (document.getElementById('dias-teletrabajo')?.value || '').trim();
+      const subtipo = (document.getElementById('subtipo-teletrabajo')?.value || '').trim();
+      if (!dias || !subtipo) return false;
+    } else if (mod === 'Horario flexible') {
+      const franja = (document.getElementById('franja-ingreso')?.value || '').trim();
+      if (!franja) return false;
+    }
+
+    const fi = (document.getElementById('horario-fecha-inicio')?.value || '').trim();
+    if (!fi) return false;
+
+    return true;
+  }
+
+  function refreshHorarioSubmitButtonState() {
+    const btn = document.getElementById('btn-save-horario');
+    if (!btn || currentScheduleModalItem) return;
+    const isReady = checkRequiredHorarioFields();
+    if (isReady) {
+      btn.disabled = false;
+      btn.classList.remove('is-disabled', 'btn-wizard-submit');
+      btn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+      btn.removeAttribute('disabled');
+      btn.removeAttribute('title');
+      btn.onclick = () => HorariosModule.submitScheduleForm();
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+      btn.classList.add('btn-wizard-submit', 'is-disabled');
+      btn.setAttribute('disabled', 'disabled');
+      btn.setAttribute('title', 'Complete servidor, modalidad, días/franja y fecha de inicio para crear el esquema');
+      btn.onclick = null;
+    }
+  }
+
   function updateHorariosWizardFooter(tabId) {
     const footer = document.getElementById('modal-footer');
     if (!footer) return;
@@ -1051,19 +1096,15 @@ const HorariosModule = (() => {
     let buttonsHtml = '';
 
     if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="HorariosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="HorariosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     }
 
-    const docVal = (document.getElementById('horario-documento')?.value || '').trim();
-    const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
-    const isComplete = Boolean(docVal && nomVal);
+    const isComplete = checkRequiredHorarioFields();
 
     if (isEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm(${currentScheduleModalItem.id_horario})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${isComplete ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Debe asociar un servidor público antes de guardar"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${isComplete ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Complete servidor, modalidad, días/franja y fecha de inicio para crear el esquema"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
     }
 
     if (nextTab) {
@@ -1097,10 +1138,10 @@ const HorariosModule = (() => {
     const isEdit = Boolean(item);
     const title = isEdit ? 'Editar Esquema de Horario' : 'Registrar Nuevo Esquema de Horario';
 
-    const curModalidad = item?.modalidad || 'Teletrabajo';
+    const curModalidad = isEdit ? (item?.modalidad || 'Teletrabajo') : '';
     const curTipoCalc  = isEdit ? (item?.tipo_calculo || 'Hábiles') : (item?.tipo_calculo || '');
 
-    const initialDaysLower = (item?.dias_teletrabajo || '').toLowerCase();
+    const initialDaysLower = isEdit ? (item?.dias_teletrabajo || '').toLowerCase() : '';
     const hasLun = isEdit ? initialDaysLower.includes('lun') : false;
     const hasMar = isEdit ? initialDaysLower.includes('mar') : false;
     const hasMie = isEdit ? (initialDaysLower.includes('mie') || initialDaysLower.includes('mié')) : false;
@@ -1747,6 +1788,7 @@ const HorariosModule = (() => {
       if (curActiveTab) {
         updateHorariosWizardFooter(curActiveTab);
       }
+      refreshHorarioSubmitButtonState();
       App.showToast('Selección de servidor limpiada. Busque por nombre o cédula para asociar otro funcionario.', 'info');
     };
 
@@ -1838,6 +1880,7 @@ const HorariosModule = (() => {
       if (curActiveTab) {
         updateHorariosWizardFooter(curActiveTab);
       }
+      refreshHorarioSubmitButtonState();
 
       if (notify && typeof App !== 'undefined' && App.showToast) {
         App.showToast(`Servidor institucional cargado: ${name}`, 'success');
@@ -2121,6 +2164,18 @@ const HorariosModule = (() => {
       consecutivoInput.addEventListener('blur', enforceConsecutivo);
       updateConsecutivoButtons();
     }
+
+    // 7. Validación reactiva para habilitar/deshabilitar botón "Crear Esquema" según campos obligatorios
+    const watchInputIds = ['horario-documento', 'horario-nombre', 'dias-teletrabajo', 'subtipo-teletrabajo', 'franja-ingreso', 'horario-fecha-inicio'];
+    watchInputIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', refreshHorarioSubmitButtonState);
+        el.addEventListener('change', refreshHorarioSubmitButtonState);
+      }
+    });
+    modalidadRadios.forEach((r) => r.addEventListener('change', refreshHorarioSubmitButtonState));
+    refreshHorarioSubmitButtonState();
   }
 
   // ─── Envío del Formulario (Creación o Edición) ─────────────────────────────
@@ -2142,12 +2197,25 @@ const HorariosModule = (() => {
     const estado = document.getElementById('horario-estado')?.value || 'Activa';
 
     const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
-    const modalidad = modalidadRadio ? modalidadRadio.value : 'Presencial';
+    if (!modalidadRadio) {
+      switchFormTab('tab-hor-esquema');
+      App.showToast('Debe seleccionar la situación administrativa / modalidad del servidor.', 'warning');
+      return;
+    }
+    const modalidad = modalidadRadio.value;
 
-    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value || new Date().toISOString().split('T')[0];
-    const fecha_fin = document.getElementById('horario-fecha-fin')?.value || null;
-    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || 
-      (modalidad === 'Teletrabajo' ? '2 días / semana' : modalidad === 'Horario flexible' ? '8 horas / día' : modalidad === 'Trabajo en casa' ? 'No aplica' : 'Jornada ordinaria');
+    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value?.trim();
+    if (!fecha_inicio) {
+      switchFormTab('tab-hor-acto');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia del esquema es obligatoria.');
+      } else {
+        App.showToast('La fecha de inicio de vigencia del esquema es obligatoria.', 'warning');
+      }
+      return;
+    }
+    const fecha_fin = document.getElementById('horario-fecha-fin')?.value?.trim() || null;
+    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || null;
     const tipo_calculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
 
     // Acto administrativo (opcional, no inventar datos)
@@ -2158,6 +2226,7 @@ const HorariosModule = (() => {
 
     // Validaciones exhaustivas de formulario con navegación visual y foco
     if (!documento || !apellidos_nombres) {
+      switchFormTab('tab-hor-servidor');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('emp-search-schedule', 'Debe buscar y seleccionar un servidor público de planta.');
       } else {
@@ -2167,6 +2236,7 @@ const HorariosModule = (() => {
     }
 
     if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      switchFormTab('tab-hor-acto');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('horario-fecha-fin', 'La fecha de terminación debe ser posterior o igual a la fecha de inicio.');
       } else {
@@ -2179,6 +2249,7 @@ const HorariosModule = (() => {
     if (!existingId) {
       const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : currentMinConsecutivo;
       if (!cVal || cVal < currentMinConsecutivo) {
+        switchFormTab('tab-hor-acto');
         if (typeof App !== 'undefined' && App.markFieldInvalid) {
           App.markFieldInvalid('horario-consecutivo', `El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`);
         } else {
@@ -2200,8 +2271,8 @@ const HorariosModule = (() => {
       telefono: telefono || null,
       documento,
       apellidos_nombres,
-      dependencia: dependencia || 'SECRETARÍA GENERAL',
-      cargo: cargo || 'PROFESIONAL UNIVERSITARIO',
+      dependencia: dependencia || null,
+      cargo: cargo || null,
       estado,
       modalidad,
       fecha_inicio,
@@ -2215,12 +2286,42 @@ const HorariosModule = (() => {
       observaciones,
     };
 
-    // Campos según modalidad
+    // Campos según modalidad (estricto: NO inventar datos por defecto)
     if (modalidad === 'Teletrabajo') {
-      payload.subtipo_teletrabajo = document.getElementById('subtipo-teletrabajo')?.value || 'Suplementario (Híbrido)';
-      payload.dias_teletrabajo = document.getElementById('dias-teletrabajo')?.value?.trim() || 'martes y jueves';
+      const diasTele = document.getElementById('dias-teletrabajo')?.value?.trim();
+      const subtipoTele = document.getElementById('subtipo-teletrabajo')?.value || '';
+      if (!diasTele) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('dias-teletrabajo', 'Debe especificar los días de teletrabajo.');
+        } else {
+          App.showToast('Debe especificar los días de teletrabajo.', 'warning');
+        }
+        return;
+      }
+      if (!subtipoTele) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('subtipo-teletrabajo', 'Debe seleccionar el subtipo de teletrabajo.');
+        } else {
+          App.showToast('Debe seleccionar el subtipo de teletrabajo.', 'warning');
+        }
+        return;
+      }
+      payload.subtipo_teletrabajo = subtipoTele;
+      payload.dias_teletrabajo = diasTele;
     } else if (modalidad === 'Horario flexible') {
-      payload.franja_ingreso = document.getElementById('franja-ingreso')?.value?.trim() || '8 AM A 12 M, 1 A 5 PM';
+      const franja = document.getElementById('franja-ingreso')?.value?.trim() || '';
+      if (!franja) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('franja-ingreso', 'Debe indicar la franja horaria concertada.');
+        } else {
+          App.showToast('Debe indicar la franja horaria concertada.', 'warning');
+        }
+        return;
+      }
+      payload.franja_ingreso = franja;
     } else if (modalidad === 'Trabajo en casa') {
       payload.motivo_trabajo_casa = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
     }
