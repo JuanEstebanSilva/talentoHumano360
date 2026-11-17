@@ -285,6 +285,17 @@ async function runSafeMigrations(client) {
         last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+    // Asegurar que la cuenta oficial de Juan Esteban Silva Espejo exista de forma segura e idempotente
+    const checkJuan = await client.query("SELECT id_usuario FROM usuarios WHERE LOWER(username) = 'silvaespejojuanesteban@gmail.com' LIMIT 1");
+    if (checkJuan.rows.length === 0) {
+      const hashJuan = '$2a$10$jACZwyOGKbfbnCEcOBj9v.tlNA2LbRtGj4dlq4miqQijZyPlvPB6S'; // 'admin123'
+      await client.query(`
+        INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password)
+        VALUES ('silvaespejojuanesteban@gmail.com', $1, 'Juan Esteban Silva Espejo', 'Administrador', 'Administrador Institucional y de Plataforma', 'ACTIVO', '*', '*', false)
+      `, [hashJuan]);
+      results.columnsAdded.push('usuarios: insercion segura de silvaespejojuanesteban@gmail.com');
+    }
     await recordMigration(client, '29_password_recovery', 'Columnas de recuperación de contraseña y tabla auth_failed_logins');
     results.columnsAdded.push('usuarios: rbac y password_recovery');
   }

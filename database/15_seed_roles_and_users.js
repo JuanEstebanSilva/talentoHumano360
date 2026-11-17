@@ -35,6 +35,14 @@ async function main() {
         modulos: '*'
       },
       {
+        username: 'silvaespejojuanesteban@gmail.com',
+        pass: 'admin123',
+        nombre: 'Juan Esteban Silva Espejo',
+        rol: 'Administrador',
+        cargo: 'Administrador Institucional y de Plataforma',
+        modulos: '*'
+      },
+      {
         username: 'angela.ussa@boyaca.gov.co',
         pass: '@Angela123',
         nombre: 'Angela Ussa',
