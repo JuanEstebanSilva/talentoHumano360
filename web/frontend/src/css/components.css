@@ -7301,7 +7301,7 @@ select option {
   user-select: none !important;
 }
 
-/* Botón Principal Estable (Crear Viático, Crear Servidor, Crear Horario) - Verde Azulado / Azul Verdoso Vibrante */
+/* Botón Principal Estable (Crear Viático, Crear Servidor, Crear Horario) - Verde Esmeralda Institucional */
 .modal-footer .btn-primary,
 #btn-save-horario:not(:disabled),
 #vit-save-btn:not(:disabled),
@@ -7312,10 +7312,10 @@ select option {
   min-width: 154px !important;
   padding: 0 22px !important;
   font-weight: 700 !important;
-  background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%) !important;
-  border: 1px solid #0369a1 !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: 1px solid #047857 !important;
   color: #ffffff !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 4px 14px rgba(2, 132, 199, 0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(16, 185, 129, 0.38) !important;
   cursor: pointer !important;
 }
 
@@ -7326,11 +7326,11 @@ select option {
 .btn-wizard-submit-ready:hover,
 #btn-save-vpkg:hover,
 #btn-update-vpkg:hover {
-  background: linear-gradient(135deg, #14b8a6 0%, #0369a1 100%) !important;
-  border-color: #0284c7 !important;
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%) !important;
+  border-color: #059669 !important;
   color: #ffffff !important;
   transform: translateY(-1.5px) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.50), 0 6px 20px rgba(2, 132, 199, 0.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(16, 185, 129, 0.50) !important;
 }
 
 .modal-footer .btn-primary:active,
@@ -7339,10 +7339,10 @@ select option {
 #emp-save-btn:not(:disabled):active,
 .btn-wizard-submit-ready:active {
   transform: translateY(0.5px) scale(0.98) !important;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(16, 185, 129, 0.25) !important;
 }
 
-/* Botón Continuar y Anterior Estable y Prominente (Verde Esmeralda Institucional Vibrante, Bonito y Atractivo) */
+/* Botones de Navegación del Wizard: Continuar y Anterior - Azul Institucional Bonito y Agradable */
 .modal-footer .btn-wizard-next,
 #btn-wizard-next,
 .btn-wizard-next,
@@ -7352,10 +7352,10 @@ select option {
   min-width: 140px !important;
   padding: 0 22px !important;
   font-weight: 700 !important;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  border: 1px solid #047857 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border: 1px solid #1e40af !important;
   color: #ffffff !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(16, 185, 129, 0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 14px rgba(37, 99, 235, 0.38) !important;
   cursor: pointer !important;
 }
 
@@ -7365,11 +7365,11 @@ select option {
 .modal-footer .btn-wizard-prev:hover,
 #btn-wizard-prev:hover,
 .btn-wizard-prev:hover {
-  background: linear-gradient(135deg, #34d399 0%, #059669 100%) !important;
-  border-color: #059669 !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  border-color: #1d4ed8 !important;
   color: #ffffff !important;
   transform: translateY(-1.5px) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(16, 185, 129, 0.5) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(37, 99, 235, 0.50) !important;
 }
 
 .modal-footer .btn-wizard-next:active,
@@ -7569,9 +7569,9 @@ select option {
 [data-theme="dark"] #vit-save-btn:not(:disabled),
 [data-theme="dark"] #emp-save-btn:not(:disabled),
 [data-theme="dark"] .btn-wizard-submit-ready {
-  background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%) !important;
-  border-color: #0284c7 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  border-color: #10b981 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 16px rgba(0, 0, 0, 0.45) !important;
   color: #ffffff !important;
 }
 
@@ -7580,8 +7580,8 @@ select option {
 [data-theme="dark"] #vit-save-btn:not(:disabled):hover,
 [data-theme="dark"] #emp-save-btn:not(:disabled):hover,
 [data-theme="dark"] .btn-wizard-submit-ready:hover {
-  background: linear-gradient(135deg, #14b8a6 0%, #0284c7 100%) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(13, 148, 136, 0.45) !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 16px rgba(16, 185, 129, 0.45) !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-wizard-next,
@@ -7590,9 +7590,9 @@ select option {
 [data-theme="dark"] .modal-footer .btn-wizard-prev,
 [data-theme="dark"] #btn-wizard-prev,
 [data-theme="dark"] .btn-wizard-prev {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-  border-color: #10b981 !important;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45) !important;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.45) !important;
   color: #ffffff !important;
 }
 
@@ -7602,8 +7602,8 @@ select option {
 [data-theme="dark"] .modal-footer .btn-wizard-prev:hover,
 [data-theme="dark"] #btn-wizard-prev:hover,
 [data-theme="dark"] .btn-wizard-prev:hover {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.55) !important;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.55) !important;
 }
 
 [data-theme="dark"] .modal-footer .btn-wizard-cancel,

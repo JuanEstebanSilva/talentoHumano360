@@ -667,7 +667,9 @@ const ViaticosModule = (() => {
     if (currentFormIsEdit) return;
     const saveBtn = document.getElementById('vit-save-btn');
     if (!saveBtn) return;
-    const isComplete = checkRequiredViaticoFields();
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    const isLast = (curActiveTab === VIATICOS_TABS[VIATICOS_TABS.length - 1]);
+    const isComplete = isLast || checkRequiredViaticoFields();
     saveBtn.disabled = !isComplete;
     if (isComplete) {
       saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
@@ -678,7 +680,7 @@ const ViaticosModule = (() => {
       saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
       saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
       saveBtn.setAttribute('disabled', 'disabled');
-      saveBtn.setAttribute('title', 'Complete servidor, destino, fecha de inicio y motivo para crear el viático');
+      saveBtn.setAttribute('title', 'Complete servidor, destino, fecha de inicio y motivo o avance a la última pestaña para crear el viático');
       saveBtn.onclick = null;
     }
   }
@@ -690,6 +692,7 @@ const ViaticosModule = (() => {
     const curIdx = VIATICOS_TABS.indexOf(tabId);
     const prevTab = curIdx > 0 ? VIATICOS_TABS[curIdx - 1] : null;
     const nextTab = curIdx < VIATICOS_TABS.length - 1 ? VIATICOS_TABS[curIdx + 1] : null;
+    const isLast = (curIdx === VIATICOS_TABS.length - 1);
 
     const arrowNextSvg = `<svg class="wizard-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
     const arrowPrevSvg = `<svg class="wizard-prev-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
@@ -702,11 +705,12 @@ const ViaticosModule = (() => {
     }
 
     const isComplete = checkRequiredViaticoFields();
+    const canSubmit = isLast || isComplete;
 
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${isComplete ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Complete servidor, destino, fecha de inicio y motivo para crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${canSubmit ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Complete servidor, destino, fecha de inicio y motivo o avance a la última pestaña para crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
     }
 
     if (nextTab) {

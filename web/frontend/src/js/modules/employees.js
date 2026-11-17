@@ -2366,11 +2366,12 @@ const EmployeesModule = (() => {
     const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
     const cc = (document.getElementById('ef-cedula')?.value || '').trim();
     const isValid = Boolean(nom && ape && cc);
+    const canSubmit = isLast || isValid;
 
     if (currentFormIsEdit) {
       html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios">${saveCheckSvg}<span>${isLast ? 'Actualizar Servidor' : 'Guardar Cambios'}</span></button>`;
     } else {
-      html += `<button type="button" class="btn ${isValid ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${isValid ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
+      html += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${canSubmit ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios o avance a la última pestaña para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
     }
 
     if (!isLast) {
@@ -3127,13 +3128,16 @@ const EmployeesModule = (() => {
       if (currentFormIsEdit) return;
       const saveBtn = document.getElementById('emp-save-btn');
       if (!saveBtn) return;
+      const curActiveTab = document.querySelector('.form-tabs .form-tab-btn.active')?.getAttribute('data-tab');
+      const isLast = (curActiveTab === EMP_FORM_TABS[EMP_FORM_TABS.length - 1]);
       const nom = (document.getElementById('ef-nombres')?.value || '').trim();
       const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
       const cc = (document.getElementById('ef-cedula')?.value || '').trim();
       const isValid = Boolean(nom && ape && cc);
+      const canSubmit = isLast || isValid;
 
-      saveBtn.disabled = !isValid;
-      if (isValid) {
+      saveBtn.disabled = !canSubmit;
+      if (canSubmit) {
         saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
         saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
         saveBtn.removeAttribute('title');
@@ -3141,7 +3145,7 @@ const EmployeesModule = (() => {
       } else {
         saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
         saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
-        saveBtn.setAttribute('title', 'Complete nombres, apellidos y cédula obligatorios para registrar el servidor');
+        saveBtn.setAttribute('title', 'Complete nombres, apellidos y cédula obligatorios o avance a la última pestaña para registrar el servidor');
         saveBtn.onclick = null;
       }
     };

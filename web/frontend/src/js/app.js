@@ -135,6 +135,8 @@ const App = (() => {
         EmployeesModule.switchFormTab(tabId);
       } else if (typeof HorariosModule !== 'undefined' && HorariosModule.switchFormTab && tabId.startsWith('tab-hor-')) {
         HorariosModule.switchFormTab(tabId);
+      } else if (typeof ViaticosModule !== 'undefined' && ViaticosModule.switchFormTab && tabId.startsWith('tab-vit-')) {
+        ViaticosModule.switchFormTab(tabId);
       } else {
         const tabBtn = document.querySelector(`button[data-tab="${tabId}"], .form-wizard-tab[data-tab="${tabId}"], button[onclick*="${tabId}"]`);
         if (tabBtn) {

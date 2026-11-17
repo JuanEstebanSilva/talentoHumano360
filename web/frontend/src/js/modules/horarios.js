@@ -1046,8 +1046,7 @@ const HorariosModule = (() => {
 
     if (mod === 'Teletrabajo') {
       const dias = (document.getElementById('dias-teletrabajo')?.value || '').trim();
-      const subtipo = (document.getElementById('subtipo-teletrabajo')?.value || '').trim();
-      if (!dias || !subtipo) return false;
+      if (!dias) return false;
     } else if (mod === 'Horario flexible') {
       const franja = (document.getElementById('franja-ingreso')?.value || '').trim();
       if (!franja) return false;
@@ -1062,7 +1061,9 @@ const HorariosModule = (() => {
   function refreshHorarioSubmitButtonState() {
     const btn = document.getElementById('btn-save-horario');
     if (!btn || currentScheduleModalItem) return;
-    const isReady = checkRequiredHorarioFields();
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    const isLast = (curActiveTab === HORARIOS_FORM_TABS[HORARIOS_FORM_TABS.length - 1]);
+    const isReady = isLast || checkRequiredHorarioFields();
     if (isReady) {
       btn.disabled = false;
       btn.classList.remove('is-disabled', 'btn-wizard-submit');
@@ -1075,7 +1076,7 @@ const HorariosModule = (() => {
       btn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
       btn.classList.add('btn-wizard-submit', 'is-disabled');
       btn.setAttribute('disabled', 'disabled');
-      btn.setAttribute('title', 'Complete servidor, modalidad, días/franja y fecha de inicio para crear el esquema');
+      btn.setAttribute('title', 'Complete servidor, modalidad y vigencia o avance a la última pestaña para crear el esquema');
       btn.onclick = null;
     }
   }
@@ -1088,6 +1089,7 @@ const HorariosModule = (() => {
     const prevTab = curIdx > 0 ? HORARIOS_FORM_TABS[curIdx - 1] : null;
     const nextTab = curIdx < HORARIOS_FORM_TABS.length - 1 ? HORARIOS_FORM_TABS[curIdx + 1] : null;
     const isEdit = Boolean(currentScheduleModalItem);
+    const isLast = (curIdx === HORARIOS_FORM_TABS.length - 1);
 
     const arrowNextSvg = `<svg class="wizard-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;margin-left:4px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
     const arrowPrevSvg = `<svg class="wizard-prev-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;margin-right:4px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
@@ -1100,11 +1102,12 @@ const HorariosModule = (() => {
     }
 
     const isComplete = checkRequiredHorarioFields();
+    const canSubmit = isLast || isComplete;
 
     if (isEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm(${currentScheduleModalItem.id_horario})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn ${isComplete ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${isComplete ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Complete servidor, modalidad, días/franja y fecha de inicio para crear el esquema"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${canSubmit ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Complete servidor, modalidad y vigencia o avance a la última pestaña para crear el esquema"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
     }
 
     if (nextTab) {
@@ -2196,6 +2199,20 @@ const HorariosModule = (() => {
     const cargo = document.getElementById('horario-cargo')?.value?.trim();
     const estado = document.getElementById('horario-estado')?.value || 'Activa';
 
+    // 1. Validar Pestaña 1 (Servidor & Ubicación): Servidor institucional vinculado
+    if (!documento || !apellidos_nombres) {
+      switchFormTab('tab-hor-servidor');
+      const searchWrap = document.getElementById('horario-search-wrapper');
+      if (searchWrap) searchWrap.style.display = 'block';
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-search-emp', 'Debe buscar y seleccionar un servidor público de nómina.');
+      } else {
+        App.showToast('Debe buscar y seleccionar un servidor público de nómina.', 'warning');
+      }
+      return;
+    }
+
+    // 2. Validar Pestaña 2 (Esquema & Horario): Modalidad y parámetros específicos
     const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
     if (!modalidadRadio) {
       switchFormTab('tab-hor-esquema');
@@ -2204,6 +2221,39 @@ const HorariosModule = (() => {
     }
     const modalidad = modalidadRadio.value;
 
+    let subtipo_teletrabajo_val = null;
+    let dias_teletrabajo_val = null;
+    let franja_ingreso_val = null;
+    let motivo_trabajo_casa_val = null;
+
+    if (modalidad === 'Teletrabajo') {
+      dias_teletrabajo_val = document.getElementById('dias-teletrabajo')?.value?.trim() || '';
+      subtipo_teletrabajo_val = document.getElementById('subtipo-teletrabajo')?.value || 'Suplementario (Híbrido)';
+      if (!dias_teletrabajo_val) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('dias-teletrabajo', 'Debe seleccionar los días de teletrabajo.');
+        } else {
+          App.showToast('Debe seleccionar los días de teletrabajo.', 'warning');
+        }
+        return;
+      }
+    } else if (modalidad === 'Horario flexible') {
+      franja_ingreso_val = document.getElementById('franja-ingreso')?.value?.trim() || '';
+      if (!franja_ingreso_val) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('franja-ingreso', 'Debe indicar la franja horaria concertada.');
+        } else {
+          App.showToast('Debe indicar la franja horaria concertada.', 'warning');
+        }
+        return;
+      }
+    } else if (modalidad === 'Trabajo en casa') {
+      motivo_trabajo_casa_val = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
+    }
+
+    // 3. Validar Pestaña 3 (Acto & Vigencia): Fecha inicio y coherencia de fechas
     const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value?.trim();
     if (!fecha_inicio) {
       switchFormTab('tab-hor-acto');
@@ -2214,26 +2264,10 @@ const HorariosModule = (() => {
       }
       return;
     }
+
     const fecha_fin = document.getElementById('horario-fecha-fin')?.value?.trim() || null;
     const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || null;
     const tipo_calculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
-
-    // Acto administrativo (opcional, no inventar datos)
-    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim() || null;
-    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value || null;
-    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
-    const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
-
-    // Validaciones exhaustivas de formulario con navegación visual y foco
-    if (!documento || !apellidos_nombres) {
-      switchFormTab('tab-hor-servidor');
-      if (typeof App !== 'undefined' && App.markFieldInvalid) {
-        App.markFieldInvalid('emp-search-schedule', 'Debe buscar y seleccionar un servidor público de planta.');
-      } else {
-        App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
-      }
-      return;
-    }
 
     if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
       switchFormTab('tab-hor-acto');
@@ -2244,6 +2278,12 @@ const HorariosModule = (() => {
       }
       return;
     }
+
+    // Acto administrativo (opcional, no inventar datos)
+    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim() || null;
+    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value || null;
+    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
+    const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
 
     // Validación de número consecutivo para nuevos registros (no dejar disminuir del último que está)
     if (!existingId) {
@@ -2284,47 +2324,11 @@ const HorariosModule = (() => {
       aprobado_por: null,
       soporte_acto,
       observaciones,
+      subtipo_teletrabajo: subtipo_teletrabajo_val,
+      dias_teletrabajo: dias_teletrabajo_val,
+      franja_ingreso: franja_ingreso_val,
+      motivo_trabajo_casa: motivo_trabajo_casa_val,
     };
-
-    // Campos según modalidad (estricto: NO inventar datos por defecto)
-    if (modalidad === 'Teletrabajo') {
-      const diasTele = document.getElementById('dias-teletrabajo')?.value?.trim();
-      const subtipoTele = document.getElementById('subtipo-teletrabajo')?.value || '';
-      if (!diasTele) {
-        switchFormTab('tab-hor-esquema');
-        if (typeof App !== 'undefined' && App.markFieldInvalid) {
-          App.markFieldInvalid('dias-teletrabajo', 'Debe especificar los días de teletrabajo.');
-        } else {
-          App.showToast('Debe especificar los días de teletrabajo.', 'warning');
-        }
-        return;
-      }
-      if (!subtipoTele) {
-        switchFormTab('tab-hor-esquema');
-        if (typeof App !== 'undefined' && App.markFieldInvalid) {
-          App.markFieldInvalid('subtipo-teletrabajo', 'Debe seleccionar el subtipo de teletrabajo.');
-        } else {
-          App.showToast('Debe seleccionar el subtipo de teletrabajo.', 'warning');
-        }
-        return;
-      }
-      payload.subtipo_teletrabajo = subtipoTele;
-      payload.dias_teletrabajo = diasTele;
-    } else if (modalidad === 'Horario flexible') {
-      const franja = document.getElementById('franja-ingreso')?.value?.trim() || '';
-      if (!franja) {
-        switchFormTab('tab-hor-esquema');
-        if (typeof App !== 'undefined' && App.markFieldInvalid) {
-          App.markFieldInvalid('franja-ingreso', 'Debe indicar la franja horaria concertada.');
-        } else {
-          App.showToast('Debe indicar la franja horaria concertada.', 'warning');
-        }
-        return;
-      }
-      payload.franja_ingreso = franja;
-    } else if (modalidad === 'Trabajo en casa') {
-      payload.motivo_trabajo_casa = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
-    }
 
     try {
       if (existingId) {
