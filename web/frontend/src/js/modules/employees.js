@@ -2630,7 +2630,6 @@ const EmployeesModule = (() => {
     const isEdit = Boolean(emp.cedula || emp.id);
 
     const cleanEmpDep = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
-    const cleanEmpCargo = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
     const cleanEmpCargo = isInvalidValue(emp.cargoTitular || emp.cargoBase || emp.cargoActual) ? '' : (emp.cargoTitular || emp.cargoBase || emp.cargoActual).trim();
     const cleanEmpEncargo = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
     const cleanEmpClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
