@@ -52,6 +52,23 @@ async function initDb() {
 }
 initDb();
 
+// Servir assets institucionales (escudo, logos) públicos para correos y clientes
+router.get(['/assets/:file', '/logo.png'], (req, res) => {
+  const safeFilename = path.basename(req.params.file || 'logoCondor.png');
+  const possiblePaths = [
+    path.join(__dirname, '../assets', safeFilename),
+    path.join(__dirname, '../../../../frontend/src/imgs', safeFilename)
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      res.setHeader('Content-Type', safeFilename.endsWith('.png') ? 'image/png' : 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.sendFile(p);
+    }
+  }
+  return res.status(404).json({ error: 'Asset no encontrado' });
+});
+
 function getClientIp(req) {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
@@ -489,10 +506,9 @@ Palacio de la Torre — Plaza de Bolívar, Tunja, Boyacá`;
 function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
   const nombreDisplay = nombre && nombre.trim() ? nombre.trim() : 'Funcionario';
   const loginUrl = appUrl && appUrl.startsWith('http') ? appUrl : 'http://localhost';
-  // URL pública del escudo oficial para máxima compatibilidad con clientes de correo y Brevo API (evita cid: roto)
-  const logoUrl = (appUrl && appUrl.startsWith('https://') && !appUrl.includes('localhost'))
-    ? `${appUrl.replace(/\/$/, '')}/imgs/logoCondor.png`
-    : 'https://raw.githubusercontent.com/JuanEstebanSilva/talentoHumano360/main/web/frontend/src/imgs/logoCondor.png';
+  // URL pública oficial y canónica del escudo institucional para clientes de correo (Gmail, Outlook, Yahoo) y Brevo API
+  // Se emplea el CDN de GitHub Raw directamente para garantizar que la imagen sea accesible por los proxies de correo sin depender de rutas relativas o variables de entorno locales
+  const logoUrl = 'https://raw.githubusercontent.com/JuanEstebanSilva/talentoHumano360/main/web/frontend/src/imgs/logoCondor.png';
 
   return `<!DOCTYPE html>
 <html lang="es">

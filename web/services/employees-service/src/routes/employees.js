@@ -353,6 +353,11 @@ router.get('/', auth, async (req, res) => {
           OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${cIdx}
           OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
           OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR LOWER(cb.cargo) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.clasificacion_empleo, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.situacion, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(r.encargo_denominacion, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.novedades, '')) LIKE LOWER($${qIdx})
           OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
         )`);
       } else {
@@ -362,6 +367,11 @@ router.get('/', auth, async (req, res) => {
           OR REPLACE(REPLACE(p.cedula, '.', ''), ' ', '') LIKE $${qIdx}
           OR LOWER(d.dependencia) LIKE LOWER($${qIdx})
           OR LOWER(ca.cargo) LIKE LOWER($${qIdx})
+          OR LOWER(cb.cargo) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.clasificacion_empleo, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.situacion, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(r.encargo_denominacion, '')) LIKE LOWER($${qIdx})
+          OR LOWER(COALESCE(e.novedades, '')) LIKE LOWER($${qIdx})
           OR (ve.numero_vacante IS NOT NULL AND ('PLAZA VACANTE ' || LPAD(ve.numero_vacante::text, 4, '0')) ILIKE $${qIdx})
         )`);
       }
@@ -452,13 +462,37 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (situacion && situacion.trim()) {
-      params.push('%' + situacion.trim() + '%');
-      whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + params.length + ')');
+      const sitTrim = situacion.trim();
+      params.push('%' + sitTrim + '%');
+      const sIdx = params.length;
+      if (sitTrim.toUpperCase() === 'ENCARGO') {
+        whereConditions.push(`(
+          UPPER(COALESCE(e.situacion, '')) LIKE UPPER($${sIdx})
+          OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
+          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
+          OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
+          OR r.fecha_encargo IS NOT NULL
+        )`);
+      } else {
+        whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + sIdx + ')');
+      }
     }
 
     if (clasificacion && clasificacion.trim()) {
-      params.push('%' + clasificacion.trim() + '%');
-      whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + params.length + ')');
+      const clasTrim = clasificacion.trim();
+      params.push('%' + clasTrim + '%');
+      const cIdx = params.length;
+      if (['ENCARGO', 'ENCARGOS', 'ENCARGO (TODOS)', 'ENCARGO (TODOS LOS TIPOS)', 'TODOS LOS ENCARGOS'].includes(clasTrim.toUpperCase())) {
+        whereConditions.push(`(
+          UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
+          OR UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
+          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
+          OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
+          OR r.fecha_encargo IS NOT NULL
+        )`);
+      } else {
+        whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + cIdx + ')');
+      }
     }
 
     if (concurso) {
@@ -498,9 +532,21 @@ router.get('/', auth, async (req, res) => {
     if (tieneEncargo) {
       const te = tieneEncargo.trim().toLowerCase();
       if (te === 'si' || te === 'true' || te === '1') {
-        whereConditions.push('((r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != \'\') OR UPPER(COALESCE(e.situacion, \'\')) = \'ENCARGO\')');
+        whereConditions.push(`(
+          (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
+          OR UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
+          OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
+          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
+          OR r.fecha_encargo IS NOT NULL
+        )`);
       } else if (te === 'no' || te === 'false' || te === '0') {
-        whereConditions.push('((r.encargo_denominacion IS NULL OR TRIM(r.encargo_denominacion) = \'\') AND UPPER(COALESCE(e.situacion, \'\')) != \'ENCARGO\')');
+        whereConditions.push(`(
+          (r.encargo_denominacion IS NULL OR TRIM(r.encargo_denominacion) = '')
+          AND UPPER(COALESCE(e.situacion, '')) != 'ENCARGO'
+          AND UPPER(COALESCE(e.clasificacion_empleo, '')) NOT LIKE '%ENCARGO%'
+          AND UPPER(COALESCE(e.novedades, '')) NOT LIKE '%ENCARGO%'
+          AND r.fecha_encargo IS NULL
+        )`);
       }
     }
 

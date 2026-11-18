@@ -10,10 +10,11 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --production
 
-# Copiar código de base de datos, servicios y backend
+# Copiar código de base de datos, servicios, backend y assets gráficos
 COPY database/ ./database/
 COPY web/services/ ./web/services/
 COPY web/backend/ ./web/backend/
+COPY web/frontend/src/imgs/ ./web/frontend/src/imgs/
 
 WORKDIR /app
 

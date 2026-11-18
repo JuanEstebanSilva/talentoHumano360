@@ -1044,13 +1044,19 @@ const EmployeesModule = (() => {
     const af = state.advancedFilters || {};
     const gruposSanguineos = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     const situaciones = ['ACTIVO', 'ENCARGO', 'COMISIÓN', 'LICENCIA', 'VACACIONES', 'PREPENSIONABLE', 'PENSIONABLE', 'DISCAPACIDAD', 'RETIRADO'];
-    const vinculaciones = state.catalogs.clasificaciones || [
-      'Carrera Administrativa',
-      'Libre Nombramiento y Remoción',
-      'Provisionalidad',
-      'Temporal',
-      'Aprendiz o Contrato SENA',
-      'Trabajador Oficial'
+    const rawClasificaciones = (state.catalogs.clasificaciones && state.catalogs.clasificaciones.length)
+      ? state.catalogs.clasificaciones
+      : [
+        'Carrera Administrativa',
+        'Libre Nombramiento y Remoción',
+        'Provisionalidad',
+        'Temporal',
+        'Aprendiz o Contrato SENA',
+        'Trabajador Oficial'
+      ];
+    const vinculaciones = [
+      'Encargo (Todos los tipos)',
+      ...rawClasificaciones.filter(c => c !== 'Encargo (Todos los tipos)')
     ];
 
     const modalBodyHtml = `
@@ -1293,7 +1299,9 @@ const EmployeesModule = (() => {
           if (valSituacion) newFilters.situacion = valSituacion;
 
           const valClasif = getVal('adv-clasificacion');
-          if (valClasif) newFilters.clasificacion = valClasif;
+          if (valClasif) {
+            newFilters.clasificacion = (valClasif === 'Encargo (Todos los tipos)') ? 'Encargo' : valClasif;
+          }
 
           const valCodCargo = getVal('adv-codigo-cargo');
           if (valCodCargo) newFilters.codigoCargo = valCodCargo;

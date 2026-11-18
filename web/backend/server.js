@@ -6,6 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { pool, initDatabase, runMigrations } = require('./scripts/init-db');
 
@@ -76,6 +77,38 @@ app.use(cors({
 // Límite amplio para permitir importaciones masivas de Excel y adjuntos
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ─── Servir Archivos Estáticos y Logos Institucionales (Públicos) ─────────────
+const serveInstitutionalAsset = (req, res) => {
+  const file = req.params.file || 'logoCondor.png';
+  const safeFilename = path.basename(file);
+  const searchDirs = [
+    path.join(__dirname, '../services/auth-service/src/assets'),
+    path.join(__dirname, '../frontend/src/imgs'),
+    path.join(__dirname, 'public/imgs')
+  ];
+  for (const dir of searchDirs) {
+    const fullPath = path.join(dir, safeFilename);
+    if (fs.existsSync(fullPath)) {
+      const ext = path.extname(safeFilename).toLowerCase();
+      const contentTypes = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+        '.webp': 'image/webp',
+        '.ico': 'image/x-icon'
+      };
+      res.setHeader('Content-Type', contentTypes[ext] || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.sendFile(fullPath);
+    }
+  }
+  return res.status(404).json({ error: `Asset institucional no encontrado: ${safeFilename}` });
+};
+
+app.get(['/imgs/:file', '/assets/:file', '/api/assets/:file', '/api/auth/assets/:file'], serveInstitutionalAsset);
+app.get(['/imgs', '/assets'], (_, res) => res.redirect('/imgs/logoCondor.png'));
 
 // ─── Health Checks y Diagnóstico ──────────────────────────────────────────────
 app.get(['/health', '/api/health'], async (_, res) => {
