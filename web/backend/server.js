@@ -135,9 +135,12 @@ app.get('/api/db-status', async (_, res) => {
       `).catch(() => ({ rows: [] }));
 
       const countPersonas = await client.query('SELECT count(*) FROM personas').catch(() => ({ rows: [{ count: -1 }] }));
+      const countRel = await client.query('SELECT count(*) FROM rel_principal').catch(() => ({ rows: [{ count: -1 }] }));
+      const countContactos = await client.query('SELECT count(*) FROM contactos').catch(() => ({ rows: [{ count: -1 }] }));
+      const countEducacion = await client.query('SELECT count(*) FROM educacion').catch(() => ({ rows: [{ count: -1 }] }));
+      const countEstados = await client.query('SELECT count(*) FROM estados').catch(() => ({ rows: [{ count: -1 }] }));
       const countViaticos = await client.query('SELECT count(*) FROM viaticos').catch(() => ({ rows: [{ count: -1 }] }));
       const countHorarios = await client.query('SELECT count(*) FROM horarios').catch(() => ({ rows: [{ count: -1 }] }));
-      const countRel = await client.query('SELECT count(*) FROM rel_principal').catch(() => ({ rows: [{ count: -1 }] }));
 
       return res.json({
         status: 'connected',
@@ -150,6 +153,9 @@ app.get('/api/db-status', async (_, res) => {
         counts: {
           personas: parseInt(countPersonas.rows[0].count),
           rel_principal: parseInt(countRel.rows[0].count),
+          contactos: parseInt(countContactos.rows[0].count),
+          educacion: parseInt(countEducacion.rows[0].count),
+          estados: parseInt(countEstados.rows[0].count),
           viaticos: parseInt(countViaticos.rows[0].count),
           horarios: parseInt(countHorarios.rows[0].count),
         },
@@ -221,6 +227,18 @@ async function startServer() {
     console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
   }
 
+  // 1.1 Ejecución segura de migraciones pendientes registradas (idempotente vía schema_migrations)
+  try {
+    const client = await pool.connect();
+    try {
+      await runMigrations(client);
+    } finally {
+      client.release();
+    }
+  } catch (migErr) {
+    console.warn('[Talento 360 Migraciones] Aviso al verificar migraciones seguras:', migErr.message);
+  }
+
   // 2. Importación de Microservicios
   const authRoutes          = require('../services/auth-service/src/routes/auth');
   const employeesRoutes     = require('../services/employees-service/src/routes/employees');
@@ -232,6 +250,10 @@ async function startServer() {
   const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
   const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
   const sstRoutes           = require('../services/sst-service/src/routes/sst');
+  // Gestión documental, informes y automatización
+  const documentsRoutes     = require('../services/documents-service/src/routes/documents');
+  const reportsRoutes       = require('../services/reports-service/src/routes/reports');
+  const automationRoutes    = require('../services/reports-service/src/routes/automation');
 
   // 3. Montaje de Rutas API
   app.use('/api/auth', authRoutes);
@@ -249,6 +271,9 @@ async function startServer() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/horarios', horariosRoutes);
   app.use('/api/sst', sstRoutes);
+  app.use('/api/documents', documentsRoutes);
+  app.use('/api/reports', reportsRoutes);
+  app.use('/api/automation', automationRoutes);
 
   // Manejador 404 para rutas API no encontradas
   app.use('/api/*', (req, res) => {

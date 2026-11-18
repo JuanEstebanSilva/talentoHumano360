@@ -157,7 +157,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'sandra.roa@boyaca.gov.co',
-    password: 'Sandra@123',
+    password: '$2a$10$5qjdpBjx8Cfwq1maEVHXieOWkpJGjgb47AN7FVEDijA/3TaQZ5PaG',
     nombre: 'Sandra Roa',
     rol: 'SST',
     cargo_laboral: 'Responsable de Seguridad y Salud en el Trabajo (SST)',
@@ -166,7 +166,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'luis.sanches@boyaca.gov.co',
-    password: 'Luis@456',
+    password: '$2a$10$1xMrjPDxuJVknWDY1shHMuFUqewomQR4Ij3/dUhWkYVWImkkXSzuu',
     nombre: 'Luis Sanchez',
     rol: 'Incapacidades',
     cargo_laboral: 'Responsable de Incapacidades y Ausentismo Laboral',
@@ -175,7 +175,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'luis.sanchez@boyaca.gov.co',
-    password: 'Luis@456',
+    password: '$2a$10$1xMrjPDxuJVknWDY1shHMuFUqewomQR4Ij3/dUhWkYVWImkkXSzuu',
     nombre: 'Luis Sanchez',
     rol: 'Incapacidades',
     cargo_laboral: 'Responsable de Incapacidades y Ausentismo Laboral',
@@ -184,7 +184,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'alejandro.leon@boyaca.edu.co',
-    password: 'Alejandro#123',
+    password: '$2a$10$UwLlzkIR1fGBydluTsLXbexsugOpIhqUpWlM7hC6.9r9w0pkFoghK',
     nombre: 'Alejandro Leon',
     rol: 'Permisos',
     cargo_laboral: 'Responsable de Permisos Laborales',
@@ -193,7 +193,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'alejandro.leon@boyaca.gov.co',
-    password: 'Alejandro#123',
+    password: '$2a$10$UwLlzkIR1fGBydluTsLXbexsugOpIhqUpWlM7hC6.9r9w0pkFoghK',
     nombre: 'Alejandro Leon',
     rol: 'Permisos',
     cargo_laboral: 'Responsable de Permisos Laborales',
@@ -202,7 +202,7 @@ const INITIAL_USERS = [
   },
   {
     username: 'sebastian.rincon@boyaca.gov.co',
-    password: 'Sebastian#456',
+    password: '$2a$10$pek4v/CASWO3Ht4g0dHEA.Sr4a6.BASMG7hOTV8Uw4s8Zzt/D.KXy',
     nombre: 'Sebastian Rincon',
     rol: 'Permisos y Licencias',
     cargo_laboral: 'Responsable de Permisos y Licencias Laborales',

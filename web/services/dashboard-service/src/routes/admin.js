@@ -76,6 +76,44 @@ function requireAdmin(req, res, next) {
   }
 }
 
+// Middleware de verificación de acceso a Centro de Monitoreo de Errores (Administrador o Gestor con módulo admin-errors)
+function requireErrorsAccess(req, res, next) {
+  let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+
+  if (!token) {
+    return res.status(401).json({ error: 'No autorizado. Token de sesión requerido.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const role = String(decoded.role || decoded.rol || '').toLowerCase();
+    const isAdminRole = (role === 'admin' || role === 'administrador');
+    const modules = Array.isArray(decoded.modules) ? decoded.modules : [];
+    const permissions = Array.isArray(decoded.permissions) ? decoded.permissions : [];
+
+    const hasAccess = isAdminRole ||
+      modules.includes('admin-errors') ||
+      modules.includes('errors') ||
+      modules.includes('*') ||
+      permissions.includes('admin-errors:*') ||
+      permissions.includes('errors:*') ||
+      permissions.includes('*');
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos del Centro de Monitoreo de Errores o Administrador.' });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token de sesión inválido o expirado.' });
+  }
+}
+
 // Middleware de verificación de acceso a Copias de Seguridad (Administrador o Gestor con módulo backups)
 function requireBackupsAccess(req, res, next) {
   let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
@@ -222,10 +260,10 @@ router.post('/errors', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. CONSULTA Y GESTIÓN DE ERRORES (Solo Administrador)
+// 2. CONSULTA Y GESTIÓN DE ERRORES (Administrador o Gestor de Monitoreo de Errores)
 // ─────────────────────────────────────────────────────────────────────────────
 
-router.get('/errors', requireAdmin, async (req, res) => {
+router.get('/errors', requireErrorsAccess, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(5, parseInt(req.query.limit) || 20));
@@ -345,7 +383,7 @@ router.get('/errors', requireAdmin, async (req, res) => {
   }
 });
 
-router.patch('/errors/:id', requireAdmin, async (req, res) => {
+router.patch('/errors/:id', requireErrorsAccess, async (req, res) => {
   try {
     const errorId = parseInt(req.params.id);
     const { estado } = req.body || {};
@@ -378,7 +416,7 @@ router.patch('/errors/:id', requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/errors/:id', requireAdmin, async (req, res) => {
+router.delete('/errors/:id', requireErrorsAccess, async (req, res) => {
   try {
     const errorId = parseInt(req.params.id);
     await pool.query('DELETE FROM system_errors WHERE id = $1', [errorId]);
@@ -388,7 +426,7 @@ router.delete('/errors/:id', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/errors/clear-all', requireAdmin, async (req, res) => {
+router.post('/errors/clear-all', requireErrorsAccess, async (req, res) => {
   try {
     const { onlyResolved } = req.body || {};
     if (onlyResolved) {

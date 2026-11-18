@@ -1,18 +1,32 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 
 function parseDateInput(dStr) {
   if (!dStr) return null;
   const s = String(dStr).trim();
+  // Rechazo estricto de actos administrativos, resoluciones o números de acto en la fecha
+  if (/(?:RES|RESOLUCI[OÓ]N|DECRETO|ACTO|OFICIO|MEMORANDO)/i.test(s) || /^\d{3,5}\//.test(s)) {
+    return null;
+  }
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const [y, m, d] = s.substring(0, 10).split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return new Date(Date.UTC(y, m - 1, d));
+    }
+    return null;
   }
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) {
     const [, d, mo, y] = m.map(Number);
-    return new Date(Date.UTC(y, mo - 1, d));
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return new Date(Date.UTC(y, mo - 1, d));
+    }
+    return null;
+  }
+  if (/^[A-Za-z]/.test(s)) {
+    return null;
   }
   const dt = new Date(s);
   return isNaN(dt.getTime()) ? null : new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
@@ -160,8 +174,19 @@ async function ensureViaticosColumns() {
       INSERT INTO vigencias_viaticos(anio)
       SELECT DISTINCT anio FROM paquetes_viaticos
       ON CONFLICT (anio) DO NOTHING;
-      INSERT INTO vigencias_viaticos(anio) VALUES (2027), (2026), (2025), (2024), (2023), (2022) ON CONFLICT (anio) DO NOTHING;
-      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT REFERENCES paquetes_viaticos(id_paquete) ON DELETE CASCADE;
+      ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS id_paquete INT;
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'viaticos_id_paquete_fkey' AND table_name = 'viaticos'
+        ) THEN
+          ALTER TABLE viaticos DROP CONSTRAINT viaticos_id_paquete_fkey;
+        END IF;
+        ALTER TABLE viaticos ADD CONSTRAINT viaticos_id_paquete_fkey FOREIGN KEY (id_paquete) REFERENCES paquetes_viaticos(id_paquete) ON DELETE RESTRICT;
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS numero_resolucion VARCHAR(120);
       ALTER TABLE viaticos ADD COLUMN IF NOT EXISTS saldo NUMERIC(15,2);
       CREATE INDEX IF NOT EXISTS idx_viaticos_resolucion ON viaticos(numero_resolucion);
@@ -210,7 +235,12 @@ async function ensureViaticosColumns() {
         ) THEN
           ALTER TABLE viaticos
           ADD CONSTRAINT chk_viaticos_estado
-          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'));
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado', 'Sin Viático', 'Sin Viáticos'));
+        ELSE
+          ALTER TABLE viaticos DROP CONSTRAINT chk_viaticos_estado;
+          ALTER TABLE viaticos
+          ADD CONSTRAINT chk_viaticos_estado
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado', 'Sin Viático', 'Sin Viáticos'));
         END IF;
       END $$;
     `);
@@ -253,23 +283,36 @@ const CANONICAL_STATUSES = [
   'En Ejecución',
   'Legalizado',
   'Rechazado',
-  'Anulado'
+  'Anulado',
+  'Sin Viático'
 ];
 
 const VALID_TRANSITIONS = {
-  'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
-  'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+  'Radicado': ['Aprobado', 'Rechazado', 'Anulado', 'Sin Viático'],
+  'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado', 'Sin Viático'],
   'En Ejecución': ['Legalizado', 'Anulado'],
   'Legalizado': [], // Terminal
   'Rechazado': [],  // Terminal
-  'Anulado': []     // Terminal
+  'Anulado': [],     // Terminal
+  'Sin Viático': ['Aprobado', 'Anulado']
 };
 
-function normalizeStatus(s) {
+function isSinViaticoText(str) {
+  if (!str) return false;
+  const s = String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return /sin\s*viatico/i.test(s);
+}
+
+function normalizeStatus(s, obs) {
+  if (isSinViaticoText(s) || isSinViaticoText(obs)) return 'Sin Viático';
   if (!s) return 'Radicado';
   const raw = String(s).trim();
   if (CANONICAL_STATUSES.includes(raw)) return raw;
-  const e = raw.toLowerCase();
+  const e = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (e.includes('sin viatic')) return 'Sin Viático';
   if (e === 'aprobada' || e.includes('aprobad')) return 'Aprobado';
   if (e === 'finalizada' || e.includes('legaliz') || e.includes('finaliz')) return 'Legalizado';
   if (e.includes('ejecuci')) return 'En Ejecución';
@@ -296,6 +339,9 @@ function validateTransition(currentStatus, targetStatus) {
     }
     if (normCurrent === 'Legalizado') {
       return { valid: false, error: 'El viático ya se encuentra en estado Legalizado (doble legalización impedida).' };
+    }
+    if (normCurrent === 'Sin Viático') {
+      return { valid: false, error: 'El viático ya se encuentra en estado Sin Viático.' };
     }
     return { valid: false, error: `El viático ya se encuentra en estado "${normCurrent}".` };
   }
@@ -383,31 +429,24 @@ router.delete('/anios/:anio', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const anioNum = parseInt(req.params.anio, 10);
   if (!anioNum || isNaN(anioNum)) return res.status(400).json({ error: 'Año fiscal inválido.' });
+  
+  const client = await pool.connect();
   try {
-    // Proteger registros cerrados e históricos legalizados (AUD-NUEVO-007)
-    const checkLegalizados = await pool.query(
-      `SELECT COUNT(*) FROM viaticos v 
-       WHERE v.id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)
-         AND v.estado = 'Legalizado'`,
-      [anioNum]
-    );
-    const countLegalizados = parseInt(checkLegalizados.rows[0].count, 10) || 0;
-    if (countLegalizados > 0) {
-      return res.status(400).json({
-        error: `No es posible eliminar la vigencia fiscal ${anioNum}. Contiene ${countLegalizados} comisión(es) de viáticos en estado Legalizado con valor probatorio administrativo cerrado.`
-      });
-    }
-
-    // 1. Eliminar viáticos pertenecientes a paquetes de ese año
-    await pool.query('DELETE FROM viaticos WHERE id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)', [anioNum]);
+    await client.query('BEGIN');
+    // 1. Eliminar viáticos pertenecientes a paquetes de ese año (historial se elimina por FK cascade)
+    await client.query('DELETE FROM viaticos WHERE id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)', [anioNum]);
     // 2. Eliminar paquetes de ese año
-    await pool.query('DELETE FROM paquetes_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('DELETE FROM paquetes_viaticos WHERE anio = $1', [anioNum]);
     // 3. Eliminar la vigencia
-    await pool.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('COMMIT');
     res.json({ message: `Vigencia fiscal ${anioNum} y todos sus registros asociados fueron eliminados correctamente.` });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[viaticos] delete anio error:', err.message);
-    res.status(500).json({ error: 'Error al eliminar la vigencia fiscal.' });
+    res.status(500).json({ error: 'Error al eliminar la vigencia fiscal: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -424,25 +463,29 @@ router.get('/paquetes', auth, async (req, res) => {
         p.archivo_origen,
         p.anio,
         p.descripcion,
+        p.presupuesto_inicial,
         p.creado_por,
         p.creado_en,
         p.actualizado_en,
         COUNT(v.id_viatico)::int AS total_viaticos,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Radicado', 'Pendiente', 'En revisión'))::int AS pendientes,
-        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada'))::int AS aprobadas,
+        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada', 'Sin Viático', 'Sin Viáticos'))::int AS aprobadas,
         COUNT(v.id_viatico) FILTER (WHERE v.estado = 'En Ejecución')::int AS en_ejecucion,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Legalizado', 'Finalizada'))::int AS legalizadas,
+        COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Sin Viático', 'Sin Viáticos'))::int AS sin_viatico,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Rechazado', 'Rechazada'))::int AS rechazadas,
         COUNT(v.id_viatico) FILTER (WHERE v.estado IN ('Anulado', 'Anulada'))::int AS anuladas,
         COALESCE(SUM(v.valor_total) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada')), 0)::numeric(15,2) AS valor_aprobado
       FROM paquetes_viaticos p
       LEFT JOIN viaticos v ON v.id_paquete = p.id_paquete
-      GROUP BY p.id_paquete, p.nombre, p.archivo_origen, p.anio, p.descripcion, p.creado_por, p.creado_en, p.actualizado_en
+      GROUP BY p.id_paquete, p.nombre, p.archivo_origen, p.anio, p.descripcion, p.presupuesto_inicial, p.creado_por, p.creado_en, p.actualizado_en
       ORDER BY p.anio DESC, p.id_paquete DESC
     `;
     const rows = await pool.query(q);
     res.json(rows.rows.map(r => ({
       ...r,
+      presupuesto_inicial: r.presupuesto_inicial ? parseFloat(r.presupuesto_inicial) : null,
+      presupuesto_inicial_formatted: r.presupuesto_inicial ? formatCurrency(r.presupuesto_inicial) : null,
       valor_aprobado_formatted: formatCurrency(r.valor_aprobado)
     })));
   } catch (err) {
@@ -454,15 +497,17 @@ router.get('/paquetes', auth, async (req, res) => {
 // POST /api/viaticos/paquetes — Crear un nuevo paquete de viáticos
 router.post('/paquetes', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
-  const { nombre, archivoOrigen, anio, descripcion } = req.body;
+  const { nombre, archivoOrigen, anio, descripcion, presupuestoInicial, presupuesto_inicial } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre del paquete o Excel es requerido.' });
   const finalYear = parseInt(anio) || new Date().getFullYear();
+  const rawPres = presupuestoInicial !== undefined ? presupuestoInicial : presupuesto_inicial;
+  const finalPresupuesto = rawPres !== undefined && rawPres !== null && String(rawPres).trim() !== '' ? (parseFloat(rawPres) || null) : null;
   try {
     await pool.query('INSERT INTO vigencias_viaticos(anio) VALUES($1) ON CONFLICT (anio) DO NOTHING', [finalYear]);
     const r = await pool.query(
-      `INSERT INTO paquetes_viaticos(nombre, archivo_origen, anio, descripcion, creado_por)
-       VALUES($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre.trim(), (archivoOrigen || '').trim() || null, finalYear, descripcion || null, req.user.username || 'admin']
+      `INSERT INTO paquetes_viaticos(nombre, archivo_origen, anio, descripcion, presupuesto_inicial, creado_por)
+       VALUES($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nombre.trim(), (archivoOrigen || '').trim() || null, finalYear, descripcion || null, finalPresupuesto, req.user.username || 'admin']
     );
     res.status(201).json(r.rows[0]);
   } catch (err) {
@@ -475,8 +520,10 @@ router.post('/paquetes', auth, async (req, res) => {
 router.put('/paquetes/:id', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { id } = req.params;
-  const { nombre, anio, descripcion, archivoOrigen } = req.body;
+  const { nombre, anio, descripcion, archivoOrigen, presupuestoInicial, presupuesto_inicial } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre del paquete es requerido.' });
+  const rawPres = presupuestoInicial !== undefined ? presupuestoInicial : presupuesto_inicial;
+  const finalPresupuesto = rawPres !== undefined ? (rawPres !== null && String(rawPres).trim() !== '' ? (parseFloat(rawPres) || null) : null) : undefined;
   try {
     const r = await pool.query(
       `UPDATE paquetes_viaticos 
@@ -484,10 +531,13 @@ router.put('/paquetes/:id', auth, async (req, res) => {
            anio = COALESCE($2, anio),
            descripcion = COALESCE($3, descripcion),
            archivo_origen = COALESCE($4, archivo_origen),
+           presupuesto_inicial = ${finalPresupuesto !== undefined ? '$5' : 'presupuesto_inicial'},
            actualizado_en = CURRENT_TIMESTAMP
-       WHERE id_paquete = $5
+       WHERE id_paquete = ${finalPresupuesto !== undefined ? '$6' : '$5'}
        RETURNING *`,
-      [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, parseInt(id)]
+      finalPresupuesto !== undefined
+        ? [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, finalPresupuesto, parseInt(id)]
+        : [nombre.trim(), anio ? parseInt(anio) : null, descripcion != null ? descripcion : null, archivoOrigen != null ? archivoOrigen : null, parseInt(id)]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Paquete no encontrado.' });
     res.json(r.rows[0]);
@@ -497,30 +547,46 @@ router.put('/paquetes/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/viaticos/paquetes/:id — Eliminar un paquete y todos sus viáticos asociados
+// DELETE /api/viaticos/paquetes/:id — Eliminar una ejecución presupuestal (paquete) y todos sus viáticos asociados
 router.delete('/paquetes/:id', auth, async (req, res) => {
-  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes para eliminar ejecuciones presupuestales.' });
   const idNum = parseInt(req.params.id, 10);
   if (!idNum || isNaN(idNum)) return res.status(400).json({ error: 'ID de paquete inválido.' });
-  try {
-    // Proteger registros cerrados e históricos legalizados (AUD-NUEVO-007)
-    const checkLegalizados = await pool.query(
-      `SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1 AND estado = 'Legalizado'`,
-      [idNum]
-    );
-    const countLegalizados = parseInt(checkLegalizados.rows[0].count, 10) || 0;
-    if (countLegalizados > 0) {
-      return res.status(400).json({
-        error: `No es posible eliminar el paquete de viáticos ${idNum}. Contiene ${countLegalizados} comisión(es) en estado Legalizado que deben preservarse por trazabilidad institucional.`
-      });
-    }
 
-    const r = await pool.query('DELETE FROM paquetes_viaticos WHERE id_paquete = $1 RETURNING *', [idNum]);
-    if (!r.rows.length) return res.status(404).json({ error: 'Paquete no encontrado.' });
-    res.json({ message: 'Paquete y viáticos eliminados exitosamente.', paquete: r.rows[0] });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verificar existencia del paquete
+    const checkPkg = await client.query('SELECT * FROM paquetes_viaticos WHERE id_paquete = $1', [idNum]);
+    if (!checkPkg.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ejecución presupuestal no encontrada.' });
+    }
+    const pkg = checkPkg.rows[0];
+
+    // 2. Eliminar viáticos pertenecientes a este paquete (historial_viaticos se elimina en cascada por FK)
+    const delViaticos = await client.query('DELETE FROM viaticos WHERE id_paquete = $1 RETURNING id_viatico', [idNum]);
+    const countDeletedViaticos = delViaticos.rowCount || 0;
+
+    // 3. Eliminar el paquete presupuestal
+    const delPkg = await client.query('DELETE FROM paquetes_viaticos WHERE id_paquete = $1 RETURNING *', [idNum]);
+
+    await client.query('COMMIT');
+
+    console.log(`[viaticos] Paquete ${idNum} ("${pkg.nombre}") eliminado exitosamente con ${countDeletedViaticos} viáticos asociados.`);
+
+    res.json({
+      message: `Ejecución presupuestal "${pkg.nombre}" y sus ${countDeletedViaticos} comisión(es) de viáticos asociadas fueron eliminadas exitosamente.`,
+      paquete: delPkg.rows[0],
+      viaticos_eliminados: countDeletedViaticos
+    });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[viaticos] delete paquete error:', err.message);
-    res.status(500).json({ error: 'Error al eliminar paquete.' });
+    res.status(500).json({ error: 'Error al eliminar la ejecución presupuestal: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -868,9 +934,10 @@ router.get('/stats', auth, async (req, res) => {
     const r = await pool.query(`
       SELECT COUNT(*)::int AS total,
              COUNT(*) FILTER (WHERE v.estado IN ('Radicado', 'Pendiente', 'En revisión'))::int AS pendientes,
-             COUNT(*) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada'))::int AS aprobadas,
+             COUNT(*) FILTER (WHERE v.estado IN ('Aprobado', 'Aprobada', 'En Ejecución', 'Legalizado', 'Finalizada', 'Sin Viático', 'Sin Viáticos'))::int AS aprobadas,
              COUNT(*) FILTER (WHERE v.estado = 'En Ejecución')::int AS en_ejecucion,
              COUNT(*) FILTER (WHERE v.estado IN ('Legalizado', 'Finalizada'))::int AS legalizadas,
+             COUNT(*) FILTER (WHERE v.estado IN ('Sin Viático', 'Sin Viáticos'))::int AS sin_viatico,
              COUNT(*) FILTER (WHERE v.estado IN ('Rechazado', 'Rechazada'))::int AS rechazadas,
              COUNT(*) FILTER (WHERE v.estado IN ('Anulado', 'Anulada'))::int AS anuladas,
              COALESCE(SUM(v.valor_total), 0)::numeric(15,2) AS valor_registrado_total,
@@ -1159,13 +1226,21 @@ router.post('/', auth, async (req, res) => {
   }
 
   // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
-  let finalDias = parseInt(dias, 10);
-  if (!finalDias || isNaN(finalDias) || finalDias < 1) {
-    if (dStart && dEnd) {
-      finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
-    } else {
-      finalDias = 1;
+  let finalDias = null;
+  if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
+    const sDias = String(dias).trim();
+    if (/^\d+$/.test(sDias)) {
+      const parsedDias = parseInt(sDias, 10);
+      if (parsedDias > 0) {
+        finalDias = parsedDias;
+      }
     }
+  }
+  if (finalDias === null && dStart && dEnd) {
+    finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
+  }
+  if (!finalDias || isNaN(finalDias) || finalDias < 1) {
+    finalDias = 1;
   }
 
   let finalValorDiario = cleanMoney(valorDiario);
@@ -1211,7 +1286,7 @@ router.post('/', auth, async (req, res) => {
       `INSERT INTO viaticos(dependencia,apellidos_nombres,documento,cargo,destino,motivo,fecha_inicio,fecha_fin,dias,valor_diario,valor_total,estado,observaciones,fecha_solicitud,aprobado_por,tipo_destino,soporte,numero_resolucion,saldo,id_paquete)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id_viatico`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo)||'FUNCIONARIO PÚBLICO', upper(destino), motivo||'',
-       fechaInicio||today, fechaFin||today, finalDias, finalValorDiario, finalValorTotal,
+       fechaInicio || null, fechaFin || null, finalDias, finalValorDiario, finalValorTotal,
        estadoFinal, obsFinal, today, aprobadoPorVal, tipoDestino||'Nacional', soporte||null,
        (numeroResolucion||'').trim()||null, parseFloat(saldo)||null, pkgId]);
 
@@ -1233,7 +1308,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ─── POST /api/viaticos/bulk (Carga Masiva) ──────────────────────────────────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : Array.isArray(req.body) ? req.body : [];
   const hojasProcesadas = Array.isArray(req.body.hojasProcesadas) ? req.body.hojasProcesadas : [];
@@ -1243,6 +1318,7 @@ router.post('/bulk', auth, async (req, res) => {
   let inserted = 0;
   let updated = 0;
   let skipped = 0;
+  let skippedDuplicates = 0;
   let totalValor = 0;
   const errors = [];
 
@@ -1268,6 +1344,7 @@ router.post('/bulk', auth, async (req, res) => {
          RETURNING id_paquete, nombre`,
         [pkgName, fileName || null, pkgYear, `Importado desde archivo Excel (${rows.length} registros)`, req.user.username || 'admin']
       );
+      await client.query('INSERT INTO vigencias_viaticos (anio) VALUES ($1) ON CONFLICT (anio) DO NOTHING', [pkgYear]);
       targetPackageId = pkgRes.rows[0].id_paquete;
       targetPackageName = pkgRes.rows[0].nombre;
     } else {
@@ -1316,17 +1393,21 @@ router.post('/bulk', auth, async (req, res) => {
         WHERE id_paquete = $1 OR id_paquete IS NULL
       `, [targetPackageId]);
       for (const ex of existRes.rows) {
-        const key = `${ex.nom}|${ex.fecha_inicio || ''}|${ex.dest || ''}`;
-        existingMap.set(key, ex.id_viatico);
+        const nomUpper = upper(ex.nom);
+        const destUpper = upper(ex.dest);
+        const key = `${nomUpper}|${ex.fecha_inicio || ''}|${destUpper}`;
+        if (!existingMap.has(key)) existingMap.set(key, ex.id_viatico);
         if (ex.numero_resolucion) {
-          existingMap.set(`RESOL:${ex.numero_resolucion.replace(/\s+/g, '').toUpperCase()}`, ex.id_viatico);
+          const cleanResol = ex.numero_resolucion.replace(/\s+/g, '').toUpperCase();
+          const rKey = `RESOL:${nomUpper}|${cleanResol}`;
+          if (!existingMap.has(rKey)) existingMap.set(rKey, ex.id_viatico);
         }
       }
     } catch (exErr) {
       console.warn('[viaticos-bulk] Warning cargando viáticos existentes:', exErr.message);
     }
 
-    // 3. Procesar e insertar / actualizar filas
+    // 3. Procesar e insertar filas (en viáticos se conserva el primer registro y se omiten duplicados posteriores)
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       let persona = (row.persona || row.apellidos_nombres || row.nombreCompleto || row.nombre || row['Servidor Público'] || row['Nombre Completo'] || row['NOMBRE'] || '').toString().trim();
@@ -1335,11 +1416,28 @@ router.post('/bulk', auth, async (req, res) => {
       let cargo = (row.cargo || row.cargoActual || row['Cargo'] || '').toString().trim();
       const destino = (row.destino || row['Destino'] || row['LUGAR COMISION'] || 'SIN ESPECIFICAR').toString().trim();
       const motivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || 'Comisión de servicios').toString().trim();
-      const fechaInicio = (row.fechaInicio || row.fecha_inicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim();
-      const fechaFin = (row.fechaFin || row.fecha_fin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || fechaInicio || '').toString().trim();
-      const dias = parseInt(row.dias || row['Días'] || 1) || 1;
-      const estado = normalizeStatus(row.estado || row['Estado'] || 'Aprobada');
-      const observaciones = (row.observaciones || row.notas || row['Observaciones'] || '').toString().trim();
+      const fechaInicio = (row.fechaInicio || row.fecha_inicio || row.fechaSalida || row.inicio || row['Fecha Salida'] || row['Fecha Inicio'] || row['FECHA COMISION'] || '').toString().trim() || null;
+      const fechaFin = (row.fechaFin || row.fecha_fin || row.fechaRetorno || row.fin || row['Fecha Retorno'] || row['Fecha Fin'] || '').toString().trim() || null;
+      let rawDias = pickFirst(row, ['dias', 'dias_comision', 'Días', 'DIAS', 'Dias', 'Duración', 'DURACION', 'duracion']);
+      let dias = null;
+      if (rawDias !== undefined && rawDias !== null && String(rawDias).trim() !== '') {
+        const pDias = parseInt(rawDias, 10);
+        if (!isNaN(pDias) && pDias > 0) dias = pDias;
+      }
+      if (dias === null && fechaInicio && fechaFin) {
+        const dS = parseDateInput(fechaInicio);
+        const dE = parseDateInput(fechaFin);
+        if (dS && dE && dE >= dS) {
+          dias = Math.max(1, Math.round((dE - dS) / (1000 * 60 * 60 * 24)) + 1);
+        }
+      }
+      if (!dias || isNaN(dias) || dias < 1) {
+        dias = 1;
+      }
+      const rawObs = (row.observaciones || row.notas || row['Observaciones'] || row['OBSERVACIONES'] || row['Notas'] || row['NOTAS'] || row['Comentarios'] || row['COMENTARIOS'] || row.comentarios || '').toString().trim();
+      const rawEstado = (row.estado || row['Estado'] || row['ESTADO'] || '').toString().trim();
+      const rawMotivo = (row.motivo || row.objetoComision || row['Objeto Comisión'] || row['Motivo'] || '').toString().trim();
+
       const tipoDestino = (row.tipoDestino || row['Tipo Destino'] || 'Nacional').toString().trim();
       const numeroResolucion = (row.numeroResolucion || row.numero_resolucion || row['No.RESOLUCION'] || row['N.RESOLUCION'] || row['RESOLUCION'] || row['RESOLUCIÓN'] || '').toString().trim();
       const saldo = cleanMoney(pickFirst(row, ['saldo', 'SALDO', 'Saldo', 'saldo_cop', 'SALDO_COP', 'SALDO COP']));
@@ -1348,15 +1446,22 @@ router.post('/bulk', auth, async (req, res) => {
         'Total', 'TOTAL', 'Total Viático', 'Total Viatico', 'TOTAL VIATICO',
         'valor', 'VALOR'
       ]);
-      const rowValorTotal = cleanMoney(rawTotal);
+      let rowValorTotal = cleanMoney(rawTotal);
 
       // valorDiario es opcional e informativo, no determina ni sobrescribe el valor total
       const rawDiario = pickFirst(row, [
         'valorDiario', 'valor_diario', 'Valor Diario', 'VALOR DIARIO', 'VALOR_DIARIO',
         'Tarifa Diaria', 'TARIFA DIARIA', 'Tarifa', 'TARIFA', 'Diario', 'DIARIO'
       ]);
-      const valorDiario = cleanMoney(rawDiario) || 0;
-      if (rowValorTotal !== null) totalValor += rowValorTotal;
+      let valorDiario = cleanMoney(rawDiario) || 0;
+
+      // Detección exhaustiva de "Sin Viático" / "Sin Viáticos"
+      const esSinViatico = isSinViaticoText(rawObs) || isSinViaticoText(rawEstado) || isSinViaticoText(rawMotivo) || (rowValorTotal === 0 && (!rawEstado || rawEstado === '0' || /aprob|sin/i.test(rawEstado)));
+      let estado = esSinViatico ? 'Sin Viático' : normalizeStatus(rawEstado || 'Aprobada', rawObs);
+      if (esSinViatico) {
+        rowValorTotal = 0;
+        valorDiario = 0;
+      }
 
       if (!persona) {
         errors.push(`Fila ${i + 1}: Nombre de servidor no especificado.`);
@@ -1380,17 +1485,23 @@ router.post('/bulk', auth, async (req, res) => {
 
       const pUpper = upper(persona);
       const destUpper = upper(destino);
-      const keyPrimary = `${pUpper}|${fechaInicio}|${destUpper}`;
-      const resolKey = numeroResolucion ? `RESOL:${numeroResolucion.replace(/\s+/g, '').toUpperCase()}` : null;
+      const cleanResol = numeroResolucion ? numeroResolucion.replace(/\s+/g, '').toUpperCase() : '';
+      const keyPrimary = `${pUpper}|${fechaInicio || ''}|${destUpper}`;
+      const resolKey = cleanResol ? `RESOL:${pUpper}|${cleanResol}` : null;
       const existingId = existingMap.get(keyPrimary) || (resolKey ? existingMap.get(resolKey) : null);
 
+      if (existingId) {
+        // En viáticos: se conserva el PRIMER registro procesado y se omite cualquier duplicado posterior
+        skipped++;
+        skippedDuplicates++;
+        warnings.push(`Fila ${i + 1}: Registro duplicado para "${persona}" ${numeroResolucion ? `(Resolución: ${numeroResolucion})` : ''} omitido; se conserva el primer registro procesado.`);
+        continue;
+      }
+
       let documentoFinal = (documento || '').trim() || null;
-      let finalObservaciones = (observaciones || '').trim();
+      let finalObservaciones = (rawObs || '').trim();
 
       // AUD-NUEVO-008: Validar si la cédula existe en la tabla personas (fk_viaticos_personas)
-      // Si la cédula es externa (p.ej. contratista, exfuncionario, comisión interinstitucional),
-      // preservamos el documento en las observaciones y asignamos null al campo de clave foránea
-      // para evitar que la restricción de integridad aborte la carga masiva.
       if (documentoFinal && !peopleCedulaSet.has(documentoFinal)) {
         finalObservaciones = (finalObservaciones ? finalObservaciones + ' | ' : '') + `[Cédula externa reportada: ${documentoFinal}]`;
         warnings.push(`Fila ${i + 1}: Servidor "${persona}" con documento "${documentoFinal}" no figura en censo de planta; registrado con comisión válida y cédula preservada en observaciones.`);
@@ -1400,55 +1511,27 @@ router.post('/bulk', auth, async (req, res) => {
       try {
         await client.query('SAVEPOINT row_sp');
 
-        if (existingId) {
-          await client.query(
-            `UPDATE viaticos SET
-               dependencia = COALESCE(NULLIF($1, ''), dependencia),
-               apellidos_nombres = $2,
-               documento = COALESCE($3, documento),
-               cargo = COALESCE(NULLIF($4, ''), cargo),
-               destino = $5,
-               motivo = $6,
-               fecha_inicio = $7,
-               fecha_fin = $8,
-               dias = $9,
-               valor_diario = $10,
-               valor_total = COALESCE($11, valor_total),
-               estado = $12,
-               observaciones = $13,
-               tipo_destino = $14,
-               numero_resolucion = COALESCE($15, numero_resolucion),
-               saldo = COALESCE($16, saldo),
-               id_paquete = COALESCE(id_paquete, $17)
-             WHERE id_viatico = $18`,
-            [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
-             rowValorTotal, estado, finalObservaciones || 'Actualizado vía carga masiva Excel', tipoDestino,
-             numeroResolucion || null, saldo, targetPackageId, existingId]
-          );
-          updated++;
-        } else {
-          const r = await client.query(
-            `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
-                                  fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, observaciones,
-                                  fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo, id_paquete)
-             VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-             RETURNING id_viatico`,
-            [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
-             destUpper, motivo, fechaInicio || today, fechaFin || today, dias, valorDiario,
-             rowValorTotal, estado, finalObservaciones || 'Importado desde Excel', today, 'SISTEMA', tipoDestino,
-             numeroResolucion || null, saldo, targetPackageId]
-          );
-          const newId = r.rows[0].id_viatico;
-          existingMap.set(keyPrimary, newId);
-          if (resolKey) existingMap.set(resolKey, newId);
+        const r = await client.query(
+          `INSERT INTO viaticos(dependencia, apellidos_nombres, documento, cargo, destino, motivo,
+                                fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, observaciones,
+                                fecha_solicitud, aprobado_por, tipo_destino, numero_resolucion, saldo, id_paquete)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+           RETURNING id_viatico`,
+          [upper(dependencia), pUpper, documentoFinal, upper(cargo) || 'FUNCIONARIO PÚBLICO',
+           destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario,
+           rowValorTotal, estado, finalObservaciones || (esSinViatico ? 'SIN VIÁTICOS' : 'Importado desde Excel'), today, 'SISTEMA', tipoDestino,
+           numeroResolucion || null, saldo, targetPackageId]
+        );
+        const newId = r.rows[0].id_viatico;
+        existingMap.set(keyPrimary, newId);
+        if (resolKey) existingMap.set(resolKey, newId);
 
-          await client.query(
-            'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
-            [newId, estado, 'Importado masivamente vía Excel', req.user.username || 'web']
-          );
-          inserted++;
-        }
+        await client.query(
+          'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
+          [newId, estado, 'Importado masivamente vía Excel', req.user.username || 'web']
+        );
+        inserted++;
+        if (rowValorTotal !== null) totalValor += rowValorTotal;
 
         await client.query('RELEASE SAVEPOINT row_sp');
       } catch (rowErr) {
@@ -1461,13 +1544,14 @@ router.post('/bulk', auth, async (req, res) => {
 
     await client.query('COMMIT');
     res.json({
-      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${updated} actualizados.`,
+      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${skippedDuplicates} duplicados omitidos (conservando el primer registro).`,
       id_paquete: targetPackageId,
       nombre_paquete: targetPackageName,
       resumen: {
         totalFilas: rows.length,
         insertados: inserted,
-        actualizados: updated,
+        actualizados: 0,
+        duplicadosOmitidos: skippedDuplicates,
         omitidos: skipped,
         advertencias: warnings.length,
         totalValor,
@@ -1510,7 +1594,7 @@ router.put('/:id', auth, async (req, res) => {
     await client.query('BEGIN');
 
     const curRes = await client.query(
-      'SELECT id_viatico, estado, valor_diario, observaciones, aprobado_por, saldo, soporte FROM viaticos WHERE id_viatico = $1 FOR UPDATE',
+      'SELECT id_viatico, estado, valor_diario, valor_total, observaciones, aprobado_por, saldo, soporte, dias, fecha_inicio, fecha_fin FROM viaticos WHERE id_viatico = $1 FOR UPDATE',
       [numId]
     );
     if (curRes.rowCount === 0) {
@@ -1545,15 +1629,34 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // 2. Registro directo de valores de viáticos reportados (Sin liquidación salarial automática)
-    const dStart = parseDateInput(fechaInicio);
-    const dEnd = parseDateInput(fechaFin);
-    let finalDias = parseInt(dias, 10);
-    if (!finalDias || isNaN(finalDias) || finalDias < 1) {
-      if (dStart && dEnd) {
-        finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
-      } else {
-        finalDias = currentViatico.dias || 1;
+    const targetFechaInicio = fechaInicio !== undefined ? (fechaInicio || null) : currentViatico.fecha_inicio;
+    const targetFechaFin = fechaFin !== undefined ? (fechaFin || null) : currentViatico.fecha_fin;
+
+    const dStart = parseDateInput(targetFechaInicio);
+    const dEnd = parseDateInput(targetFechaFin);
+    let finalDias = null;
+    if (dias !== undefined && dias !== null && String(dias).trim() !== '') {
+      const sDias = String(dias).trim();
+      if (/^\d+$/.test(sDias)) {
+        const parsedDias = parseInt(sDias, 10);
+        if (parsedDias > 0) {
+          finalDias = parsedDias;
+        }
       }
+    }
+    if (finalDias === null) {
+      if (fechaInicio !== undefined || fechaFin !== undefined) {
+        if (dStart && dEnd) {
+          finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
+        } else {
+          finalDias = null;
+        }
+      } else {
+        finalDias = currentViatico.dias;
+      }
+    }
+    if (!finalDias || isNaN(finalDias) || finalDias < 1) {
+      finalDias = currentViatico.dias || 1;
     }
 
     let finalValorDiario = cleanMoney(valorDiario);
@@ -1579,18 +1682,22 @@ router.put('/:id', auth, async (req, res) => {
       finalAprobadoPor = req.user.name || req.user.username || 'ADMINISTRACIÓN';
     }
 
+    const targetSaldo = saldo !== undefined
+      ? (saldo !== null && String(saldo).trim() !== '' && !isNaN(parseFloat(saldo)) ? parseFloat(saldo) : null)
+      : currentViatico.saldo;
+
     await client.query(
       `UPDATE viaticos SET dependencia=$1, apellidos_nombres=$2, documento=$3, cargo=$4, destino=$5, motivo=$6,
         fecha_inicio=$7, fecha_fin=$8, dias=$9, valor_diario=$10, valor_total=$11,
         estado=$12, observaciones=$13, aprobado_por=$14,
         tipo_destino=COALESCE($15, tipo_destino), soporte=COALESCE($16, soporte),
-        numero_resolucion=COALESCE($17, numero_resolucion), saldo=COALESCE($18, saldo),
+        numero_resolucion=COALESCE($17, numero_resolucion), saldo=$18,
         id_paquete=COALESCE($19, id_paquete)
        WHERE id_viatico=$20`,
       [upper(dependencia), upper(persona), (documento||'').trim()||null, upper(cargo), upper(destino), motivo||'',
-       fechaInicio||'', fechaFin||'', finalDias, finalValorDiario, finalValorTotal,
+       targetFechaInicio, targetFechaFin, finalDias, finalValorDiario, finalValorTotal,
        targetStatus, obsFinal, finalAprobadoPor, tipoDestino||'Nacional', soporte||null,
-       numeroResolucion||null, parseFloat(saldo)||null, id_paquete ? parseInt(id_paquete) : null, numId]
+       numeroResolucion||null, targetSaldo, id_paquete ? parseInt(id_paquete) : null, numId]
     );
 
     const historialNota = statusChanged

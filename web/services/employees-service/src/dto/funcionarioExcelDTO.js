@@ -85,6 +85,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       err.valor = String(rawIng);
       throw err;
     }
+  } else if (!esVacante) {
+    // Si no se le ingresa fecha de ingreso, al registrar guarda la fecha del día del registro (hoy)
+    fechaIngreso = new Date();
   }
 
   const rawEnc = rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO'];
@@ -253,9 +256,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       documento_pendiente: esVacante ? false : esDocumentoPendiente,
       es_vacante: Boolean(esVacante),
       sinCedula: esVacante ? false : esDocumentoPendiente,
-      expedida: esVacante ? null : lugarExpedida,
-      ciudadExpedicion: esVacante ? null : (lugarExpedida || 'TUNJA'),
-      departamentoExpedicion: esVacante ? null : 'BOYACÁ',
+      expedida: esVacante ? null : (lugarExpedida || null),
+      ciudadExpedicion: esVacante ? null : (lugarExpedida || null),
+      departamentoExpedicion: esVacante ? null : null,
       nombres: esVacante ? 'PLAZA VACANTE' : (nombres || nombreCompleto),
       primerApellido: esVacante ? 'VACANTE' : primerApellido,
       segundoApellido: esVacante ? '' : segundoApellido,

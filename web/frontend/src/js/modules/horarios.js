@@ -446,9 +446,12 @@ const HorariosModule = (() => {
     `).join('');
   }
 
-  function renderSkeletonRows(count = 7) {
-    return Array.from({ length: count }).map((_, i) => `
-      <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+  function renderSkeletonRows(count) {
+    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10));
+    return Array.from({ length: numRows }).map((_, i) => `
+      <tr class="skeleton-row" style="animation-delay: ${i * 0.05}s" aria-hidden="true">
         <td style="text-align:center;"><div class="skeleton" style="width:32px; height:20px; border-radius:4px; margin:0 auto;"></div></td>
         <td>
           <div class="skeleton-user-cell">
@@ -471,18 +474,19 @@ const HorariosModule = (() => {
             <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton skeleton-badge" style="width:95px; height:22px;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:95px; height:22px; margin:0 auto;"></div></td>
         <td>
           <div class="skeleton-text-group">
             <div class="skeleton skeleton-line" style="width:110px; height:13px;"></div>
             <div class="skeleton skeleton-line" style="width:65px; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton skeleton-badge" style="width:75px; height:22px;"></div></td>
-        <td>
-          <div class="skeleton-actions-wrap">
-            <div class="skeleton skeleton-btn"></div>
-            <div class="skeleton skeleton-btn"></div>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:75px; height:22px; margin:0 auto;"></div></td>
+        <td class="td-actions" style="text-align:center;">
+          <div class="skeleton-actions-wrap" style="justify-content:center; gap:6px;">
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
           </div>
         </td>
       </tr>
@@ -826,9 +830,13 @@ const HorariosModule = (() => {
     if (!tbody) return;
 
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
       const params = {
         page: state.page,
-        limit: state.limit,
+        limit: pageSize,
         q: state.filters.q,
         modalidad: state.filters.modalidad,
         estado: state.filters.estado,
@@ -1035,6 +1043,52 @@ const HorariosModule = (() => {
   const HORARIOS_FORM_TABS = ['tab-hor-servidor', 'tab-hor-esquema', 'tab-hor-acto'];
   let currentScheduleModalItem = null;
 
+  function checkRequiredHorarioFields() {
+    const docVal = (document.getElementById('horario-documento')?.value || '').trim();
+    const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
+    if (!docVal || !nomVal) return false;
+
+    const modRadio = document.querySelector('input[name="modalidad_radio"]:checked');
+    if (!modRadio) return false;
+    const mod = modRadio.value;
+
+    if (mod === 'Teletrabajo') {
+      const dias = (document.getElementById('dias-teletrabajo')?.value || '').trim();
+      if (!dias) return false;
+    } else if (mod === 'Horario flexible') {
+      const franja = (document.getElementById('franja-ingreso')?.value || '').trim();
+      if (!franja) return false;
+    }
+
+    const fi = (document.getElementById('horario-fecha-inicio')?.value || '').trim();
+    if (!fi) return false;
+
+    return true;
+  }
+
+  function refreshHorarioSubmitButtonState() {
+    const btn = document.getElementById('btn-save-horario');
+    if (!btn || currentScheduleModalItem) return;
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    const isLast = (curActiveTab === HORARIOS_FORM_TABS[HORARIOS_FORM_TABS.length - 1]);
+    const isReady = isLast || checkRequiredHorarioFields();
+    if (isReady) {
+      btn.disabled = false;
+      btn.classList.remove('is-disabled', 'btn-wizard-submit');
+      btn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+      btn.removeAttribute('disabled');
+      btn.removeAttribute('title');
+      btn.onclick = () => HorariosModule.submitScheduleForm();
+    } else {
+      btn.disabled = true;
+      btn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+      btn.classList.add('btn-wizard-submit', 'is-disabled');
+      btn.setAttribute('disabled', 'disabled');
+      btn.setAttribute('title', 'Complete servidor, modalidad y vigencia o avance a la última pestaña para crear el esquema');
+      btn.onclick = null;
+    }
+  }
+
   function updateHorariosWizardFooter(tabId) {
     const footer = document.getElementById('modal-footer');
     if (!footer) return;
@@ -1043,6 +1097,7 @@ const HorariosModule = (() => {
     const prevTab = curIdx > 0 ? HORARIOS_FORM_TABS[curIdx - 1] : null;
     const nextTab = curIdx < HORARIOS_FORM_TABS.length - 1 ? HORARIOS_FORM_TABS[curIdx + 1] : null;
     const isEdit = Boolean(currentScheduleModalItem);
+    const isLast = (curIdx === HORARIOS_FORM_TABS.length - 1);
 
     const arrowNextSvg = `<svg class="wizard-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;margin-left:4px;"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
     const arrowPrevSvg = `<svg class="wizard-prev-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:14px;height:14px;margin-right:4px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
@@ -1051,19 +1106,20 @@ const HorariosModule = (() => {
     let buttonsHtml = '';
 
     if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="HorariosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="HorariosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     }
+
+    const isComplete = checkRequiredHorarioFields();
+    const canSubmit = isLast || isComplete;
 
     if (isEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm(${currentScheduleModalItem.id_horario})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-primary" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm()">${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="btn-save-horario" ${canSubmit ? 'onclick="HorariosModule.submitScheduleForm()"' : 'disabled title="Complete servidor, modalidad y vigencia o avance a la última pestaña para crear el esquema"'}>${saveCheckSvg}<span>Crear Esquema</span></button>`;
     }
 
     if (nextTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="HorariosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-next" onclick="HorariosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -1093,10 +1149,10 @@ const HorariosModule = (() => {
     const isEdit = Boolean(item);
     const title = isEdit ? 'Editar Esquema de Horario' : 'Registrar Nuevo Esquema de Horario';
 
-    const curModalidad = item?.modalidad || 'Teletrabajo';
+    const curModalidad = isEdit ? (item?.modalidad || 'Teletrabajo') : '';
     const curTipoCalc  = isEdit ? (item?.tipo_calculo || 'Hábiles') : (item?.tipo_calculo || '');
 
-    const initialDaysLower = (item?.dias_teletrabajo || '').toLowerCase();
+    const initialDaysLower = isEdit ? (item?.dias_teletrabajo || '').toLowerCase() : '';
     const hasLun = isEdit ? initialDaysLower.includes('lun') : false;
     const hasMar = isEdit ? initialDaysLower.includes('mar') : false;
     const hasMie = isEdit ? (initialDaysLower.includes('mie') || initialDaysLower.includes('mié')) : false;
@@ -1534,12 +1590,6 @@ const HorariosModule = (() => {
     if (!emp) return '';
     const name = emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '';
     const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo no asignado';
-    const codigo = emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '';
-    const grado = emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '';
-    const dept = emp.dependencia || 'Sin dependencia';
-    const sec = emp.secretaria || '';
-    const tel = emp.celular || emp.telefono_fijo || emp.telefono || '';
     const initial = name.trim().charAt(0).toUpperCase() || 'S';
 
     return `
@@ -1557,31 +1607,6 @@ const HorariosModule = (() => {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Cambiar Servidor
         </button>
-      </div>
-      <div class="servidor-loaded-details">
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Cargo:</span>
-          <span class="pill-val">${escHtml(cargo)}</span>
-        </div>
-        ${codigo || grado ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Nivel:</span>
-          <span class="pill-val">Cód. ${escHtml(codigo || '—')} · Grado ${escHtml(grado || '—')}</span>
-        </div>` : ''}
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Dependencia:</span>
-          <span class="pill-val">${escHtml(dept)}</span>
-        </div>
-        ${sec ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Secretaría:</span>
-          <span class="pill-val">${escHtml(sec)}</span>
-        </div>` : ''}
-        ${tel ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Teléfono:</span>
-          <span class="pill-val">${escHtml(tel)}</span>
-        </div>` : ''}
       </div>
     `;
   }
@@ -1770,6 +1795,11 @@ const HorariosModule = (() => {
       if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
         App.refreshFloatingLabels(document.getElementById('modal-body'));
       }
+      const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+      if (curActiveTab) {
+        updateHorariosWizardFooter(curActiveTab);
+      }
+      refreshHorarioSubmitButtonState();
       App.showToast('Selección de servidor limpiada. Busque por nombre o cédula para asociar otro funcionario.', 'info');
     };
 
@@ -1788,11 +1818,16 @@ const HorariosModule = (() => {
       const doc = (emp.cedula || emp.documento || '').toString().trim();
       const name = (emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '').toString().trim();
       const cargo = (emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || '').toString().trim();
-      const codigo = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
-      const grado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
-      const dept = (emp.dependencia || '').toString().trim();
-      const sec = (emp.secretaria || '').toString().trim();
-      const tel = (emp.celular || emp.telefono_fijo || emp.telefono || '').toString().trim();
+      const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+      const codigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+      const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+      const grado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+      const rawDept = (emp.dependencia || '').toString().trim();
+      const dept = (rawDept && rawDept !== '—') ? rawDept : 'Sin dependencia';
+      const rawSec = (emp.secretaria || '').toString().trim();
+      const sec = (rawSec && rawSec !== '—') ? rawSec : 'SECRETARÍA GENERAL';
+      const rawTel = (emp.telefono || emp.celular || emp.telefono_fijo || '').toString().trim();
+      const tel = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
 
       const docEl = document.getElementById('horario-documento');
       const nameEl = document.getElementById('horario-nombre');
@@ -1805,12 +1840,12 @@ const HorariosModule = (() => {
 
       if (docEl && doc) docEl.value = doc;
       if (nameEl && name) nameEl.value = name;
-      if (codigoEl) codigoEl.value = codigo || '';
-      if (gradoEl) gradoEl.value = grado || '';
-      if (cargoEl) cargoEl.value = cargo || '';
-      if (deptEl) deptEl.value = dept || '';
-      if (secEl) secEl.value = sec || '';
-      if (telEl) telEl.value = tel || '';
+      if (codigoEl) codigoEl.value = codigo;
+      if (gradoEl) gradoEl.value = grado;
+      if (cargoEl) cargoEl.value = cargo || 'Cargo no asignado';
+      if (deptEl) deptEl.value = dept;
+      if (secEl) secEl.value = sec;
+      if (telEl) telEl.value = tel;
 
       if (empSearchInput && name && doc) {
         empSearchInput.value = `${name} (C.C. ${doc})`;
@@ -1851,6 +1886,13 @@ const HorariosModule = (() => {
         App.refreshFloatingLabels(document.getElementById('modal-body'));
       }
 
+      // Actualizar estado del botón en el wizard si estamos en el último paso
+      const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+      if (curActiveTab) {
+        updateHorariosWizardFooter(curActiveTab);
+      }
+      refreshHorarioSubmitButtonState();
+
       if (notify && typeof App !== 'undefined' && App.showToast) {
         App.showToast(`Servidor institucional cargado: ${name}`, 'success');
       }
@@ -1884,28 +1926,34 @@ const HorariosModule = (() => {
               .map((emp, idx) => {
                 const empDoc = emp.cedula || emp.documento || '';
                 const empName = emp.nombre_completo || emp.nombreCompleto || emp.persona || 'Servidor Público';
-                const empCargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo institucional';
-                const empCodigo = emp.codigo || emp.codigoActual || emp.codigo_actual || '';
-                const empGrado = emp.grado || emp.gradoActual || emp.grado_actual || '';
+                const empCargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo no asignado';
+                const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+                const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+                const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+                const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
                 const empDept = emp.dependencia || 'Sin dependencia';
+                const initial = empName.trim().charAt(0).toUpperCase() || 'S';
 
                 return `
-                  <div class="autocomplete-item" data-idx="${idx}" style="padding:10px 14px; border-bottom:1px solid rgba(0,0,0,0.05); cursor:pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                      <strong style="color:var(--color-primary, #28871b); font-size:13px;">${escHtml(empName)}</strong>
-                      <span class="badge" style="font-size:11px; font-family:monospace; background:rgba(40,135,27,0.1); color:#1d6113; padding:2px 6px; border-radius:4px;">C.C. ${escHtml(empDoc)}</span>
-                    </div>
-                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;">
-                      <span><strong>Cargo:</strong> ${escHtml(empCargo)}</span>
-                      ${empCodigo || empGrado ? `<span>(Cód: <strong>${escHtml(empCodigo || '—')}</strong>, Grado: <strong>${escHtml(empGrado || '—')}</strong>)</span>` : ''}
-                      <span>· ${escHtml(empDept)}</span>
+                  <div class="servidor-autocomplete-item" data-idx="${idx}">
+                    <div class="sai-avatar">${initial}</div>
+                    <div class="sai-content">
+                      <div class="sai-row-top">
+                        <span class="sai-name">${escHtml(empName)}</span>
+                        <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
+                      </div>
+                      <div class="sai-row-meta">
+                        <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                        <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                        <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
+                      </div>
                     </div>
                   </div>
                 `;
               })
               .join('');
 
-            empResultsDiv.querySelectorAll('.autocomplete-item').forEach((itemEl) => {
+            empResultsDiv.querySelectorAll('.servidor-autocomplete-item').forEach((itemEl) => {
               itemEl.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -2127,6 +2175,18 @@ const HorariosModule = (() => {
       consecutivoInput.addEventListener('blur', enforceConsecutivo);
       updateConsecutivoButtons();
     }
+
+    // 7. Validación reactiva para habilitar/deshabilitar botón "Crear Esquema" según campos obligatorios
+    const watchInputIds = ['horario-documento', 'horario-nombre', 'dias-teletrabajo', 'subtipo-teletrabajo', 'franja-ingreso', 'horario-fecha-inicio'];
+    watchInputIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', refreshHorarioSubmitButtonState);
+        el.addEventListener('change', refreshHorarioSubmitButtonState);
+      }
+    });
+    modalidadRadios.forEach((r) => r.addEventListener('change', refreshHorarioSubmitButtonState));
+    refreshHorarioSubmitButtonState();
   }
 
   // ─── Envío del Formulario (Creación o Edición) ─────────────────────────────
@@ -2147,41 +2207,78 @@ const HorariosModule = (() => {
     const cargo = document.getElementById('horario-cargo')?.value?.trim();
     const estado = document.getElementById('horario-estado')?.value || 'Activa';
 
-    const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
-    const modalidad = modalidadRadio ? modalidadRadio.value : 'Presencial';
-
-    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value || null;
-    const fecha_fin = document.getElementById('horario-fecha-fin')?.value || null;
-    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || 
-      (modalidad === 'Teletrabajo' ? '2 días / semana' : modalidad === 'Horario flexible' ? '8 horas / día' : modalidad === 'Trabajo en casa' ? 'No aplica' : 'Jornada ordinaria');
-    const tipo_calculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
-
-    // Acto administrativo (opcional, no inventar datos)
-    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim() || null;
-    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value || null;
-    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
-    const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
-
-    // Validaciones exhaustivas de formulario con navegación visual y foco
+    // 1. Validar Pestaña 1 (Servidor & Ubicación): Servidor institucional vinculado
     if (!documento || !apellidos_nombres) {
+      switchFormTab('tab-hor-servidor');
+      const searchWrap = document.getElementById('horario-search-wrapper');
+      if (searchWrap) searchWrap.style.display = 'block';
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
-        App.markFieldInvalid('emp-search-schedule', 'Debe buscar y seleccionar un servidor público de planta.');
+        App.markFieldInvalid('horario-search-emp', 'Debe buscar y seleccionar un servidor público de nómina.');
       } else {
-        App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
+        App.showToast('Debe buscar y seleccionar un servidor público de nómina.', 'warning');
       }
       return;
     }
 
+    // 2. Validar Pestaña 2 (Esquema & Horario): Modalidad y parámetros específicos
+    const modalidadRadio = document.querySelector('input[name="modalidad_radio"]:checked');
+    if (!modalidadRadio) {
+      switchFormTab('tab-hor-esquema');
+      App.showToast('Debe seleccionar la situación administrativa / modalidad del servidor.', 'warning');
+      return;
+    }
+    const modalidad = modalidadRadio.value;
+
+    let subtipo_teletrabajo_val = null;
+    let dias_teletrabajo_val = null;
+    let franja_ingreso_val = null;
+    let motivo_trabajo_casa_val = null;
+
+    if (modalidad === 'Teletrabajo') {
+      dias_teletrabajo_val = document.getElementById('dias-teletrabajo')?.value?.trim() || '';
+      subtipo_teletrabajo_val = document.getElementById('subtipo-teletrabajo')?.value || 'Suplementario (Híbrido)';
+      if (!dias_teletrabajo_val) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('dias-teletrabajo', 'Debe seleccionar los días de teletrabajo.');
+        } else {
+          App.showToast('Debe seleccionar los días de teletrabajo.', 'warning');
+        }
+        return;
+      }
+    } else if (modalidad === 'Horario flexible') {
+      franja_ingreso_val = document.getElementById('franja-ingreso')?.value?.trim() || '';
+      if (!franja_ingreso_val) {
+        switchFormTab('tab-hor-esquema');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('franja-ingreso', 'Debe indicar la franja horaria concertada.');
+        } else {
+          App.showToast('Debe indicar la franja horaria concertada.', 'warning');
+        }
+        return;
+      }
+    } else if (modalidad === 'Trabajo en casa') {
+      motivo_trabajo_casa_val = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
+    }
+
+    // 3. Validar Pestaña 3 (Acto & Vigencia): Fecha inicio y coherencia de fechas
+    const fecha_inicio = document.getElementById('horario-fecha-inicio')?.value?.trim();
     if (!fecha_inicio) {
+      switchFormTab('tab-hor-acto');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia del esquema es obligatoria.');
       } else {
-        App.showToast('La fecha de inicio del esquema es obligatoria.', 'warning');
+        App.showToast('La fecha de inicio de vigencia del esquema es obligatoria.', 'warning');
       }
       return;
     }
 
+    const fecha_fin = document.getElementById('horario-fecha-fin')?.value?.trim() || null;
+    const duracion_texto = document.getElementById('horario-duracion-texto')?.value?.trim() || null;
+    const tipo_calculo = document.getElementById('horario-tipo-calculo')?.value || 'Hábiles';
+
     if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      switchFormTab('tab-hor-acto');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('horario-fecha-fin', 'La fecha de terminación debe ser posterior o igual a la fecha de inicio.');
       } else {
@@ -2190,10 +2287,17 @@ const HorariosModule = (() => {
       return;
     }
 
+    // Acto administrativo (opcional, no inventar datos)
+    const numero_resolucion = document.getElementById('horario-resolucion')?.value?.trim() || null;
+    const fecha_aprobacion = document.getElementById('horario-fecha-aprobacion')?.value || null;
+    const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
+    const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
+
     // Validación de número consecutivo para nuevos registros (no dejar disminuir del último que está)
     if (!existingId) {
-      const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
+      const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : currentMinConsecutivo;
       if (!cVal || cVal < currentMinConsecutivo) {
+        switchFormTab('tab-hor-acto');
         if (typeof App !== 'undefined' && App.markFieldInvalid) {
           App.markFieldInvalid('horario-consecutivo', `El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`);
         } else {
@@ -2215,8 +2319,8 @@ const HorariosModule = (() => {
       telefono: telefono || null,
       documento,
       apellidos_nombres,
-      dependencia: dependencia || 'SECRETARÍA GENERAL',
-      cargo: cargo || 'PROFESIONAL UNIVERSITARIO',
+      dependencia: dependencia || null,
+      cargo: cargo || null,
       estado,
       modalidad,
       fecha_inicio,
@@ -2228,17 +2332,11 @@ const HorariosModule = (() => {
       aprobado_por: null,
       soporte_acto,
       observaciones,
+      subtipo_teletrabajo: subtipo_teletrabajo_val,
+      dias_teletrabajo: dias_teletrabajo_val,
+      franja_ingreso: franja_ingreso_val,
+      motivo_trabajo_casa: motivo_trabajo_casa_val,
     };
-
-    // Campos según modalidad
-    if (modalidad === 'Teletrabajo') {
-      payload.subtipo_teletrabajo = document.getElementById('subtipo-teletrabajo')?.value || 'Suplementario (Híbrido)';
-      payload.dias_teletrabajo = document.getElementById('dias-teletrabajo')?.value?.trim() || 'martes y jueves';
-    } else if (modalidad === 'Horario flexible') {
-      payload.franja_ingreso = document.getElementById('franja-ingreso')?.value?.trim() || '8 AM A 12 M, 1 A 5 PM';
-    } else if (modalidad === 'Trabajo en casa') {
-      payload.motivo_trabajo_casa = document.getElementById('motivo-trabajo-casa')?.value?.trim() || null;
-    }
 
     try {
       if (existingId) {
@@ -3442,7 +3540,7 @@ const HorariosModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar esquemas de trabajo y alternancia en el sistema.</p>
           </div>
-          <button class="modal-close" id="btn-close-hor-import">&times;</button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-hor-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -3506,7 +3604,6 @@ const HorariosModule = (() => {
         </div>
 
         <div class="modal-footer" id="hor-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-hor-import">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-hor-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <polyline points="20 6 9 17 4 12"></polyline>
@@ -3520,7 +3617,7 @@ const HorariosModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-hor-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-hor-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-hor-import') || closeBtn;
     const dropzone = overlay.querySelector('#hor-excel-dropzone');
     const fileInput = overlay.querySelector('#hor-excel-file-input');
     const filePreview = overlay.querySelector('#hor-file-preview');
@@ -3535,7 +3632,7 @@ const HorariosModule = (() => {
 
     const closeModal = () => overlay.remove();
     closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
     const resetSelection = () => {
       selectedFile = null;
@@ -3783,7 +3880,7 @@ const HorariosModule = (() => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -3865,6 +3962,7 @@ const HorariosModule = (() => {
         const res = await API.bulkCreateHorarios({
           rows: allCleanRows,
           hojasProcesadas,
+          nombreArchivo: selectedFile?.name,
         });
 
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
@@ -3963,7 +4061,7 @@ const HorariosModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }
@@ -4276,6 +4374,8 @@ const HorariosModule = (() => {
     copyFichaText,
     switchFormTab,
     submitScheduleForm,
+    renderSkeletonTable,
+    loadData,
     getTemplateColumns: () => HORARIOS_EXCEL_COLUMNS,
   };
 })();

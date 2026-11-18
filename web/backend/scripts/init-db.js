@@ -33,6 +33,17 @@ function buildPoolConfig(useDirectUrl = false) {
 // Pool principal de la aplicación (usa DATABASE_URL / pooled connection en Neon)
 const pool = new Pool(buildPoolConfig(false));
 
+// Gestión documental, informes e historial de cargas. Son idempotentes: se aplican al crear
+// la base y en cada arranque (runSafeMigrations), sin borrar datos.
+const ADDITIONAL_MIGRATIONS = [
+  '35_documentos.sql',
+  '36_informes_automatizacion.sql',
+  '37_importaciones.sql',
+  '38_soportes_solicitudes.sql',
+  '39_importaciones_resultado.sql',
+  '40_usuario_monitoreo_y_respaldo.sql',
+];
+
 // Scripts SQL maestros únicamente para inicialización desde cero (cuando public no tiene tablas)
 const SQL_FILES = [
   '01_schema.sql',
@@ -62,6 +73,12 @@ const SQL_FILES = [
   '27_clean_transactional_inserts.sql',
   '28_viaticos_valor_total_drop_expression.sql',
   '29_password_recovery.sql',
+  '30_clean_servidores_publicos.sql',
+  '31_paquetes_viaticos_presupuesto_inicial.sql',
+  '32_clean_servidores_horarios_viaticos.sql',
+  '33_viaticos_estado_sin_viatico.sql',
+  '34_clean_all_viaticos_zero.sql',
+  ...ADDITIONAL_MIGRATIONS,
 ];
 
 function findDatabaseDir() {
@@ -226,23 +243,7 @@ async function runSafeMigrations(client) {
     `);
 
     if (!(await isMigrationRecorded(client, '2026_13_paquetes_viaticos_seed'))) {
-      await client.query(`
-        INSERT INTO paquetes_viaticos (id_paquete, nombre, archivo_origen, anio, descripcion)
-        VALUES
-          (1, 'Ejecución Presupuestal 2022', 'EJECUCION PRESUPUESTAL 2022.xlsx', 2022, 'Vigencia fiscal 2022 institucional'),
-          (2, 'Ejecución Presupuestal 2023', 'EJECUCION PRESUPUESTAL 2023.xlsx', 2023, 'Vigencia fiscal 2023 institucional'),
-          (3, 'Ejecución Presupuestal 2024', 'EJECUCION PRESUPUESTAL 2024.xlsx', 2024, 'Vigencia fiscal 2024 institucional'),
-          (4, 'Ejecución Presupuestal 2025', 'EJECUCION PRESUPUESTAL 2025.xlsx', 2025, 'Vigencia fiscal 2025 institucional'),
-          (5, 'Ejecución Presupuestal 2026', 'EJECUCION PRESUPUESTAL 2026.xlsx', 2026, 'Vigencia fiscal 2026 en curso')
-        ON CONFLICT (id_paquete) DO NOTHING;
-
-        UPDATE viaticos SET id_paquete = 1 WHERE id_paquete IS NULL AND fecha_inicio LIKE '%2022%';
-        UPDATE viaticos SET id_paquete = 2 WHERE id_paquete IS NULL AND fecha_inicio LIKE '%2023%';
-        UPDATE viaticos SET id_paquete = 3 WHERE id_paquete IS NULL AND fecha_inicio LIKE '%2024%';
-        UPDATE viaticos SET id_paquete = 4 WHERE id_paquete IS NULL AND fecha_inicio LIKE '%2025%';
-        UPDATE viaticos SET id_paquete = 5 WHERE id_paquete IS NULL;
-      `);
-      await recordMigration(client, '2026_13_paquetes_viaticos_seed', 'Catálogo inicial de paquetes de viáticos sin sobrescribir existentes');
+      await recordMigration(client, '2026_13_paquetes_viaticos_seed', 'Estructura inicial de paquetes de viáticos sin datos semilla');
       results.migrationsRecorded.push('2026_13_paquetes_viaticos_seed');
     }
 
@@ -296,6 +297,39 @@ async function runSafeMigrations(client) {
         last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
     `);
+
+    // Asegurar que la cuenta oficial de Juan Esteban Silva Espejo exista de forma segura e idempotente
+    const checkJuan = await client.query("SELECT id_usuario FROM usuarios WHERE LOWER(username) = 'silvaespejojuanesteban@gmail.com' LIMIT 1");
+    if (checkJuan.rows.length === 0) {
+      const hashJuan = '$2a$10$jACZwyOGKbfbnCEcOBj9v.tlNA2LbRtGj4dlq4miqQijZyPlvPB6S'; // 'admin123'
+      await client.query(`
+        INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password)
+        VALUES ('silvaespejojuanesteban@gmail.com', $1, 'Juan Esteban Silva Espejo', 'Administrador', 'Administrador Institucional y de Plataforma', 'ACTIVO', '*', '*', false)
+      `, [hashJuan]);
+      results.columnsAdded.push('usuarios: insercion segura de silvaespejojuanesteban@gmail.com');
+    }
+
+    // Asegurar que la cuenta de Monitoreo de Errores y Copias de Seguridad exista de forma segura e idempotente
+    const checkNotif = await client.query("SELECT id_usuario FROM usuarios WHERE LOWER(username) = 'talento360.notificaciones@gmail.com' LIMIT 1");
+    const hashNotif = '$2a$12$q8sVQEPGroHKAOu9qt0.Eu8qiia7hCzvrVuOBJQ88TdsxJ1.Ow7M2'; // 'Talento360@dmin'
+    if (checkNotif.rows.length === 0) {
+      await client.query(`
+        INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password)
+        VALUES ('talento360.notificaciones@gmail.com', $1, 'Gestor de Monitoreo y Respaldo', 'Monitoreo y Respaldo', 'Gestor de Monitoreo de Errores y Copias de Seguridad', 'ACTIVO', 'admin-errors,admin-backups', 'admin-errors:read,admin-errors:write,admin-errors:delete,admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete', false)
+      `, [hashNotif]);
+      results.columnsAdded.push('usuarios: insercion segura de talento360.notificaciones@gmail.com');
+    } else {
+      await client.query(`
+        UPDATE usuarios 
+        SET password = $1, nombre = 'Gestor de Monitoreo y Respaldo', rol = 'Monitoreo y Respaldo', cargo_laboral = 'Gestor de Monitoreo de Errores y Copias de Seguridad', estado = 'ACTIVO', modulos = 'admin-errors,admin-backups', permisos = 'admin-errors:read,admin-errors:write,admin-errors:delete,admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete', debe_cambiar_password = false
+        WHERE LOWER(username) = 'talento360.notificaciones@gmail.com'
+      `, [hashNotif]);
+      results.columnsAdded.push('usuarios: actualizacion segura de talento360.notificaciones@gmail.com');
+    }
+    if (!(await isMigrationRecorded(client, '35_usuario_monitoreo_y_respaldo'))) {
+      await recordMigration(client, '35_usuario_monitoreo_y_respaldo', 'Usuario tecnico con acceso exclusivo a Monitoreo de Errores y Copias de Seguridad');
+      results.migrationsRecorded.push('35_usuario_monitoreo_y_respaldo');
+    }
     await recordMigration(client, '29_password_recovery', 'Columnas de recuperación de contraseña y tabla auth_failed_logins');
     results.columnsAdded.push('usuarios: rbac y password_recovery');
   }
@@ -334,6 +368,174 @@ async function runSafeMigrations(client) {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // 9. Migración 30: Limpieza controlada de datos de prueba de servidores públicos
+  if (!(await isMigrationRecorded(client, '30_clean_servidores_publicos'))) {
+    if (await tableExists(client, 'rel_principal')) {
+      console.log('[Talento 360 DB Migration] Ejecutando migración 30: limpieza de datos de prueba en servidores públicos...');
+      await client.query(`
+        ALTER TABLE IF EXISTS horarios DROP CONSTRAINT IF EXISTS fk_horarios_personas;
+        ALTER TABLE IF EXISTS viaticos DROP CONSTRAINT IF EXISTS fk_viaticos_personas;
+        DELETE FROM rel_principal;
+        DELETE FROM personas;
+        DELETE FROM contactos;
+        DELETE FROM educacion;
+        DELETE FROM estados WHERE id_estado NOT IN ('EST001', 'EST002', 'EST003', 'EST004', 'EST005');
+        ALTER SEQUENCE IF EXISTS seq_personas_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_contactos_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_educacion_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_rel_principal_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_prov_cedula RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_estados_id RESTART WITH 6;
+      `);
+      await recordMigration(client, '30_clean_servidores_publicos', 'Limpieza completa de datos de prueba de servidores publicos');
+      results.migrationsRecorded.push('30_clean_servidores_publicos');
+      console.log('✅ [Migración 30] Servidores públicos limpiados y secuencias reiniciadas a estado cero.');
+    }
+  }
+
+  // 10. Migración 31: Presupuesto inicial en paquetes_viaticos
+  if (await tableExists(client, 'paquetes_viaticos')) {
+    await client.query(`
+      ALTER TABLE paquetes_viaticos ADD COLUMN IF NOT EXISTS presupuesto_inicial NUMERIC(15,2) DEFAULT NULL;
+    `);
+    if (!(await isMigrationRecorded(client, '31_paquetes_viaticos_presupuesto_inicial'))) {
+      await recordMigration(client, '31_paquetes_viaticos_presupuesto_inicial', 'Columna presupuesto_inicial en paquetes_viaticos');
+      results.migrationsRecorded.push('31_paquetes_viaticos_presupuesto_inicial');
+      console.log('✅ [Migración 31] Columna presupuesto_inicial asegurada en paquetes_viaticos.');
+    }
+  }
+
+  // 11. Migración 32: Limpieza completa de servidores públicos, horarios y viáticos
+  if (!(await isMigrationRecorded(client, '32_clean_servidores_horarios_viaticos'))) {
+    if (await tableExists(client, 'rel_principal') || await tableExists(client, 'viaticos') || await tableExists(client, 'horarios')) {
+      console.log('[Talento 360 DB Migration] Ejecutando migración 32: limpieza completa de servidores públicos, horarios y viáticos...');
+      await client.query(`
+        ALTER TABLE IF EXISTS horarios DROP CONSTRAINT IF EXISTS fk_horarios_personas;
+        ALTER TABLE IF EXISTS viaticos DROP CONSTRAINT IF EXISTS fk_viaticos_personas;
+        ALTER TABLE IF EXISTS vacaciones DROP CONSTRAINT IF EXISTS fk_vacaciones_personas;
+        ALTER TABLE IF EXISTS historial_solicitudes DROP CONSTRAINT IF EXISTS fk_historial_personas;
+        ALTER TABLE IF EXISTS solicitudes_admin DROP CONSTRAINT IF EXISTS fk_solicitudes_personas;
+
+        DELETE FROM rel_principal;
+        DELETE FROM contactos;
+        DELETE FROM educacion;
+        DELETE FROM vacaciones;
+        DELETE FROM historial_solicitudes;
+        DELETE FROM personas;
+        DELETE FROM estados WHERE id_estado NOT IN ('EST001', 'EST002', 'EST003', 'EST004', 'EST005');
+        INSERT INTO estados (id_estado, clasificacion_empleo, situacion, funciones_pagadas, novedades, opec) VALUES
+        ('EST001', 'EMPLEADO PÚBLICO', 'ACTIVO', 'TOTAL', 'Sin novedades', 'SI'),
+        ('EST002', 'EMPLEADO PÚBLICO', 'ENCARGO', 'TOTAL', 'Encargo temporal', 'SI'),
+        ('EST003', 'EMPLEADO PÚBLICO', 'RETIRADO', 'NINGUNA', 'Retiro voluntario', 'NO'),
+        ('EST004', 'EMPLEADO PÚBLICO', 'PROVISIONAL', 'TOTAL', 'Nombramiento provisional', 'SI'),
+        ('EST005', 'EMPLEADO PÚBLICO', 'VACANTE DEFINITIVA', 'NINGUNA', 'Cargo vacante', 'NO')
+        ON CONFLICT (id_estado) DO NOTHING;
+
+        DELETE FROM historial_horarios;
+        DELETE FROM horarios;
+
+        DELETE FROM historial_viaticos;
+        DELETE FROM viaticos;
+        DELETE FROM paquetes_viaticos;
+        DELETE FROM vigencias_viaticos;
+
+        ALTER SEQUENCE IF EXISTS seq_personas_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_contactos_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_educacion_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_rel_principal_id RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_prov_cedula RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS seq_estados_id RESTART WITH 6;
+        ALTER SEQUENCE IF EXISTS vacaciones_id_vacacion_seq RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS historial_solicitudes_id_historial_seq RESTART WITH 1;
+
+        ALTER SEQUENCE IF EXISTS horarios_id_horario_seq RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS historial_horarios_id_historial_seq RESTART WITH 1;
+
+        ALTER SEQUENCE IF EXISTS viaticos_id_viatico_seq RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS historial_viaticos_id_historial_seq RESTART WITH 1;
+        ALTER SEQUENCE IF EXISTS paquetes_viaticos_id_paquete_seq RESTART WITH 1;
+      `);
+      await recordMigration(client, '32_clean_servidores_horarios_viaticos', 'Limpieza completa de datos en servidores publicos, horarios y viaticos');
+      results.migrationsRecorded.push('32_clean_servidores_horarios_viaticos');
+      console.log('✅ [Migración 32] Servidores públicos, horarios y viáticos limpiados y secuencias reiniciadas a estado cero.');
+    }
+  }
+
+  // 12. Migración 33: Soporte para estado 'Sin Viático' en tabla viáticos
+  if (!(await isMigrationRecorded(client, '33_viaticos_estado_sin_viatico'))) {
+    if (await tableExists(client, 'viaticos')) {
+      await client.query(`
+        ALTER TABLE viaticos DROP CONSTRAINT IF EXISTS chk_viaticos_estado;
+        ALTER TABLE viaticos ADD CONSTRAINT chk_viaticos_estado
+          CHECK (estado IN ('Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Sin Viático', 'Sin Viáticos', 'Rechazado', 'Anulado'));
+        UPDATE viaticos
+        SET estado = 'Sin Viático', valor_total = 0, valor_diario = 0
+        WHERE (
+          LOWER(observaciones) LIKE '%sin viatico%' 
+          OR LOWER(observaciones) LIKE '%sin viático%' 
+          OR LOWER(observaciones) LIKE '%sin viaticos%' 
+          OR LOWER(observaciones) LIKE '%sin viáticos%'
+          OR LOWER(estado) LIKE '%sin viatic%'
+        ) AND estado != 'Sin Viático';
+      `);
+      await recordMigration(client, '33_viaticos_estado_sin_viatico', 'Soporte para estado Sin Viático en modulo de viaticos');
+      results.migrationsRecorded.push('33_viaticos_estado_sin_viatico');
+      console.log('✅ [Migración 33] Estado Sin Viático habilitado en la tabla viáticos.');
+    }
+  }
+
+  // 13. Migración 34: Limpieza total a estado cero de viáticos, servidores públicos, horarios y vigencias anuales
+  if (!(await isMigrationRecorded(client, '34_clean_all_viaticos_zero'))) {
+    console.log('[Talento 360 DB Migration] Ejecutando migración 34: limpieza total a estado cero...');
+    await client.query(`
+      ALTER TABLE IF EXISTS horarios DROP CONSTRAINT IF EXISTS fk_horarios_personas;
+      ALTER TABLE IF EXISTS viaticos DROP CONSTRAINT IF EXISTS fk_viaticos_personas;
+      ALTER TABLE IF EXISTS vacaciones DROP CONSTRAINT IF EXISTS fk_vacaciones_personas;
+      ALTER TABLE IF EXISTS historial_solicitudes DROP CONSTRAINT IF EXISTS fk_historial_personas;
+      ALTER TABLE IF EXISTS solicitudes_admin DROP CONSTRAINT IF EXISTS fk_solicitudes_personas;
+
+      DELETE FROM historial_viaticos;
+      DELETE FROM viaticos;
+      DELETE FROM paquetes_viaticos;
+      DELETE FROM vigencias_viaticos;
+
+      DELETE FROM historial_horarios;
+      DELETE FROM horarios;
+
+      DELETE FROM rel_principal;
+      DELETE FROM contactos;
+      DELETE FROM educacion;
+      DELETE FROM vacaciones;
+      DELETE FROM historial_solicitudes;
+      DELETE FROM personas;
+
+      ALTER SEQUENCE IF EXISTS viaticos_id_viatico_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS historial_viaticos_id_historial_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS paquetes_viaticos_id_paquete_seq RESTART WITH 1;
+
+      ALTER SEQUENCE IF EXISTS horarios_id_horario_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS historial_horarios_id_historial_seq RESTART WITH 1;
+
+      ALTER SEQUENCE IF EXISTS seq_personas_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_contactos_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_educacion_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_rel_principal_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_prov_cedula RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS vacaciones_id_vacacion_seq RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS historial_solicitudes_id_historial_seq RESTART WITH 1;
+    `);
+    await recordMigration(client, '34_clean_all_viaticos_zero', 'Limpieza total a estado cero de viaticos, servidores publicos, horarios y vigencias anuales');
+    results.migrationsRecorded.push('34_clean_all_viaticos_zero');
+    console.log('✅ [Migración 34] Estado cero absoluto garantizado: viáticos, vigencias, servidores públicos y horarios limpios.');
+  }
+
+  // Gestión documental, informes e historial de cargas (después de roles y permisos).
+  const additionalDir = findDatabaseDir();
+  for (const file of ADDITIONAL_MIGRATIONS) {
+    const sqlPath = path.join(additionalDir, file);
+    if (fs.existsSync(sqlPath)) await client.query(fs.readFileSync(sqlPath, 'utf8'));
+  }
 
   console.log('✅ Migraciones aditivas verificadas sin alterar ni eliminar datos existentes.');
   return results;

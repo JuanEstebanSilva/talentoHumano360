@@ -976,9 +976,13 @@ const EmployeesModule = (() => {
       countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
     }
 
+    const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10);
+
     // Mockup de baja fidelidad estilo feed con avatares circulares y bloques horizontales de texto
-    const skeletonRows = Array.from({ length: 7 }).map((_, idx) => `
-      <tr class="skeleton-row" aria-hidden="true">
+    const skeletonRows = Array.from({ length: pageSize }).map((_, idx) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${idx * 0.05}s">
         <td class="td-servidor">
           <div class="user-table-cell user-table-cell--avatar" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
             <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
@@ -1003,7 +1007,7 @@ const EmployeesModule = (() => {
         <td><div class="skeleton skeleton-line" style="width:70%; height:13px;" aria-hidden="true"></div></td>
         <td><div class="skeleton skeleton-badge" style="width:75px; height:22px; border-radius:9999px;" aria-hidden="true"></div></td>
         <td class="td-actions">
-          <div class="td-actions-wrap" style="display:flex; gap:6px;">
+          <div class="td-actions-wrap" style="display:flex; gap:6px; justify-content:center;">
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
@@ -1358,13 +1362,17 @@ const EmployeesModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
       const res = await API.getEmployees({
         q: state.q,
         dependencia: state.dependencia,
         cargo: state.cargo,
         ...state.advancedFilters,
         page: state.page,
-        limit: 25
+        limit: pageSize
       });
       let records = res.data || [];
       // Ordenar: 1) Activos con cédula (primeras), 2) Sin cédula (penúltimas), 3) Inactivos (últimas)
@@ -1794,8 +1802,16 @@ const EmployeesModule = (() => {
       const cleanCargo = sanitizeText(emp.cargoTitular || emp.cargoBase || emp.cargoActual || 'Cargo no asignado');
       const cleanCod = sanitizeText(emp.codigoTitular || emp.codigoBase || emp.codigoActual || 'N/A');
       const cleanGra = sanitizeText(emp.gradoTitular || emp.gradoBase || emp.gradoActual || 'N/A');
-      const cleanMuni = sanitizeText(emp.municipioExpedicion || emp.ciudadExpedicion || emp.expedida || 'Tunja');
-      const cleanDepto = sanitizeText(emp.departamentoExpedicion || 'Boyacá');
+      const rawMuni = sanitizeText(emp.municipioExpedicion || emp.ciudadExpedicion || emp.expedida || '');
+      const rawDepto = sanitizeText(emp.departamentoExpedicion || '');
+      let textoExpedida = 'No registrada';
+      if (rawMuni && rawDepto) {
+        textoExpedida = `${rawMuni}, ${rawDepto}`;
+      } else if (rawMuni) {
+        textoExpedida = rawMuni;
+      } else if (rawDepto) {
+        textoExpedida = rawDepto;
+      }
       const isProv = Boolean(emp.documento_pendiente || (emp.cedula && emp.cedula.startsWith('PROV-')));
       const cedulaText = isProv ? `${emp.cedula} (ID Temporal)` : (emp.cedula ? formattedCc : 'Sin Cédula');
       const cedulaRaw = emp.cedula || '';
@@ -1884,7 +1900,7 @@ const EmployeesModule = (() => {
         }
                 </div>
                 <div class="ficha-card-sub">
-                  Expedida en: <strong>${escHtml(cleanMuni)}, ${escHtml(cleanDepto)}</strong>
+                  Expedida en: <strong>${escHtml(textoExpedida)}</strong>
                 </div>
               </div>
 
@@ -2273,7 +2289,14 @@ const EmployeesModule = (() => {
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:2px;">
                     <span style="font-size:12px; font-weight:700; color:var(--text-muted); min-width:90px;">Residencia:</span>
                     <span style="font-size:13px; color:var(--text-primary);">
-                      📍 ${escHtml(sanitizeText(emp.direccion || 'No registrada'))}, ${escHtml(sanitizeText(emp.ciudad || 'Tunja, Boyacá'))}
+                      📍 ${(() => {
+                        const dir = sanitizeText(emp.direccion || '');
+                        const ciu = sanitizeText(emp.ciudad || '');
+                        if (dir && ciu) return `${escHtml(dir)}, ${escHtml(ciu)}`;
+                        if (dir) return escHtml(dir);
+                        if (ciu) return escHtml(ciu);
+                        return 'No registrada';
+                      })()}
                     </span>
                   </div>
                 </div>
@@ -2329,8 +2352,7 @@ const EmployeesModule = (() => {
 
     if (currentFormIsVacante) {
       footerEl.innerHTML = `
-        <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
+        <button type="button" class="btn btn-primary btn-wizard-submit-ready" id="emp-save-btn" onclick="EmployeesModule.${currentFormIsEdit ? `saveEdit('${currentFormEmpId}')` : 'saveCreate()'}">${saveCheckSvg}<span>${currentFormIsEdit ? 'Actualizar Plaza' : 'Guardar Plaza'}</span></button>
       `;
       return;
     }
@@ -2340,38 +2362,33 @@ const EmployeesModule = (() => {
     const isLast = currentIdx === EMP_FORM_TABS.length - 1;
 
     let html = '';
-    if (isFirst) {
-      html += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
-    } else {
+    if (!isFirst) {
       const prevTab = EMP_FORM_TABS[currentIdx - 1];
-      html += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
+      html += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="EmployeesModule.switchFormTab('${prevTab}')">
         ${arrowPrevSvg}<span>Anterior</span>
       </button>`;
     }
 
-    html += `<div style="display:flex; align-items:center; gap:8px;">`;
+    // Verificación de campos obligatorios mínimos para habilitación inmediata del botón Crear Servidor
+    const nom = (document.getElementById('ef-nombres')?.value || '').trim();
+    const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
+    const cc = (document.getElementById('ef-cedula')?.value || '').trim();
+    const isValid = Boolean(nom && ape && cc);
+    const canSubmit = isLast || isValid;
 
-    // Si está en edición y no es la última pestaña, permitir guardado directo
-    if (currentFormIsEdit && !isLast) {
-      html += `<button type="button" class="btn btn-gold" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios directamente">
-        ${saveCheckSvg}<span>Guardar Cambios</span>
-      </button>`;
+    if (currentFormIsEdit) {
+      html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')" title="Guardar cambios">${saveCheckSvg}<span>${isLast ? 'Actualizar Servidor' : 'Guardar Cambios'}</span></button>`;
+    } else {
+      html += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="emp-save-btn" ${canSubmit ? 'onclick="EmployeesModule.saveCreate()"' : 'disabled title="Complete nombres, apellidos y cédula obligatorios o avance a la última pestaña para registrar el servidor"'}>${saveCheckSvg}<span>Crear Servidor</span></button>`;
     }
 
     if (!isLast) {
       const nextTab = EMP_FORM_TABS[currentIdx + 1];
-      html += `<button type="button" class="btn btn-primary btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
+      html += `<button type="button" class="btn btn-wizard-next" id="btn-wizard-next" onclick="EmployeesModule.switchFormTab('${nextTab}')">
         <span>Continuar</span>${arrowNextSvg}
       </button>`;
-    } else {
-      if (currentFormIsEdit) {
-        html += `<button type="button" class="btn btn-gold" id="emp-save-btn" onclick="EmployeesModule.saveEdit('${currentFormEmpId}')">${saveCheckSvg}<span>Actualizar Servidor</span></button>`;
-      } else {
-        html += `<button type="button" class="btn btn-primary" id="emp-save-btn" onclick="EmployeesModule.saveCreate()">${saveCheckSvg}<span>Crear Servidor</span></button>`;
-      }
     }
 
-    html += `</div>`;
     footerEl.innerHTML = html;
   }
 
@@ -2470,8 +2487,8 @@ const EmployeesModule = (() => {
     currentFormIsVacante = false;
     await loadCatalogs();
     App.openModal('Nuevo Servidor Público', buildForm(), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
+      { text: 'Cancelar', cls: 'btn-wizard-cancel', action: () => App.closeModal() },
+      { text: 'Continuar', cls: 'btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -2508,8 +2525,8 @@ const EmployeesModule = (() => {
     currentFormIsVacante = Boolean(emp.es_vacante || emp.situacion === 'VACANTE' || (emp.nombreCompleto && emp.nombreCompleto.startsWith('PLAZA VACANTE')));
     await loadCatalogs();
     App.openModal('Editar Servidor Público', buildForm(emp), [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Continuar', cls: 'btn-primary btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
+      { text: 'Cancelar', cls: 'btn-wizard-cancel', action: () => App.closeModal() },
+      { text: 'Continuar', cls: 'btn-wizard-next', id: 'btn-wizard-next', action: () => switchFormTab('tab-form-cargo') },
     ], 'modal-form-emp modal-lg');
     const box = document.querySelector('.modal-box');
     if (box) {
@@ -2527,6 +2544,15 @@ const EmployeesModule = (() => {
       }
     }, 40);
   }
+
+  const isInvalidValue = (val) => {
+    if (!val) return true;
+    const s = String(val).trim().toUpperCase();
+    return !s || [
+      'NO REGISTRADO', 'NO REGISTRADA', 'SIN ASIGNAR', 'NO REPORTADO', 'NO REPORTADA',
+      'N/A', 'NONE', 'NULL', 'CARGO NO REGISTRADO', 'DEPENDENCIA NO REGISTRADA', 'VACIO', 'SIN SELECCIONAR'
+    ].includes(s);
+  };
 
   function extractNombresApellidos(emp = {}) {
     let nombres = emp.nombres || '';
@@ -2594,6 +2620,28 @@ const EmployeesModule = (() => {
       : [];
 
     const isEdit = Boolean(emp.cedula || emp.id);
+
+    const cleanEmpDep = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
+    const cleanEmpCargo = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
+    const cleanEmpEncargo = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
+    const cleanEmpClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
+    const cleanEmpEstudios = isInvalidValue(emp.estudios) ? '' : emp.estudios.trim();
+    const cleanEmpInst = isInvalidValue(emp.institucionEstudios) ? '' : emp.institucionEstudios.trim();
+
+    // Pre-poblar cargos iniciales en el template HTML para disponibilidad inmediata
+    const initialDep = cleanEmpDep ? cleanEmpDep.toUpperCase() : '';
+    const initialCargosList = (initialDep && cats.cargosPorDependencia && cats.cargosPorDependencia[initialDep])
+      ? cats.cargosPorDependencia[initialDep]
+      : (cats.cargos || []);
+    const seenInitialCargos = new Set();
+    const initialAvailableCargos = [];
+    for (const item of initialCargosList) {
+      const u = (item.cargo || item || '').toUpperCase().trim();
+      if (u && !seenInitialCargos.has(u)) {
+        seenInitialCargos.add(u);
+        initialAvailableCargos.push(typeof item === 'object' ? item : { cargo: item });
+      }
+    }
 
     const defaultSituacion = (() => {
       if (!isEdit) return '';
@@ -2710,9 +2758,9 @@ const EmployeesModule = (() => {
               </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group floating-group">
               <label class="form-label" for="ef-fecha-nac">Fecha de Nacimiento</label>
-              <input id="ef-fecha-nac" type="date" class="form-input" value="${escHtml(emp.fechaNacimiento || '')}" />
+              <input id="ef-fecha-nac" type="date" class="form-input" placeholder=" " value="${escHtml(emp.fechaNacimiento || '')}" />
               <div id="ef-edad-calc-display" class="ef-calc-display-val">
                 ${emp.edadCalculada ? `Edad: ${escHtml(emp.edadCalculada)}` : ''}
               </div>
@@ -2728,19 +2776,26 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-dep">Dependencia <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
               <select id="ef-dep" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${cats.dependencias.map(d => `<option value="${escHtml(d)}" ${d.toUpperCase() === (emp.dependencia || '').toUpperCase() ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+                ${cats.dependencias.map(d => `<option value="${escHtml(d)}" ${cleanEmpDep && d.toUpperCase() === cleanEmpDep.toUpperCase() ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
                 <option value="__OTRA__">+ Otra Dependencia (Especificar)...</option>
               </select>
-              <input id="ef-dep-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique el nombre de la nueva dependencia..." />
+            </div>
+            <div id="wrap-ef-dep-custom" class="form-group floating-group span-2" style="display:none;">
+              <label class="form-label" for="ef-dep-custom">Nombre de la Nueva Dependencia <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+              <input id="ef-dep-custom" class="form-input" placeholder=" " enterkeyhint="next" />
             </div>
 
             <div class="form-group span-2">
               <label class="form-label" for="ef-cargo">Denominación del Cargo Titular <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
               <select id="ef-cargo" class="filter-select">
-                <option value="${escHtml(emp.cargoActual || '')}">${escHtml(emp.cargoActual || '(Sin seleccionar / Vacío)')}</option>
+                <option value="">(Sin seleccionar / Vacío)</option>
+                ${initialAvailableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${cleanEmpCargo && c.cargo.toUpperCase() === cleanEmpCargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
                 <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
               </select>
-              <input id="ef-cargo-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la denominación del nuevo cargo..." />
+            </div>
+            <div id="wrap-ef-cargo-custom" class="form-group floating-group span-2" style="display:none;">
+              <label class="form-label" for="ef-cargo-custom">Denominación del Nuevo Cargo <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+              <input id="ef-cargo-custom" class="form-input" placeholder=" " enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -2760,11 +2815,14 @@ const EmployeesModule = (() => {
             <div class="form-group">
               <label class="form-label" for="ef-clasificacion">Tipo de Vinculación</label>
               <select id="ef-clasificacion" class="filter-select">
-                <option value="" ${!emp.clasificacionEmpleo || emp.clasificacionEmpleo === 'Sin clasificar' ? 'selected' : ''}>(Sin clasificar / Vacío)</option>
-                ${cats.clasificaciones.filter(c => c !== 'Sin clasificar').map(c => `<option value="${escHtml(c)}" ${normalizarClasificacion(c) === normalizarClasificacion(emp.clasificacionEmpleo) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
+                <option value="" ${!cleanEmpClasif || cleanEmpClasif === 'Sin clasificar' ? 'selected' : ''}>(Sin clasificar / Vacío)</option>
+                ${cats.clasificaciones.filter(c => c !== 'Sin clasificar').map(c => `<option value="${escHtml(c)}" ${cleanEmpClasif && normalizarClasificacion(c) === normalizarClasificacion(cleanEmpClasif) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
                 <option value="__OTRA__">+ Otra Vinculación (Especificar)...</option>
               </select>
-              <input id="ef-clasificacion-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique el tipo de vinculación..." />
+            </div>
+            <div id="wrap-ef-clasificacion-custom" class="form-group floating-group" style="display:none;">
+              <label class="form-label" for="ef-clasificacion-custom">Tipo de Vinculación <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+              <input id="ef-clasificacion-custom" class="form-input" placeholder=" " enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -2834,7 +2892,10 @@ const EmployeesModule = (() => {
                     : ''}
                   <option value="__OTRO__">+ OTRA CONDICIÓN (ESPECIFICAR)...</option>
                 </select>
-                <input id="ef-tipo-discapacidad-custom" class="form-input" style="display:none; margin-top:8px; text-transform:uppercase;" placeholder="Especifique la condición de discapacidad..." />
+              </div>
+              <div id="wrap-ef-tipo-discapacidad-custom" class="form-group floating-group span-2" style="display:none;">
+                <label class="form-label" for="ef-tipo-discapacidad-custom">Condición de Discapacidad <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+                <input id="ef-tipo-discapacidad-custom" class="form-input" style="text-transform:uppercase;" placeholder=" " enterkeyhint="next" />
               </div>
             </div>
 
@@ -2847,11 +2908,15 @@ const EmployeesModule = (() => {
                 <div class="form-group span-2">
                   <label class="form-label" for="ef-encargo-denominacion">Denominación del Cargo en Encargo <span style="font-size:11px; color:var(--text-muted);">(Carga dinámica según dependencia o personalizada)</span></label>
                   <select id="ef-encargo-denominacion" class="filter-select">
-                    <option value="${escHtml(emp.encargoDenominacion || '')}">${escHtml(emp.encargoDenominacion || '(Sin seleccionar / Vacío)')}</option>
+                    <option value="">(Sin seleccionar / Vacío)</option>
+                    ${initialAvailableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${cleanEmpEncargo && c.cargo.toUpperCase() === cleanEmpEncargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
                     <option value="__OTRO__">+ Otro Cargo (Especificar)...</option>
                   </select>
-                  <input id="ef-encargo-denominacion-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la denominación del cargo en encargo..." />
                   <small style="font-size:11px; color:var(--text-muted);">Cargo temporal en el cual se encuentra encargado el servidor.</small>
+                </div>
+                <div id="wrap-ef-encargo-denominacion-custom" class="form-group floating-group span-2" style="display:none;">
+                  <label class="form-label" for="ef-encargo-denominacion-custom">Denominación del Nuevo Cargo de Encargo <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+                  <input id="ef-encargo-denominacion-custom" class="form-input" placeholder=" " enterkeyhint="next" />
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="ef-encargo-codigo">Código del Encargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, letras o números)</span></label>
@@ -2869,9 +2934,9 @@ const EmployeesModule = (() => {
                   <label class="form-label" for="ef-encargo-asignacion">Asignación Salarial del Encargo</label>
                   <input id="ef-encargo-asignacion" class="form-input font-mono" placeholder="$ 0" value="${escHtml(formatAsignacionSalarial(emp.encargoAsignacion))}" enterkeyhint="next" />
                 </div>
-                <div class="form-group">
+                <div class="form-group floating-group">
                   <label class="form-label" for="ef-fecha-encargo">Fecha de Encargo</label>
-                  <input id="ef-fecha-encargo" type="date" class="form-input" value="${escHtml(emp.fechaEncargo || '')}" />
+                  <input id="ef-fecha-encargo" type="date" class="form-input" placeholder=" " value="${escHtml(emp.fechaEncargo || '')}" />
                 </div>
                 <div class="form-group span-2">
                   <label class="form-label" for="ef-novedades">Novedades y Observaciones del Personal</label>
@@ -2885,33 +2950,36 @@ const EmployeesModule = (() => {
         <!-- ─── PESTAÑA: TIEMPOS DE SERVICIO ─── -->
         <div id="tab-form-tiempos" class="form-tab-pane" style="padding-top: 6px;">
           <div class="form-grid">
-            <div class="form-group span-2">
-              <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso</label>
-              <input id="ef-fecha-ingreso" type="date" class="form-input" value="${escHtml(emp.fechaIngreso || '')}" />
+            <div class="form-group floating-group span-2">
+              <label class="form-label" for="ef-fecha-ingreso">Fecha de Ingreso <span style="font-size:11px; color:var(--text-muted);">(Por defecto: Fecha actual de registro)</span></label>
+              <input id="ef-fecha-ingreso" type="date" class="form-input" placeholder=" " value="${escHtml(emp.fechaIngreso || '')}" />
               <div id="ef-tiempo-calc-display" class="ef-calc-display-val">
                 ${emp.tiempoServicioCalculado ? `Tiempo: ${escHtml(emp.tiempoServicioCalculado)}` : ''}
               </div>
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Otro Tiempo con la Gobernación (Experiencia Múltiple) <span style="font-size:11px; color:var(--text-muted);">(Opcional, agregue periodos con fecha desde y hasta)</span></label>
+            <div class="span-2" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2px;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">Otro Tiempo con la Gobernación (Experiencia Múltiple)</span>
+                <span style="font-size: 11px; color: var(--text-muted);">(Opcional, agregue periodos con fecha desde y hasta)</span>
+              </div>
               <div id="ef-periodos-container" style="display:flex; flex-direction:column; gap:8px;">
                 ${periodosList.map((p, idx) => `
                   <div class="periodo-row" style="display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);">
-                    <div>
-                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde</label>
-                      <input type="date" class="form-input ef-periodo-desde" value="${escHtml(p.desde || '')}" required />
+                    <div class="form-group floating-group" style="margin-bottom:0; position:relative;">
+                      <label class="form-label" for="ef-periodo-desde-${idx}">Fecha Desde</label>
+                      <input id="ef-periodo-desde-${idx}" type="date" class="form-input ef-periodo-desde" placeholder=" " value="${escHtml(p.desde || '')}" required />
                     </div>
-                    <div>
-                      <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta</label>
-                      <input type="date" class="form-input ef-periodo-hasta" value="${escHtml(p.hasta || '')}" required />
+                    <div class="form-group floating-group" style="margin-bottom:0; position:relative;">
+                      <label class="form-label" for="ef-periodo-hasta-${idx}">Fecha Hasta</label>
+                      <input id="ef-periodo-hasta-${idx}" type="date" class="form-input ef-periodo-hasta" placeholder=" " value="${escHtml(p.hasta || '')}" required />
                     </div>
-                    <div class="ef-periodo-duracion">
+                    <div class="ef-periodo-duracion" style="font-size: 13px; font-weight: 600; color: #475569;">
                       ${escHtml(p.duracionTexto || '')}
                     </div>
-                    <div style="padding-top:14px; display:flex; justify-content:center;">
-                      <button type="button" class="btn-action-delete btn-del-periodo" title="Eliminar periodo" aria-label="Eliminar periodo">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    <div style="display:flex; justify-content:center; align-items:center;">
+                      <button type="button" class="btn-action-delete btn-del-periodo" style="height:44px; width:44px; min-width:44px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:12px;" title="Eliminar periodo" aria-label="Eliminar periodo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px; height:20px;" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                       </button>
                     </div>
                   </div>
@@ -2943,20 +3011,26 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-estudios">Estudios (Pregrado)</label>
               <select id="ef-estudios" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${(cats.estudios || []).map(est => `<option value="${escHtml(est)}" ${(emp.estudios || '').toUpperCase() === est ? 'selected' : ''}>${escHtml(est)}</option>`).join('')}
+                ${(cats.estudios || []).map(est => `<option value="${escHtml(est)}" ${cleanEmpEstudios && cleanEmpEstudios.toUpperCase() === est.toUpperCase() ? 'selected' : ''}>${escHtml(est)}</option>`).join('')}
                 <option value="__OTRO__">+ Otro Estudio (Especificar)...</option>
               </select>
-              <input id="ef-estudios-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la carrera o título de estudio..." />
+            </div>
+            <div id="wrap-ef-estudios-custom" class="form-group floating-group" style="display:none;">
+              <label class="form-label" for="ef-estudios-custom">Carrera o Título de Estudio <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+              <input id="ef-estudios-custom" class="form-input" placeholder=" " enterkeyhint="next" />
             </div>
 
             <div class="form-group">
               <label class="form-label" for="ef-inst-estudios">Institución de Estudios</label>
               <select id="ef-inst-estudios" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${(cats.institucionesEstudios || []).map(inst => `<option value="${escHtml(inst)}" ${(emp.institucionEstudios || '').toUpperCase() === inst ? 'selected' : ''}>${escHtml(inst)}</option>`).join('')}
+                ${(cats.institucionesEstudios || []).map(inst => `<option value="${escHtml(inst)}" ${cleanEmpInst && cleanEmpInst.toUpperCase() === inst.toUpperCase() ? 'selected' : ''}>${escHtml(inst)}</option>`).join('')}
                 <option value="__OTRA__">+ Otra Institución (Especificar)...</option>
               </select>
-              <input id="ef-inst-estudios-custom" class="form-input" style="display:none; margin-top:6px;" placeholder="Especifique la universidad o institución..." />
+            </div>
+            <div id="wrap-ef-inst-estudios-custom" class="form-group floating-group" style="display:none;">
+              <label class="form-label" for="ef-inst-estudios-custom">Universidad o Institución <span style="font-size:11px; color:var(--text-muted);">(Especificar)</span></label>
+              <input id="ef-inst-estudios-custom" class="form-input" placeholder=" " enterkeyhint="next" />
             </div>
 
             <div class="form-group">
@@ -2987,17 +3061,25 @@ const EmployeesModule = (() => {
               <input id="ef-telefono-fijo" type="tel" inputmode="tel" class="form-input font-mono" placeholder="Ej: 7401234" value="${escHtml(emp.telefonoFijo || '')}" enterkeyhint="next" />
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Teléfonos Celulares <span style="font-size:11px; color:var(--text-muted);">(Hasta 3 números, inician con 3, 9-10 dígitos c/u)</span></label>
-              <div id="ef-celulares-container" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="span-2" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2px;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">Teléfonos Celulares</span>
+                <span style="font-size: 11px; color: var(--text-muted);">(Hasta 3 números, inician con 3, 9-10 dígitos c/u)</span>
+              </div>
+              <div id="ef-celulares-container" style="display:flex; flex-direction:column; gap:10px;">
                 ${celularesList.map((cel, idx) => `
                   <div class="celular-row" style="display:flex; align-items:center; gap:8px;">
-                    <input type="tel" inputmode="numeric" class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" value="${escHtml(cel)}" maxlength="10" enterkeyhint="next" />
-                    ${idx > 0 ? `<button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>` : ''}
+                    <div class="form-group floating-group" style="flex:1; margin-bottom:0; position:relative;">
+                      <label class="form-label" for="ef-celular-${idx}">
+                        ${idx === 0 ? 'Teléfono Celular Principal' : `Teléfono Celular Adicional (${idx + 1})`}
+                      </label>
+                      <input id="ef-celular-${idx}" type="tel" inputmode="numeric" class="form-input ef-celular-input font-mono" placeholder=" " value="${escHtml(cel)}" maxlength="10" enterkeyhint="next" />
+                    </div>
+                    ${idx > 0 ? `<button type="button" class="btn btn-secondary btn-sm btn-del-celular" style="height:48px; min-width:44px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:12px;" title="Eliminar teléfono adicional">✕</button>` : ''}
                   </div>
                 `).join('')}
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-celular" style="margin-top:6px; font-size:11px;">+ Agregar otro celular</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-celular" style="align-self:flex-start; margin-top:2px; font-size:11px;">+ Agregar otro celular</button>
             </div>
 
             <div class="form-group">
@@ -3049,23 +3131,60 @@ const EmployeesModule = (() => {
       });
     }
 
+    // Validación reactiva de campos obligatorios para activar botón Crear Servidor en cualquier paso
+    const checkRequiredEmpFields = () => {
+      if (currentFormIsEdit) return;
+      const saveBtn = document.getElementById('emp-save-btn');
+      if (!saveBtn) return;
+      const curActiveTab = document.querySelector('.form-tabs .form-tab-btn.active')?.getAttribute('data-tab');
+      const isLast = (curActiveTab === EMP_FORM_TABS[EMP_FORM_TABS.length - 1]);
+      const nom = (document.getElementById('ef-nombres')?.value || '').trim();
+      const ape = (document.getElementById('ef-apellidos')?.value || '').trim();
+      const cc = (document.getElementById('ef-cedula')?.value || '').trim();
+      const isValid = Boolean(nom && ape && cc);
+      const canSubmit = isLast || isValid;
+
+      saveBtn.disabled = !canSubmit;
+      if (canSubmit) {
+        saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
+        saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+        saveBtn.removeAttribute('title');
+        saveBtn.onclick = () => EmployeesModule.saveCreate();
+      } else {
+        saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+        saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
+        saveBtn.setAttribute('title', 'Complete nombres, apellidos y cédula obligatorios o avance a la última pestaña para registrar el servidor');
+        saveBtn.onclick = null;
+      }
+    };
+    ['ef-nombres', 'ef-apellidos', 'ef-cedula'].forEach(id => {
+      const inp = document.getElementById(id);
+      if (inp) {
+        inp.addEventListener('input', checkRequiredEmpFields);
+        inp.addEventListener('change', checkRequiredEmpFields);
+      }
+    });
+
     // 3. Regla 1: Dependencia y Cargo (Carga dinámica y deduplicada según dependencia para Titular y Encargo)
     const depSelect = document.getElementById('ef-dep');
     const depCustom = document.getElementById('ef-dep-custom');
+    const wrapDepCustom = document.getElementById('wrap-ef-dep-custom');
     const cargoSelect = document.getElementById('ef-cargo');
     const cargoCustom = document.getElementById('ef-cargo-custom');
+    const wrapCargoCustom = document.getElementById('wrap-ef-cargo-custom');
     const codigoInput = document.getElementById('ef-codigo-cargo');
     const gradoSelect = document.getElementById('ef-grado');
 
     const encargoCargoSelect = document.getElementById('ef-encargo-denominacion');
     const encargoCargoCustom = document.getElementById('ef-encargo-denominacion-custom');
+    const wrapEncargoCargoCustom = document.getElementById('wrap-ef-encargo-denominacion-custom');
     const encargoCodigoInput = document.getElementById('ef-encargo-codigo');
     const encargoGradoSelect = document.getElementById('ef-encargo-grado');
     const asignacionInput = document.getElementById('ef-encargo-asignacion');
 
     const updateCargosForDep = (selectedDep, currentCargo = '', currentEncargoCargo = '') => {
       const cleanDep = (selectedDep || '').trim().toUpperCase();
-      let rawList = (cleanDep && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
+      let rawList = (cleanDep && cats.cargosPorDependencia && cats.cargosPorDependencia[cleanDep]) ? cats.cargosPorDependencia[cleanDep] : (cats.cargos || []);
 
       // Deduplicación estricta por denominación de cargo
       const seenCargos = new Set();
@@ -3078,38 +3197,47 @@ const EmployeesModule = (() => {
         }
       }
 
+      const cleanCurrentCargo = isInvalidValue(currentCargo) ? '' : currentCargo.trim();
+      const cleanTargetEncargo = isInvalidValue(currentEncargoCargo) ? '' : currentEncargoCargo.trim();
+
       // 3.1 Cargo Titular
       if (cargoSelect) {
         cargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
-          availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo.toUpperCase() === (currentCargo || '').toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
+          availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${c.cargo.toUpperCase() === cleanCurrentCargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
           '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
 
-        if (currentCargo && !seenCargos.has(currentCargo.toUpperCase())) {
+        if (cleanCurrentCargo && !seenCargos.has(cleanCurrentCargo.toUpperCase())) {
           cargoSelect.value = '__OTRO__';
-          if (cargoCustom) {
-            cargoCustom.value = currentCargo;
-            cargoCustom.style.display = 'block';
+          if (cargoCustom) cargoCustom.value = cleanCurrentCargo;
+          if (wrapCargoCustom) {
+            wrapCargoCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapCargoCustom);
           }
-        } else if (cargoCustom) {
-          cargoCustom.style.display = cargoSelect.value === '__OTRO__' ? 'block' : 'none';
+        } else {
+          cargoSelect.value = cleanCurrentCargo || '';
+          if (cargoCustom) cargoCustom.value = '';
+          if (wrapCargoCustom) wrapCargoCustom.style.display = 'none';
         }
       }
 
       // 3.2 Cargo en Encargo (Desplegable dinámico con los cargos de la dependencia)
       if (encargoCargoSelect) {
-        const targetEncargo = currentEncargoCargo || encargoCargoSelect.value || '';
+        const targetEncargo = cleanTargetEncargo || (isInvalidValue(encargoCargoSelect.value) ? '' : encargoCargoSelect.value);
         encargoCargoSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>' +
           availableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" data-asignacion="${escHtml(c.asignacion || '')}" ${c.cargo.toUpperCase() === targetEncargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('') +
           '<option value="__OTRO__">+ Otro Cargo (Especificar)...</option>';
 
         if (targetEncargo && !seenCargos.has(targetEncargo.toUpperCase()) && targetEncargo !== '__OTRO__') {
           encargoCargoSelect.value = '__OTRO__';
-          if (encargoCargoCustom) {
-            encargoCargoCustom.value = targetEncargo;
-            encargoCargoCustom.style.display = 'block';
+          if (encargoCargoCustom) encargoCargoCustom.value = targetEncargo;
+          if (wrapEncargoCargoCustom) {
+            wrapEncargoCargoCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapEncargoCargoCustom);
           }
-        } else if (encargoCargoCustom) {
-          encargoCargoCustom.style.display = encargoCargoSelect.value === '__OTRO__' ? 'block' : 'none';
+        } else {
+          encargoCargoSelect.value = targetEncargo || '';
+          if (encargoCargoCustom) encargoCargoCustom.value = '';
+          if (wrapEncargoCargoCustom) wrapEncargoCargoCustom.style.display = 'none';
         }
       }
     };
@@ -3119,45 +3247,57 @@ const EmployeesModule = (() => {
         const currentSelectedTitular = cargoSelect?.value === '__OTRO__' ? (cargoCustom?.value || '') : (cargoSelect?.value || '');
         const currentSelectedEncargo = encargoCargoSelect?.value === '__OTRO__' ? (encargoCargoCustom?.value || '') : (encargoCargoSelect?.value || '');
         if (e.target.value === '__OTRA__') {
-          if (depCustom) {
-            depCustom.style.display = 'block';
-            depCustom.focus();
+          if (wrapDepCustom) {
+            wrapDepCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapDepCustom);
           }
+          if (depCustom) depCustom.focus();
           updateCargosForDep('', currentSelectedTitular, currentSelectedEncargo);
         } else {
-          if (depCustom) depCustom.style.display = 'none';
+          if (wrapDepCustom) wrapDepCustom.style.display = 'none';
+          if (depCustom) depCustom.value = '';
           updateCargosForDep(e.target.value, currentSelectedTitular, currentSelectedEncargo);
         }
       });
 
-      if (emp.dependencia) {
-        const matchDep = Array.from(depSelect.options).find(o => o.value.toUpperCase() === emp.dependencia.toUpperCase());
+      const cleanDepVal = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
+      const cleanCargoVal = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
+      const cleanEncargoVal = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
+
+      if (cleanDepVal) {
+        const matchDep = Array.from(depSelect.options).find(o => o.value.toUpperCase() === cleanDepVal.toUpperCase());
         if (matchDep) {
           depSelect.value = matchDep.value;
-          updateCargosForDep(matchDep.value, emp.cargoActual || '', emp.encargoDenominacion || '');
+          updateCargosForDep(matchDep.value, cleanCargoVal, cleanEncargoVal);
         } else {
           depSelect.value = '__OTRA__';
-          if (depCustom) {
-            depCustom.value = emp.dependencia;
-            depCustom.style.display = 'block';
+          if (depCustom) depCustom.value = cleanDepVal;
+          if (wrapDepCustom) {
+            wrapDepCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapDepCustom);
           }
-          updateCargosForDep('', emp.cargoActual || '', emp.encargoDenominacion || '');
+          updateCargosForDep('', cleanCargoVal, cleanEncargoVal);
         }
       } else {
-        updateCargosForDep('', emp.cargoActual || '', emp.encargoDenominacion || '');
+        depSelect.value = '';
+        if (depCustom) depCustom.value = '';
+        if (wrapDepCustom) wrapDepCustom.style.display = 'none';
+        updateCargosForDep('', cleanCargoVal, cleanEncargoVal);
       }
     }
 
     if (cargoSelect) {
       cargoSelect.addEventListener('change', () => {
         if (cargoSelect.value === '__OTRO__') {
-          if (cargoCustom) {
-            cargoCustom.style.display = 'block';
-            cargoCustom.focus();
+          if (wrapCargoCustom) {
+            wrapCargoCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapCargoCustom);
           }
+          if (cargoCustom) cargoCustom.focus();
           return;
         }
-        if (cargoCustom) cargoCustom.style.display = 'none';
+        if (wrapCargoCustom) wrapCargoCustom.style.display = 'none';
+        if (cargoCustom) cargoCustom.value = '';
 
         const selOpt = cargoSelect.selectedOptions[0];
         if (selOpt && codigoInput) {
@@ -3185,13 +3325,15 @@ const EmployeesModule = (() => {
     if (encargoCargoSelect) {
       encargoCargoSelect.addEventListener('change', () => {
         if (encargoCargoSelect.value === '__OTRO__') {
-          if (encargoCargoCustom) {
-            encargoCargoCustom.style.display = 'block';
-            encargoCargoCustom.focus();
+          if (wrapEncargoCargoCustom) {
+            wrapEncargoCargoCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapEncargoCargoCustom);
           }
+          if (encargoCargoCustom) encargoCargoCustom.focus();
           return;
         }
-        if (encargoCargoCustom) encargoCargoCustom.style.display = 'none';
+        if (wrapEncargoCargoCustom) wrapEncargoCargoCustom.style.display = 'none';
+        if (encargoCargoCustom) encargoCargoCustom.value = '';
 
         const selOpt = encargoCargoSelect.selectedOptions[0];
         if (selOpt) {
@@ -3258,24 +3400,37 @@ const EmployeesModule = (() => {
     // 4. Tipo de Vinculación condicional "Otra..."
     const clasifSelect = document.getElementById('ef-clasificacion');
     const clasifCustom = document.getElementById('ef-clasificacion-custom');
+    const wrapClasifCustom = document.getElementById('wrap-ef-clasificacion-custom');
     if (clasifSelect && clasifCustom) {
       clasifSelect.addEventListener('change', () => {
         if (clasifSelect.value === '__OTRA__') {
-          clasifCustom.style.display = 'block';
+          if (wrapClasifCustom) {
+            wrapClasifCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapClasifCustom);
+          }
           clasifCustom.focus();
         } else {
-          clasifCustom.style.display = 'none';
+          if (wrapClasifCustom) wrapClasifCustom.style.display = 'none';
+          clasifCustom.value = '';
         }
       });
-      if (emp.clasificacionEmpleo) {
-        const match = Array.from(clasifSelect.options).find(o => normalizarClasificacion(o.value) === normalizarClasificacion(emp.clasificacionEmpleo));
+      const cleanClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
+      if (cleanClasif) {
+        const match = Array.from(clasifSelect.options).find(o => normalizarClasificacion(o.value) === normalizarClasificacion(cleanClasif));
         if (match) {
           clasifSelect.value = match.value;
+          if (wrapClasifCustom) wrapClasifCustom.style.display = 'none';
         } else {
           clasifSelect.value = '__OTRA__';
-          clasifCustom.value = emp.clasificacionEmpleo;
-          clasifCustom.style.display = 'block';
+          clasifCustom.value = cleanClasif;
+          if (wrapClasifCustom) {
+            wrapClasifCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapClasifCustom);
+          }
         }
+      } else {
+        clasifSelect.value = '';
+        if (wrapClasifCustom) wrapClasifCustom.style.display = 'none';
       }
     }
 
@@ -3286,6 +3441,10 @@ const EmployeesModule = (() => {
     const updateMunicipiosForDepto = (selectedDepto, currentMpio = '') => {
       if (!mpioExpSelect) return;
       const cleanDepto = (selectedDepto || '').trim().toUpperCase();
+      if (!cleanDepto) {
+        mpioExpSelect.innerHTML = '<option value="">(Sin seleccionar / Vacío)</option>';
+        return;
+      }
       let mpios = cats.divipola.municipiosPorDepto[cleanDepto] || [];
       // Para Boyacá, TUNJA aparece siempre de primer municipio
       if (cleanDepto === 'BOYACÁ' || cleanDepto === 'BOYACA') {
@@ -3321,6 +3480,7 @@ const EmployeesModule = (() => {
     const wrapDiscapacidad = document.getElementById('wrap-seccion-discapacidad');
     const discSelect = document.getElementById('ef-tipo-discapacidad');
     const discCustom = document.getElementById('ef-tipo-discapacidad-custom');
+    const wrapDiscCustom = document.getElementById('wrap-ef-tipo-discapacidad-custom');
 
     const updateSituacionSections = () => {
       const sit = (situacionSelect?.value || '').trim().toUpperCase();
@@ -3344,21 +3504,30 @@ const EmployeesModule = (() => {
     if (discSelect && discCustom) {
       discSelect.addEventListener('change', () => {
         if (discSelect.value === '__OTRO__') {
-          discCustom.style.display = 'block';
+          if (wrapDiscCustom) {
+            wrapDiscCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapDiscCustom);
+          }
           discCustom.focus();
         } else {
-          discCustom.style.display = 'none';
+          if (wrapDiscCustom) wrapDiscCustom.style.display = 'none';
+          discCustom.value = '';
         }
       });
-      if (emp.tipoDiscapacidad && !['ninguna', 'ninguno', 'no registra', 'sin especificar'].includes(emp.tipoDiscapacidad.trim().toLowerCase())) {
-        const empUpper = emp.tipoDiscapacidad.trim().toUpperCase();
+      const cleanDisc = isInvalidValue(emp.tipoDiscapacidad) ? '' : emp.tipoDiscapacidad.trim();
+      if (cleanDisc && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(cleanDisc.toUpperCase())) {
+        const empUpper = cleanDisc.toUpperCase();
         const match = Array.from(discSelect.options).find(o => o.value.toUpperCase() === empUpper);
         if (match) {
           discSelect.value = match.value;
+          if (wrapDiscCustom) wrapDiscCustom.style.display = 'none';
         } else {
           discSelect.value = '__OTRO__';
           discCustom.value = empUpper;
-          discCustom.style.display = 'block';
+          if (wrapDiscCustom) {
+            wrapDiscCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapDiscCustom);
+          }
         }
       }
     }
@@ -3515,27 +3684,29 @@ const EmployeesModule = (() => {
 
     if (btnAddPeriodo && periodosContainer) {
       btnAddPeriodo.addEventListener('click', () => {
+        const nextIdx = periodosContainer.querySelectorAll('.periodo-row').length;
         const div = document.createElement('div');
         div.className = 'periodo-row';
         div.style = 'display:grid; grid-template-columns: 1fr 1fr 1.4fr auto; gap:10px; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; border:1px solid var(--color-border);';
         div.innerHTML = `
-          <div>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Desde</label>
-            <input type="date" class="form-input ef-periodo-desde" required />
+          <div class="form-group floating-group" style="margin-bottom:0; position:relative;">
+            <label class="form-label" for="ef-periodo-desde-${nextIdx}">Fecha Desde</label>
+            <input id="ef-periodo-desde-${nextIdx}" type="date" class="form-input ef-periodo-desde" placeholder=" " required />
           </div>
-          <div>
-            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:2px;">Hasta</label>
-            <input type="date" class="form-input ef-periodo-hasta" required />
+          <div class="form-group floating-group" style="margin-bottom:0; position:relative;">
+            <label class="form-label" for="ef-periodo-hasta-${nextIdx}">Fecha Hasta</label>
+            <input id="ef-periodo-hasta-${nextIdx}" type="date" class="form-input ef-periodo-hasta" placeholder=" " required />
           </div>
-          <div class="ef-periodo-duracion"></div>
-          <div style="padding-top:14px; display:flex; justify-content:center;">
-            <button type="button" class="btn-action-delete btn-del-periodo" title="Eliminar periodo" aria-label="Eliminar periodo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          <div class="ef-periodo-duracion" style="font-size: 13px; font-weight: 600; color: #475569;"></div>
+          <div style="display:flex; justify-content:center; align-items:center;">
+            <button type="button" class="btn-action-delete btn-del-periodo" style="height:44px; width:44px; min-width:44px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:12px;" title="Eliminar periodo" aria-label="Eliminar periodo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px; height:20px;" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
             </button>
           </div>
         `;
         periodosContainer.appendChild(div);
         App.initDatePickers(div);
+        App.initFormUX(div);
         bindPeriodoRow(div);
       });
     }
@@ -3543,47 +3714,73 @@ const EmployeesModule = (() => {
     // 9. Estudios e Institución condicional "Otro..."
     const estudiosSelect = document.getElementById('ef-estudios');
     const estudiosCustom = document.getElementById('ef-estudios-custom');
+    const wrapEstudiosCustom = document.getElementById('wrap-ef-estudios-custom');
     if (estudiosSelect && estudiosCustom) {
       estudiosSelect.addEventListener('change', () => {
         if (estudiosSelect.value === '__OTRO__') {
-          estudiosCustom.style.display = 'block';
+          if (wrapEstudiosCustom) {
+            wrapEstudiosCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapEstudiosCustom);
+          }
           estudiosCustom.focus();
         } else {
-          estudiosCustom.style.display = 'none';
+          if (wrapEstudiosCustom) wrapEstudiosCustom.style.display = 'none';
+          estudiosCustom.value = '';
         }
       });
-      if (emp.estudios) {
-        const match = Array.from(estudiosSelect.options).find(o => o.value.toUpperCase() === emp.estudios.toUpperCase());
+      const cleanEstudios = isInvalidValue(emp.estudios) ? '' : emp.estudios.trim();
+      if (cleanEstudios) {
+        const match = Array.from(estudiosSelect.options).find(o => o.value.toUpperCase() === cleanEstudios.toUpperCase());
         if (match) {
           estudiosSelect.value = match.value;
+          if (wrapEstudiosCustom) wrapEstudiosCustom.style.display = 'none';
         } else {
           estudiosSelect.value = '__OTRO__';
-          estudiosCustom.value = emp.estudios;
-          estudiosCustom.style.display = 'block';
+          estudiosCustom.value = cleanEstudios;
+          if (wrapEstudiosCustom) {
+            wrapEstudiosCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapEstudiosCustom);
+          }
         }
+      } else {
+        estudiosSelect.value = '';
+        if (wrapEstudiosCustom) wrapEstudiosCustom.style.display = 'none';
       }
     }
 
     const instSelect = document.getElementById('ef-inst-estudios');
     const instCustom = document.getElementById('ef-inst-estudios-custom');
+    const wrapInstCustom = document.getElementById('wrap-ef-inst-estudios-custom');
     if (instSelect && instCustom) {
       instSelect.addEventListener('change', () => {
         if (instSelect.value === '__OTRA__') {
-          instCustom.style.display = 'block';
+          if (wrapInstCustom) {
+            wrapInstCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapInstCustom);
+          }
           instCustom.focus();
         } else {
-          instCustom.style.display = 'none';
+          if (wrapInstCustom) wrapInstCustom.style.display = 'none';
+          instCustom.value = '';
         }
       });
-      if (emp.institucionEstudios) {
-        const match = Array.from(instSelect.options).find(o => o.value.toUpperCase() === emp.institucionEstudios.toUpperCase());
+      const cleanInst = isInvalidValue(emp.institucionEstudios) ? '' : emp.institucionEstudios.trim();
+      if (cleanInst) {
+        const match = Array.from(instSelect.options).find(o => o.value.toUpperCase() === cleanInst.toUpperCase());
         if (match) {
           instSelect.value = match.value;
+          if (wrapInstCustom) wrapInstCustom.style.display = 'none';
         } else {
           instSelect.value = '__OTRA__';
-          instCustom.value = emp.institucionEstudios;
-          instCustom.style.display = 'block';
+          instCustom.value = cleanInst;
+          if (wrapInstCustom) {
+            wrapInstCustom.style.display = 'block';
+            App.refreshFloatingLabels(wrapInstCustom);
+          }
         }
+      } else {
+        instSelect.value = '';
+        if (wrapInstCustom) wrapInstCustom.style.display = 'none';
       }
     }
 
@@ -3597,14 +3794,41 @@ const EmployeesModule = (() => {
     const btnAddCel = document.getElementById('btn-add-celular');
     const celContainer = document.getElementById('ef-celulares-container');
 
-    const bindCelInput = (inp) => {
-      inp.addEventListener('input', (e) => {
-        e.target.value = e.target.value.replace(/[^\d]/g, '');
+    const reindexarCelulares = () => {
+      if (!celContainer) return;
+      const rows = celContainer.querySelectorAll('.celular-row');
+      rows.forEach((row, idx) => {
+        const label = row.querySelector('.form-label');
+        const input = row.querySelector('.ef-celular-input');
+        if (label) {
+          label.textContent = idx === 0 ? 'Teléfono Celular Principal' : `Teléfono Celular Adicional (${idx + 1})`;
+          label.setAttribute('for', `ef-celular-${idx}`);
+        }
+        if (input) {
+          input.id = `ef-celular-${idx}`;
+        }
       });
+      App.refreshFloatingLabels(celContainer);
+    };
+
+    const bindCelRow = (row) => {
+      const inp = row.querySelector('.ef-celular-input');
+      const delBtn = row.querySelector('.btn-del-celular');
+      if (inp) {
+        inp.addEventListener('input', (e) => {
+          e.target.value = e.target.value.replace(/[^\d]/g, '');
+        });
+      }
+      if (delBtn) {
+        delBtn.addEventListener('click', () => {
+          row.remove();
+          reindexarCelulares();
+        });
+      }
     };
 
     if (celContainer) {
-      celContainer.querySelectorAll('.ef-celular-input').forEach(bindCelInput);
+      celContainer.querySelectorAll('.celular-row').forEach(bindCelRow);
     }
 
     if (btnAddCel && celContainer) {
@@ -3614,15 +3838,22 @@ const EmployeesModule = (() => {
           App.showToast('Solo se permite registrar hasta 3 números celulares independientes.', 'warning');
           return;
         }
+        const nextIdx = rows.length;
         const div = document.createElement('div');
         div.className = 'celular-row';
         div.style = 'display:flex; align-items:center; gap:8px;';
         div.innerHTML = `
-          <input class="form-input ef-celular-input font-mono" placeholder="Ej: 3000000000" maxlength="10" />
-          <button type="button" class="btn btn-secondary btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>
+          <div class="form-group floating-group" style="flex:1; margin-bottom:0; position:relative;">
+            <label class="form-label" for="ef-celular-${nextIdx}">Teléfono Celular Adicional (${nextIdx + 1})</label>
+            <input id="ef-celular-${nextIdx}" type="tel" inputmode="numeric" class="form-input ef-celular-input font-mono" placeholder=" " maxlength="10" enterkeyhint="next" />
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm btn-del-celular" style="height:48px; min-width:44px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:12px;" title="Eliminar teléfono adicional">✕</button>
         `;
         celContainer.appendChild(div);
-        bindCelInput(div.querySelector('.ef-celular-input'));
+        bindCelRow(div);
+        App.initFormUX(div);
+        const newInp = div.querySelector('.ef-celular-input');
+        if (newInp) newInp.focus();
       });
     }
   }
@@ -3970,7 +4201,17 @@ const EmployeesModule = (() => {
       opec: document.getElementById('ef-opec')?.value.trim() || null,
       situacion,
       tipoDiscapacidad,
-      fechaIngreso: document.getElementById('ef-fecha-ingreso')?.value || null,
+      fechaIngreso: (() => {
+        const val = document.getElementById('ef-fecha-ingreso')?.value?.trim();
+        if (val) return val;
+        // Si no se le ingresa fecha de ingreso, al guardar guarda la fecha del día del registro (hoy)
+        return new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Bogota',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(new Date());
+      })(),
       fechaEncargo,
       otroTiempoPeriodos,
       otroTiempoGobernacion: document.getElementById('ef-periodos-total-display')?.textContent.replace('Otro Tiempo acumulado: ', '') || null,
@@ -4314,7 +4555,7 @@ const EmployeesModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar servidores públicos en el sistema.</p>
           </div>
-          <button class="modal-close" id="btn-close-emp-import">&times;</button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-emp-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -4378,7 +4619,6 @@ const EmployeesModule = (() => {
         </div>
 
         <div class="modal-footer" id="emp-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-emp-import">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-emp-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <polyline points="20 6 9 17 4 12"></polyline>
@@ -4392,7 +4632,7 @@ const EmployeesModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-emp-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-emp-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-emp-import') || closeBtn;
     const dropzone = overlay.querySelector('#emp-excel-dropzone');
     const fileInput = overlay.querySelector('#emp-excel-file-input');
     const filePreview = overlay.querySelector('#emp-file-preview');
@@ -4407,7 +4647,7 @@ const EmployeesModule = (() => {
 
     const closeModal = () => overlay.remove();
     closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
     const resetSelection = () => {
       selectedFile = null;
@@ -4473,7 +4713,7 @@ const EmployeesModule = (() => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -4569,7 +4809,7 @@ const EmployeesModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }

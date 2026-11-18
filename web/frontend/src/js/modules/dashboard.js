@@ -317,7 +317,8 @@ const DashboardModule = (() => {
       const vacantesEmp = parseInt(emp.vacantes) || 0;
       const inactivosEmp = parseInt(emp.inactivos) || 0;
       const topDeps = chart.porDependencia || [];
-      const totalDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || (catalogs?.dependencias ? catalogs.dependencias.length : 0) || 90;
+      const activeDepsCount = topDeps.filter(d => (d.cantidad || d.total || 0) > 0).length;
+      const totalDeps = activosEmp > 0 ? (parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias) || (catalogs?.dependencias ? catalogs.dependencias.length : 0) || activeDepsCount) : 0;
       const totalCargosPlanta = activosEmp + vacantesEmp;
       const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
 
@@ -396,11 +397,17 @@ const DashboardModule = (() => {
 
       // Actualizar badges informativos
       const depBadge = document.getElementById('db-dep-badge');
-      if (depBadge) depBadge.textContent = `${totalDeps} Dependencias Activas`;
+      if (depBadge) {
+        const activeDepsCount = topDeps.filter(d => (d.cantidad || d.total || 0) > 0).length;
+        depBadge.textContent = `${activeDepsCount} Dependencias con Personal`;
+      }
       const plantBadge = document.getElementById('db-plant-badge');
       if (plantBadge) plantBadge.textContent = `${activosEmp.toLocaleString('es-CO')} en Planta`;
       const secBadge = document.getElementById('db-sec-badge');
-      if (secBadge) secBadge.textContent = `${totalDeps} Dependencias`;
+      if (secBadge) {
+        const activeDepsCount = topDeps.filter(d => (d.cantidad || d.total || 0) > 0).length;
+        secBadge.textContent = `${activeDepsCount} Dependencias`;
+      }
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
@@ -746,8 +753,8 @@ const DashboardModule = (() => {
                 <span style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-top:2px;">Distribución presupuestal y volumen de comisiones</span>
               </div>
               <div style="display:flex;gap:6px;align-items:center;">
-                <span class="badge badge--success" style="font-size:0.74rem;font-weight:800;">$3.015M Ejecutado</span>
-                <span class="badge badge--neutral" style="font-size:0.74rem;font-weight:700;">6 Secretarías</span>
+                <span class="badge badge--success" id="db-vit-ejecutado-badge" style="font-size:0.74rem;font-weight:800;">$0 Ejecutado</span>
+                <span class="badge badge--neutral" id="db-vit-sec-badge" style="font-size:0.74rem;font-weight:700;">0 Secretarías</span>
               </div>
             </div>
             <div class="chart-wrap" id="wrap-chart-module-status" style="height:290px;"><canvas id="chart-module-status"></canvas></div>
@@ -1013,8 +1020,8 @@ const DashboardModule = (() => {
           destCounts[d] = (destCounts[d] || 0) + 1;
         });
         const topDest = Object.entries(destCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-        destLabels = topDest.length ? topDest.map(x => truncate(x[0], 22)) : ['SOGAMOSO', 'PAIPA', 'CHIQUINQUIRÁ', 'PUERTO BOYACÁ', 'DUITAMA'];
-        destValues = topDest.length ? topDest.map(x => x[1]) : [639, 611, 609, 592, 589];
+        destLabels = topDest.map(x => truncate(x[0], 22));
+        destValues = topDest.map(x => x[1]);
       }
 
       if (ctxDest) {
@@ -1118,9 +1125,19 @@ const DashboardModule = (() => {
           depCounts[dep] = (depCounts[dep] || 0) + 1;
         });
         const topBudgets = Object.entries(depBudgets).sort((a,b) => b[1] - a[1]).slice(0, 6);
-        budLabels = topBudgets.length ? topBudgets.map(b => truncate(b[0], 22)) : ['Sec. Salud', 'Sec. Infraestructura', 'Despacho Gobernador', 'Sec. General', 'Sec. Agricultura', 'Sec. Gobierno'];
-        budValues = topBudgets.length ? topBudgets.map(b => Math.round(b[1])) : [681428519, 340215808, 329627525, 311534206, 205447664, 132389003];
-        budCounts = topBudgets.length ? topBudgets.map(b => depCounts[b[0]] || 0) : [1925, 1170, 1224, 1166, 844, 544];
+        budLabels = topBudgets.map(b => truncate(b[0], 22));
+        budValues = topBudgets.map(b => Math.round(b[1]));
+        budCounts = topBudgets.map(b => depCounts[b[0]] || 0);
+      }
+
+      const vitEjBadge = document.getElementById('db-vit-ejecutado-badge');
+      if (vitEjBadge) {
+        const mVal = (valorAprobado / 1000000).toFixed(1);
+        vitEjBadge.textContent = valorAprobado > 0 ? `$${mVal}M Ejecutado` : '$0 Ejecutado';
+      }
+      const vitSecBadge = document.getElementById('db-vit-sec-badge');
+      if (vitSecBadge) {
+        vitSecBadge.textContent = `${budLabels.length} Secretarías`;
       }
 
       if (ctxMod) {
@@ -1820,7 +1837,7 @@ const DashboardModule = (() => {
               <span class="db-section-badge">Módulo 01</span>
               <h2 class="db-section-title">🏛️ Planta de Personal y Carrera Administrativa</h2>
             </div>
-            <span class="db-section-subtitle" id="db-sub-servidores">105 Dependencias Institucionales</span>
+            <span class="db-section-subtitle" id="db-sub-servidores">0 Dependencias</span>
           </div>
 
           <div class="charts-grid">
@@ -1897,7 +1914,7 @@ const DashboardModule = (() => {
               <span class="db-section-badge">Módulo 02</span>
               <h2 class="db-section-title">💼 Viáticos, Movilidad Institucional y Cobertura Sectorial</h2>
             </div>
-            <span class="db-section-subtitle" id="db-sub-viaticos">1,181 Comisiones Oficiales</span>
+            <span class="db-section-subtitle" id="db-sub-viaticos">0 Comisiones Oficiales</span>
           </div>
 
           <div class="charts-grid">
@@ -1913,7 +1930,7 @@ const DashboardModule = (() => {
               <div class="chart-wrap" id="wrap-chart-by-dep" style="height:260px;"><canvas id="chart-by-dep"></canvas></div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border,rgba(0,0,0,0.06));font-size:0.78rem;font-weight:700;color:var(--text-secondary);">
                 <span>🏛️ Cobertura Organizacional</span>
-                <span class="badge" id="db-dep-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">105 Unidades Activas</span>
+                <span class="badge" id="db-dep-badge" style="background:rgba(0,123,199,0.1);color:#007BC7;border:1px solid rgba(0,123,199,0.25);font-weight:800;font-size:12px;padding:3px 10px;border-radius:20px;">0 Unidades Activas</span>
               </div>
             </div>
 
@@ -2038,7 +2055,7 @@ const DashboardModule = (() => {
 
               <div class="db-mini-kpi-grid">
                 <div class="db-mini-kpi-tile">
-                  <span class="db-mini-kpi-val" id="hor-presencial">626</span>
+                  <span class="db-mini-kpi-val" id="hor-presencial">0</span>
                   <span class="db-mini-kpi-lbl">Presencial Ordinaria</span>
                 </div>
                 <div class="db-mini-kpi-tile">
@@ -2058,10 +2075,10 @@ const DashboardModule = (() => {
               <div style="background:var(--bg-glass,rgba(255,255,255,0.5));border:1px solid var(--border-glass,rgba(0,0,0,0.06));border-radius:12px;padding:12px 16px;margin-top:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                   <span style="font-size:0.80rem;font-weight:700;color:var(--text-primary);">Cobertura Presencial en Entidad</span>
-                  <span style="font-size:0.82rem;font-weight:800;color:var(--color-success);" id="hor-pct-presencial">100%</span>
+                  <span style="font-size:0.82rem;font-weight:800;color:var(--color-success);" id="hor-pct-presencial">0.0%</span>
                 </div>
                 <div class="db-eps-progress">
-                  <div class="db-eps-fill" id="hor-progress-presencial" style="width:100%;background:linear-gradient(90deg,#10b981,#059669);"></div>
+                  <div class="db-eps-fill" id="hor-progress-presencial" style="width:0%;background:linear-gradient(90deg,#10b981,#059669);"></div>
                 </div>
                 <span style="display:block;font-size:0.70rem;font-weight:600;color:var(--text-muted);margin-top:8px;">Cumplimiento de 44 horas semanales con registro de actos administrativos y reporte ARL.</span>
               </div>
@@ -2246,12 +2263,12 @@ const DashboardModule = (() => {
       lastSstStats = sstStats;
 
       const emp = stats.empleados || {};
-      const totalEmp = parseInt(emp.total) || 669;
-      const activosEmp = parseInt(emp.activos) || 626;
-      const vacantesEmp = parseInt(emp.vacantes) || 43;
+      const totalEmp = parseInt(emp.total) || 0;
+      const activosEmp = parseInt(emp.activos) || 0;
+      const vacantesEmp = parseInt(emp.vacantes) || 0;
       const inactivosEmp = parseInt(emp.inactivos) || 0;
       const totalCargosPlanta = activosEmp + vacantesEmp;
-      const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '93.6';
+      const pctOcupacion = totalCargosPlanta > 0 ? ((activosEmp / totalCargosPlanta) * 100).toFixed(1) : '0.0';
 
       const vit = stats.viaticos || {};
       const sol = stats.solicitudesAdmin || {};
@@ -2264,14 +2281,16 @@ const DashboardModule = (() => {
         vacantes: vacantesEmp,
         total: totalEmp,
       };
-      const totalS = (parseInt(sData.total) || (parseInt(sData.activos) + parseInt(sData.vacantes) + parseInt(sData.inactivos))) || 669;
-      const pctActivos = ((parseInt(sData.activos) / totalS) * 100).toFixed(1);
-      const pctVacantes = ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1);
-      const pctInactivos = ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1);
+      const totalS = (parseInt(sData.activos) || 0) + (parseInt(sData.vacantes) || 0) + (parseInt(sData.inactivos) || 0);
+      const pctActivos = totalS > 0 ? ((parseInt(sData.activos) / totalS) * 100).toFixed(1) : '0.0';
+      const pctVacantes = totalS > 0 ? ((parseInt(sData.vacantes) / totalS) * 100).toFixed(1) : '0.0';
+      const pctInactivos = totalS > 0 ? ((parseInt(sData.inactivos) / totalS) * 100).toFixed(1) : '0.0';
 
       // ─── 1. RENDERIZADO DE LAS 10 TARJETAS STATS PRINCIPALES (2 FILAS DE 5) ──
       const grid = document.getElementById('db-stats-grid');
-      const totalDeps = parseInt(chart.totalDependencias || stats.dependencias?.total || emp.totalDependencias) || 105;
+      const topDeps = chart.porDependencia || [];
+      const activeDepsCount = topDeps.filter(d => (d.cantidad || d.total || 0) > 0).length;
+      const totalDeps = activosEmp > 0 ? (parseInt(chart.totalDependencias || stats.dependencias?.total || emp.totalDependencias) || activeDepsCount) : 0;
       if (grid) {
         grid.innerHTML = `
           <!-- ── FILA 1: GESTIÓN DE PLANTA, SERVIDORES Y CARRERA (5 TARJETAS) ── -->
@@ -2295,7 +2314,7 @@ const DashboardModule = (() => {
             </div>
             <div class="stat-info">
               <span class="stat-value" id="sv-vac">0</span>
-              <span class="stat-label">PLAZAS VACANTES (${pctVacantes || '6.4'}%)</span>
+              <span class="stat-label">PLAZAS VACANTES (${pctVacantes}%)</span>
             </div>
           </div>
 
@@ -2306,8 +2325,8 @@ const DashboardModule = (() => {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             </div>
             <div class="stat-info">
-              <span class="stat-value" id="sv-nivel">266</span>
-              <span class="stat-label">ASISTENCIAL (NIVEL DAFP)</span>
+              <span class="stat-value" id="sv-nivel">0</span>
+              <span class="stat-label" id="lbl-nivel">NIVEL JERÁRQUICO DAFP</span>
             </div>
           </div>
 
@@ -2400,13 +2419,31 @@ const DashboardModule = (() => {
 
       animateCount(document.getElementById('sv-emp'), activosEmp);
       animateCount(document.getElementById('sv-vac'), vacantesEmp);
-      animateCount(document.getElementById('sv-nivel'), 266);
-      animateCount(document.getElementById('sv-carrera'), 200);
+
+      const mayorNivel = (emp.porNivel && emp.porNivel.length > 0) ? emp.porNivel[0] : null;
+      const nivelVal = mayorNivel ? (parseInt(mayorNivel.cantidad) || 0) : 0;
+      animateCount(document.getElementById('sv-nivel'), nivelVal);
+      const lblNivel = document.getElementById('lbl-nivel');
+      if (lblNivel) {
+        lblNivel.textContent = mayorNivel && nivelVal > 0 ? `${escHtml(mayorNivel.nivel)} (NIVEL DAFP)` : 'NIVEL JERÁRQUICO DAFP';
+      }
+
+      const carreraItem = (emp.porClasificacion || []).find(c => /carrera/i.test(c.tipo));
+      animateCount(document.getElementById('sv-carrera'), carreraItem ? (parseInt(carreraItem.cantidad) || 0) : 0);
       animateCount(document.getElementById('sv-dep'), totalDeps);
-      animateCount(document.getElementById('sv-vit'), vit.valorTotalAprobado || 321314273);
-      animateCount(document.getElementById('sv-comisiones'), vit.total || 1181);
-      animateCount(document.getElementById('sv-adm'), sol.diasSolicitados || 184);
-      animateCount(document.getElementById('sv-sst'), sst.stockTotalUnidades || 1513);
+      animateCount(document.getElementById('sv-vit'), vit.valorTotalAprobado || 0);
+      animateCount(document.getElementById('sv-comisiones'), vit.total || 0);
+      animateCount(document.getElementById('sv-adm'), sol.diasSolicitados || 0);
+      animateCount(document.getElementById('sv-sst'), sst.stockTotalUnidades || 0);
+
+      const subServ = document.getElementById('db-sub-servidores');
+      if (subServ) {
+        subServ.textContent = activosEmp > 0 ? `${activosEmp.toLocaleString('es-CO')} en Planta · ${activeDepsCount} Dependencias con Personal` : '0 Dependencias con Personal';
+      }
+      const subVit = document.getElementById('db-sub-viaticos');
+      if (subVit) {
+        subVit.textContent = `${(vit.total || 0).toLocaleString('es-CO')} Comisiones Oficiales`;
+      }
 
       const { isDark, gridColor, tickColor, legendColor, chartBorderColor } = getThemeColors();
 
@@ -2473,19 +2510,13 @@ const DashboardModule = (() => {
 
       // Indicadores de Educación y Formación
       const edu = emp.educacion || {};
-      const postEl = document.getElementById('edu-postgrado'); if (postEl) animateCount(postEl, edu.conPostgrado || 626);
-      const dipEl = document.getElementById('edu-diplomado'); if (dipEl) animateCount(dipEl, edu.conDiplomado || 121);
-      const matEl = document.getElementById('edu-matricula'); if (matEl) animateCount(matEl, edu.conMatrícula || edu.conMatricula || 626);
+      const postEl = document.getElementById('edu-postgrado'); if (postEl) animateCount(postEl, edu.conPostgrado || 0);
+      const dipEl = document.getElementById('edu-diplomado'); if (dipEl) animateCount(dipEl, edu.conDiplomado || 0);
+      const matEl = document.getElementById('edu-matricula'); if (matEl) animateCount(matEl, edu.conMatrícula || edu.conMatricula || 0);
 
       // Gráfica de Niveles Jerárquicos DAFP
       const ctxNivel = document.getElementById('chart-by-nivel')?.getContext('2d');
-      const nivelesList = (emp.porNivel && emp.porNivel.length) ? emp.porNivel : (chart.porNivel || [
-        { nivel: 'ASISTENCIAL', cantidad: 266 },
-        { nivel: 'PROFESIONAL', cantidad: 233 },
-        { nivel: 'DIRECTIVO', cantidad: 76 },
-        { nivel: 'TÉCNICO', cantidad: 62 },
-        { nivel: 'ASESOR', cantidad: 32 }
-      ]);
+      const nivelesList = (emp.porNivel && emp.porNivel.length) ? emp.porNivel : (chart.porNivel || []);
 
       if (ctxNivel) {
         chartNivel = safeCreateChart(ctxNivel, {
@@ -2514,27 +2545,20 @@ const DashboardModule = (() => {
 
       // Chips de Clasificación del Empleo
       const clasifChips = document.getElementById('db-clasificacion-chips');
-      const clasifList = (emp.porClasificacion && emp.porClasificacion.length) ? emp.porClasificacion : (chart.porClasificacion || [
-        { tipo: 'Carrera Administrativa', cantidad: 200 },
-        { tipo: 'Licencia No Remunerada', cantidad: 134 },
-        { tipo: 'Encargo en Vacante Definitiva', cantidad: 80 },
-        { tipo: 'Encargo en Vacante Temporal', cantidad: 72 },
-        { tipo: 'Provisional en Vacante Temporal', cantidad: 67 },
-        { tipo: 'Provisional en Vacante Definitiva', cantidad: 53 }
-      ]);
+      const clasifList = (emp.porClasificacion && emp.porClasificacion.length) ? emp.porClasificacion : (chart.porClasificacion || []);
       if (clasifChips) {
-        clasifChips.innerHTML = clasifList.map(c => `
+        clasifChips.innerHTML = clasifList.length ? clasifList.map(c => `
           <span class="badge badge--neutral" style="font-size:0.73rem;padding:4px 9px;display:inline-flex;align-items:center;gap:5px;">
             <strong>${escHtml(c.tipo)}:</strong>
             <span style="color:var(--color-primary);font-weight:800;">${c.cantidad}</span>
           </span>
-        `).join('');
+        `).join('') : '<span style="color:var(--text-muted);font-size:0.8rem;">Sin clasificaciones registradas</span>';
       }
 
       // ─── 3. SECCIÓN 2: VIÁTICOS Y COBERTURA SECTORIAL ───────────────────────
       const ctxDep = document.getElementById('chart-by-dep')?.getContext('2d');
       const depBadge = document.getElementById('db-dep-badge');
-      if (depBadge) depBadge.textContent = `${totalDeps} Unidades Activas`;
+      if (depBadge) depBadge.textContent = `${activeDepsCount} Dependencias con Personal`;
 
       if (ctxDep && chart.porDependencia) {
         chartDep = safeCreateChart(ctxDep, {
@@ -2563,23 +2587,17 @@ const DashboardModule = (() => {
 
       // Métricas Financieras de Viáticos
       const vitMonto = document.getElementById('vit-monto-total');
-      if (vitMonto) vitMonto.textContent = '$' + (vit.valorTotalAprobado || 321314273).toLocaleString('es-CO');
+      if (vitMonto) vitMonto.textContent = '$' + (vit.valorTotalAprobado || 0).toLocaleString('es-CO');
       const vitProm = document.getElementById('vit-promedio');
-      if (vitProm) vitProm.textContent = '$' + (vit.valorPromedio || 272070).toLocaleString('es-CO');
+      if (vitProm) vitProm.textContent = '$' + (vit.valorPromedio || 0).toLocaleString('es-CO');
       const vitDias = document.getElementById('vit-dias');
-      if (vitDias) vitDias.textContent = (vit.diasPromedio || '1.0') + ' d';
+      if (vitDias) vitDias.textContent = (vit.diasPromedio || '0.0') + ' d';
       const vitLeg = document.getElementById('vit-legalizados');
-      if (vitLeg) vitLeg.textContent = `${(vit.legalizados || 130).toLocaleString('es-CO')} / ${(vit.aprobados || 1051).toLocaleString('es-CO')}`;
+      if (vitLeg) vitLeg.textContent = `${(vit.legalizados || 0).toLocaleString('es-CO')} / ${(vit.aprobados || 0).toLocaleString('es-CO')}`;
 
       // Top Destinos de Viáticos
       const ctxDestinos = document.getElementById('chart-by-destinos')?.getContext('2d');
-      const destinosList = (vit.topDestinos && vit.topDestinos.length) ? vit.topDestinos : (chart.viaticosTopDestinos || [
-        { destino: 'BOGOTA', comisiones: 65, totalValor: 14703000 },
-        { destino: 'MIRAFLORES', comisiones: 36, totalValor: 8968000 },
-        { destino: 'PAIPA', comisiones: 27, totalValor: 3385000 },
-        { destino: 'SOGAMOSO', comisiones: 26, totalValor: 2509000 },
-        { destino: 'PUERTO BOYACA', comisiones: 26, totalValor: 11302000 }
-      ]);
+      const destinosList = (vit.topDestinos && vit.topDestinos.length) ? vit.topDestinos : (chart.viaticosTopDestinos || []);
 
       if (ctxDestinos) {
         chartDestinos = safeCreateChart(ctxDestinos, {
@@ -2617,14 +2635,14 @@ const DashboardModule = (() => {
 
       // ─── 4. SECCIÓN 3: SOLICITUDES ADMINISTRATIVAS Y EPS ────────────────────
       const ctxDona = document.getElementById('chart-by-status')?.getContext('2d');
-      const solAprobadas = sol.aprobadas || 5;
-      const solPendientes = sol.pendientes || 1;
+      const solAprobadas = sol.aprobadas || 0;
+      const solPendientes = sol.pendientes || 0;
       const solRechazadas = sol.rechazadas || 0;
-      const totalSol = sol.total || (solAprobadas + solPendientes + solRechazadas) || 6;
-      const pctSolAprob = totalSol > 0 ? ((solAprobadas / totalSol) * 100).toFixed(1) : '83.3';
+      const totalSol = sol.total || (solAprobadas + solPendientes + solRechazadas) || 0;
+      const pctSolAprob = totalSol > 0 ? ((solAprobadas / totalSol) * 100).toFixed(1) : '0.0';
 
       const solDiasEl = document.getElementById('sol-dias-reposo');
-      if (solDiasEl) solDiasEl.textContent = `${sol.diasSolicitados || 184} Días`;
+      if (solDiasEl) solDiasEl.textContent = `${sol.diasSolicitados || 0} Días`;
       const solTasaEl = document.getElementById('sol-tasa-aprob');
       if (solTasaEl) solTasaEl.textContent = `${pctSolAprob}%`;
 
@@ -2653,15 +2671,11 @@ const DashboardModule = (() => {
 
       // Desglose de Incapacidades por EPS
       const epsListEl = document.getElementById('db-eps-list');
-      const epsData = (sol.porEps && sol.porEps.length) ? sol.porEps : [
-        { eps: 'SANITAS', cantidad: 3, dias: 20 },
-        { eps: 'ADRES', cantidad: 2, dias: 38 },
-        { eps: 'NUEVA EPS', cantidad: 1, dias: 126 }
-      ];
+      const epsData = (sol.porEps && sol.porEps.length) ? sol.porEps : [];
       const maxDiasEps = Math.max(...epsData.map(d => d.dias), 1);
 
       if (epsListEl) {
-        epsListEl.innerHTML = epsData.map(e => {
+        epsListEl.innerHTML = epsData.length ? epsData.map(e => {
           const pct = Math.round((e.dias / maxDiasEps) * 100);
           return `
             <div class="db-eps-item">
@@ -2673,27 +2687,27 @@ const DashboardModule = (() => {
                 <div class="db-eps-fill" style="width:${pct}%;"></div>
               </div>
             </div>`;
-        }).join('');
+        }).join('') : '<div style="color:var(--text-muted);font-size:0.82rem;padding:12px 0;text-align:center;">No hay registro de incapacidades por EPS</div>';
       }
 
       // ─── 5. SECCIÓN 4: HORARIOS Y SST ──────────────────────────────────────
       const horPres = document.getElementById('hor-presencial'); if (horPres) horPres.textContent = activosEmp;
-      const sstEmo = document.getElementById('sst-total-emo'); if (sstEmo) animateCount(sstEmo, sst.totalEvaluaciones || 2);
-      const sstAcc = document.getElementById('sst-accidentes'); if (sstAcc) animateCount(sstAcc, sst.accidentesTrabajo || 1);
-      const sstStock = document.getElementById('sst-stock-epp'); if (sstStock) animateCount(sstStock, sst.stockTotalUnidades || 1513);
-      const sstRef = document.getElementById('sst-referencias-epp'); if (sstRef) animateCount(sstRef, sst.referenciasInventario || 28);
+      const sstEmo = document.getElementById('sst-total-emo'); if (sstEmo) animateCount(sstEmo, sst.totalEvaluaciones || 0);
+      const sstAcc = document.getElementById('sst-accidentes'); if (sstAcc) animateCount(sstAcc, sst.accidentesTrabajo || 0);
+      const sstStock = document.getElementById('sst-stock-epp'); if (sstStock) animateCount(sstStock, sst.stockTotalUnidades || 0);
+      const sstRef = document.getElementById('sst-referencias-epp'); if (sstRef) animateCount(sstRef, sst.referenciasInventario || 0);
 
       // ─── 6. SECCIÓN 5: SISTEMA, BACKUPS Y ERRORES ──────────────────────────
-      const sisBkp = document.getElementById('sis-total-bkp'); if (sisBkp) animateCount(sisBkp, sis.totalBackups || 6);
+      const sisBkp = document.getElementById('sis-total-bkp'); if (sisBkp) animateCount(sisBkp, sis.totalBackups || 0);
       const sisEsp = document.getElementById('sis-espacio-bkp');
       if (sisEsp) {
-        const mb = ((sis.espacioTotalBytes || 8578514) / (1024 * 1024)).toFixed(2);
+        const mb = ((sis.espacioTotalBytes || 0) / (1024 * 1024)).toFixed(2);
         sisEsp.textContent = `${mb} MB`;
       }
       const sisUlt = document.getElementById('sis-ultimo-bkp');
-      if (sisUlt) sisUlt.textContent = sis.ultimoBackup || '11/11/2026 12:58 AM';
+      if (sisUlt) sisUlt.textContent = sis.ultimoBackup || 'Sin copias registradas';
       const sisErr = document.getElementById('sis-errores-pend'); if (sisErr) sisErr.textContent = sis.erroresPendientes || 0;
-      const sisDocs = document.getElementById('sis-documentos-activos'); if (sisDocs) sisDocs.textContent = sis.documentosActivos || 6;
+      const sisDocs = document.getElementById('sis-documentos-activos'); if (sisDocs) sisDocs.textContent = sis.documentosActivos || 0;
 
       // ─── 7. SECCIÓN 6: ACTIVIDAD RECIENTE MULTI-MÓDULO ─────────────────────
       const list = document.getElementById('db-activity-list');
@@ -3026,7 +3040,7 @@ const DashboardModule = (() => {
           destCounts[d] = (destCounts[d] || 0) + 1;
         });
         const sortedDest = Object.entries(destCounts).sort((a,b) => b[1] - a[1]);
-        const numDestinos = Object.keys(destCounts).length || 8;
+        const numDestinos = Object.keys(destCounts).length;
 
         // Presupuesto por dependencia
         const depBudgets = {};
@@ -3195,7 +3209,7 @@ const DashboardModule = (() => {
           startY: curY,
           margin: { left: margin, right: margin },
           head: [['Secretaría / Dependencia Solicitante', 'Comisiones', 'Presupuesto Asignado ($ COP)', 'Participación']],
-          body: depTableRows.length ? depTableRows : [['SECRETARÍA GENERAL', '1', fmtCOP(150000), '100%']],
+          body: depTableRows.length ? depTableRows : [['SIN COMISIONES REGISTRADAS', '0', '$0', '0.0%']],
           theme: 'striped',
           headStyles: { fillColor: colorVerde, textColor: [255, 255, 255], fontSize: 7.8 },
           styles: { fontSize: 7.3, cellPadding: 1.9 },
@@ -3222,9 +3236,11 @@ const DashboardModule = (() => {
           y.total.toLocaleString('es-CO'),
           fmtCOP(y.aprobado),
           'En Ejecución / Vigente'
-        ]) : [
+        ]) : (totalViaticos > 0 ? [
           ['Vigencia Fiscal 2026', '1 archivo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'En Ejecución / Vigente']
-        ];
+        ] : [
+          ['Sin vigencias registradas', '0 archivos', '0', '$0', 'Sin registros']
+        ]);
 
         doc.autoTable({
           startY: curY,
@@ -3318,11 +3334,10 @@ const DashboardModule = (() => {
         const totalAdminPend = (solAdm.pendientes || 0);
         const totalAdminAprob = (solAdm.aprobadas || 0);
         const viatTotalVal = Math.round(viat.valorTotalAprobado || 0);
-        const totalAprobadas = (vac.aprobadas || 0) + totalAdminAprob + (viat.aprobados || 0);
+        const totalAprobadas = totalAdminAprob + (viat.aprobados || 0);
 
         let kpiRows = [
           ['Servidores Públicos en Planta', String(emp.total || 0), `${emp.activos || 0} activos · ${emp.vacantes || 0} vacantes (${emp.inactivos || 0} inactivos)`],
-          ['Solicitudes de Vacaciones', String(vac.total || 0), `${vac.pendientes || 0} pendientes · ${vac.aprobadas || 0} aprobadas`],
           ['Solicitudes Administrativas', String(solAdm.total || 0), `${totalAdminPend} pendientes · ${totalAdminAprob} aprobadas`],
           ['Viáticos Registrados', String(viat.total || 0), `${fmtCOP(viatTotalVal)} valor total aprobado`],
           ['Total Resoluciones Gestionadas', String(totalAprobadas), 'Total acumulado transversal de actos administrativos emitidos']
@@ -3346,7 +3361,7 @@ const DashboardModule = (() => {
           const actE = parseInt(emp.activos) || 0;
           const vacE = parseInt(emp.vacantes) || 0;
           const inaE = parseInt(emp.inactivos) || 0;
-          const numDeps = parseInt(lastStats?.totalDependencias || emp.totalDependencias || 90) || 90;
+          const numDeps = parseInt(lastStats?.totalDependencias || emp.totalDependencias || 0) || 0;
           kpiRows = [
             ['Total Planta de Personal', String(totE.toLocaleString('es-CO')), 'Cargos autorizados en la estructura institucional departamental'],
             ['Servidores Públicos Activos', String(actE.toLocaleString('es-CO')), `${totE > 0 ? ((actE/totE)*100).toFixed(1) : 0}% con funciones y vinculación vigente`],
@@ -3518,7 +3533,6 @@ const DashboardModule = (() => {
 
         // En lugar de listar nombres individuales ('a.persona'), mostramos resumen agrupado por tipo y volumen
         const modSummaryRows = [
-          ['Gestión de Vacaciones', String(vac.total || 0), String(vac.aprobadas || 0), String(vac.pendientes || 0), 'Dirección de Talento Humano'],
           ['Solicitudes Administrativas (Permisos / Licencias)', String(solAdm.total || 0), String(totalAdminAprob), String(totalAdminPend), 'Secretaría General'],
           ['Comisiones y Liquidación de Viáticos', String(viat.total || 0), String(viat.aprobados || 0), String(viat.pendientes || 0), 'Control Presupuestal'],
           ['Esquemas de Horarios y Teletrabajo', 'Activo', 'Normalizado', '0 pend.', 'Seguimiento Laboral']

@@ -116,6 +116,12 @@ const Auth = (() => {
     if (Array.isArray(user.modules) && user.modules.length > 0) {
       return user.modules;
     }
+    if (typeof user.modules === 'string' && user.modules.trim().length > 0) {
+      return user.modules.split(',').map(m => m.trim().toLowerCase());
+    }
+    if (typeof user.modulos === 'string' && user.modulos.trim().length > 0) {
+      return user.modulos.split(',').map(m => m.trim().toLowerCase());
+    }
     const role = (user.role || '').toLowerCase();
     if (role === 'administrador' || role === 'admin') {
       return ['*'];
@@ -141,7 +147,8 @@ const Auth = (() => {
     if (mustChangePassword()) return false;
     const user = getUser();
     const mod = String(moduleName || '').toLowerCase().trim();
-    if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad') {
+    if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad'
+      || mod === 'documents' || mod === 'reports') { // Gestión Documental e Informes: todo usuario registrado.
       return true;
     }
     const scope = getRoleScope(user);
@@ -163,6 +170,9 @@ const Auth = (() => {
     const mods = getUserModules(user);
     if (mods.includes('*') || mods.includes('all')) return true;
     if ((mod === 'admin-backups' || mod === 'backups') && (mods.includes('admin-backups') || mods.includes('backups'))) {
+      return true;
+    }
+    if ((mod === 'admin-errors' || mod === 'errors') && (mods.includes('admin-errors') || mods.includes('errors'))) {
       return true;
     }
     return mods.includes(mod);

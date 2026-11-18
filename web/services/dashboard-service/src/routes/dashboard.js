@@ -89,10 +89,16 @@ router.get('/stats', auth, async (_, res) => {
             )
           ) AS inactivos,
           COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+               OR p.cedula = 'PROV-00003'
+          ) AS agrupados,
+          COUNT(*) FILTER (
             WHERE NOT (
               COALESCE(p.es_vacante, false) = true 
               OR UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
               OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+              OR UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+              OR p.cedula = 'PROV-00003'
             )
             AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
             AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
@@ -123,20 +129,14 @@ router.get('/stats', auth, async (_, res) => {
         SELECT COUNT(*) AS total,
                COALESCE(SUM(valor_total) FILTER (WHERE estado IN ('Aprobada','Aprobado','Finalizada','Legalizado')), 0) AS valor_total
         FROM viaticos`),
-      // Últimas actividades (mezcla de módulos)
+      // Últimas actividades (mezcla de módulos activos)
       pool.query(`
         SELECT tipo_modulo, persona, dependencia, estado, fecha FROM (
-          (SELECT 'Vacación' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona,
-                  COALESCE(dependencia,'') AS dependencia, COALESCE(estado,'Pendiente') AS estado,
-                  COALESCE(hoy,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
-                  id_vacacion AS orden_id
-           FROM vacaciones ORDER BY id_vacacion DESC LIMIT 5)
-          UNION ALL
-          (SELECT tipo AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre'), COALESCE(dependencia,''), estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')),
+          (SELECT tipo AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona, COALESCE(dependencia,'') AS dependencia, estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
                   id_solicitud AS orden_id
            FROM solicitudes_admin ORDER BY id_solicitud DESC LIMIT 5)
           UNION ALL
-          (SELECT 'Viático' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre'), COALESCE(dependencia,''), estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')),
+          (SELECT 'Viático' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona, COALESCE(dependencia,'') AS dependencia, estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
                   id_viatico AS orden_id
            FROM viaticos ORDER BY id_viatico DESC LIMIT 5)
         ) sub
@@ -229,7 +229,7 @@ router.get('/stats', auth, async (_, res) => {
         GROUP BY eps
         ORDER BY cantidad DESC
         LIMIT 5
-      `),
+      `).catch(() => ({ rows: [] })),
       // Estadísticas de Educación y Formación Académica
       pool.query(`
         SELECT
@@ -237,7 +237,7 @@ router.get('/stats', auth, async (_, res) => {
           COUNT(*) FILTER (WHERE tiene_diplomado = true) AS con_diplomado,
           COUNT(*) FILTER (WHERE matricula_profesional IS NOT NULL AND matricula_profesional != '' AND matricula_profesional != 'NO APLICA') AS con_matricula
         FROM educacion
-      `),
+      `).catch(() => ({ rows: [{ con_postgrado: 0, con_diplomado: 0, con_matricula: 0 }] })),
       // Inventario EPP y Documentos Institucionales
       pool.query(`
         SELECT
@@ -245,14 +245,14 @@ router.get('/stats', auth, async (_, res) => {
           (SELECT COALESCE(SUM(stock_total), 0) FROM sst_inventario_epp) AS stock_total_unidades,
           (SELECT COUNT(*) FILTER (WHERE stock_total <= stock_minimo) FROM sst_inventario_epp) AS en_alerta_stock,
           (SELECT COUNT(*) FROM documentos_institucionales WHERE activo = true) AS documentos_activos
-      `),
+      `).catch(() => ({ rows: [{ referencias_epp: 0, stock_total_unidades: 0, en_alerta_stock: 0, documentos_activos: 0 }] })),
       // Última Copia de Seguridad
       pool.query(`
         SELECT TO_CHAR(creado_en, 'DD/MM/YYYY HH12:MI AM') AS ultimo_backup
         FROM system_backups
         ORDER BY id DESC
         LIMIT 1
-      `)
+      `).catch(() => ({ rows: [{ ultimo_backup: 'Sin copias registradas' }] }))
     ]);
 
     const e = empleados.rows[0];
@@ -260,21 +260,26 @@ router.get('/stats', auth, async (_, res) => {
     const ar = adminReqs.rows[0];
     const vi = viaticos.rows[0];
     const depData = dependenciasCount.rows[0] || {};
-    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 90;
+    const totalDeps = parseInt(depData.total_dependencias) || parseInt(depData.dependencias_activas) || 0;
     const h = horariosStats.rows[0] || {};
     const vd = viaticosDetalle.rows[0] || {};
     const sst = sstStats.rows[0] || {};
     const sis = sistemaStats.rows[0] || {};
     const edu = educacionStats.rows[0] || {};
     const inv = inventarioStats.rows[0] || {};
-    const ultBkp = ultimoBackupRes.rows[0]?.ultimo_backup || 'Automático (Cada 30 min)';
+    const ultBkp = ultimoBackupRes.rows[0]?.ultimo_backup || 'Sin copias registradas';
 
     res.json({
       empleados: {
         total: parseInt(e.total) || 0,
+        totalRegistrosCensales: parseInt(e.total) || 0,
+        personasNaturales: parseInt(e.activos) || 0,
         activos: parseInt(e.activos) || 0,
         inactivos: parseInt(e.inactivos) || 0,
         vacantes: parseInt(e.vacantes) || 0,
+        agrupados: parseInt(e.agrupados) || 0,
+        posicionesAgrupadas: (parseInt(e.agrupados) || 0) * 2,
+        posicionesFuente: parseInt(e.total) || 0,
         totalDependencias: totalDeps,
         porNivel: cargosNivel.rows.map(r => ({ nivel: r.nivel, cantidad: parseInt(r.cantidad) || 0 })),
         porClasificacion: clasifEmpleo.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad) || 0 })),
@@ -374,9 +379,7 @@ router.get('/chart', auth, async (_, res) => {
     ] = await Promise.all([
       // Por tipo de solicitud
       pool.query(`
-        SELECT 'Vacaciones' AS tipo, COUNT(*) AS cantidad FROM vacaciones
-        UNION ALL
-        SELECT 'Permisos', COUNT(*) FROM solicitudes_admin WHERE tipo='Permiso Laboral'
+        SELECT 'Permisos' AS tipo, COUNT(*) AS cantidad FROM solicitudes_admin WHERE tipo='Permiso Laboral'
         UNION ALL
         SELECT 'Incapacidades', COUNT(*) FROM solicitudes_admin WHERE tipo='Incapacidad'
         UNION ALL
@@ -387,8 +390,7 @@ router.get('/chart', auth, async (_, res) => {
       // Por estado
       pool.query(`
         SELECT estado, COUNT(*) AS cantidad FROM (
-          SELECT COALESCE(estado,'Pendiente') AS estado FROM vacaciones
-          UNION ALL SELECT estado FROM solicitudes_admin
+          SELECT estado FROM solicitudes_admin
           UNION ALL SELECT estado FROM viaticos
         ) t GROUP BY estado ORDER BY cantidad DESC
       `),
@@ -422,10 +424,16 @@ router.get('/chart', auth, async (_, res) => {
             )
           ) AS inactivos,
           COUNT(*) FILTER (
+            WHERE UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+               OR p.cedula = 'PROV-00003'
+          ) AS agrupados,
+          COUNT(*) FILTER (
             WHERE NOT (
               COALESCE(p.es_vacante, false) = true 
               OR UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
               OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+              OR UPPER(COALESCE(p.nombre_completo, '')) LIKE '%SUPERVISOR%'
+              OR p.cedula = 'PROV-00003'
             )
             AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
             AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
@@ -471,7 +479,7 @@ router.get('/chart', auth, async (_, res) => {
     ]);
 
     const s = servRes.rows[0];
-    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 90;
+    const totalDeps = parseInt(depCountRes.rows[0]?.total) || 0;
 
     res.json({
       porTipo: byType.rows.map(r => ({ tipo: r.tipo, cantidad: parseInt(r.cantidad)||0 })),

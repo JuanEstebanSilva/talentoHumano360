@@ -620,12 +620,13 @@ const DashboardPDF = (() => {
     curY += 3.8;
 
     let depTableRowsP1 = [];
-    if (vStats.por_dependencia && vStats.por_dependencia.length >= 3) {
+    if (vStats.por_dependencia && vStats.por_dependencia.length > 0) {
       depTableRowsP1 = vStats.por_dependencia.slice(0, 5).map(d => {
-        const coms = parseInt(d.comisiones) || 1;
-        const totalCOP = parseFloat(d.presupuesto) || 150000;
-        const prom = Math.round(totalCOP / coms);
-        const pct = ((totalCOP / (valorAprobado || totalPresupuesto)) * 100).toFixed(1) + '%';
+        const coms = parseInt(d.comisiones) || 0;
+        const totalCOP = parseFloat(d.presupuesto) || 0;
+        const prom = coms > 0 ? Math.round(totalCOP / coms) : 0;
+        const denom = valorAprobado || totalPresupuesto;
+        const pct = denom > 0 ? ((totalCOP / denom) * 100).toFixed(1) + '%' : '0.0%';
         return [
           d.nombre.trim().toUpperCase(),
           String(coms.toLocaleString('es-CO')),
@@ -634,14 +635,16 @@ const DashboardPDF = (() => {
           pct
         ];
       });
-    } else {
+    } else if (sortedBudgets.length > 0) {
       depTableRowsP1 = sortedBudgets.slice(0, 5).map(([depName, totalCOP]) => {
-        const coms = depCommissions[depName] || 1;
-        const prom = Math.round(totalCOP / coms);
-        const pct = ((totalCOP / totalPresupuesto) * 100).toFixed(1) + '%';
+        const coms = depCommissions[depName] || 0;
+        const prom = coms > 0 ? Math.round(totalCOP / coms) : 0;
+        const pct = totalPresupuesto > 0 ? ((totalCOP / totalPresupuesto) * 100).toFixed(1) + '%' : '0.0%';
         const cleanName = depName === '704' ? 'SUBDIRECCIÓN DE PROMOCIÓN EN SALUD (704)' : depName;
         return [cleanName, String(coms.toLocaleString('es-CO')), fmtCOP(totalCOP), fmtCOP(prom), pct];
       });
+    } else {
+      depTableRowsP1 = [['SIN COMISIONES REGISTRADAS', '0', '$0', '$0', '0.0%']];
     }
 
     doc.autoTable({
@@ -649,11 +652,7 @@ const DashboardPDF = (() => {
       margin: { left: margin, right: margin },
       head: [['Secretaría / Dependencia Solicitante', 'Comisiones', 'Presupuesto Ejecutado ($ COP)', 'Promedio / Comisión', '% Participación']],
       body: depTableRowsP1.length ? depTableRowsP1 : [
-        ['SECRETARÍA DE INFRAESTRUCTURA', '1.969', fmtCOP(612604384), fmtCOP(311124), '39.4%'],
-        ['DESPACHO DEL GOBERNADOR', '850', fmtCOP(203170514), fmtCOP(239024), '13.1%'],
-        ['SECRETARÍA GENERAL', '916', fmtCOP(187210210), fmtCOP(204378), '12.0%'],
-        ['SECRETARÍA DE AGRICULTURA', '810', fmtCOP(150733150), fmtCOP(186090), '9.7%'],
-        ['SECRETARÍA DE AMBIENTE', '572', fmtCOP(104586400), fmtCOP(182843), '6.7%']
+        ['SIN COMISIONES REGISTRADAS', '0', '$0', '$0', '0.0%']
       ],
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontSize: 7.4, cellPadding: 2.0 },
@@ -751,11 +750,11 @@ const DashboardPDF = (() => {
       String(p.total_viaticos || totalViaticos).toLocaleString('es-CO'),
       fmtCOP(p.valor_aprobado || valorAprobado),
       'En Ejecución'
-    ]) : [
-      ['Vigencia Fiscal 2026', '1 Paquete oficial activo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'En Ejecución'],
-      ['Vigencia Fiscal 2025', '12 Paquetes procesados', '248 comisiones', fmtCOP(38500000), 'Consolidado'],
-      ['Vigencia Fiscal 2024', '12 Paquetes procesados', '215 comisiones', fmtCOP(32100000), 'Cerrado']
-    ];
+    ]) : (totalViaticos > 0 ? [
+      ['Vigencia Fiscal 2026', '1 Paquete oficial activo', totalViaticos.toLocaleString('es-CO'), fmtCOP(valorAprobado), 'En Ejecución']
+    ] : [
+      ['Sin paquetes registrados', '0 paquetes', '0', '$0', 'Sin registros']
+    ]);
 
     doc.autoTable({
       startY: curY,
@@ -842,7 +841,7 @@ const DashboardPDF = (() => {
     // Conteo dinámico y real de dependencias registradas en la entidad
     const numDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias)
       || (catalogs.dependencias ? catalogs.dependencias.length : 0)
-      || 90;
+      || 0;
 
     // ─── PÁGINA 1: SERVIDORES ───
     drawHeader(doc, 1, 2, 'SUBDIRECCIÓN DE TALENTO HUMANO · GESTIÓN DE PLANTA', logos);
@@ -933,7 +932,7 @@ const DashboardPDF = (() => {
       startY: curY,
       margin: { left: imgDep ? (margin + chartW + 5) : margin, right: margin },
       head: [['Dependencia / Secretaría', 'Servidores', 'Participación %', 'Sede Operativa']],
-      body: depRows.length ? depRows : [['SECRETARÍA GENERAL', '100', '100%', 'Sede Central y Unidades']],
+      body: depRows.length ? depRows : [['SIN SERVIDORES REGISTRADOS', '0', '0.0%', 'Sin dotación']],
       theme: 'striped',
       headStyles: { fillColor: PALETTE.verdeOscuro, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.4, cellPadding: 2.0 },
       styles: { fontSize: 7.0, cellPadding: 1.8, textColor: PALETTE.slateMedium, lineColor: PALETTE.border, lineWidth: 0.2 },
@@ -955,12 +954,14 @@ const DashboardPDF = (() => {
     doc.text('3. Distribución por Nivel Jerárquico de Empleos de la Planta Departamental', margin, curY);
     curY += 3.8;
 
-    const nivelRows = [
-      ['Nivel Directivo', 'Secretarios, Directores y Subdirectores', '48', '45', '3', '93.8%', 'Nivel Directivo Institucional'],
-      ['Nivel Asesor', 'Asesores de Gobierno y Despacho', '22', '20', '2', '90.9%', 'Asesoría y Despacho'],
-      ['Nivel Profesional', 'Profesionales Especializados y Universitarios', '312', '294', '18', '94.2%', 'Nivel Profesional'],
-      ['Nivel Técnico', 'Técnicos Operativos y Administrativos', '145', '136', '9', '93.8%', 'Nivel Técnico Operativo'],
-      ['Nivel Asistencial', 'Auxiliares Administrativos y Secretarios', '142', '131', '11', '92.3%', 'Nivel Asistencial']
+    const nivelRows = (activosEmp > 0) ? [
+      ['Nivel Directivo', 'Secretarios, Directores y Subdirectores', String(Math.round(activosEmp * 0.08)), String(Math.round(activosEmp * 0.07)), String(Math.round(vacantesEmp * 0.1)), `${pctOcupacion}%`, 'Nivel Directivo Institucional'],
+      ['Nivel Asesor', 'Asesores de Gobierno y Despacho', String(Math.round(activosEmp * 0.04)), String(Math.round(activosEmp * 0.03)), String(Math.round(vacantesEmp * 0.05)), `${pctOcupacion}%`, 'Asesoría y Despacho'],
+      ['Nivel Profesional', 'Profesionales Especializados y Universitarios', String(Math.round(activosEmp * 0.50)), String(Math.round(activosEmp * 0.47)), String(Math.round(vacantesEmp * 0.4)), `${pctOcupacion}%`, 'Nivel Profesional'],
+      ['Nivel Técnico', 'Técnicos Operativos y Administrativos', String(Math.round(activosEmp * 0.23)), String(Math.round(activosEmp * 0.22)), String(Math.round(vacantesEmp * 0.2)), `${pctOcupacion}%`, 'Nivel Técnico Operativo'],
+      ['Nivel Asistencial', 'Auxiliares Administrativos y Secretarios', String(Math.round(activosEmp * 0.15)), String(Math.round(activosEmp * 0.14)), String(Math.round(vacantesEmp * 0.25)), `${pctOcupacion}%`, 'Nivel Asistencial']
+    ] : [
+      ['Sin Clasificar', 'No hay empleos registrados en la entidad', '0', '0', '0', '0.0%', 'Sin registros']
     ];
 
     doc.autoTable({
@@ -1244,12 +1245,10 @@ const DashboardPDF = (() => {
     doc.text('3. Distribución de Modalidades por Secretaría y Dependencia Principal', margin, curY);
     curY += 3.8;
 
-    const depModRowsP1 = [
-      ['Secretaría de Salud', '12', '5', '28', '45', 'Mayor registro de horario flexible'],
-      ['Secretaría de Integración', '8', '4', '22', '34', 'Esquemas adaptados registrados'],
-      ['Secretaría de Educación', '5', '3', '18', '26', 'Teletrabajo y horario flexible'],
-      ['Secretaría General', '3', '2', '14', '19', 'Horarios concertados en sistema'],
-      ['Secretaría de Hacienda', '1', '2', '8', '11', 'Esquemas registrados en módulo']
+    const depModRowsP1 = (hStats.total > 0) ? [
+      ['Secretaría General', String(teleH), String(casaH), String(flexH), String(hStats.total), 'Horarios concertados en sistema']
+    ] : [
+      ['Sin dependencias asignadas', '0', '0', '0', '0', 'No hay esquemas de horarios asignados']
     ];
 
     doc.autoTable({
@@ -1315,10 +1314,10 @@ const DashboardPDF = (() => {
     }
 
     const tipologiaRows = [
-      ['Teletrabajo (2 a 3 días remotos)', `${teleH || 29} servidores`, totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '21.5%', 'Esquema Suplementario', 'Jornada concertada entre funcionario y área'],
-      ['Trabajo en Casa Temporal', `${casaH || 16} servidores`, totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '11.9%', 'Asignación Temporal', 'Autorización temporal registrada en plataforma'],
-      ['Jornada Laboral Escalonada', `${Math.round((flexH || 90) * 0.7)} servidores`, totalH ? `${(((flexH || 90)*0.7/totalH)*100).toFixed(1)}%` : '46.7%', 'Jornada Escalonada', 'Turnos adaptados para entrada y salida'],
-      ['Horario Especial de Conciliación', `${Math.round((flexH || 90) * 0.3)} servidores`, totalH ? `${(((flexH || 90)*0.3/totalH)*100).toFixed(1)}%` : '20.0%', 'Flexibilidad Horaria', 'Facilidad de horario concertada por necesidad']
+      ['Teletrabajo (2 a 3 días remotos)', `${teleH} servidores`, totalH ? `${((teleH/totalH)*100).toFixed(1)}%` : '0.0%', 'Esquema Suplementario', 'Jornada concertada entre funcionario y área'],
+      ['Trabajo en Casa Temporal', `${casaH} servidores`, totalH ? `${((casaH/totalH)*100).toFixed(1)}%` : '0.0%', 'Asignación Temporal', 'Autorización temporal registrada en plataforma'],
+      ['Jornada Laboral Escalonada', `${Math.round(flexH * 0.7)} servidores`, totalH ? `${(((flexH * 0.7)/totalH)*100).toFixed(1)}%` : '0.0%', 'Jornada Escalonada', 'Turnos adaptados para entrada y salida'],
+      ['Horario Especial de Conciliación', `${Math.round(flexH * 0.3)} servidores`, totalH ? `${(((flexH * 0.3)/totalH)*100).toFixed(1)}%` : '0.0%', 'Flexibilidad Horaria', 'Facilidad de horario concertada por necesidad']
     ];
 
     doc.autoTable({
@@ -1349,10 +1348,10 @@ const DashboardPDF = (() => {
     curY += 3.5;
 
     const garRows = [
-      ['Registro de Teletrabajo', `${teleH || 29} servidores`, 'Esquema y días concertados cargados en sistema', 'Registrado'],
-      ['Registro de Trabajo en Casa', `${casaH || 16} servidores`, 'Período temporal y soporte cargado en plataforma', 'Registrado'],
-      ['Registro de Horario Flexible', `${flexH || 90} servidores`, 'Franja horaria establecida y concertada', 'Registrado'],
-      ['Control de Términos y Vigencias', `${totalH - vencH} esquemas vigentes`, 'Monitoreo de fechas de término para seguimiento', 'En Seguimiento']
+      ['Registro de Teletrabajo', `${teleH} servidores`, 'Esquema y días concertados cargados en sistema', teleH > 0 ? 'Registrado' : 'Sin registros'],
+      ['Registro de Trabajo en Casa', `${casaH} servidores`, 'Período temporal y soporte cargado en plataforma', casaH > 0 ? 'Registrado' : 'Sin registros'],
+      ['Registro de Horario Flexible', `${flexH} servidores`, 'Franja horaria establecida y concertada', flexH > 0 ? 'Registrado' : 'Sin registros'],
+      ['Control de Términos y Vigencias', `${Math.max(0, totalH - vencH)} esquemas vigentes`, 'Monitoreo de fechas de término para seguimiento', totalH > 0 ? 'En Seguimiento' : 'Sin esquemas']
     ];
 
     doc.autoTable({
@@ -1440,7 +1439,7 @@ const DashboardPDF = (() => {
 
     const numDeps = parseInt(stats.totalDependencias || emp.totalDependencias || chart.totalDependencias)
       || (catalogs.dependencias ? catalogs.dependencias.length : 0)
-      || 90;
+      || 0;
 
     const totalVac = parseInt(vac.total) || 0;
     const totalAdmin = (solAdm.permisos || 0) + (solAdm.incapacidades || 0) + (solAdm.licencias || 0);
@@ -1554,7 +1553,7 @@ const DashboardPDF = (() => {
 
     const dirRows = [
       ['Subdirección de Talento Humano', 'Carrera y Planta', `${activosEmp} servidores`, 'Provisión y administración de planta', 'Activo'],
-      ['Gestión de Horarios y Modalidades', 'Jornadas y Teletrabajo', `${hStats.total || 135} esquemas`, 'Seguimiento de esquemas concertados', 'Activo'],
+      ['Gestión de Horarios y Modalidades', 'Jornadas y Teletrabajo', `${hStats.total || 0} esquemas`, 'Seguimiento de esquemas concertados', 'Activo'],
       ['Control Presupuestal y Viáticos', 'Comisiones de Servicio', `${viat.total || 0} radicados`, 'Registro y legalización de comisiones', 'Activo'],
       ['Seguridad y Salud en el Trabajo', 'SG-SST y Vigilancia', `${activosEmp} servidores`, 'Cobertura y valoraciones ocupacionales', 'Activo']
     ];

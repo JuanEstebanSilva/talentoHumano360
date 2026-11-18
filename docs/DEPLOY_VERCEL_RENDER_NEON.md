@@ -66,9 +66,12 @@ Protecciones implementadas en `web/backend/scripts/init-db.js` y `web/backend/se
 | `SMTP_HOST` | Sí | `smtp.gmail.com` |
 | `SMTP_PORT` | Sí | `465` |
 | `SMTP_SECURE` | Sí | `true` |
-| `SMTP_USER` | Sí | Correo emisor institucional (Gmail). |
-| `SMTP_PASS` | Sí | **Contraseña de aplicación** de 16 caracteres de Google (no la contraseña normal). |
+| `SMTP_USER` | Sí (para SMTP) | Correo emisor institucional (Gmail). |
+| `SMTP_PASS` | Sí (para SMTP) | **Contraseña de aplicación** de 16 caracteres de Google (no la contraseña normal). |
 | `MAIL_FROM` | Sí | Ej. `Talento 360 - Gobernación de Boyacá <correo@gmail.com>`. |
+| `RESEND_API_KEY` | **Recomendada en Render Free** | API Key gratuita de [Resend.com](https://resend.com) (3,000 correos/mes gratis sin tarjeta). Envía vía HTTPS (Puerto 443), evitando el bloqueo de puertos SMTP 465/587 del plan Free de Render. |
+| `RESEND_FROM` | Opcional | Remitente verificado en Resend (por defecto `Talento 360 <onboarding@resend.dev>`). |
+| `BREVO_API_KEY` | Alternativa en Render Free | API Key gratuita de [Brevo.com](https://brevo.com) (300 correos/día gratis sin tarjeta vía HTTPS REST API). |
 
 ---
 

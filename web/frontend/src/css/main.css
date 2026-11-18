@@ -642,6 +642,90 @@ body {
 .spin { animation: spin 1s linear infinite; width: 18px; height: 18px; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* ─── Contenedor de Carga Institucional de Login (Reemplazo de Botón) ──────── */
+.login-loading-widget {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 1.5rem;
+  margin-top: 0.75rem;
+  background: rgba(53, 88, 51, 0.05);
+  border: 1.5px solid rgba(53, 88, 51, 0.22);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(53, 88, 51, 0.08);
+  animation: loginFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.login-spinner-ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 4px solid rgba(53, 88, 51, 0.16);
+  border-top-color: #355833;
+  border-right-color: #d4af37;
+  border-bottom-color: #287522;
+  animation: loginRingSpin 0.85s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  box-shadow: 0 0 16px rgba(53, 88, 51, 0.18);
+}
+
+@keyframes loginRingSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.login-loading-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.login-loading-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #244322;
+  letter-spacing: 0.3px;
+}
+
+.login-loading-dots {
+  display: inline-flex;
+  margin-left: 2px;
+}
+
+.login-loading-dots span {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #d4af37;
+  line-height: 1;
+  animation: loginBlinkDot 1.4s infinite;
+}
+
+.login-loading-dots span:nth-child(1) { animation-delay: 0s; }
+.login-loading-dots span:nth-child(2) { animation-delay: 0.22s; }
+.login-loading-dots span:nth-child(3) { animation-delay: 0.44s; }
+
+@keyframes loginBlinkDot {
+  0%, 20% { opacity: 0.15; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+  80%, 100% { opacity: 0.15; transform: translateY(0); }
+}
+
+.form-input-new.is-input-loading {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  cursor: not-allowed !important;
+  opacity: 0.72;
+  filter: grayscale(0.2);
+}
+
 .login-secure-badge {
   display: flex;
   align-items: center;
@@ -2633,19 +2717,61 @@ textarea,
 }
 
 .modal-close {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: #fff1f2;
+  border: 1.5px solid #fecdd3;
   cursor: pointer;
-  color: #64748b;
+  color: #e11d48;
   padding: 6px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm, 6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08);
+  transition: all var(--transition-fast, 0.18s ease);
 }
-.modal-close svg { width: 18px; height: 18px; }
-.modal-close:hover { color: var(--color-danger); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+.modal-close svg { width: 17px; height: 17px; stroke-width: 2.3px; }
+.modal-close:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #be123c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.15);
+}
+.modal-close:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Botón Cancelar en la Cabecera de Modales Principales y Wizards */
+.modal-close.is-cancel-btn {
+  width: auto !important;
+  min-width: 104px !important;
+  height: 38px !important;
+  padding: 0 18px !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px !important;
+  border-radius: var(--radius-md, 8px) !important;
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  border: 1.5px solid #fecdd3 !important;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+.modal-close.is-cancel-btn:hover {
+  background: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #be123c !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.16) !important;
+}
+.modal-close.is-cancel-btn:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+}
 
 .modal-body {
   padding: 1.5rem var(--space-6);
@@ -3657,13 +3783,24 @@ textarea,
   color: #f8fafc !important;
 }
 [data-theme="dark"] .modal-close {
-  background: var(--color-surface-3) !important;
-  border-color: var(--color-border) !important;
-  color: var(--color-slate) !important;
+  background: rgba(225, 29, 72, 0.15) !important;
+  border-color: rgba(225, 29, 72, 0.35) !important;
+  color: #fb7185 !important;
 }
 [data-theme="dark"] .modal-close:hover {
-  background: rgba(227, 36, 49, 0.25) !important;
-  color: #fca5a5 !important;
+  background: rgba(225, 29, 72, 0.25) !important;
+  border-color: #fb7185 !important;
+  color: #fda4af !important;
+}
+[data-theme="dark"] .modal-close.is-cancel-btn {
+  background: rgba(225, 29, 72, 0.18) !important;
+  border-color: rgba(225, 29, 72, 0.4) !important;
+  color: #fb7185 !important;
+}
+[data-theme="dark"] .modal-close.is-cancel-btn:hover {
+  background: rgba(225, 29, 72, 0.28) !important;
+  border-color: #fb7185 !important;
+  color: #fda4af !important;
 }
 [data-theme="dark"] .modal-body {
   background: var(--color-surface) !important;
@@ -3814,6 +3951,11 @@ textarea,
   background: rgba(184, 75, 167, 0.2) !important;
   color: #f0abfc !important;
   border-color: rgba(184, 75, 167, 0.4) !important;
+}
+[data-theme="dark"] .badge--sin-viatico {
+  background: rgba(100, 116, 139, 0.2) !important;
+  color: #94a3b8 !important;
+  border-color: rgba(100, 116, 139, 0.4) !important;
 }
 [data-theme="dark"] .badge--licencia {
   background: rgba(209, 173, 42, 0.2) !important;

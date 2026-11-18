@@ -1,0 +1,16 @@
+{
+  "name": "reports-service",
+  "version": "1.0.0",
+  "description": "Talento 360 — Informes con filtros avanzados y automatización de su generación",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/utils.test.js test/reports.integration.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  }
+}

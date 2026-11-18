@@ -1,25 +1,32 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   utils/mailer.js — Notificaciones por correo (SMTP / Microsoft 365)
+   utils/mailer.js — Notificaciones por correo (Resend HTTPS / SMTP)
 
    Variables de entorno:
-     SMTP_HOST        p. ej. smtp.office365.com
+     RESEND_API_KEY   API Key de Resend.com (HTTPS port 443, recomendado en Render)
+     SMTP_HOST        p. ej. smtp.office365.com (fallback SMTP)
      SMTP_PORT        587 (STARTTLS) por defecto
      SMTP_SECURE      "true" solo para el puerto 465
      SMTP_USER / SMTP_PASS   cuenta que envía (buzón institucional @boyaca.gov.co)
-     MAIL_FROM        remitente visible; por defecto SMTP_USER
+     MAIL_FROM        remitente visible; por defecto onboarding@resend.dev o SMTP_USER
      MAIL_ENABLED     "false" fuerza el modo simulado
      MAIL_REDIRECT_TO si se define, TODOS los correos se envían a esta dirección
                       (útil para pruebas, evita escribirle a jefes reales)
      APP_PUBLIC_URL   URL del aplicativo (se incluye como enlace en el correo)
 
-   Sin SMTP_HOST ni credenciales el sistema NO falla: registra el correo en la
+   Sin RESEND_API_KEY ni SMTP_HOST el sistema NO falla: registra el correo en la
    consola y marca la notificación como «simulada».
    ═══════════════════════════════════════════════════════════════════════════ */
+
+const https = require('https');
 
 let transporter = null;
 
 function mailConfigured() {
-  return process.env.MAIL_ENABLED !== 'false' && !!process.env.SMTP_HOST;
+  const enabled = process.env.MAIL_ENABLED !== 'false';
+  const hasResend = !!(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
+  const hasBrevo = !!(process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim());
+  const hasSmtp = !!process.env.SMTP_HOST;
+  return enabled && (hasResend || hasBrevo || hasSmtp);
 }
 
 function getTransporter() {
@@ -61,6 +68,227 @@ function esc(v) {
 }
 
 /**
+ * Obtiene el remitente adecuado para Resend.
+ * En modo prueba/gratuito de Resend (sin dominio institucional validado con DNS),
+ * el correo emisor debe ser de @resend.dev (ej: onboarding@resend.dev).
+ */
+function getResendFromAddress() {
+  const rawFrom = (process.env.MAIL_FROM || '').trim();
+  if (rawFrom) {
+    // Si contiene dominios de correo público gratuitos (gmail, yahoo, etc.), Resend lo rechazará
+    // a menos que use el remitente de pruebas @resend.dev.
+    if (/@(gmail|hotmail|yahoo|outlook)\.com/i.test(rawFrom)) {
+      const match = rawFrom.match(/^(.*?)\s*<.*?>$/);
+      const displayName = (match && match[1]) ? match[1].trim() : 'Talento Humano 360';
+      return `${displayName} <onboarding@resend.dev>`;
+    }
+    return rawFrom;
+  }
+  return 'Talento Humano 360 <onboarding@resend.dev>';
+}
+
+/**
+ * Envía un correo vía Resend REST API (HTTPS puerto 443).
+ * Evita por completo los bloqueos de puertos SMTP (25, 465, 587) de la capa gratuita de Render.
+ */
+async function sendViaResend({ to, subject, html, text, apiKey }) {
+  const from = getResendFromAddress();
+  const payloadObj = {
+    from,
+    to: [to],
+    subject,
+  };
+  if (html) payloadObj.html = html;
+  if (text) payloadObj.text = text;
+
+  const payload = JSON.stringify(payloadObj);
+
+  // 1. Intentar con globalThis.fetch nativo (Node.js 18+)
+  if (typeof globalThis.fetch === 'function') {
+    try {
+      const response = await globalThis.fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'TalentoHumano360/1.0',
+        },
+        body: payload,
+      });
+
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (_) {}
+
+      if (response.ok) {
+        console.log(`[mailer][Resend] Correo enviado exitosamente a ${to}. ID: ${data.id || 'ok'}`);
+        return {
+          estado: 'enviada',
+          detalle: `Enviado exitosamente a ${to} vía Resend (ID: ${data.id || 'ok'}).`,
+        };
+      }
+
+      const errorMsg = data.message || data.error || `HTTP ${response.status} ${response.statusText || ''}`;
+      console.error(`[mailer][Resend] Error devuelto por Resend API (${response.status}):`, errorMsg);
+      return {
+        estado: 'fallida',
+        detalle: `Error Resend (${response.status}): ${errorMsg}`.slice(0, 480),
+      };
+    } catch (fetchErr) {
+      console.warn('[mailer][Resend] Falló llamada fetch, reintentando por módulo https nativo:', fetchErr.message);
+    }
+  }
+
+  // 2. Fallback con módulo nativo https de Node.js
+  return new Promise((resolve) => {
+    try {
+      const req = https.request('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'User-Agent': 'TalentoHumano360/1.0',
+        },
+        timeout: 15000,
+      }, (res) => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          let data = {};
+          try { data = JSON.parse(body); } catch (_) {}
+
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[mailer][Resend] Correo enviado exitosamente a ${to}. ID: ${data.id || 'ok'}`);
+            return resolve({
+              estado: 'enviada',
+              detalle: `Enviado exitosamente a ${to} vía Resend (ID: ${data.id || 'ok'}).`,
+            });
+          }
+
+          const errorMsg = data.message || data.error || `HTTP ${res.statusCode}`;
+          console.error(`[mailer][Resend] Error devuelto por Resend API (${res.statusCode}):`, errorMsg);
+          return resolve({
+            estado: 'fallida',
+            detalle: `Error Resend (${res.statusCode}): ${errorMsg}`.slice(0, 480),
+          });
+        });
+      });
+
+      req.on('error', (err) => {
+        console.error('[mailer][Resend] Error de conexión HTTPS:', err.message);
+        return resolve({
+          estado: 'fallida',
+          detalle: `No se pudo conectar con Resend: ${err.message}`.slice(0, 480),
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        console.error('[mailer][Resend] Tiempo de espera agotado (timeout 15s)');
+        return resolve({
+          estado: 'fallida',
+          detalle: 'Tiempo de espera agotado al conectar con Resend API (timeout 15s).',
+        });
+      });
+
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      console.error('[mailer][Resend] Error inesperado en despacho:', err.message);
+      return resolve({
+        estado: 'fallida',
+        detalle: `Error al despachar correo vía Resend: ${err.message}`.slice(0, 480),
+      });
+    }
+  });
+}
+
+/**
+ * Envía un correo vía Brevo REST API (HTTPS puerto 443).
+ * Alternativa gratuita para Render Free Tier (300 correos/día sin tarjeta ni bloqueo de puertos).
+ */
+async function sendViaBrevo({ to, subject, html, text, apiKey }) {
+  const fromEmail = process.env.BREVO_FROM || process.env.SMTP_USER || 'talento360.notificaciones@gmail.com';
+  const payloadObj = {
+    sender: { name: 'Talento 360 — Gobernación de Boyacá', email: fromEmail },
+    to: [{ email: to, name: 'Servidor Público' }],
+    subject,
+    htmlContent: html,
+    textContent: text,
+  };
+  const payload = JSON.stringify(payloadObj);
+
+  if (typeof globalThis.fetch === 'function') {
+    try {
+      const response = await globalThis.fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'TalentoHumano360/1.0',
+        },
+        body: payload,
+      });
+
+      let data = {};
+      try { data = await response.json(); } catch (_) {}
+
+      if (response.ok) {
+        console.log(`[mailer][Brevo] Correo enviado exitosamente a ${to}. ID: ${data.messageId || 'ok'}`);
+        return {
+          estado: 'enviada',
+          detalle: `Enviado exitosamente a ${to} vía Brevo (ID: ${data.messageId || 'ok'}).`,
+        };
+      }
+
+      const errorMsg = data.message || `HTTP ${response.status} ${response.statusText || ''}`;
+      console.error(`[mailer][Brevo] Error devuelto por Brevo API (${response.status}):`, errorMsg);
+      return {
+        estado: 'fallida',
+        detalle: `Error Brevo (${response.status}): ${errorMsg}`.slice(0, 480),
+      };
+    } catch (fetchErr) {
+      console.warn('[mailer][Brevo] Falló llamada fetch en Brevo, reintentando por módulo https nativo:', fetchErr.message);
+    }
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const req = https.request('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+        timeout: 15000,
+      }, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[mailer][Brevo] Correo entregado vía Brevo HTTPS a ${to}`);
+            return resolve({ estado: 'enviada', detalle: `Enviado exitosamente a ${to} vía Brevo.` });
+          }
+          return resolve({ estado: 'fallida', detalle: `Error Brevo (${res.statusCode}): ${body}`.slice(0, 480) });
+        });
+      });
+
+      req.on('error', (err) => resolve({ estado: 'fallida', detalle: `Error de conexión con Brevo: ${err.message}`.slice(0, 480) }));
+      req.on('timeout', () => { req.destroy(); resolve({ estado: 'fallida', detalle: 'Tiempo de espera agotado en Brevo API (timeout 15s).' }); });
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      return resolve({ estado: 'fallida', detalle: `Error: ${err.message}` });
+    }
+  });
+}
+
+/**
  * Envía un correo. Nunca lanza: devuelve { estado, detalle }.
  * estado: 'enviada' | 'simulada' | 'fallida'
  */
@@ -74,11 +302,30 @@ async function sendMail({ to, subject, html, text }) {
     to = process.env.MAIL_REDIRECT_TO;
     subject = `[PRUEBA · destinatario real: ${original}] ${subject}`;
   }
+
+  if (process.env.MAIL_ENABLED === 'false') {
+    console.log(`[mailer][MODO SIMULADO] Para: ${to} | Asunto: ${subject}`);
+    return { estado: 'simulada', detalle: `Correo simulado para ${to} (MAIL_ENABLED=false).` };
+  }
+
+  // 1. Si existe RESEND_API_KEY, usar Resend API (HTTPS puerto 443 — no bloqueado en Render)
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (resendApiKey) {
+    return await sendViaResend({ to, subject, html, text, apiKey: resendApiKey });
+  }
+
+  // 2. Si existe BREVO_API_KEY, usar Brevo API (HTTPS puerto 443 — no bloqueado en Render)
+  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (brevoApiKey) {
+    return await sendViaBrevo({ to, subject, html, text, apiKey: brevoApiKey });
+  }
+
+  // 3. Fallback a SMTP tradicional (Nodemailer)
   const tx = getTransporter();
   if (!tx) {
     console.log(`[mailer][MODO SIMULADO] Para: ${to} | Asunto: ${subject}`);
-    console.log(`[mailer][NOTA] No hay servidor SMTP configurado (SMTP_HOST no definido en .env). El correo no se envió a la red.`);
-    return { estado: 'simulada', detalle: `Correo simulado para ${to} (SMTP sin configurar en .env).` };
+    console.log(`[mailer][NOTA] No hay servidor SMTP configurado ni RESEND_API_KEY ni BREVO_API_KEY en .env. El correo no se envió a la red.`);
+    return { estado: 'simulada', detalle: `Correo simulado para ${to} (Sin SMTP ni Brevo/Resend en .env).` };
   }
   try {
     const user = (process.env.SMTP_USER || '').trim();

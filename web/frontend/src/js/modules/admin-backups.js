@@ -613,9 +613,9 @@ const AdminBackupsModule = (() => {
           html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Archivo .SQL',
           action: () => downloadBackup(item.id)
         },
-        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal(true) }
       ],
-      'modal-lg'
+      'modal-ficha modal-lg'
     );
   }
 
@@ -668,7 +668,7 @@ const AdminBackupsModule = (() => {
     `;
 
     App.openModal('Confirmar Eliminación de Copia de Seguridad', html, [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal(true) },
       {
         text: 'Sí, Eliminar Archivo',
         cls: 'btn-danger',
@@ -688,7 +688,7 @@ const AdminBackupsModule = (() => {
           }
           try {
             await API.deleteAdminBackup(id);
-            App.closeModal();
+            App.closeModal(true);
             App.showToast('Archivo de respaldo eliminado.', 'success');
             await loadData();
           } catch (err) {
@@ -700,7 +700,7 @@ const AdminBackupsModule = (() => {
           }
         }
       }
-    ]);
+    ], 'modal-confirm');
 
     setTimeout(() => {
       const btn = document.getElementById('btn-confirm-delete-backup-action');

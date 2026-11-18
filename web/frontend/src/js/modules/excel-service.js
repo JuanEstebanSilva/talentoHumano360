@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ExcelService = (() => {
+  let lastImportFileName = ''; // Se envía con la carga para el historial de importaciones.
 
   /**
    * Sanitiza valores de celdas para prevenir inyección de fórmulas (CWE-1236 / AUD-008 / AUD-009).
@@ -168,6 +169,11 @@ const ExcelService = (() => {
     ws['!rows'] = [{ hpt: 30.75, customHeight: true }];
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
+
+    // Hojas adicionales opcionales: [{ name, rows: [[...], ...] }]
+    (options.extraSheets || []).forEach(sheet => {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheet.rows), sheet.name.substring(0, 31));
+    });
 
     const fullFilename = `${filename}_${new Date().toISOString().split('T')[0]}`;
     saveWorkbookWithHeaderStyle(wb, fullFilename);
@@ -558,7 +564,7 @@ const ExcelService = (() => {
             </h2>
             <p class="modal-desc">${subtitle}</p>
           </div>
-          <button class="modal-close" id="btn-close-excel-modal">&times;</button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-excel-modal" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 74vh; overflow-y: auto;">
@@ -629,7 +635,6 @@ const ExcelService = (() => {
             La carga masiva es transaccional y evita duplicar registros existentes.
           </div>
           <div style="display:flex; gap:10px;">
-            <button type="button" class="btn btn-secondary" id="btn-cancel-excel-modal">Cancelar</button>
             <button type="button" class="btn btn-primary" id="btn-confirm-excel-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
                 <polyline points="20 6 9 17 4 12"></polyline>
@@ -666,7 +671,7 @@ const ExcelService = (() => {
     };
 
     closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
     // Descarga de plantilla
     downloadTemplateBtn.addEventListener('click', () => {
@@ -745,6 +750,7 @@ const ExcelService = (() => {
         alert('Por favor seleccione un archivo Excel válido (.xlsx o .xls).');
         return;
       }
+      lastImportFileName = file.name;
 
       fileInfo.style.display = 'block';
       fileInfo.textContent = `Archivo cargado: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
@@ -988,6 +994,7 @@ const ExcelService = (() => {
 
   return {
     exportToExcel,
+    getLastImportFileName: () => lastImportFileName,
     exportToCSV,
     buildCSVContent,
     downloadTemplate,

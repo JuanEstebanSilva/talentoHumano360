@@ -7,9 +7,11 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 const cat    = require('../catalogs/incapacidades');
 const {
   ensureAuditAndRbacSchema,
+  isAdminUser,
   getModulePermission,
   isSelfRequest,
   logAudit,
@@ -70,6 +72,25 @@ function formatDateDMY(raw) {
   m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/.exec(s);
   if (m) return `${String(m[1]).padStart(2, '0')}/${String(m[2]).padStart(2, '0')}/${m[3]}`;
   return s;
+}
+
+function hasModuleAccess(user, allowedModules = []) {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  const role = String(user.role || user.rol || '').trim().toLowerCase();
+  if (role === 'administrador' || role === 'admin') return true;
+
+  const mods = Array.isArray(user.modules) ? user.modules.map(m => String(m).toLowerCase()) : (typeof user.modules === 'string' ? user.modules.toLowerCase().split(',') : []);
+  const perms = Array.isArray(user.permissions) ? user.permissions.map(p => String(p).toLowerCase()) : (typeof user.permissions === 'string' ? user.permissions.toLowerCase().split(',') : []);
+
+  if (mods.includes('*') || mods.includes('all') || perms.includes('*')) return true;
+
+  for (const m of allowedModules) {
+    const ml = m.toLowerCase();
+    if (mods.includes(ml)) return true;
+    if (perms.some(p => p === ml || p.startsWith(`${ml}:`))) return true;
+  }
+  return false;
 }
 
 function parseDMY(dmy) {
@@ -431,7 +452,10 @@ const SQL_FECHA_FIN_DATE = `
 `;
 
 // ─── GET /api/incapacidades/catalogs ──────────────────────────────────────────
-router.get('/catalogs', auth, (_req, res) => {
+router.get('/catalogs', auth, (req, res) => {
+  if (!hasModuleAccess(req.user, ['requests', 'admin-requests', 'incapacidades'])) {
+    return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar este recurso.' });
+  }
   res.json({
     dependencias: cat.DEPENDENCIAS,
     sedes: cat.SEDES,
@@ -449,6 +473,9 @@ router.get('/stats', auth, async (req, res) => {
   try {
     const { anio = '', mes = '', fechaInicio = '', fechaFin = '', dependencia = '' } = req.query;
     const perm = await getModulePermission(pool, req.user, 'incapacidades');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'incapacidades'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar estadísticas de incapacidades.' });
+    }
 
     const conds = [`s.tipo = 'Incapacidad'`];
     const vals = [];
@@ -614,6 +641,9 @@ router.get('/', auth, async (req, res) => {
   const { q = '', estado = '', causaMotivo = '', eps = '', prorroga = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
   try {
     const perm = await getModulePermission(pool, req.user, 'incapacidades');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'incapacidades'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar incapacidades.' });
+    }
     const conditions = [`s.tipo = 'Incapacidad'`];
     const params = [];
     let idx = 1;
@@ -807,7 +837,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ─── POST /api/incapacidades/bulk (Importación Masiva Transaccional - 9.3) ────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'incapacidades'), async (req, res) => {
   const perm = await getModulePermission(pool, req.user, 'incapacidades');
   if (!perm.canImport) {
     return res.status(403).json({ error: 'Solo el responsable asignado al módulo de Incapacidades o el Administrador pueden realizar importaciones masivas.' });

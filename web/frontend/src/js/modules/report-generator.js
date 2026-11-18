@@ -455,7 +455,7 @@ const GovernanceAndReports = (() => {
         codigoFormato,
         criterionLabel: label,
         rows,
-        columns: pdfColumns || columns.slice(0, 10),
+        columns: pdfColumns || columns.slice(0, 15),
         filenamePrefix: `${filenamePrefix}_${getActiveCriterion()}`,
         buildSummaryFn,
       });
@@ -534,7 +534,11 @@ const GovernanceAndReports = (() => {
       columns.map(col => {
         let val = item[col.key];
         if (val === undefined && item[col.header] !== undefined) val = item[col.header];
-        if (typeof col.format === 'function') val = col.format(val, item, idx);
+        if (typeof col.format === 'function') {
+          val = col.format(val, item, idx);
+        } else if (col.key === 'firmaDigital' || col.key === 'firma_digital' || (typeof val === 'string' && val.startsWith('data:image'))) {
+          val = (val && String(val).trim()) ? 'Firmado (Verificado)' : 'Pendiente';
+        }
         return val == null ? '' : String(val);
       })
     );
@@ -571,6 +575,212 @@ const GovernanceAndReports = (() => {
           );
         },
       });
+    }
+
+    // ─── Renderizado de Firmas Digitales en Reportes EPP ─────────────────────
+    const isEpp = (modulo === 'epp') ||
+      (typeof title === 'string' && title.toLowerCase().includes('epp')) ||
+      (typeof codigoFormato === 'string' && codigoFormato.toUpperCase().includes('EPP'));
+    const signedRecords = rows.filter(r => r && (r.firmaDigital || r.firma_digital));
+
+    if (isEpp || signedRecords.length > 0) {
+      if (rows.length === 1) {
+        // Caso 1: Reporte individual (Criterio A o 1 registro)
+        const item = rows[0];
+        const rawSig = item.firmaDigital || item.firma_digital;
+        const pageH = doc.internal.pageSize.getHeight();
+        const startSigY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : startY + 80) + 16;
+        const needNewPage = (startSigY + 130 > pageH - 30);
+        if (needNewPage) {
+          doc.addPage();
+        }
+        const blockY = needNewPage ? 36 : startSigY;
+        const boxX = 36;
+        const boxW = pageW - 72;
+        const boxH = 118;
+
+        // Tarjeta contenedora
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(boxX, blockY, boxW, boxH, 6, 6, 'FD');
+
+        // Encabezado del bloque de firma
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(27, 67, 50);
+        doc.text('CONSTANCIA Y VERIFICACIÓN DE FIRMA DIGITAL DE RECEPCIÓN (EPP)', boxX + 16, blockY + 18);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+          'El funcionario receptor certifica la recepción a entera satisfacción del Elemento de Protección Personal mediante firma digital registrada en pantalla táctil.',
+          boxX + 16,
+          blockY + 30
+        );
+
+        // Caja de la firma (Lado izquierdo)
+        const sigBoxW = 190;
+        const sigBoxH = 65;
+        const sigBoxX = boxX + 16;
+        const sigBoxY = blockY + 38;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(sigBoxX, sigBoxY, sigBoxW, sigBoxH, 4, 4, 'FD');
+
+        if (rawSig && String(rawSig).trim()) {
+          const sigSrc = String(rawSig).trim().startsWith('data:image') ? String(rawSig).trim() : `data:image/png;base64,${String(rawSig).trim()}`;
+          try {
+            doc.addImage(sigSrc, 'PNG', sigBoxX + 6, sigBoxY + 5, sigBoxW - 12, sigBoxH - 10);
+          } catch (e) {
+            console.warn('[report-generator] Error al renderizar firma individual en PDF:', e);
+          }
+        } else {
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text('[PENDIENTE DE FIRMA EN PANTALLA TÁCTIL]', sigBoxX + 10, sigBoxY + 36);
+        }
+
+        // Metadatos y certificación (Lado derecho)
+        const infoX = boxX + 225;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Funcionario Receptor: ${item.nombreCompleto || 'Servidor Público'}`, infoX, blockY + 50);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(`Documento de Identidad: C.C. ${item.documento || '—'}`, infoX, blockY + 64);
+        doc.text(`Dependencia: ${item.dependencia || 'Gobernación de Boyacá'}`, infoX, blockY + 76);
+        doc.text(`Elemento Entregado: ${item.elementoEpp || '—'}  |  Talla: ${item.talla || 'N/A'}  |  Cantidad: ${item.cantidad || '1'}`, infoX, blockY + 88);
+
+        // Badge de verificación verde
+        doc.setFillColor(220, 252, 231);
+        doc.setDrawColor(187, 247, 208);
+        doc.roundedRect(infoX, blockY + 95, 260, 15, 3, 3, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(22, 101, 52);
+        doc.text(`✓ Firma Digital Verificada en Sistema SST · Radicado: ${item.radicado || 'EPP'}`, infoX + 8, blockY + 105.5);
+
+      } else if (signedRecords.length > 0) {
+        // Caso 2: Reporte con múltiples registros que tienen firma digital
+        // Se genera anexo con las firmas capturadas en pantalla táctil
+        doc.addPage();
+        const pageH = doc.internal.pageSize.getHeight();
+
+        // Encabezado del Anexo
+        doc.setFillColor(15, 41, 30);
+        doc.rect(0, 0, pageW, 46, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text('ANEXO INSTITUCIONAL — CONSTANCIAS DE FIRMAS DIGITALES DE RECEPCIÓN (EPP)', 36, 20);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.text(
+          `Evidencias de recepción conforme capturadas en pantalla táctil (${signedRecords.length} firmas verificadas para este reporte) · SG-SST`,
+          36,
+          34
+        );
+
+        const cardW = (pageW - 72 - 16) / 2; // 2 columnas
+        const cardH = 92;
+        const gapX = 16;
+        const gapY = 12;
+        let curY = 58;
+        let colIdx = 0;
+
+        signedRecords.forEach((rec, rIdx) => {
+          if (curY + cardH > pageH - 30) {
+            doc.addPage();
+            doc.setFillColor(15, 41, 30);
+            doc.rect(0, 0, pageW, 36, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('ANEXO INSTITUCIONAL — CONSTANCIAS DE FIRMAS DIGITALES DE RECEPCIÓN (EPP) (Continuación)', 36, 22);
+            curY = 48;
+            colIdx = 0;
+          }
+
+          const cardX = 36 + colIdx * (cardW + gapX);
+
+          // Fondo tarjeta
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(cardX, curY, cardW, cardH, 4, 4, 'FD');
+
+          // Cabecera de la tarjeta: Radicado y fecha
+          doc.setFillColor(241, 245, 249);
+          doc.rect(cardX, curY, cardW, 18, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.line(cardX, curY + 18, cardX + cardW, curY + 18);
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(22, 101, 52);
+          doc.text(rec.radicado || `EPP #${rec.id || rIdx + 1}`, cardX + 8, curY + 12);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Fecha: ${rec.fechaEntrega || '—'}`, cardX + cardW - 75, curY + 12);
+
+          // Datos del funcionario (mitad izquierda)
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(15, 23, 42);
+          const nom = (rec.nombreCompleto || 'Servidor Público');
+          doc.text(nom.length > 25 ? nom.substring(0, 23) + '...' : nom, cardX + 8, curY + 31);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          doc.text(`C.C. ${rec.documento || '—'}`, cardX + 8, curY + 43);
+
+          const eppText = `${rec.elementoEpp || 'EPP'} (${rec.cantidad || '1'})`;
+          doc.text(eppText.length > 27 ? eppText.substring(0, 25) + '...' : eppText, cardX + 8, curY + 55);
+
+          // Badge Verificado
+          doc.setFillColor(220, 252, 231);
+          doc.setDrawColor(187, 247, 208);
+          doc.roundedRect(cardX + 8, curY + 67, 105, 16, 3, 3, 'FD');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.setTextColor(22, 101, 52);
+          doc.text('✓ Firma Verificada en Tablet', cardX + 13, curY + 78);
+
+          // Cuadro de imagen de firma (mitad derecha)
+          const sigW = cardW * 0.42;
+          const sigH = 58;
+          const sigX = cardX + cardW - sigW - 8;
+          const sigY = curY + 23;
+
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(sigX, sigY, sigW, sigH, 3, 3, 'FD');
+
+          const sigData = rec.firmaDigital || rec.firma_digital;
+          if (sigData && String(sigData).trim()) {
+            const sigSrc = String(sigData).trim().startsWith('data:image') ? String(sigData).trim() : `data:image/png;base64,${String(sigData).trim()}`;
+            try {
+              doc.addImage(sigSrc, 'PNG', sigX + 4, sigY + 3, sigW - 8, sigH - 6);
+            } catch (e) {
+              console.warn('[report-generator] Error al renderizar firma en anexo:', e);
+            }
+          }
+
+          if (colIdx === 0) {
+            colIdx = 1;
+          } else {
+            colIdx = 0;
+            curY += cardH + gapY;
+          }
+        });
+      }
     }
 
     const outName = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.pdf`;

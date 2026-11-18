@@ -135,6 +135,8 @@ const App = (() => {
         EmployeesModule.switchFormTab(tabId);
       } else if (typeof HorariosModule !== 'undefined' && HorariosModule.switchFormTab && tabId.startsWith('tab-hor-')) {
         HorariosModule.switchFormTab(tabId);
+      } else if (typeof ViaticosModule !== 'undefined' && ViaticosModule.switchFormTab && tabId.startsWith('tab-vit-')) {
+        ViaticosModule.switchFormTab(tabId);
       } else {
         const tabBtn = document.querySelector(`button[data-tab="${tabId}"], .form-wizard-tab[data-tab="${tabId}"], button[onclick*="${tabId}"]`);
         if (tabBtn) {
@@ -192,6 +194,7 @@ const App = (() => {
   let modalCloseSeq = 0;
   let modalIsEditForm = false;
   let modalInitialSnapshot = null;
+  let modalUserInteracted = false;
 
   function captureModalFormSnapshot() {
     const body = document.getElementById('modal-body');
@@ -200,17 +203,44 @@ const App = (() => {
     const values = [];
     controls.forEach(ctrl => {
       if (ctrl.id === 'modal-search') return;
+      if (ctrl.id && ctrl.id.toLowerCase().includes('confirm')) return;
+      if (ctrl.classList && ctrl.classList.contains('input-confirm-keyword')) return;
       if (ctrl.type === 'checkbox' || ctrl.type === 'radio') {
-        values.push(`${ctrl.name || ctrl.id}:${ctrl.checked}`);
+        values.push(`${ctrl.name || ctrl.id || ctrl.className}:${ctrl.checked}`);
       } else {
-        values.push(`${ctrl.name || ctrl.id}:${ctrl.value}`);
+        values.push(`${ctrl.name || ctrl.id || ctrl.className}:${ctrl.value}`);
       }
     });
     return values.join('|:::|');
   }
 
   function isModalDirty() {
-    if (!modalIsEditForm || modalInitialSnapshot === null) return false;
+    if (modalInitialSnapshot === null) return false;
+    const box = document.querySelector('.modal-box');
+    const title = document.getElementById('modal-title')?.textContent || '';
+    const lowerTitle = title.toLowerCase();
+    // Eximir modales que no son formularios de captura/edición
+    if (
+      lowerTitle.includes('filtro') ||
+      lowerTitle.includes('confirmar') ||
+      lowerTitle.includes('depurar') ||
+      lowerTitle.includes('limpiar') ||
+      lowerTitle.includes('eliminar') ||
+      lowerTitle.includes('borrar') ||
+      lowerTitle.includes('vaciar') ||
+      lowerTitle.includes('ficha') ||
+      lowerTitle.includes('detalle') ||
+      lowerTitle.includes('respaldo') ||
+      lowerTitle.includes('copia de seguridad') ||
+      (box && (
+        box.classList.contains('modal-filter') ||
+        box.classList.contains('modal-ficha') ||
+        box.classList.contains('modal-confirm') ||
+        box.classList.contains('modal-danger')
+      ))
+    ) {
+      return false;
+    }
     const current = captureModalFormSnapshot();
     return current !== modalInitialSnapshot;
   }
@@ -218,11 +248,23 @@ const App = (() => {
   function markFormClean() {
     modalIsEditForm = false;
     modalInitialSnapshot = null;
+    modalUserInteracted = false;
     removeUnsavedChangesPrompt();
   }
 
   function removeUnsavedChangesPrompt() {
     document.getElementById('modal-unsaved-confirm')?.remove();
+  }
+
+  function triggerModalStaticBackdropEffect() {
+    const box = document.querySelector('.modal-box');
+    if (!box) return;
+    box.classList.remove('modal-static-bounce');
+    void box.offsetWidth;
+    box.classList.add('modal-static-bounce');
+    setTimeout(() => {
+      box.classList.remove('modal-static-bounce');
+    }, 250);
   }
 
   function showUnsavedChangesPrompt() {
@@ -282,19 +324,119 @@ const App = (() => {
     const titleEl = document.getElementById('modal-title');
     const bodyEl = document.getElementById('modal-body');
     const footerEl = document.getElementById('modal-footer');
+    const closeBtn = document.getElementById('modal-close');
     const box = document.querySelector('.modal-box');
     if (!overlay || !titleEl || !bodyEl || !footerEl) return;
 
     removeUnsavedChangesPrompt();
 
-    // Detectar si el modal corresponde a un formulario de edición
+    // Configurar botón Cancelar / Cerrar en la cabecera superior derecha
     const lowerTitle = String(title || '').toLowerCase();
+    const cClass = String(customClass || '').toLowerCase();
+    const bHtml = String(bodyHtml || '').toLowerCase();
+
+    // 1. Detectar si es un diálogo de confirmación o acción destructiva directa
+    const isConfirmationDialog = 
+      cClass.includes('modal-confirm') ||
+      cClass.includes('modal-danger') ||
+      cClass.includes('modal-logout') ||
+      lowerTitle.includes('confirmar') ||
+      lowerTitle.includes('¿descartar') ||
+      lowerTitle.includes('cierre de sesión');
+
+    // 2. Detectar si es una ficha o vista de detalle de solo lectura
+    const isReadOnlyDetail = 
+      (cClass.includes('modal-ficha') || lowerTitle.includes('ficha') || lowerTitle.includes('detalle') || lowerTitle.includes('vista previa') || lowerTitle.includes('acto administrativo')) &&
+      !lowerTitle.includes('nuevo') &&
+      !lowerTitle.includes('nueva') &&
+      !lowerTitle.includes('crear') &&
+      !lowerTitle.includes('radicar') &&
+      !lowerTitle.includes('editar') &&
+      !lowerTitle.includes('modificar');
+
+    // 3. Detectar si en footerButtons se proporcionó un botón de Cancelar
+    let cancelBtnDef = null;
+    if (Array.isArray(footerButtons)) {
+      cancelBtnDef = footerButtons.find(btn => {
+        const text = String(btn.text || btn.label || '').trim().toLowerCase();
+        const cls = String(btn.cls || '').toLowerCase();
+        return text === 'cancelar' || cls.includes('btn-wizard-cancel');
+      });
+    }
+
+    // 4. Determinar si es un FORMULARIO donde el botón Cancelar debe ir en la cabecera superior derecha
+    const isFormModal = !isConfirmationDialog && !isReadOnlyDetail && (
+      Boolean(cancelBtnDef) ||
+      cClass.includes('modal-wizard') ||
+      cClass.includes('modal-form') ||
+      cClass.includes('modal-schedule') ||
+      cClass.includes('modal-viatico') ||
+      cClass.includes('modal-wide') ||
+      cClass.includes('modal-box--wide') ||
+      cClass.includes('modal-lg') ||
+      bHtml.includes('<form') ||
+      bHtml.includes('<input') ||
+      bHtml.includes('<textarea') ||
+      bHtml.includes('<select') ||
+      lowerTitle.includes('nuevo') ||
+      lowerTitle.includes('nueva') ||
+      lowerTitle.includes('crear') ||
+      lowerTitle.includes('radicar') ||
+      lowerTitle.includes('editar') ||
+      lowerTitle.includes('modificar') ||
+      lowerTitle.includes('agregar') ||
+      lowerTitle.includes('programar') ||
+      lowerTitle.includes('cargar') ||
+      lowerTitle.includes('mi perfil')
+    );
+
+    if (closeBtn) {
+      if (isFormModal) {
+        closeBtn.className = 'modal-close is-cancel-btn btn-wizard-cancel';
+        closeBtn.innerHTML = '<span>Cancelar</span>';
+        closeBtn.title = 'Cancelar formulario y salir';
+        closeBtn.setAttribute('aria-label', 'Cancelar formulario');
+        if (cancelBtnDef && (cancelBtnDef.action || cancelBtnDef.onClick)) {
+          closeBtn.onclick = (e) => {
+            e?.preventDefault();
+            (cancelBtnDef.action || cancelBtnDef.onClick)();
+          };
+        } else {
+          closeBtn.onclick = (e) => {
+            e?.preventDefault();
+            closeModal(false);
+          };
+        }
+      } else {
+        closeBtn.className = 'modal-close';
+        closeBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+        closeBtn.title = 'Cerrar';
+        closeBtn.setAttribute('aria-label', 'Cerrar modal');
+        closeBtn.onclick = (e) => {
+          e?.preventDefault();
+          closeModal(false);
+        };
+      }
+    }
+
+    // Detectar si el modal corresponde a un formulario de edición
     const hasEditAction = Array.isArray(footerButtons) && footerButtons.some(b =>
       (b.cls && b.cls.includes('btn-gold')) ||
       (b.text && (b.text.toLowerCase().includes('guardar cambios') || b.text.toLowerCase().includes('actualizar')))
     );
     modalIsEditForm = lowerTitle.includes('editar') || hasEditAction;
     modalInitialSnapshot = null;
+    modalUserInteracted = false;
+
+    // Escuchar cambios tempranos del usuario en el cuerpo del modal
+    const markInteraction = () => { modalUserInteracted = true; };
+    bodyEl.addEventListener('input', markInteraction, { passive: true, once: true });
+    bodyEl.addEventListener('change', markInteraction, { passive: true, once: true });
 
     modalCloseSeq++; // Invalidate any running closeModal animation callbacks
 
@@ -316,7 +458,17 @@ const App = (() => {
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyHtml;
     footerEl.innerHTML = '';
-    footerButtons.forEach(btn => {
+
+    // Si es un formulario, filtrar el botón Cancelar del footer para evitar duplicidad, ya que se ubica en la parte superior derecha
+    const effectiveFooterButtons = (isFormModal && Array.isArray(footerButtons))
+      ? footerButtons.filter(btn => {
+          const text = String(btn.text || btn.label || '').trim().toLowerCase();
+          const cls = String(btn.cls || '').toLowerCase();
+          return text !== 'cancelar' && !cls.includes('btn-wizard-cancel');
+        })
+      : (Array.isArray(footerButtons) ? footerButtons : []);
+
+    effectiveFooterButtons.forEach(btn => {
       const el = document.createElement('button');
       const cls = btn.cls || btn.type || 'btn-secondary';
       el.className = `btn ${cls}`;
@@ -330,6 +482,9 @@ const App = (() => {
       footerEl.appendChild(el);
     });
 
+    // Capturar snapshot inicial
+    modalInitialSnapshot = captureModalFormSnapshot();
+
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
@@ -337,7 +492,7 @@ const App = (() => {
     setTimeout(() => {
       initDatePickers(bodyEl);
       initFormUX(bodyEl);
-      if (modalIsEditForm) {
+      if (!modalUserInteracted) {
         modalInitialSnapshot = captureModalFormSnapshot();
       }
     }, 140);
@@ -657,12 +812,26 @@ const App = (() => {
             // Sincronización con etiquetas flotantes
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
-              if (currentVal || dateStr) group.classList.add('is-floated');
-              if (instance.altInput) {
+              if (currentVal || dateStr || input.value) {
+                group.classList.add('is-floated');
+              } else {
+                group.classList.remove('is-floated');
+              }
+              if (instance.altInput && !instance.altInput._hasFloatListeners) {
+                instance.altInput._hasFloatListeners = true;
                 instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
                 instance.altInput.addEventListener('blur', () => {
                   group.classList.remove('is-focused');
-                  if (!input.value) group.classList.remove('is-floated');
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  }
+                });
+                instance.altInput.addEventListener('input', () => {
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  } else {
+                    group.classList.add('is-floated');
+                  }
                 });
               }
             }
@@ -797,7 +966,7 @@ const App = (() => {
         }
 
         const label = group.querySelector('.form-label, .filter-label, label');
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
@@ -812,10 +981,13 @@ const App = (() => {
           let hasVal = false;
           if (control.matches('select')) {
             hasVal = Boolean(control.value && String(control.value).trim() !== '');
-          } else if (control.type === 'date' || control._flatpickr) {
-            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
           } else {
-            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+            if (fp) {
+              hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+            } else {
+              hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            }
           }
 
           if (hasVal) {
@@ -902,17 +1074,33 @@ const App = (() => {
     try {
       const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
         group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
           hasVal = Boolean(control.value && String(control.value).trim() !== '');
           group.classList.add('is-select');
-        } else if (control.type === 'date' || control._flatpickr) {
-          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
         } else {
-          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+          if (fp) {
+            hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
         }
         if (hasVal) {
           group.classList.add('is-floated');
@@ -924,7 +1112,7 @@ const App = (() => {
   }
 
   function closeModal(force = false) {
-    if (force !== true && modalIsEditForm && isModalDirty()) {
+    if (force !== true && isModalDirty()) {
       showUnsavedChangesPrompt();
       return;
     }
@@ -937,6 +1125,13 @@ const App = (() => {
     if (!overlay) return;
 
     document.querySelector('.modal-header-consecutivo')?.remove();
+
+    if (document.getElementById('modal-title')?.textContent === 'Mi Perfil') {
+      const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+      if (user && user.username) {
+        applyAvatarTheming(getAvatarColor(user.username));
+      }
+    }
 
     if (box) {
       box.className = 'modal-box';
@@ -969,6 +1164,8 @@ const App = (() => {
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
     sst: 'Seguridad y Salud en el Trabajo (SST)',
+    documents: 'Gestión Documental',
+    reports: 'Informes y Automatización',
     settings: 'Configuración',
     privacidad: 'Política de Tratamiento de Datos Personales',
     terminos: 'Términos y Condiciones de Uso',
@@ -987,6 +1184,8 @@ const App = (() => {
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    documents: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+    reports: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     privacidad: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     terminos: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
@@ -999,12 +1198,13 @@ const App = (() => {
     'admin-modules-unlock',
     'dashboard',
     'employees',
-    'requests',
     'admin-requests',
     'incapacidades',
     'viaticos',
     'horarios',
     'sst',
+    'documents',
+    'reports',
     'settings',
     'privacidad',
     'terminos',
@@ -1022,8 +1222,9 @@ const App = (() => {
       const u = user || Auth.getUser();
       const mods = Auth.getUserModules(u);
       if (!mods.includes('*') && !mods.includes('all') && !mods.includes('dashboard')) {
-        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
+        if (mods.includes('admin-errors') || mods.includes('errors')) return { module: 'admin-errors', options: {} };
         if (mods.includes('admin-backups') || mods.includes('backups')) return { module: 'admin-backups', options: {} };
+        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
         if (mods.length > 0) return { module: mods[0], options: {} };
       }
     }
@@ -1044,11 +1245,12 @@ const App = (() => {
     };
 
     if (scope === 'all') {
-      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      ['nav-dashboard', 'nav-employees', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      showLi('nav-requests', false);
       return;
     }
 
-    // Ocultar módulos generales por defecto para roles específicos de submódulo
+    // Ocultar módulos generales por defecto para roles específicos de submódulo (y vacaciones siempre oculto)
     ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group'].forEach(id => showLi(id, false));
 
     if (scope === 'sst') {
@@ -1085,6 +1287,11 @@ const App = (() => {
 
     if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
       return navigate('incapacidades');
+    }
+
+    // Módulo de vacaciones oculto (no implementado): redirigir a dashboard
+    if (rawModule === 'requests') {
+      return navigate('dashboard');
     }
 
     // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
@@ -1131,6 +1338,8 @@ const App = (() => {
     // 2.1 Control de permisos por rol / módulo
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
     const isAdmin = isUserAdmin(user);
+    const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : (Array.isArray(user && user.modules) ? user.modules : []);
+    const hasAll = mods.includes('*') || mods.includes('all');
 
     if (isAdmin) {
       if (rawModule === 'admin-modules-unlock') {
@@ -1154,15 +1363,22 @@ const App = (() => {
       }
     } else {
       // Para usuarios regulares: control granular de módulos
-      if (rawModule === 'admin-errors' || rawModule === 'admin-modules-unlock') {
+      if (rawModule === 'admin-errors') {
+        const canAccessErrors = hasAll || mods.includes('admin-errors') || mods.includes('errors');
+        if (!canAccessErrors) {
+          showToast('Acceso restringido: no tienes permisos para el centro de monitoreo de errores.', 'warning');
+          const defaultRoute = getDefaultLandingRoute(user);
+          navigate(defaultRoute.module, defaultRoute.options);
+          return;
+        }
+      } else if (rawModule === 'admin-modules-unlock' || rawModule === 'admin-permisos') {
         showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
         const defaultRoute = getDefaultLandingRoute(user);
         navigate(defaultRoute.module, defaultRoute.options);
         return;
-      }
-
-      if (rawModule === 'admin-backups') {
-        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess('admin-backups')) {
+      } else if (rawModule === 'admin-backups') {
+        const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
+        if (!canAccessBackups) {
           showToast('Acceso restringido: no tienes permisos asignados para copias de seguridad.', 'warning');
           const defaultRoute = getDefaultLandingRoute(user);
           navigate(defaultRoute.module, defaultRoute.options);
@@ -1329,6 +1545,12 @@ const App = (() => {
           case 'incapacidades': await IncapacidadesModule.render(container); break;
           case 'viaticos':      await ViaticosModule.render(container, options); break;
           case 'horarios':      await HorariosModule.render(container); break;
+          case 'documents':
+            if (typeof DocumentsModule !== 'undefined') await DocumentsModule.render(container);
+            break;
+          case 'reports':
+            if (typeof ReportsModule !== 'undefined') await ReportsModule.render(container);
+            break;
           case 'sst': {
             const tabKey = options.tab || 'epidemiologico';
             if (typeof SstModule !== 'undefined') await SstModule.render(container, tabKey);
@@ -1572,7 +1794,12 @@ const App = (() => {
     isReauthenticating = true;
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const currentUsername = user.username || '';
+    const prefillUser = user.username || user.email || (function() {
+      try {
+        const u = JSON.parse(localStorage.getItem('h360_user') || '{}');
+        return u.username || u.email || '';
+      } catch (_) { return ''; }
+    })() || '';
 
     const overlay = document.createElement('div');
     overlay.id = 'reauth-dialog-overlay';
@@ -1600,17 +1827,17 @@ const App = (() => {
           <div id="reauth-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500;"></div>
 
           <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
-              Usuario Institucional
+            <label for="reauth-username" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Institucional o Correo
             </label>
-            <input type="text" id="reauth-username" readonly style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f1f5f9); color: var(--text-primary, #334155); font-weight: 600; cursor: not-allowed; box-sizing: border-box;" />
+            <input type="text" id="reauth-username" autocomplete="username" placeholder="Ingresa tu correo o usuario institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); font-weight: 600; font-size: 0.95rem; box-sizing: border-box; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="margin-bottom: 22px;">
             <label for="reauth-password" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
               Contraseña
             </label>
-            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem;" />
+            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); box-sizing: border-box; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -1628,7 +1855,9 @@ const App = (() => {
     document.body.appendChild(overlay);
 
     const userInput = overlay.querySelector('#reauth-username');
-    if (userInput) userInput.value = currentUsername;
+    if (userInput && prefillUser) {
+      userInput.value = prefillUser;
+    }
 
     const pwdInput = overlay.querySelector('#reauth-password');
     const errEl = overlay.querySelector('#reauth-error');
@@ -1636,7 +1865,18 @@ const App = (() => {
     const cancelBtn = overlay.querySelector('#reauth-btn-cancel');
     const submitBtn = overlay.querySelector('#reauth-btn-submit');
 
-    if (pwdInput) {
+    if (userInput) {
+      userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (pwdInput) pwdInput.focus();
+        }
+      });
+    }
+
+    if (userInput && !userInput.value) {
+      setTimeout(() => userInput.focus(), 80);
+    } else if (pwdInput) {
       setTimeout(() => pwdInput.focus(), 80);
     }
 
@@ -1665,12 +1905,24 @@ const App = (() => {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const enteredUser = (userInput?.value || '').trim() || prefillUser;
       const pwd = pwdInput ? pwdInput.value : '';
+
+      if (!enteredUser) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingresa tu usuario institucional o correo electrónico.';
+          errEl.style.display = 'block';
+        }
+        if (userInput) userInput.focus();
+        return;
+      }
+
       if (!pwd) {
         if (errEl) {
           errEl.textContent = 'Por favor ingresa tu contraseña institucional.';
           errEl.style.display = 'block';
         }
+        if (pwdInput) pwdInput.focus();
         return;
       }
 
@@ -1681,7 +1933,7 @@ const App = (() => {
       if (errEl) errEl.style.display = 'none';
 
       try {
-        const res = await API.login(currentUsername, pwd);
+        const res = await API.login(enteredUser, pwd);
         if (res && res.token && res.user) {
           if (res.user) {
             res.user.role = sanitizeRole(res.user.role);
@@ -1902,7 +2154,16 @@ const App = (() => {
     cancelBtn.addEventListener('click', handleCancel);
     if (closeBtn) closeBtn.addEventListener('click', handleCancel);
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) handleCancel();
+      if (e.target === overlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (cardEl) {
+          cardEl.classList.remove('modal-static-bounce');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('modal-static-bounce');
+          setTimeout(() => cardEl.classList.remove('modal-static-bounce'), 250);
+        }
+      }
     });
 
     keydownHandler = (e) => {
@@ -2101,7 +2362,10 @@ const App = (() => {
     });
 
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeOverlay();
+      if (e.target === overlay) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
   }
 
@@ -2139,6 +2403,7 @@ const App = (() => {
       err.textContent = '';
       err.classList.remove('visible');
     }
+    try { setLoginLoading(false); } catch (_) {}
 
     // Clean neutral theme on the public login page
     if (typeof Settings !== 'undefined') {
@@ -2461,12 +2726,14 @@ const App = (() => {
       setVisibility('nav-admin-backups', false);
       setVisibility('nav-admin-permisos', false);
       setVisibility('nav-settings', true);
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       applyRoleSidebarAccess(user);
       return;
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (alejoleo2022@gmail.com / @Alejo123 / Alejandro#123):
+      // Para el Administrador técnico (alejoleo2022@gmail.com):
       setVisibility('li-nav-dashboard', true);
       setVisibility('nav-dashboard', true);
       setVisibility('li-admin-errors', true);
@@ -2509,30 +2776,35 @@ const App = (() => {
 
       // Si el administrador está elevado con contraseña, se muestran los módulos operativos; de lo contrario, permanecen ocultos ("DE RESTO NO")
       const operationalNavs = [
-        'nav-employees', 'nav-requests', 'nav-admin-group',
+        'nav-employees', 'nav-admin-group',
         'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos',
         'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'
       ];
       operationalNavs.forEach(id => setVisibility(id, isElevated));
+      setVisibility('nav-requests', false);
 
+      // Gestión Documental e Informes: disponibles para todo usuario registrado (decisión de la entidad).
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
     } else {
-      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
+      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, Monitoreo/Respaldo, etc.):
       // Ocultar las herramientas de administración técnica que no tengan asignadas
+      const canAccessErrors = hasAll || mods.includes('admin-errors') || mods.includes('errors');
       const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
-      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-errors', canAccessErrors);
       setVisibility('li-admin-backups', canAccessBackups);
       setVisibility('li-admin-permisos', false);
       setVisibility('li-admin-modules-unlock', false);
-      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-errors', canAccessErrors);
       setVisibility('nav-admin-backups', canAccessBackups);
       setVisibility('nav-admin-permisos', false);
 
-      // Mostrar sus módulos funcionales según permisos
+      // Mostrar sus módulos funcionales según permisos (vacaciones se mantiene permanentemente oculto)
       const hasDashboard = hasAll || mods.includes('dashboard');
       setVisibility('li-nav-dashboard', hasDashboard);
       setVisibility('nav-dashboard', hasDashboard);
       setVisibility('nav-employees', hasAll || mods.includes('employees'));
-      setVisibility('nav-requests', hasAll || mods.includes('requests'));
+      setVisibility('nav-requests', false);
       setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
       setVisibility('nav-permisos', hasAll || mods.includes('admin-requests') || mods.includes('permisos'));
       setVisibility('nav-licencias', hasAll || mods.includes('admin-requests') || mods.includes('licencias'));
@@ -2540,6 +2812,8 @@ const App = (() => {
       setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
       setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
       setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       setVisibility('nav-settings', true);
     }
   }
@@ -2567,6 +2841,8 @@ const App = (() => {
     if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all')) {
       return 'Administrador del Sistema';
     }
+    if (mods.includes('admin-errors') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Monitoreo y Respaldo';
+    if (mods.includes('admin-errors') || mods.includes('errors')) return 'Gestión de Monitoreo de Errores';
     if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
     if (mods.includes('viaticos')) return 'Gestión de Viáticos';
     if (mods.includes('horarios') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Respaldo y Horarios';
@@ -2743,15 +3019,6 @@ const App = (() => {
 
     openModal('Mi Perfil', bodyHtml, [
       { text: 'Configuración', cls: 'btn-secondary', id: 'prof-settings-btn', action: () => { closeModal(); navigate('settings'); } },
-      {
-        text: 'Cancelar',
-        cls: 'btn-secondary',
-        action: () => {
-          // Revertir vista previa en tiempo real al color guardado
-          applyAvatarTheming(getAvatarColor(user.username));
-          closeModal();
-        }
-      },
       { text: 'Guardar Cambios', cls: 'btn-primary', id: 'prof-save-btn', action: saveProfile },
     ]);
 
@@ -3466,16 +3733,78 @@ const App = (() => {
       }, 1000);
     }
 
+    let isLoginSubmitting = false;
+
+    function setLoginLoading(isLoading) {
+      isLoginSubmitting = isLoading;
+      const btn = document.getElementById('login-btn');
+      const widget = document.getElementById('login-loading-widget');
+      const usernameInput = document.getElementById('login-username');
+      const passwordInput = document.getElementById('login-password');
+      const togglePassBtn = document.getElementById('toggle-password');
+      const forgotLink = document.getElementById('link-forgot-password');
+
+      if (isLoading) {
+        // 1. Ocultar el botón completo y desplegar la ruedita institucional de carga
+        if (btn) btn.style.display = 'none';
+        if (widget) widget.style.display = 'flex';
+
+        // 2. Bloquear totalmente los campos del login para impedir edición durante la carga
+        if (usernameInput) {
+          usernameInput.disabled = true;
+          usernameInput.classList.add('is-input-loading');
+        }
+        if (passwordInput) {
+          passwordInput.disabled = true;
+          passwordInput.classList.add('is-input-loading');
+        }
+        if (togglePassBtn) {
+          togglePassBtn.disabled = true;
+          togglePassBtn.style.pointerEvents = 'none';
+          togglePassBtn.style.opacity = '0.45';
+        }
+        if (forgotLink) {
+          forgotLink.style.pointerEvents = 'none';
+          forgotLink.style.opacity = '0.45';
+        }
+      } else {
+        // 1. Ocultar la ruedita y restaurar el botón normal
+        if (widget) widget.style.display = 'none';
+        if (btn) {
+          btn.style.display = 'flex';
+          btn.disabled = false;
+        }
+
+        // 2. Habilitar nuevamente los campos para edición
+        if (usernameInput) {
+          usernameInput.disabled = false;
+          usernameInput.classList.remove('is-input-loading');
+        }
+        if (passwordInput) {
+          passwordInput.disabled = false;
+          passwordInput.classList.remove('is-input-loading');
+        }
+        if (togglePassBtn) {
+          togglePassBtn.disabled = false;
+          togglePassBtn.style.pointerEvents = '';
+          togglePassBtn.style.opacity = '';
+        }
+        if (forgotLink) {
+          forgotLink.style.pointerEvents = '';
+          forgotLink.style.opacity = '';
+        }
+      }
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (isLoginSubmitting) return;
+
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
         const errorEl = document.getElementById('login-error');
-        const btnText = document.querySelector('#login-btn .btn-text');
-        const btnLoader = document.querySelector('#login-btn .btn-loader');
-        const btn = document.getElementById('login-btn');
 
         if (!username || !password) {
           errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
@@ -3484,9 +3813,7 @@ const App = (() => {
         }
 
         errorEl.classList.remove('visible');
-        btn.disabled = true;
-        if (btnText) btnText.style.display = 'none';
-        if (btnLoader) btnLoader.style.display = 'flex';
+        setLoginLoading(true);
 
         try {
           const res = await API.login(username, password);
@@ -3506,6 +3833,7 @@ const App = (() => {
           }
 
           if (res.user && res.user.mustChangePassword) {
+            setLoginLoading(false);
             showMandatoryPasswordModal(res.user);
             return;
           }
@@ -3535,6 +3863,8 @@ const App = (() => {
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
                 LegalModule.requireConsentModal(null, userIdentifier);
               }
+            } finally {
+              setLoginLoading(false);
             }
           };
 
@@ -3552,6 +3882,7 @@ const App = (() => {
             safeProceed();
           }
         } catch (err) {
+          setLoginLoading(false);
           const data = err.data || {};
           const isLocked = Boolean(data.isLocked || err.status === 429);
           const retrySeconds = Number(data.retryAfterSeconds || 0);
@@ -3568,15 +3899,6 @@ const App = (() => {
           }
           // FX: error shake + sound
           if (typeof FX !== 'undefined') FX.animateLoginError();
-        } finally {
-          if (!loginLockoutInterval) {
-            btn.disabled = false;
-            if (btnText) btnText.style.display = 'inline';
-            if (btnLoader) btnLoader.style.display = 'none';
-          } else {
-            if (btnLoader) btnLoader.style.display = 'none';
-            if (btnText) btnText.style.display = 'inline';
-          }
         }
       });
     }
@@ -3655,6 +3977,16 @@ const App = (() => {
 
     // Modal close - Únicamente mediante los botones del modal/formulario (con confirmación si hay cambios)
     document.getElementById('modal-close')?.addEventListener('click', () => closeModal(false));
+
+    // Clic en fondo exterior (modal-overlay): En NINGÚN formulario o modal de la plataforma
+    // se debe cerrar al hacer clic por fuera. El usuario debe usar explícitamente los botones de acción/cancelar.
+    document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'modal-overlay') {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerModalStaticBackdropEffect();
+      }
+    });
 
     // Tecla Escape para modales y confirmación de descarte de cambios
     document.addEventListener('keydown', (e) => {
@@ -3898,8 +4230,8 @@ window.addEventListener('hashchange', () => {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
         const user = Auth.getUser ? Auth.getUser() : null;
-        const defaultMod = 'dashboard';
-        App.navigate(defaultMod);
+        const landing = (typeof getDefaultLandingRoute === 'function') ? getDefaultLandingRoute(user) : { module: 'dashboard', options: {} };
+        App.navigate(landing.module, landing.options);
       } else {
         App.showLogin();
       }

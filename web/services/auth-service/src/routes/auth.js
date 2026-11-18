@@ -259,8 +259,8 @@ function getMailTransporter() {
   const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = parseInt(process.env.SMTP_PORT, 10) || 587;
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-  const user = (process.env.SMTP_USER || '').trim();
-  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  const user = (process.env.SMTP_USER || 'talento360.notificaciones@gmail.com').trim();
+  const pass = (process.env.SMTP_PASS || 'ggxkdlzkoewdnjtv').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
     host: host,
@@ -272,8 +272,114 @@ function getMailTransporter() {
     } : undefined,
     tls: {
       rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false'
-    }
+    },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000
   });
+}
+
+async function sendRecoveryMailDispatcher({ to, nombre, tempPassword, appUrl }) {
+  const mailFrom = process.env.MAIL_FROM || `Talento 360 — Gobernación de Boyacá <${process.env.SMTP_USER || 'talento360.notificaciones@gmail.com'}>`;
+  const subject = 'Recuperación de contraseña — Talento 360';
+  const textBody = buildRecoveryPlainText(nombre, tempPassword);
+  const htmlBody = buildRecoveryHtml(nombre, tempPassword, appUrl);
+
+  // 1. Envío mediante Resend API (HTTPS Puerto 443)
+  // Bypasea automáticamente bloqueos de firewall en nubes gratuitas como Render Free Tier
+  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (resendApiKey) {
+    try {
+      console.log(`[auth-recovery] Enviando vía Resend API (HTTPS 443) a ${to}...`);
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM || 'Talento 360 <onboarding@resend.dev>',
+          to: [to],
+          subject: subject,
+          html: htmlBody,
+          text: textBody
+        })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(`Resend API error (${res.status}): ${errJson.message || res.statusText}`);
+      }
+      console.log(`[auth-recovery] Correo entregado exitosamente vía Resend HTTPS a ${to}`);
+      return;
+    } catch (resendErr) {
+      console.warn('[auth-recovery] Aviso en envío vía Resend, intentando siguiente transporte:', resendErr.message);
+    }
+  }
+
+  // 2. Envío mediante Brevo REST API (HTTPS Puerto 443)
+  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (brevoApiKey) {
+    try {
+      console.log(`[auth-recovery] Enviando vía Brevo API (HTTPS 443) a ${to}...`);
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { 
+            name: 'Talento 360 — Gobernación de Boyacá', 
+            email: process.env.BREVO_FROM || 'talento360.notificaciones@gmail.com' 
+          },
+          to: [{ email: to, name: nombre || 'Funcionario' }],
+          subject: subject,
+          htmlContent: htmlBody,
+          textContent: textBody
+        })
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(`Brevo API error (${res.status}): ${errJson.message || res.statusText}`);
+      }
+      console.log(`[auth-recovery] Correo entregado exitosamente vía Brevo HTTPS a ${to}`);
+      return;
+    } catch (brevoErr) {
+      console.warn('[auth-recovery] Aviso en envío vía Brevo, intentando transporte SMTP:', brevoErr.message);
+    }
+  }
+
+  // 3. Transporte SMTP estándar (Nodemailer) con timeouts estrictos para no congelar el servidor
+  const transporter = getMailTransporter();
+  const candidatePaths = [
+    path.join(__dirname, '../assets/logoCondor.png'),
+    path.join(__dirname, '../../../../frontend/src/imgs/logoCondor.png'),
+    path.join(process.cwd(), 'web/frontend/src/imgs/logoCondor.png'),
+    '/app/src/assets/logoCondor.png'
+  ];
+  const validLogoPath = candidatePaths.find(p => {
+    try { return fs.existsSync(p); } catch { return false; }
+  });
+
+  const attachments = [];
+  if (validLogoPath) {
+    attachments.push({
+      filename: 'logoCondor.png',
+      path: validLogoPath,
+      cid: 'logoCondor'
+    });
+  }
+
+  await transporter.sendMail({
+    from: mailFrom,
+    to: to,
+    subject: subject,
+    text: textBody,
+    html: htmlBody,
+    attachments: attachments
+  });
+  console.log(`[auth-recovery] Correo entregado exitosamente vía SMTP a ${to}`);
 }
 
 function buildRecoveryPlainText(nombre, tempPassword) {
@@ -862,44 +968,21 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
       ]);
     } catch (_) {}
 
-    // 6. Enviar correo auténtico por SMTP Gmail
+    // 6. Enviar correo auténtico (Resend / Brevo por HTTPS 443 o SMTP Gmail)
     try {
-      const transporter = getMailTransporter();
-      const mailFrom = process.env.MAIL_FROM || `Talento 360 — Gobernación de Boyacá <${process.env.SMTP_USER}>`;
       const appUrl = process.env.APP_PUBLIC_URL || process.env.APP_URL || 'http://localhost';
 
-      // Adjuntar el logo institucional oficial de Cóndor para renderizado inline sin bloqueo
-      const candidatePaths = [
-        path.join(__dirname, '../assets/logoCondor.png'),
-        path.join(__dirname, '../../../../frontend/src/imgs/logoCondor.png'),
-        '/app/src/assets/logoCondor.png'
-      ];
-      const validLogoPath = candidatePaths.find(p => {
-        try { return fs.existsSync(p); } catch { return false; }
-      });
-
-      const attachments = [];
-      if (validLogoPath) {
-        attachments.push({
-          filename: 'logoCondor.png',
-          path: validLogoPath,
-          cid: 'logoCondor'
-        });
-      }
-
-      await transporter.sendMail({
-        from: mailFrom,
+      await sendRecoveryMailDispatcher({
         to: destinationEmail,
-        subject: 'Recuperación de contraseña — Talento 360',
-        text: buildRecoveryPlainText(user.nombre, tempPassword),
-        html: buildRecoveryHtml(user.nombre, tempPassword, appUrl),
-        attachments: attachments
+        nombre: user.nombre,
+        tempPassword: tempPassword,
+        appUrl: appUrl
       });
 
-      console.log(`[auth-recovery] Correo de recuperación enviado exitosamente a: ${destinationEmail} (id_usuario=${user.id_usuario})`);
+      console.log(`[auth-recovery] Correo de recuperación despachado exitosamente a: ${destinationEmail} (id_usuario=${user.id_usuario})`);
       return res.json(GENERIC_SUCCESS);
     } catch (mailError) {
-      console.error(`[auth-recovery] Error al enviar correo SMTP a ${destinationEmail}:`, mailError.message);
+      console.error(`[auth-recovery] Error al despachar correo a ${destinationEmail}:`, mailError.message);
 
       // Mecanismo de compensación: restaurar estado previo intacto
       try {
@@ -1225,12 +1308,16 @@ function resolvePermissions(role, modules, explicitPerms = null) {
   if (mods.includes('admin-backups') || mods.includes('backups')) {
     perms.push('admin-backups:read', 'admin-backups:write', 'admin-backups:download', 'admin-backups:delete');
   }
+  if (mods.includes('admin-errors') || mods.includes('errors')) {
+    perms.push('admin-errors:read', 'admin-errors:write', 'admin-errors:delete');
+  }
   return perms;
 }
 
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';
   const r = role.toLowerCase();
+  if (r.includes('monitoreo') || r.includes('errores')) return 'Gestor de Monitoreo de Errores y Copias de Seguridad';
   if (r.includes('respaldo') || r.includes('backup')) return 'Gestor de Copias de Seguridad y Respaldo';
   if (r === 'sst' || r.includes('sst')) return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
   if (r === 'incapacidades' || r.includes('incapacidad')) return 'Responsable de Incapacidades y Ausentismo Laboral';

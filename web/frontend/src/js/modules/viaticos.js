@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ViaticosModule = (() => {
-  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Rechazado', 'Anulado'];
+  const ESTADOS = ['Todos', 'Radicado', 'Aprobado', 'En Ejecución', 'Legalizado', 'Sin Viático', 'Rechazado', 'Anulado'];
   const DEPENDENCIAS_LIST = [
     'Todas',
     'DESPACHO DEL GOBERNADOR',
@@ -41,6 +41,7 @@ const ViaticosModule = (() => {
   let mainContainer = null;
   let currentUploadedFile = null;
   let employeeSearchTimeout = null;
+  let aprobadoSearchTimeout = null;
 
   function getInitials(name) {
     if (!name) return 'VT';
@@ -144,7 +145,8 @@ const ViaticosModule = (() => {
     if (typeof val === 'number') return isNaN(val) ? null : val;
     let s = String(val).trim();
     if (!s) return null;
-    s = s.replace(/[\$\sCOPcop]/g, '');
+    const isNegative = s.includes('-') || (s.startsWith('(') && s.endsWith(')'));
+    s = s.replace(/[\$\sCOPcop\(\)\-]/g, '');
     if (!s) return null;
     if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
       s = s.replace(/\./g, '').replace(',', '.');
@@ -154,7 +156,8 @@ const ViaticosModule = (() => {
       s = s.replace(',', '.');
     }
     const num = parseFloat(s);
-    return isNaN(num) ? null : num;
+    if (isNaN(num)) return null;
+    return isNegative ? -num : num;
   }
 
   // ─── Diccionario Geográfico de Colombia (123 Municipios Oficiales DANE Boyacá) ─
@@ -234,8 +237,15 @@ const ViaticosModule = (() => {
     'Canadá', 'Italia', 'Suiza', 'Costa Rica', 'Uruguay', 'Otro País'
   ];
 
+  function isSinViaticoText(str) {
+    if (!str) return false;
+    const s = String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return /sin\s*viatico/i.test(s);
+  }
+
   function badgeClass(estado) {
-    const e = (estado || '').toLowerCase();
+    const e = (estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (e.includes('sin viatic')) return 'badge--sin-viatico';
     if (e.includes('aprobad'))   return 'badge--aprobada';
     if (e.includes('legaliz') || e.includes('finaliz')) return 'badge--finalizada';
     if (e.includes('ejecuci') || e.includes('revis'))   return 'badge--revision';
@@ -266,10 +276,13 @@ const ViaticosModule = (() => {
     return dStr;
   }
 
-  function renderSkeletonRows(count = 6) {
-    return Array.from({ length: count }).map((_, i) => `
-      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.08}s">
-        <td><div class="skeleton skeleton-line" style="width: 85px; height: 16px; border-radius: 4px;"></div></td>
+  function renderSkeletonRows(count) {
+    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10));
+    return Array.from({ length: numRows }).map((_, i) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.05}s">
+        <td class="td-radicado"><div class="skeleton skeleton-line" style="width: 85px; height: 16px; border-radius: 4px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
             <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
@@ -282,14 +295,14 @@ const ViaticosModule = (() => {
         <td><div class="skeleton skeleton-line" style="width: ${i % 3 === 0 ? '85%' : '70%'}; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 90px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
-        <td><div class="skeleton skeleton-line" style="width: 35px; height: 13px;"></div></td>
-        <td><div class="skeleton skeleton-line" style="width: 80px; height: 14px; font-weight:700;"></div></td>
-        <td><div class="skeleton skeleton-badge" style="width: 88px; height: 24px;"></div></td>
-        <td>
-          <div class="skeleton-actions-wrap">
-            <div class="skeleton skeleton-btn"></div>
-            <div class="skeleton skeleton-btn"></div>
-            ${Auth.canEdit('viaticos') ? '<div class="skeleton skeleton-btn"></div>' : ''}
+        <td style="text-align:center;"><div class="skeleton skeleton-line" style="width: 35px; height: 13px; margin: 0 auto;"></div></td>
+        <td class="td-currency" style="text-align:right;"><div class="skeleton skeleton-line" style="width: 80px; height: 14px; margin-left:auto;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width: 88px; height: 24px; margin: 0 auto;"></div></td>
+        <td class="td-actions" style="text-align:center;">
+          <div class="skeleton-actions-wrap" style="justify-content:center; gap:6px;">
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            ${Auth.canEdit('viaticos') ? '<div class="skeleton skeleton-btn" style="border-radius:8px;"></div>' : ''}
           </div>
         </td>
       </tr>
@@ -321,7 +334,7 @@ const ViaticosModule = (() => {
     if (countEl) {
       countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span>`;
     }
-    tbody.innerHTML = renderSkeletonRows(6);
+    tbody.innerHTML = renderSkeletonRows();
   }
 
   function renderDetailModalSkeleton() {
@@ -547,7 +560,11 @@ const ViaticosModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const params = { page: state.page, limit: 20, ...state.filters, ...state.advancedFilters };
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
+      const params = { page: state.page, limit: pageSize, ...state.filters, ...state.advancedFilters };
       if (state.activePackage && state.activePackage.id_paquete) {
         params.id_paquete = state.activePackage.id_paquete;
       }
@@ -591,7 +608,7 @@ const ViaticosModule = (() => {
         <td title="${escHtml(r.dependencia)}">${escHtml(truncate(r.dependencia, 24)) || '—'}</td>
         <td title="${escHtml(r.destino)}">${escHtml(truncate(r.destino, 20)) || '—'}</td>
         <td>${escHtml(r.fechaInicio || '—')}</td>
-        <td>${escHtml(String(r.dias ?? '—'))} días</td>
+        <td>${r.dias != null ? `${escHtml(String(r.dias))} días` : '<span class="text-muted" title="Sin duración registrada">—</span>'}</td>
         <td class="td-currency">${formatCOP(r.valorTotal)}</td>
         <td>
           ${Auth.canEdit('viaticos') ? `
@@ -644,6 +661,37 @@ const ViaticosModule = (() => {
   let currentFormEditId = null;
   const VIATICOS_TABS = ['tab-vit-servidor', 'tab-vit-comision', 'tab-vit-liquidacion', 'tab-vit-soporte'];
 
+  function checkRequiredViaticoFields() {
+    const doc = (document.getElementById('vf-doc')?.value || '').trim();
+    const nom = (document.getElementById('vf-nombre')?.value || '').trim();
+    const dest = (document.getElementById('vf-destino')?.value || '').trim();
+    const fi = (document.getElementById('vf-fi')?.value || '').trim();
+    const motivo = (document.getElementById('vf-motivo')?.value || '').trim();
+    return Boolean(doc && nom && dest && fi && motivo);
+  }
+
+  function updateViaticosSaveBtnState() {
+    if (currentFormIsEdit) return;
+    const saveBtn = document.getElementById('vit-save-btn');
+    if (!saveBtn) return;
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    const isLast = (curActiveTab === VIATICOS_TABS[VIATICOS_TABS.length - 1]);
+    const isComplete = isLast || checkRequiredViaticoFields();
+    saveBtn.disabled = !isComplete;
+    if (isComplete) {
+      saveBtn.classList.remove('btn-wizard-submit', 'is-disabled');
+      saveBtn.classList.add('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.removeAttribute('title');
+      saveBtn.onclick = () => ViaticosModule.saveCreate();
+    } else {
+      saveBtn.classList.remove('btn-primary', 'btn-wizard-submit-ready');
+      saveBtn.classList.add('btn-wizard-submit', 'is-disabled');
+      saveBtn.setAttribute('disabled', 'disabled');
+      saveBtn.setAttribute('title', 'Complete servidor, destino, fecha de inicio y motivo o avance a la última pestaña para crear el viático');
+      saveBtn.onclick = null;
+    }
+  }
+
   function updateViaticosWizardFooter(tabId) {
     const footer = document.getElementById('modal-footer');
     if (!footer) return;
@@ -651,6 +699,7 @@ const ViaticosModule = (() => {
     const curIdx = VIATICOS_TABS.indexOf(tabId);
     const prevTab = curIdx > 0 ? VIATICOS_TABS[curIdx - 1] : null;
     const nextTab = curIdx < VIATICOS_TABS.length - 1 ? VIATICOS_TABS[curIdx + 1] : null;
+    const isLast = (curIdx === VIATICOS_TABS.length - 1);
 
     const arrowNextSvg = `<svg class="wizard-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
     const arrowPrevSvg = `<svg class="wizard-prev-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`;
@@ -659,26 +708,20 @@ const ViaticosModule = (() => {
     let buttonsHtml = '';
 
     if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-prev" id="btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     }
 
-    if (prevTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="ViaticosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
-    } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
-    }
+    const isComplete = checkRequiredViaticoFields();
+    const canSubmit = isLast || isComplete;
 
-    // Botón de Guardar/Crear disponible en todo momento sin requerir llegar a la última pestaña
     if (currentFormIsEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="vit-save-btn" onclick="ViaticosModule.saveEdit(${currentFormEditId})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-primary" id="vit-save-btn" onclick="ViaticosModule.saveCreate()">${saveCheckSvg}<span>Crear Viático</span></button>`;
+      buttonsHtml += `<button type="button" class="btn ${canSubmit ? 'btn-primary btn-wizard-submit-ready' : 'btn-wizard-submit is-disabled'}" id="vit-save-btn" ${canSubmit ? 'onclick="ViaticosModule.saveCreate()"' : 'disabled title="Complete servidor, destino, fecha de inicio y motivo o avance a la última pestaña para crear el viático"'}>${saveCheckSvg}<span>Crear Viático</span></button>`;
     }
 
     if (nextTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-next" onclick="ViaticosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -752,13 +795,34 @@ const ViaticosModule = (() => {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="vf-cargo">Cargo Actual</label>
+              <label class="form-label" for="vf-cargo">Cargo Institucional</label>
               <input id="vf-cargo" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Cargo del servidor..." enterkeyhint="next" value="${escHtml(r.cargo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
 
+            <div style="display:flex; gap:10px;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-codigo">Código</label>
+                <input id="vf-codigo" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Código..." enterkeyhint="next" value="${escHtml(r.codigo||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="vf-grado">Grado</label>
+                <input id="vf-grado" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Grado..." inputmode="numeric" enterkeyhint="next" value="${escHtml(r.grado||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-dep">Dependencia</label>
+              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Dependencia..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="vf-secretaria">Secretaría</label>
+              <input id="vf-secretaria" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría..." enterkeyhint="next" value="${escHtml(r.secretaria||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+            </div>
+
             <div class="form-group span-2">
-              <label class="form-label" for="vf-dep">Dependencia / Secretaría</label>
-              <input id="vf-dep" class="form-input ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Secretaría o Dependencia institucional..." enterkeyhint="next" value="${escHtml(r.dependencia||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
+              <label class="form-label" for="vf-telefono">Teléfono de Contacto (Opcional)</label>
+              <input id="vf-telefono" class="form-input font-mono ${r.persona ? 'field-locked-readonly input-locked-servidor' : ''}" placeholder="Teléfono o celular..." enterkeyhint="next" value="${escHtml(r.telefono||'')}" ${r.persona ? 'readonly' : ''} ${dis} />
             </div>
           </div>
         </div>
@@ -876,7 +940,8 @@ const ViaticosModule = (() => {
 
             <div class="form-group span-2">
               <label class="form-label">Valor Total Registrado ($ COP)</label>
-              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="this.dataset.autoCalculated = 'false'" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <input id="vf-vtotal" class="form-input" type="number" min="0" placeholder="Ej: 250000" oninput="ViaticosModule.onValorTotalManualChange()" style="background:rgba(40,135,27,0.08);border-color:rgba(40,135,27,0.3);color:var(--color-green-dark);font-weight:700;font-size:1.05rem;" value="${r.valorTotal != null ? r.valorTotal : ''}" ${dis} />
+              <div class="form-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Calculado automáticamente (Días × Diario) o editable según acto administrativo.</div>
             </div>
 
             <div class="form-group">
@@ -886,12 +951,14 @@ const ViaticosModule = (() => {
 
             <div class="form-group">
               <label class="form-label">Saldo Presupuestal ($ COP)</label>
-              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo||'')}" ${dis} />
+              <input id="vf-saldo" class="form-input" type="number" step="1000" placeholder="Ej: 50000000" inputmode="numeric" enterkeyhint="next" value="${escHtml(r.saldo != null ? r.saldo : '')}" oninput="ViaticosModule.onSaldoManualInput()" ${dis} />
+              <div id="vf-saldo-hint" class="form-hint" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Descontado automáticamente según valor total registrado.</div>
             </div>
 
-            <div class="form-group span-2">
-              <label class="form-label">Aprobado Por</label>
-              <input id="vf-aprobado" class="form-input" placeholder="Nombre de la autoridad o funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" ${dis} />
+            <div class="form-group span-2 autocomplete-wrapper">
+              <label class="form-label" for="vf-aprobado">Aprobado Por</label>
+              <input id="vf-aprobado" class="form-input" placeholder="Escriba nombre o cédula del funcionario que aprueba..." enterkeyhint="next" value="${escHtml(r.aprobadoPor||'')}" oninput="ViaticosModule.onAprobadoInput(this.value)" autocomplete="off" ${dis} />
+              <div id="vf-aprobado-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -1027,7 +1094,17 @@ const ViaticosModule = (() => {
       }
     }
     calcTotal();
+    initSaldoPresupuestal(r);
     onEstadoChange();
+
+    ['vf-doc', 'vf-nombre', 'vf-destino', 'vf-fi', 'vf-motivo'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateViaticosSaveBtnState);
+        el.addEventListener('change', updateViaticosSaveBtnState);
+      }
+    });
+    updateViaticosSaveBtnState();
   }
 
   // ─── Tarjeta Informativa de Servidor Vinculado (Lectura & Integridad) ────
@@ -1035,8 +1112,6 @@ const ViaticosModule = (() => {
     if (!emp || (!emp.nombre_completo && !emp.persona)) return '';
     const name = emp.nombre_completo || emp.persona || '';
     const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
-    const dep = emp.dependencia || 'Sin dependencia';
     const initial = name.trim().charAt(0).toUpperCase() || 'S';
     const situacion = emp.situacion || emp.situacion_laboral || emp.estado || 'Activo';
 
@@ -1056,21 +1131,12 @@ const ViaticosModule = (() => {
           Cambiar Servidor
         </button>
       </div>
-      <div class="servidor-loaded-details">
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Cargo:</span>
-          <span class="pill-val">${escHtml(cargo)}</span>
-        </div>
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Dependencia:</span>
-          <span class="pill-val">${escHtml(dep)}</span>
-        </div>
-      </div>
     `;
   }
 
   // ─── Autocompletado de Servidores (Por Nombre y Por Cédula) ─────────────────
   function onNombreInput(val) {
+    updateViaticosSaveBtnState();
     clearTimeout(employeeSearchTimeout);
     const drop = document.getElementById('vf-autocomplete-list');
     if (!drop) return;
@@ -1090,17 +1156,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1114,6 +1191,7 @@ const ViaticosModule = (() => {
   }
 
   function onDocInput(val) {
+    updateViaticosSaveBtnState();
     clearTimeout(employeeSearchTimeout);
     const drop = document.getElementById('vf-doc-autocomplete-list');
     if (!drop) return;
@@ -1133,17 +1211,28 @@ const ViaticosModule = (() => {
           return;
         }
         drop.innerHTML = list.map(emp => {
-          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empDoc = emp.cedula || emp.documento || '';
+          const empName = emp.nombre_completo || emp.persona || 'Servidor Público';
+          const empCargo = emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado';
+          const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+          const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+          const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+          const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+          const empDept = emp.dependencia || 'Sin dependencia';
+          const initial = empName.trim().charAt(0).toUpperCase() || 'S';
+
           return `
-            <div class="autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
-              <div class="autocomplete-item-avatar">${initial}</div>
-              <div class="autocomplete-item-body">
-                <div class="autocomplete-item-header">
-                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
-                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+            <div class="servidor-autocomplete-item" onclick="ViaticosModule.selectEmployee(${JSON.stringify(emp).replace(/"/g, '&quot;')})">
+              <div class="sai-avatar">${initial}</div>
+              <div class="sai-content">
+                <div class="sai-row-top">
+                  <span class="sai-name">${escHtml(empName)}</span>
+                  <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
                 </div>
-                <div class="autocomplete-item-meta">
-                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Cargo no asignado')} • ${escHtml(emp.dependencia || 'Sin dependencia')}
+                <div class="sai-row-meta">
+                  <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                  <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                  <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
                 </div>
               </div>
             </div>
@@ -1161,63 +1250,81 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
+
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
     const cardEl = document.getElementById('vf-servidor-card');
 
-    const name = emp.nombre_completo || emp.persona || '';
-    const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo_actual || emp.cargo_base || emp.cargo || '';
-    const dep = emp.dependencia || '';
+    const name = (emp.nombre_completo || emp.persona || '').toString().trim();
+    const doc = (emp.cedula || emp.documento || '').toString().trim();
+    const cargo = (emp.cargo_actual || emp.cargo_base || emp.cargo || 'Cargo no asignado').toString().trim();
+    const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+    const codigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+    const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+    const grado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+    const rawDept = (emp.dependencia || '').toString().trim();
+    const dep = (rawDept && rawDept !== '—') ? rawDept : 'Sin dependencia';
+    const rawSec = (emp.secretaria || '').toString().trim();
+    const sec = (rawSec && rawSec !== '—') ? rawSec : 'SECRETARÍA GENERAL';
+    const rawTel = (emp.telefono || emp.celular || emp.telefono_fijo || '').toString().trim();
+    const tel = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
 
-    if (nombreInput) {
-      nombreInput.value = name;
-      nombreInput.readOnly = true;
-      nombreInput.setAttribute('readonly', 'readonly');
-      nombreInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      nombreInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (docInput) {
-      docInput.value = doc;
-      docInput.readOnly = true;
-      docInput.setAttribute('readonly', 'readonly');
-      docInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      docInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (cargoInput) {
-      cargoInput.value = cargo;
-      cargoInput.readOnly = true;
-      cargoInput.setAttribute('readonly', 'readonly');
-      cargoInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      cargoInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
-    if (depInput) {
-      depInput.value = dep;
-      depInput.readOnly = true;
-      depInput.setAttribute('readonly', 'readonly');
-      depInput.classList.add('field-locked-readonly', 'input-locked-servidor');
-      depInput.title = 'Dato institucional protegido de la planta de personal. No modificable.';
-    }
+    const allInputs = [
+      { el: nombreInput, val: name },
+      { el: docInput, val: doc },
+      { el: cargoInput, val: cargo },
+      { el: codigoInput, val: codigo },
+      { el: gradoInput, val: grado },
+      { el: depInput, val: dep },
+      { el: secInput, val: sec },
+      { el: telInput, val: tel }
+    ];
 
-    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
-    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
-
-    if (cardEl) {
-      cardEl.innerHTML = renderViaticoServidorCardHtml(emp);
-      cardEl.style.display = 'block';
-    }
-
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    allInputs.forEach(({ el, val }) => {
       if (el) {
+        el.value = val;
+        el.readOnly = true;
+        el.setAttribute('readonly', 'readonly');
+        el.classList.add('field-locked-readonly', 'input-locked-servidor');
+        el.title = 'Dato institucional protegido de la planta de personal. No modificable.';
         el.classList.add('input-flash-sync');
         setTimeout(() => el.classList.remove('input-flash-sync'), 1800);
       }
     });
 
+    if (dropNombre) { dropNombre.style.display = 'none'; dropNombre.innerHTML = ''; }
+    if (dropDoc) { dropDoc.style.display = 'none'; dropDoc.innerHTML = ''; }
+
+    if (cardEl) {
+      cardEl.innerHTML = renderViaticoServidorCardHtml({
+        nombre_completo: name,
+        cedula: doc,
+        cargo,
+        codigo,
+        grado,
+        dependencia: dep,
+        secretaria: sec,
+        telefono: tel,
+        situacion: emp.situacion || emp.situacion_laboral || emp.estado || 'Activo'
+      });
+      cardEl.style.display = 'block';
+    }
+
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
+
+    // Actualizar footer del wizard para habilitar Crear Viático si está en la última pestaña
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    if (curActiveTab) {
+      updateViaticosWizardFooter(curActiveTab);
+    }
+    updateViaticosSaveBtnState();
 
     App.showToast(`Servidor oficial vinculado: ${name}`, 'success');
     onDatesChange();
@@ -1227,12 +1334,16 @@ const ViaticosModule = (() => {
     const nombreInput = document.getElementById('vf-nombre');
     const docInput = document.getElementById('vf-doc');
     const cargoInput = document.getElementById('vf-cargo');
+    const codigoInput = document.getElementById('vf-codigo');
+    const gradoInput = document.getElementById('vf-grado');
     const depInput = document.getElementById('vf-dep');
+    const secInput = document.getElementById('vf-secretaria');
+    const telInput = document.getElementById('vf-telefono');
     const cardEl = document.getElementById('vf-servidor-card');
     const dropNombre = document.getElementById('vf-autocomplete-list');
     const dropDoc = document.getElementById('vf-doc-autocomplete-list');
 
-    [nombreInput, docInput, cargoInput, depInput].forEach(el => {
+    [nombreInput, docInput, cargoInput, codigoInput, gradoInput, depInput, secInput, telInput].forEach(el => {
       if (el) {
         el.value = '';
         el.readOnly = false;
@@ -1253,14 +1364,88 @@ const ViaticosModule = (() => {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
 
+    const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+    if (curActiveTab) {
+      updateViaticosWizardFooter(curActiveTab);
+    }
+    updateViaticosSaveBtnState();
+
     if (nombreInput) {
       nombreInput.focus();
     }
     App.showToast('Selección de servidor limpiada. Escriba nombre o cédula para buscar otro servidor.', 'info');
   }
 
+  // ─── Autocompletado de Servidores en "Aprobado Por" ─────────────────────────
+  function onAprobadoInput(val) {
+    clearTimeout(aprobadoSearchTimeout);
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (!drop) return;
+    const query = (val || '').trim();
+    if (query.length < 2) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+      return;
+    }
+    aprobadoSearchTimeout = setTimeout(async () => {
+      try {
+        const res = await (API.buscarServidor ? API.buscarServidor(query, 6) : API.getEmployees({ q: query, limit: 6 }));
+        const list = res.data || [];
+        if (!list.length) {
+          drop.style.display = 'none';
+          drop.innerHTML = '';
+          return;
+        }
+        drop.innerHTML = list.map(emp => {
+          const initial = (emp.nombre_completo || 'S').trim().charAt(0).toUpperCase();
+          const empPayload = JSON.stringify({
+            nombre_completo: emp.nombre_completo || '',
+            cedula: emp.cedula || ''
+          }).replace(/"/g, '&quot;');
+          return `
+            <div class="autocomplete-item" onclick="ViaticosModule.selectAprobador(${empPayload})">
+              <div class="autocomplete-item-avatar">${initial}</div>
+              <div class="autocomplete-item-body">
+                <div class="autocomplete-item-header">
+                  <span class="autocomplete-item-name">${escHtml(emp.nombre_completo)}</span>
+                  <span class="autocomplete-badge-doc">C.C. ${escHtml(emp.cedula || '—')}</span>
+                </div>
+                <div class="autocomplete-item-meta">
+                  ${escHtml(emp.cargo_actual || emp.cargo_base || 'Servidor Público')} • ${escHtml(emp.dependencia || 'Gobernación de Boyacá')}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        drop.style.display = 'block';
+      } catch (_) {
+        drop.style.display = 'none';
+      }
+    }, 200);
+  }
+
+  function selectAprobador(emp) {
+    const input = document.getElementById('vf-aprobado');
+    const drop = document.getElementById('vf-aprobado-autocomplete-list');
+    if (drop) {
+      drop.style.display = 'none';
+      drop.innerHTML = '';
+    }
+    if (!input || !emp) return;
+    const nombre = (emp.nombre_completo || '').trim();
+    const doc = (emp.cedula || '').trim();
+    if (nombre && doc) {
+      input.value = `${nombre} - C.C. ${doc}`;
+    } else {
+      input.value = nombre || doc;
+    }
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
   function bindServidorLockGuards() {
-    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-dep'];
+    const fields = ['vf-nombre', 'vf-doc', 'vf-cargo', 'vf-codigo', 'vf-grado', 'vf-dep', 'vf-secretaria', 'vf-telefono'];
     fields.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -1335,6 +1520,7 @@ const ViaticosModule = (() => {
     const previewText = document.getElementById('vf-dest-preview-text');
     if (hiddenDest) hiddenDest.value = destText;
     if (previewText) previewText.textContent = destText || 'Sin definir';
+    updateViaticosSaveBtnState();
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
@@ -1391,9 +1577,139 @@ const ViaticosModule = (() => {
         el.dataset.autoCalculated = 'true';
       }
     }
+    updateCalculatedSaldo();
     if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
       App.refreshFloatingLabels(document.getElementById('modal-body'));
     }
+  }
+
+  // ─── Gestión de Saldo Presupuestal Dinámico ───────────────────────────────
+  function getActivePackageOrFallback(pkgId = null) {
+    if (state.activePackage) return state.activePackage;
+    if (pkgId && Array.isArray(state.packages)) {
+      return state.packages.find(p => p.id_paquete === pkgId) || null;
+    }
+    return (Array.isArray(state.packages) && state.packages[0]) ? state.packages[0] : null;
+  }
+
+  function initSaldoPresupuestal(r = {}) {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    const pkgId = r?.id_paquete || (state.activePackage ? state.activePackage.id_paquete : null);
+    const activePkg = getActivePackageOrFallback(pkgId);
+    const pkgPresupuesto = (activePkg && activePkg.presupuesto_inicial != null && !isNaN(parseFloat(activePkg.presupuesto_inicial)))
+      ? parseFloat(activePkg.presupuesto_inicial)
+      : null;
+
+    let saldoBase = null;
+
+    if (currentFormIsEdit && r) {
+      const currentSaldo = (r.saldo != null && !isNaN(parseFloat(r.saldo))) ? parseFloat(r.saldo) : null;
+      const currentTotal = (r.valorTotal != null && !isNaN(parseFloat(r.valorTotal))) ? parseFloat(r.valorTotal) : 0;
+
+      if (pkgPresupuesto != null && currentSaldo != null && Math.abs(currentSaldo - pkgPresupuesto) < 0.01) {
+        // En la captura de pantalla: el registro se guardó con el saldo base idéntico al presupuesto inicial
+        // sin descontar aún el valor total registrado.
+        saldoBase = pkgPresupuesto;
+      } else if (currentSaldo != null) {
+        saldoBase = currentSaldo + currentTotal;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    } else {
+      // Creación de nuevo registro:
+      let ultimoSaldo = null;
+      if (Array.isArray(state.data) && state.data.length > 0) {
+        for (const item of state.data) {
+          if (item.saldo != null && !isNaN(parseFloat(item.saldo))) {
+            ultimoSaldo = parseFloat(item.saldo);
+            break;
+          }
+        }
+      }
+      if (ultimoSaldo != null) {
+        saldoBase = ultimoSaldo;
+      } else if (pkgPresupuesto != null) {
+        saldoBase = pkgPresupuesto;
+      }
+    }
+
+    if (saldoBase != null && !isNaN(saldoBase)) {
+      saldoInput.dataset.saldoBase = String(saldoBase);
+      const currentVal = (saldoInput.value !== undefined && saldoInput.value !== null && saldoInput.value.trim() !== '' && !isNaN(parseFloat(saldoInput.value)))
+        ? parseFloat(saldoInput.value)
+        : null;
+      const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+
+      if (!currentFormIsEdit || currentVal === null || Math.abs(currentVal - saldoBase) < 0.01) {
+        updateCalculatedSaldo();
+      } else {
+        const hint = document.getElementById('vf-saldo-hint');
+        if (hint) {
+          const saldoCalculado = Math.round(saldoBase - vTotal);
+          hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${saldoCalculado < 0 ? 'color:#dc2626;' : ''}">$ ${Number(saldoCalculado).toLocaleString('es-CO')}${saldoCalculado < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
+        }
+      }
+    }
+  }
+
+  function updateCalculatedSaldo() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+
+    if (saldoInput.dataset.manuallyEdited === 'true' && saldoInput.value !== '') {
+      return;
+    }
+
+    const saldoBase = parseFloat(saldoInput.dataset.saldoBase);
+    if (isNaN(saldoBase)) return;
+
+    const vTotal = parseFloat(document.getElementById('vf-vtotal')?.value) || 0;
+    // Permite saldos negativos si la comisión oficial supera la disponibilidad presupuestal
+    const nuevoSaldo = Math.round(saldoBase - vTotal);
+
+    saldoInput.value = nuevoSaldo;
+
+    if (nuevoSaldo < 0) {
+      saldoInput.style.color = '#dc2626';
+      saldoInput.style.fontWeight = '700';
+    } else {
+      saldoInput.style.color = '';
+      saldoInput.style.fontWeight = '';
+    }
+
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `Base presupuestal: <strong>$ ${Number(saldoBase).toLocaleString('es-CO')}</strong> &minus; Total registrado: <strong>$ ${Number(vTotal).toLocaleString('es-CO')}</strong> = <strong style="${nuevoSaldo < 0 ? 'color:#dc2626;' : ''}">$ ${Number(nuevoSaldo).toLocaleString('es-CO')}${nuevoSaldo < 0 ? ' (Déficit presupuestal)' : ''}</strong>`;
+    }
+
+    if (typeof App !== 'undefined' && App.refreshFloatingLabels) {
+      App.refreshFloatingLabels(document.getElementById('modal-body'));
+    }
+  }
+
+  function onSaldoManualInput() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    saldoInput.dataset.manuallyEdited = 'true';
+    const hint = document.getElementById('vf-saldo-hint');
+    if (hint) {
+      hint.innerHTML = `<span style="color:#d97706;">Saldo editado manualmente.</span> <a href="javascript:void(0)" onclick="ViaticosModule.resetSaldoPresupuestal()" style="color:var(--color-primary); text-decoration:underline; font-weight:600; margin-left:4px;">Recalcular automático</a>`;
+    }
+  }
+
+  function resetSaldoPresupuestal() {
+    const saldoInput = document.getElementById('vf-saldo');
+    if (!saldoInput) return;
+    delete saldoInput.dataset.manuallyEdited;
+    updateCalculatedSaldo();
+  }
+
+  function onValorTotalManualChange() {
+    const el = document.getElementById('vf-vtotal');
+    if (el) el.dataset.autoCalculated = 'false';
+    updateCalculatedSaldo();
   }
 
   function onEstadoChange() {
@@ -1701,7 +2017,7 @@ const ViaticosModule = (() => {
                 <span class="ficha-card-label">Días Registrados</span>
               </div>
               <div class="ficha-card-val font-mono" style="font-size:1.25rem; font-weight:800;">
-                ${escHtml(r.dias ?? '1')} ${r.dias === 1 ? 'día' : 'días'}
+                ${r.dias != null ? `${escHtml(String(r.dias))} ${r.dias === 1 ? 'día' : 'días'}` : '—'}
               </div>
               <div class="ficha-card-sub">Duración reportada de la comisión</div>
             </div>
@@ -1975,12 +2291,13 @@ const ViaticosModule = (() => {
   function readForm() {
     const nombre = document.getElementById('vf-nombre')?.value.trim();
     const doc = document.getElementById('vf-doc')?.value.trim();
-    const rawDestino = document.getElementById('vf-destino')?.value?.trim();
-    const destino = rawDestino || 'TUNJA, BOYACÁ';
-    const fi = document.getElementById('vf-fi')?.value;
-    const ff = document.getElementById('vf-ff')?.value;
+    const destino = document.getElementById('vf-destino')?.value?.trim();
+    const fi = document.getElementById('vf-fi')?.value?.trim();
+    const ff = document.getElementById('vf-ff')?.value?.trim() || fi;
+    const motivo = document.getElementById('vf-motivo')?.value?.trim();
 
     if (!nombre) {
+      switchFormTab('tab-vit-servidor');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-nombre', 'El nombre del funcionario es requerido.');
       } else {
@@ -1990,6 +2307,7 @@ const ViaticosModule = (() => {
     }
 
     if (!doc) {
+      switchFormTab('tab-vit-servidor');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-doc', 'El documento de identidad es requerido.');
       } else {
@@ -1998,7 +2316,18 @@ const ViaticosModule = (() => {
       return null;
     }
 
+    if (!destino) {
+      switchFormTab('tab-vit-comision');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-depto', 'Debe seleccionar el departamento y municipio de destino.');
+      } else {
+        App.showToast('Debe seleccionar el destino de la comisión.', 'warning');
+      }
+      return null;
+    }
+
     if (!fi) {
+      switchFormTab('tab-vit-comision');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-fi', 'La fecha de inicio de la comisión es requerida.');
       } else {
@@ -2008,10 +2337,21 @@ const ViaticosModule = (() => {
     }
 
     if (fi && ff && new Date(ff) < new Date(fi)) {
+      switchFormTab('tab-vit-comision');
       if (typeof App !== 'undefined' && App.markFieldInvalid) {
         App.markFieldInvalid('vf-ff', 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.');
       } else {
         App.showToast('La fecha de finalización debe ser posterior o igual a la fecha de inicio.', 'error');
+      }
+      return null;
+    }
+
+    if (!motivo) {
+      switchFormTab('tab-vit-comision');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('vf-motivo', 'El motivo de la comisión es requerido.');
+      } else {
+        App.showToast('El motivo de la comisión es requerido.', 'warning');
       }
       return null;
     }
@@ -2022,12 +2362,16 @@ const ViaticosModule = (() => {
       persona: nombre,
       documento: document.getElementById('vf-doc')?.value.trim() || '',
       dependencia: document.getElementById('vf-dep')?.value.trim() || '',
+      secretaria: document.getElementById('vf-secretaria')?.value.trim() || '',
       cargo: document.getElementById('vf-cargo')?.value.trim() || '',
+      codigo: document.getElementById('vf-codigo')?.value.trim() || '',
+      grado: document.getElementById('vf-grado')?.value.trim() || '',
+      telefono: document.getElementById('vf-telefono')?.value.trim() || '',
       tipoDestino,
       destino,
-      motivo: document.getElementById('vf-motivo')?.value.trim() || '',
-      fechaInicio: fi || '',
-      fechaFin: ff || '',
+      motivo,
+      fechaInicio: fi,
+      fechaFin: ff,
       dias: parseInt(document.getElementById('vf-dias')?.value) || 1,
       valorDiario: parseFloat(document.getElementById('vf-vdiario')?.value) || 0,
       valorTotal: (function() {
@@ -2039,7 +2383,12 @@ const ViaticosModule = (() => {
       observaciones: document.getElementById('vf-obs')?.value.trim() || '',
       aprobadoPor: document.getElementById('vf-aprobado')?.value.trim() || '',
       numeroResolucion: document.getElementById('vf-resolucion')?.value.trim() || null,
-      saldo: parseFloat(document.getElementById('vf-saldo')?.value) || null,
+      saldo: (function() {
+        const val = document.getElementById('vf-saldo')?.value;
+        if (val === undefined || val === null || String(val).trim() === '') return null;
+        const num = parseFloat(val);
+        return isNaN(num) ? null : num;
+      })(),
       soporte: currentUploadedFile || null,
       id_paquete: (state.activePackage ? state.activePackage.id_paquete : (parseInt(document.getElementById('vf-id-paquete')?.value, 10) || (state.packages && state.packages[0] ? state.packages[0].id_paquete : null))),
     };
@@ -2076,6 +2425,13 @@ const ViaticosModule = (() => {
       cls: 'status-card-opt--finalizada',
     },
     {
+      id: 'sin_viatico',
+      name: 'Sin Viático',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+      desc: 'Comisión oficial autorizada sin asignación de viáticos monetarios',
+      cls: 'status-card-opt--sin-viatico',
+    },
+    {
       id: 'rechazado',
       name: 'Rechazado',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -2101,12 +2457,13 @@ const ViaticosModule = (() => {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
     const ALLOWED_MAP = {
-      'Radicado': ['Aprobado', 'Rechazado', 'Anulado'],
-      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado'],
+      'Radicado': ['Aprobado', 'Rechazado', 'Anulado', 'Sin Viático'],
+      'Aprobado': ['En Ejecución', 'Rechazado', 'Anulado', 'Sin Viático'],
       'En Ejecución': ['Legalizado', 'Anulado'],
       'Legalizado': [],
       'Rechazado': [],
-      'Anulado': []
+      'Anulado': [],
+      'Sin Viático': ['Aprobado', 'Anulado']
     };
     const currentStatus = r.estado || 'Radicado';
     const allowedNext = ALLOWED_MAP[currentStatus] || [];
@@ -2162,7 +2519,7 @@ const ViaticosModule = (() => {
           <div class="status-picker-person">${escHtml(r.persona)}</div>
           <div class="status-picker-tags">
             <span class="status-picker-tag">📍 ${escHtml(r.destino || 'Destino no especificado')}</span>
-            <span class="status-picker-tag">📅 ${escHtml(r.fechaInicio || '—')} (${r.dias || 1} días)</span>
+            <span class="status-picker-tag">📅 ${escHtml(r.fechaInicio || '—')} (${r.dias != null ? `${r.dias} días` : 'Duración no informada'})</span>
             <span class="status-picker-tag">💰 ${formatCOP(r.valorTotal)}</span>
             <span class="status-picker-tag">Estado actual: <strong class="badge ${badgeClass(r.estado)}" style="margin-left:4px">${r.estado}</strong></span>
           </div>
@@ -2349,19 +2706,22 @@ const ViaticosModule = (() => {
   };
 
   function renderRankingSkeletonRows(count = 5) {
-    return Array.from({ length: count }, () => `
-      <tr>
+    return Array.from({ length: count }, (_, idx) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${idx * 0.05}s">
         <td style="text-align:center;"><div class="skeleton" style="width:24px;height:16px;margin:auto;border-radius:4px;"></div></td>
         <td>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div class="skeleton" style="width:65%;height:14px;border-radius:4px;"></div>
-            <div class="skeleton" style="width:35%;height:11px;border-radius:4px;"></div>
+          <div class="skeleton-user-cell">
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line skeleton-line--title" style="width:${idx % 2 === 0 ? '70%' : '60%'};height:14px;border-radius:4px;"></div>
+              <div class="skeleton skeleton-line" style="width:40%;height:11px;border-radius:4px;"></div>
+            </div>
           </div>
         </td>
-        <td><div class="skeleton" style="width:50%;height:14px;border-radius:4px;"></div></td>
-        <td style="text-align:center;"><div class="skeleton" style="width:70px;height:22px;margin:auto;border-radius:12px;"></div></td>
-        <td style="text-align:right;"><div class="skeleton" style="width:80px;height:14px;margin-left:auto;border-radius:4px;"></div></td>
-        <td style="text-align:right;"><div class="skeleton" style="width:95px;height:16px;margin-left:auto;border-radius:4px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width:60%;height:14px;border-radius:4px;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:70px;height:22px;margin:auto;"></div></td>
+        <td style="text-align:right;"><div class="skeleton skeleton-line" style="width:80px;height:14px;margin-left:auto;border-radius:4px;"></div></td>
+        <td style="text-align:right;"><div class="skeleton skeleton-line" style="width:95px;height:16px;margin-left:auto;border-radius:4px;"></div></td>
       </tr>
     `).join('');
   }
@@ -3001,6 +3361,15 @@ const ViaticosModule = (() => {
         const toggleBtn = document.getElementById('vit-dropdown-toggle');
         if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
       }
+
+      const dropApr = document.getElementById('vf-aprobado-autocomplete-list');
+      if (dropApr && dropApr.style.display !== 'none') {
+        const wrapApr = dropApr.closest('.autocomplete-wrapper');
+        if (!wrapApr || !wrapApr.contains(e.target)) {
+          dropApr.style.display = 'none';
+          dropApr.innerHTML = '';
+        }
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -3274,18 +3643,34 @@ const ViaticosModule = (() => {
   // ─── Vista de Carpetas de un Año Específico ──────────────────────────────────
   async function renderYearPackagesView(container) {
     const year = state.selectedYear;
-    const packages = await loadPackages();
-    const yearPkgs = packages.filter(p => p.anio === year);
 
+    // Estado inicial de carga Skeleton para las ejecuciones presupuestales del año
     container.innerHTML = `
       <div class="viaticos-pkg-section">
         <div class="viaticos-pkg-section-header">
           <h2 class="viaticos-pkg-section-title">Ejecuciones Presupuestales</h2>
-          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución registrada' : 'ejecuciones registradas'}</span>
+          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge"><span class="skeleton" style="width:80px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
         </div>
-        <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid"></div>
+        <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid">
+          ${Array.from({ length: 4 }).map(() => `
+            <div class="viaticos-pkg-card viaticos-folder-card" style="opacity:0.75;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                <div class="skeleton" style="width:36px;height:36px;border-radius:8px;"></div>
+                <div class="skeleton skeleton-line skeleton-line--title" style="width:60%;height:18px;margin-bottom:0;"></div>
+              </div>
+              <div class="skeleton skeleton-line" style="width:40%;height:12px;margin-bottom:16px;"></div>
+              <div class="skeleton skeleton-line" style="width:100%;height:48px;border-radius:8px;"></div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
+
+    const packages = await loadPackages();
+    const yearPkgs = packages.filter(p => p.anio === year);
+
+    const badge = document.getElementById('vit-year-pkgs-badge');
+    if (badge) badge.textContent = `${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución registrada' : 'ejecuciones registradas'}`;
 
     const grid = document.getElementById('vit-year-pkgs-grid');
     if (!grid) return;
@@ -3304,17 +3689,24 @@ const ViaticosModule = (() => {
       return `
       <div class="viaticos-pkg-card viaticos-folder-card" role="button" tabindex="0" onclick="ViaticosModule.enterPackage(${pkg.id_paquete})" onkeydown="if(event.key==='Enter')ViaticosModule.enterPackage(${pkg.id_paquete})">
         <div class="viaticos-folder-card-body">
-          <div class="viaticos-folder-header-row">
-            <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="9" y1="15" x2="15" y2="15"></line>
-                <line x1="9" y1="11" x2="11" y2="11"></line>
-                <line x1="9" y1="18" x2="13" y2="18"></line>
-              </svg>
+          <div class="viaticos-folder-header-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+              <div class="viaticos-folder-hero-icon" title="Archivo Excel / ${escHtml(pkg.nombre)}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px;">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                  <line x1="9" y1="11" x2="11" y2="11"></line>
+                  <line x1="9" y1="18" x2="13" y2="18"></line>
+                </svg>
+              </div>
+              <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
             </div>
-            <h3 class="viaticos-pkg-name" title="${escHtml(pkg.nombre)}">${escHtml(pkg.nombre)}</h3>
+            ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <div class="viaticos-presupuesto-badge" title="Presupuesto Asignado: ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}" style="display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; background:rgba(22, 163, 74, 0.09); border:1px solid rgba(22, 163, 74, 0.22); color:#15803d; font-size:11.5px; font-weight:800; white-space:nowrap; flex-shrink:0;">
+                <span style="font-size:11px;">💰</span> ${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}
+              </div>
+            ` : ''}
           </div>
 
           <div class="viaticos-folder-subtitle">
@@ -3652,6 +4044,21 @@ const ViaticosModule = (() => {
               ${Auth.canEdit('viaticos') ? `
               <button
                 type="button"
+                class="btn-action-icon-delete"
+                onclick="ViaticosModule.confirmDeletePackage(${pkg.id_paquete}, '${escHtml(pkg.nombre)}')"
+                title="Eliminar esta ejecución presupuestal y sus registros"
+                aria-label="Eliminar esta ejecución presupuestal"
+              >
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>` : ''}
+              ${Auth.canEdit('viaticos') ? `
+              <button
+                type="button"
                 class="btn-action-icon-add"
                 onclick="ViaticosModule.openCreate()"
                 id="btn-nuevo-viatico"
@@ -3723,7 +4130,7 @@ const ViaticosModule = (() => {
                   <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
                 </tr></thead>
                 <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
-                  ${renderSkeletonRows(6)}
+                  ${renderSkeletonRows()}
                 </tbody>
               </table>
             </div>
@@ -3794,7 +4201,8 @@ const ViaticosModule = (() => {
         try {
           await API.createViaticosAnio({ anio, descripcion });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
           App.showToast(`Histórico anual para la vigencia fiscal ${anio} creado exitosamente.`, 'success');
           await loadYears();
           await loadPackages();
@@ -3966,6 +4374,11 @@ const ViaticosModule = (() => {
         </div>
 
         <div class="form-group floating-group">
+          <label class="form-label" for="vpkg-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+          <input id="vpkg-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" placeholder="Ej: 50000000" autocomplete="off" />
+        </div>
+
+        <div class="form-group floating-group">
           <label class="form-label" for="vpkg-desc">Descripción o Notas (Opcional)</label>
           <textarea id="vpkg-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales" autocomplete="off"></textarea>
         </div>
@@ -4004,6 +4417,14 @@ const ViaticosModule = (() => {
           return;
         }
 
+        const presupuestoVal = document.getElementById('vpkg-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
+
+        const fileInputEl = document.getElementById('vpkg-file-input');
+        if (!selectedPackageFile && fileInputEl && fileInputEl.files && fileInputEl.files.length > 0) {
+          selectedPackageFile = fileInputEl.files[0];
+        }
+
         const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
@@ -4015,7 +4436,8 @@ const ViaticosModule = (() => {
             nombre,
             anio,
             archivoOrigen,
-            descripcion
+            descripcion,
+            presupuestoInicial
           });
 
           // 2. Si se adjuntó un archivo Excel, parsearlo e importar sus filas
@@ -4025,7 +4447,8 @@ const ViaticosModule = (() => {
           }
 
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
           App.showToast(`Carpeta "${nombre}" (${anio}) creada exitosamente.`, 'success');
           await loadPackages();
           if (state.activeView === 'year_packages') {
@@ -4118,6 +4541,7 @@ const ViaticosModule = (() => {
       }
 
       fileInput.onchange = (e) => handleFile(e.target.files[0]);
+      fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
       dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; dropzone.style.background = 'rgba(22,163,74,0.05)'; };
       dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; dropzone.style.background = 'var(--bg-primary)'; };
@@ -4165,6 +4589,8 @@ const ViaticosModule = (() => {
               <span class="vpkg-badge-metric">📊 <strong>${(pkg.total_viaticos || 0).toLocaleString('es-CO')}</strong> viáticos</span>
               <span class="vpkg-badge-metric is-pending">⏳ <strong>${(pkg.pendientes || 0).toLocaleString('es-CO')}</strong> pendientes</span>
               <span class="vpkg-badge-metric is-approved">💰 <strong>${pkg.valor_aprobado_formatted || '$ 0'}</strong> aprobado</span>
+              ${(pkg.presupuesto_inicial != null && Number(pkg.presupuesto_inicial) > 0) ? `
+              <span class="vpkg-badge-metric" style="color:var(--color-primary);">🏦 <strong>${pkg.presupuesto_inicial_formatted || ('$ ' + Number(pkg.presupuesto_inicial).toLocaleString('es-CO'))}</strong> presupuesto</span>` : ''}
             </div>
           </div>
         </div>
@@ -4189,6 +4615,11 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="form-group floating-group">
+            <label class="form-label" for="vedit-presupuesto">Presupuesto Inicial Asignado ($ COP) (Opcional)</label>
+            <input id="vedit-presupuesto" type="number" step="1000" min="0" class="form-input font-mono" value="${pkg.presupuesto_inicial != null ? pkg.presupuesto_inicial : ''}" placeholder="Ej: 50000000" autocomplete="off" />
+          </div>
+
+          <div class="form-group floating-group">
             <label class="form-label" for="vedit-desc">Descripción o Notas de la Vigencia</label>
             <textarea id="vedit-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales">${escHtml(pkg.descripcion || '')}</textarea>
           </div>
@@ -4208,6 +4639,8 @@ const ViaticosModule = (() => {
         const anio = parseInt(document.getElementById('vedit-anio')?.value, 10) || pkg.anio;
         const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
         const descripcion = document.getElementById('vedit-desc')?.value.trim();
+        const presupuestoVal = document.getElementById('vedit-presupuesto')?.value;
+        const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
 
         if (!nombre) {
           App.showToast('El nombre es requerido.', 'warning');
@@ -4218,7 +4651,7 @@ const ViaticosModule = (() => {
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
         try {
-          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion });
+          await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion, presupuestoInicial });
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
           App.closeModal(true);
@@ -4252,44 +4685,141 @@ const ViaticosModule = (() => {
     }, 50);
   }
 
-  // ─── Confirmación de Eliminación de Paquete ──────────────────────────────────
+  // ─── Confirmación de Eliminación de Ejecución Presupuestal (Paquete) ──────────
   function confirmDeletePackage(id_paquete, nombre) {
     if (!Auth.canEdit('viaticos')) {
-      App.showToast('No tienes permisos para eliminar paquetes.', 'warning');
+      App.showToast('No tienes permisos para eliminar ejecuciones presupuestales.', 'warning');
       return;
     }
 
+    const pkg = (state.packages || []).find(p => p.id_paquete === id_paquete);
+    const countViaticos = pkg ? (parseInt(pkg.total_viaticos, 10) || 0) : 0;
+    const fileName = pkg?.archivo_origen || pkg?.nombre || nombre;
+    const anioPkg = pkg?.anio || state.selectedYear || '';
+    const requiredConfirmation = 'ELIMINAR';
+
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
 
-    App.openModal('Confirmar Eliminación de Carpeta', `
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <p style="color:var(--text-secondary); margin:0;">
-          ¿Estás seguro de que deseas eliminar la carpeta <strong style="color:var(--text-primary);">${escHtml(nombre)}</strong>?
+    const html = `
+      <div style="padding:10px 4px 6px; text-align:center;">
+        <div style="width:58px;height:58px;margin:0 auto 16px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:28px;height:28px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Ejecución Presupuestal?</h3>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;max-width:440px;margin:0 auto 16px;">
+          ¿Estás seguro de que deseas eliminar la ejecución <strong style="color:var(--text-primary);">${escHtml(nombre)}</strong>${anioPkg ? ` (Vigencia Fiscal ${anioPkg})` : ''}?
         </p>
-        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:12px; color:#ef4444; font-size:12.5px;">
-          ⚠️ <strong>Advertencia:</strong> Esta acción eliminará permanentemente la carpeta y todos los viáticos asociados a este archivo Excel. Esta operación no se puede deshacer.
+
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:8px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Detalle del Contenido y Motivo de Eliminación
+          </div>
+          <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 8px 0;line-height:1.45;">
+            ${countViaticos > 0 
+              ? `Esta ejecución presupuestal contiene actualmente <strong style="color:var(--text-primary);">${countViaticos.toLocaleString('es-CO')} comisión(es) de viático registrada(s)</strong>${fileName ? ` correspondientes al archivo <code>${escHtml(fileName)}</code>` : ''}.`
+              : `Esta ejecución presupuestal no contiene comisiones asociadas activas.`
+            }
+          </p>
+          <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px 0;line-height:1.45;">
+            ⚠️ <strong>¿Por qué se eliminará todo?:</strong> Si subiste este archivo por equivocación (por ejemplo, de una vigencia que no correspondía o con datos erróneos), al confirmar se eliminará de raíz la ejecución presupuestal y <strong>todos sus ${countViaticos.toLocaleString('es-CO')} viáticos asociados</strong> para que puedas corregir el error y volver a cargar el archivo correcto.
+          </p>
+          <p style="font-size:12px;color:#dc2626;margin:0;line-height:1.45;font-weight:700;">
+            Esta acción es definitiva e irreversible. Para proceder con seguridad y evitar errores involuntarios, escribe exactamente <strong style="user-select:all;text-decoration:underline;">${requiredConfirmation}</strong> a continuación:
+          </p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="vit-confirm-delete-pkg-input"
+            class="form-input"
+            placeholder="Escribe ${requiredConfirmation}"
+            autocomplete="off"
+            style="text-align:center; font-weight:800; font-size:14.5px; letter-spacing:0.8px; text-transform:uppercase; border:1.5px solid var(--color-border); padding:10px 14px;"
+            oninput="
+              const val = this.value.trim().toUpperCase();
+              const btn = document.getElementById('btn-confirm-delete-pkg-action');
+              if (btn) {
+                if (val === '${requiredConfirmation}') {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  btn.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
+                } else {
+                  btn.disabled = true;
+                  btn.style.opacity = '0.45';
+                  btn.style.cursor = 'not-allowed';
+                  btn.style.boxShadow = 'none';
+                }
+              }
+            "
+          />
         </div>
       </div>
-    `, [
+    `;
+
+    App.openModal('Confirmar Eliminación de Ejecución Presupuestal', html, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Sí, Eliminar Todo', cls: 'btn-danger', action: async () => {
-        try {
-          await API.deleteViaticosPaquete(id_paquete);
-          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
-          App.showToast(`Carpeta "${nombre}" eliminada exitosamente.`, 'success');
-          if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
-            state.activeView = state.selectedYear ? 'year_packages' : 'years';
-            state.activePackage = null;
+      {
+        text: 'Sí, Eliminar Ejecución',
+        cls: 'btn-danger',
+        id: 'btn-confirm-delete-pkg-action',
+        action: async () => {
+          const inputEl = document.getElementById('vit-confirm-delete-pkg-input');
+          const typedVal = inputEl ? inputEl.value.trim().toUpperCase() : '';
+          if (typedVal !== requiredConfirmation) {
+            App.showToast(`Debes escribir "${requiredConfirmation}" para confirmar la eliminación.`, 'warning');
+            if (inputEl) inputEl.focus();
+            return;
           }
-          await loadPackages();
-          await renderCurrentView();
-          loadStats();
-        } catch (err) {
-          App.showToast(err.message || 'Error al eliminar carpeta.', 'error');
+
+          const btn = document.getElementById('btn-confirm-delete-pkg-action');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+          }
+
+          try {
+            const res = await API.deleteViaticosPaquete(id_paquete);
+            if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.danger) {
+              FX.Sound.danger();
+            } else if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.confirm) {
+              FX.Sound.confirm();
+            }
+            App.closeModal();
+            const msg = (res && res.message) || `Ejecución presupuestal "${nombre}" eliminada exitosamente.`;
+            App.showToast(msg, 'success');
+            if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
+              state.activeView = state.selectedYear ? 'year_packages' : 'years';
+              state.activePackage = null;
+            }
+            await loadPackages();
+            await loadYears();
+            await renderCurrentView();
+            loadStats();
+          } catch (err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = 'Sí, Eliminar Ejecución';
+            }
+            App.showToast(err.message || 'Error al eliminar la ejecución presupuestal.', 'error');
+          }
         }
-      }},
+      }
     ]);
+
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirm-delete-pkg-action');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+        btn.style.transition = 'all 0.2s ease';
+      }
+      const inp = document.getElementById('vit-confirm-delete-pkg-input');
+      if (inp) inp.focus();
+    }, 60);
   }
 
   // ─── Exportar Excel exclusivo de un Paquete / Carpeta ─────────────────────────
@@ -4403,6 +4933,222 @@ const ViaticosModule = (() => {
     }
   }
 
+  // ─── Diccionario de equivalencias de Secretarías ──────────────────────────
+  const SECRETARIA_MAP = {
+    'DESPACHOGOBER': 'DESPACHO DEL GOBERNADOR',
+    'DESPACHO GOBERNADOR': 'DESPACHO DEL GOBERNADOR',
+    'HACIENDA': 'SECRETARÍA DE HACIENDA',
+    'PLANEACION': 'SECRETARÍA DE PLANEACIÓN',
+    'GENERAL': 'SECRETARÍA GENERAL',
+    'INFRAESTRUCTURA': 'SECRETARÍA DE INFRAESTRUCTURA',
+    'EDUCACION': 'SECRETARÍA DE EDUCACIÓN',
+    'AGRICULTURA': 'SECRETARÍA DE AGRICULTURA',
+    'INTEGRACION SOCIAL': 'SECRETARÍA DE INTEGRACIÓN SOCIAL',
+    'CULTURA': 'SECRETARÍA DE CULTURA Y PATRIMONIO',
+    'MINAS': 'SECRETARÍA DE MINAS Y ENERGÍA',
+    'GOBIERNO': 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
+    'DESARROLLOEMP': 'SECRETARÍA DE DESARROLLO EMPRESARIAL',
+    'CONTRATACION': 'SECRETARÍA DE CONTRATACIÓN',
+    'AMBIENTE': 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
+    'TURISMO': 'SECRETARÍA DE TURISMO',
+    'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO',
+    'SALUD': 'SECRETARÍA DE SALUD',
+    'SECRETARIA DE SALUD': 'SECRETARÍA DE SALUD',
+    '704': 'SECRETARÍA DE SALUD',
+    '703': 'SECRETARÍA DE SALUD'
+  };
+
+  // ─── Conversor de número de serie de fecha de Excel ─────────────────────
+  function excelSerialToDate(serial) {
+    if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
+    const utcDays = Math.floor(serial - 25569);
+    const date = new Date(utcDays * 86400 * 1000);
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const y = date.getUTCFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
+  function isValidCalendarDate(d, m, y) {
+    const day = parseInt(d, 10);
+    const month = parseInt(m, 10);
+    const year = parseInt(y, 10);
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (year < 1900 || year > 2100) return false;
+    if (month < 1 || month > 12) return false;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return day >= 1 && day <= daysInMonth;
+  }
+
+  function parseDateRobust(rawVal, resolucionStr, explicitDias) {
+    let expD = null;
+    if (explicitDias !== undefined && explicitDias !== null && String(explicitDias).trim() !== '') {
+      const sExp = String(explicitDias).trim();
+      if (/^\d+$/.test(sExp)) {
+        const parsed = parseInt(sExp, 10);
+        if (parsed > 0) expD = parsed;
+      }
+    }
+
+    if (rawVal == null || String(rawVal).trim() === '') {
+      return { start: null, end: null, dias: expD || 1, raw: null };
+    }
+
+    // Las fechas de comisión NO deben extraerse de textos de resoluciones ni actos administrativos
+    const rawStr = String(rawVal).trim();
+
+    // Si contiene formato combinado de resolución y fecha (ej: "2752/12/09/2023"), extraer la fecha real
+    const comboMatch = rawStr.match(/^\d{3,5}\/(\d{1,2}\/\d{1,2}\/\d{4})$/);
+    if (comboMatch) {
+      const subD = comboMatch[1];
+      const [d, m, y] = subD.split('/');
+      if (isValidCalendarDate(d, m, y)) {
+        return { start: subD, end: subD, dias: expD || 1, raw: rawVal };
+      }
+    }
+
+    if (/(?:RES|RESOLUCI[OÓ]N|DECRETO|ACTO|OFICIO|MEMORANDO)/i.test(rawStr) || /^\d{3,5}\//.test(rawStr)) {
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+    }
+
+    if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
+      const sDate = excelSerialToDate(rawVal);
+      if (sDate) {
+        const [d, m, y] = sDate.split('/');
+        if (isValidCalendarDate(d, m, y)) {
+          return { start: sDate, end: sDate, dias: expD || 1, raw: rawVal };
+        }
+      }
+    }
+
+    if (rawVal instanceof Date) {
+      const d = String(rawVal.getUTCDate()).padStart(2, '0');
+      const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
+      const y = rawVal.getUTCFullYear();
+      if (isValidCalendarDate(d, m, y)) {
+        const dStr = `${d}/${m}/${y}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+    }
+
+    let s = String(rawVal).trim().replace(/\s+/g, '');
+
+    // Formato ISO YYYY-MM-DD
+    const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (isoMatch) {
+      const y = isoMatch[1];
+      const m = isoMatch[2].padStart(2, '0');
+      const d = isoMatch[3].padStart(2, '0');
+      if (isValidCalendarDate(d, m, y)) {
+        const dStr = `${d}/${m}/${y}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+    }
+
+    // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
+    s = s.replace(/\/203$/, '/2023');
+    s = s.replace(/\/024$/, '/2024');
+    s = s.replace(/\/204$/, '/2024');
+    s = s.replace(/(\d{1,2}\/\d{1,2})\/(\d{4})$/, '$1/$2');
+    s = s.replace(/,(\/\d{2}\/\d{4})$/, '$1');
+    s = s.replace(/\/(\d{2})\/(\d{4})$/, '/$1/$2');
+    s = s.replace(/\/096\/(\d{4})$/, '/06/$1');
+
+    // Fechas sin barra entre día y mes o mes y año (ej: 07,08,0908/2023 -> 07,08,09/08/2023)
+    s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)(\d{2})\/(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)\/(\d{2})(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2})\/(\d{2})(\d{4})$/, '$1/$2/$3');
+    s = s.replace(/^(\d{1,2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
+
+    const parts = s.split('/').filter(p => p.length > 0);
+
+    if (parts.length === 3) {
+      let dayPart = parts[0];
+      let month = parts[1].padStart(2, '0');
+      let year = parts[2];
+      if (year.length === 2) year = '20' + year;
+      if (month.length === 3 && month.startsWith('0')) month = month.substring(1);
+
+      const days = dayPart.split(',').map(d => {
+        let cl = d.trim().replace(/^0+/, '') || '0';
+        if (cl.length === 3 && cl.startsWith('22')) cl = '22';
+        return cl;
+      }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
+
+      if (days.length > 0) {
+        const allDaysValid = days.every(d => isValidCalendarDate(d, month, year));
+        if (!allDaysValid) {
+          return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+        }
+        if (days.length > 1) {
+          const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
+          const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
+          return { start, end, dias: expD || days.length, raw: rawVal };
+        }
+        const single = `${days[0].padStart(2, '0')}/${month}/${year}`;
+        return { start: single, end: single, dias: expD || 1, raw: rawVal };
+      }
+    } else if (parts.length === 4) {
+      let day1Part = parts[0];
+      let m1Part = parts[1];
+      let day2Part = parts[2];
+      let m2Part = parts[3];
+
+      let year = '2023';
+      let month2 = '01';
+
+      if (m2Part.length === 4) {
+        year = m2Part;
+        month2 = day2Part.padStart(2, '0');
+        const d1Tokens = day1Part.split(',').filter(Boolean);
+        const d2Tokens = [m1Part];
+        const startMonth = month2;
+        const startValid = d1Tokens.every(d => isValidCalendarDate(d, startMonth, year));
+        const endValid = d2Tokens.every(d => isValidCalendarDate(d, month2, year));
+        if (startValid && endValid) {
+          const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
+          const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
+          return { start, end, dias: expD || (d1Tokens.length + d2Tokens.length), raw: rawVal };
+        }
+      }
+    } else if (parts.length >= 5) {
+      let year = parts[parts.length - 1];
+      if (year.length === 2) year = '20' + year;
+      let endMonth = parts[parts.length - 2].padStart(2, '0');
+      let endDays = parts[parts.length - 3].split(',').filter(Boolean);
+      let startMonth = parts[1].padStart(2, '0');
+      let startDays = parts[0].split(',').filter(Boolean);
+
+      const startValid = startDays.every(d => isValidCalendarDate(d, startMonth, year));
+      const endValid = endDays.every(d => isValidCalendarDate(d, endMonth, year));
+      if (startValid && endValid) {
+        const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
+        const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
+        const dias = expD || ((startDays.length || 1) + (endDays.length || 1));
+        return { start, end, dias, raw: rawVal };
+      }
+    }
+
+    const mMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (mMatch) {
+      let yr = mMatch[3];
+      if (yr.length === 2) yr = '20' + yr;
+      const d = mMatch[1].padStart(2, '0');
+      const mo = mMatch[2].padStart(2, '0');
+      if (isValidCalendarDate(d, mo, yr)) {
+        const dStr = `${d}/${mo}/${yr}`;
+        return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
+      }
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+    }
+
+    // Si el formato no corresponde a una fecha reconocible, no inventar fechas ni duración
+    return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
+  }
+
   // ─── Procesar e Importar Excel vinculado a un Paquete ────────────────────────
   async function processAndImportPackageExcel(file, id_paquete) {
     return new Promise((resolve, reject) => {
@@ -4428,11 +5174,12 @@ const ViaticosModule = (() => {
             }
             if (headerIdx === -1) headerIdx = 0;
             const headerRow = sheetData[headerIdx] || [];
-            let colNom = -1, colFecha = -1, colDest = -1, colVal = -1, colRes = -1, colSaldo = -1, colObs = -1;
+            let colNom = -1, colFecha = -1, colDest = -1, colVal = -1, colRes = -1, colSaldo = -1, colObs = -1, colDias = -1;
             headerRow.forEach((c, idx) => {
               const u = String(c).toUpperCase();
               if (u.includes('NOMBRE') || u.includes('SERVIDOR')) colNom = idx;
               else if (u.includes('FECHA')) colFecha = idx;
+              else if (u.includes('DÍA') || u.includes('DIA') || u.includes('DURAC')) colDias = idx;
               else if (u.includes('LUGAR') || u.includes('DESTINO')) colDest = idx;
               else if (u.includes('VALOR') || u.includes('TOTAL')) colVal = idx;
               else if (u.includes('RESOL') || u.includes('ACTO')) colRes = idx;
@@ -4453,6 +5200,7 @@ const ViaticosModule = (() => {
               const nomStr = String(nom).trim();
               if (['TOTAL', 'SUBTOTAL', 'SALDO', 'FIRMA'].includes(nomStr.toUpperCase())) continue;
               const rawFecha = row[colFecha];
+              const explicitDias = colDias !== -1 ? row[colDias] : null;
               const resolVal = colRes !== -1 && row[colRes] ? String(row[colRes]).trim() : '';
               const destVal = colDest !== -1 && row[colDest] ? String(row[colDest]).trim() : 'SIN ESPECIFICAR';
               const valNum = colVal !== -1 && row[colVal] != null ? cleanMoneyNum(row[colVal]) : null;
@@ -4460,7 +5208,25 @@ const ViaticosModule = (() => {
               const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
               const obsVal = colObs !== -1 && row[colObs] ? String(row[colObs]).trim() : '';
 
-              const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal) : { start: '01/01/2026', end: '01/01/2026', dias: 1 };
+              const dInfo = (typeof parseDateRobust === 'function') ? parseDateRobust(rawFecha, resolVal, explicitDias) : { start: null, end: null, dias: explicitDias ? parseInt(explicitDias, 10) : null };
+
+              let detectedObs = obsVal;
+              let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destVal);
+              if (!hasSinViaticoText) {
+                for (let c = 0; c < row.length; c++) {
+                  if (c !== colNom && isSinViaticoText(row[c])) {
+                    hasSinViaticoText = true;
+                    if (!detectedObs) detectedObs = String(row[c]).trim();
+                    break;
+                  }
+                }
+              }
+
+              const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+              const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+              const finalValor = esSinViatico ? 0 : valor;
+              const finalValorDiario = (esSinViatico || !dInfo.dias || dInfo.dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dInfo.dias).toFixed(2)) : 0);
+              const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
 
               allRows.push({
                 persona: nomStr,
@@ -4470,10 +5236,10 @@ const ViaticosModule = (() => {
                 fechaInicio: dInfo.start,
                 fechaFin: dInfo.end,
                 dias: dInfo.dias || 1,
-                valorDiario: (dInfo.dias > 0 && valor > 0) ? parseFloat((valor / dInfo.dias).toFixed(2)) : 0,
-                valorTotal: valor,
-                estado: (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada',
-                observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+                valorDiario: finalValorDiario,
+                valorTotal: finalValor,
+                estado: finalEstado,
+                observaciones: finalObs,
                 numeroResolucion: resolVal,
                 saldo: saldoVal,
                 id_paquete
@@ -4482,7 +5248,7 @@ const ViaticosModule = (() => {
           }
 
           if (allRows.length > 0) {
-            await API.bulkCreateViaticos({ rows: allRows, id_paquete });
+            await API.bulkCreateViaticos({ rows: allRows, id_paquete, nombreArchivo: file?.name });
             App.showToast(`Se importaron ${allRows.length.toLocaleString('es-CO')} viáticos en esta vigencia.`, 'success');
           }
           resolve(allRows.length);
@@ -4566,7 +5332,7 @@ const ViaticosModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) institucional para importar o actualizar comisiones y viáticos con soporte para múltiples secretarías/hojas.</p>
           </div>
-          <button class="modal-close" id="btn-close-vit-import">&times;</button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-vit-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -4622,7 +5388,6 @@ const ViaticosModule = (() => {
         </div>
 
         <div class="modal-footer" id="vit-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-vit-import">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-vit-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <polyline points="20 6 9 17 4 12"></polyline>
@@ -4636,7 +5401,7 @@ const ViaticosModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-vit-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-vit-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-vit-import') || closeBtn;
     const dropzone = overlay.querySelector('#vit-excel-dropzone');
     const fileInput = overlay.querySelector('#vit-excel-file-input');
     const filePreview = overlay.querySelector('#vit-file-preview');
@@ -4651,7 +5416,7 @@ const ViaticosModule = (() => {
 
     const closeModal = () => overlay.remove();
     closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
     const resetSelection = () => {
       selectedFile = null;
@@ -4754,163 +5519,12 @@ const ViaticosModule = (() => {
       if (e.dataTransfer.files && e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
     });
 
-    // ─── Diccionario de equivalencias de Secretarías ──────────────────────────
-    const SECRETARIA_MAP = {
-      'DESPACHOGOBER': 'DESPACHO DEL GOBERNADOR',
-      'DESPACHO GOBERNADOR': 'DESPACHO DEL GOBERNADOR',
-      'HACIENDA': 'SECRETARÍA DE HACIENDA',
-      'PLANEACION': 'SECRETARÍA DE PLANEACIÓN',
-      'GENERAL': 'SECRETARÍA GENERAL',
-      'INFRAESTRUCTURA': 'SECRETARÍA DE INFRAESTRUCTURA',
-      'EDUCACION': 'SECRETARÍA DE EDUCACIÓN',
-      'AGRICULTURA': 'SECRETARÍA DE AGRICULTURA',
-      'INTEGRACION SOCIAL': 'SECRETARÍA DE INTEGRACIÓN SOCIAL',
-      'CULTURA': 'SECRETARÍA DE CULTURA Y PATRIMONIO',
-      'MINAS': 'SECRETARÍA DE MINAS Y ENERGÍA',
-      'GOBIERNO': 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL',
-      'DESARROLLOEMP': 'SECRETARÍA DE DESARROLLO EMPRESARIAL',
-      'CONTRATACION': 'SECRETARÍA DE CONTRATACIÓN',
-      'AMBIENTE': 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE',
-      'TURISMO': 'SECRETARÍA DE TURISMO',
-      'TIC': 'SECRETARÍA TIC Y GOBIERNO ABIERTO',
-      'SALUD': 'SECRETARÍA DE SALUD',
-      'SECRETARIA DE SALUD': 'SECRETARÍA DE SALUD',
-      '704': 'SECRETARÍA DE SALUD',
-      '703': 'SECRETARÍA DE SALUD'
-    };
-
-    // ─── Conversor de número de serie de fecha de Excel ─────────────────────
-    function excelSerialToDate(serial) {
-      if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return null;
-      const utcDays = Math.floor(serial - 25569);
-      const date = new Date(utcDays * 86400 * 1000);
-      const d = String(date.getUTCDate()).padStart(2, '0');
-      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const y = date.getUTCFullYear();
-      return `${d}/${m}/${y}`;
-    }
-
-    // ─── Parser Ultra-Robusto de Fechas y Rangos Institucionales ─────────────
-    function parseDateRobust(rawVal, resolucionStr) {
-      if (rawVal == null || rawVal === '') {
-        if (resolucionStr) {
-          const m = String(resolucionStr).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-          if (m) {
-            const d = m[1].padStart(2, '0');
-            const mo = m[2].padStart(2, '0');
-            let yr = m[3];
-            if (yr.length === 2) yr = '20' + yr;
-            const dStr = `${d}/${mo}/${yr}`;
-            return { start: dStr, end: dStr, dias: 1, raw: rawVal };
-          }
-        }
-        return { start: '01/01/2023', end: '01/01/2023', dias: 1, raw: rawVal };
-      }
-
-      if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
-        const sDate = excelSerialToDate(rawVal);
-        if (sDate) return { start: sDate, end: sDate, dias: 1, raw: rawVal };
-      }
-
-      if (rawVal instanceof Date) {
-        const d = String(rawVal.getUTCDate()).padStart(2, '0');
-        const m = String(rawVal.getUTCMonth() + 1).padStart(2, '0');
-        const y = rawVal.getUTCFullYear();
-        const dStr = `${d}/${m}/${y}`;
-        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
-      }
-
-      let s = String(rawVal).trim().replace(/\s+/g, '');
-      const mResol = s.match(/^\d{3,4}\/(\d{1,2}\/\d{1,2}\/\d{2,4})$/);
-      if (mResol) s = mResol[1];
-
-      // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
-      s = s.replace(/\/203$/, '/2023');
-      s = s.replace(/\/024$/, '/2024');
-      s = s.replace(/\/204$/, '/2024');
-      s = s.replace(/(\d{1,2}\/\d{1,2})\/(\d{4})$/, '$1/$2');
-      s = s.replace(/,(\/\d{2}\/\d{4})$/, '$1');
-      s = s.replace(/\/(\d{2})\/(\d{4})$/, '/$1/$2');
-      s = s.replace(/\/096\/(\d{4})$/, '/06/$1');
-
-      // Fechas sin barra entre día y mes o mes y año (ej: 07,08,0908/2023 -> 07,08,09/08/2023)
-      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)(\d{2})\/(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2}(?:,\d{1,2})*)\/(\d{2})(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2})\/(\d{2})(\d{4})$/, '$1/$2/$3');
-      s = s.replace(/^(\d{1,2})(\d{2})\/(\d{4})$/, '$1/$2/$3');
-
-      const parts = s.split('/').filter(p => p.length > 0);
-
-      if (parts.length === 3) {
-        let dayPart = parts[0];
-        let month = parts[1].padStart(2, '0');
-        let year = parts[2];
-        if (year.length === 2) year = '20' + year;
-        if (month.length === 3 && month.startsWith('0')) month = month.substring(1);
-
-        const days = dayPart.split(',').map(d => {
-          let cl = d.trim().replace(/^0+/, '') || '0';
-          if (cl.length === 3 && cl.startsWith('22')) cl = '22';
-          return cl;
-        }).filter(d => d.length > 0 && !isNaN(parseInt(d, 10)));
-
-        if (days.length > 1) {
-          const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
-          const end = `${days[days.length - 1].padStart(2, '0')}/${month}/${year}`;
-          return { start, end, dias: days.length, raw: rawVal };
-        }
-        const single = `${(days[0] || '01').padStart(2, '0')}/${month}/${year}`;
-        return { start: single, end: single, dias: 1, raw: rawVal };
-      } else if (parts.length === 4) {
-        let day1Part = parts[0];
-        let m1Part = parts[1];
-        let day2Part = parts[2];
-        let m2Part = parts[3];
-
-        let year = '2023';
-        let month2 = '01';
-
-        if (m2Part.length === 4) {
-          year = m2Part;
-          month2 = day2Part.padStart(2, '0');
-          const d1Tokens = day1Part.split(',').filter(Boolean);
-          const d2Tokens = [m1Part];
-          const startMonth = month2;
-          const start = `${d1Tokens[0].padStart(2, '0')}/${startMonth}/${year}`;
-          const end = `${d2Tokens[d2Tokens.length - 1].padStart(2, '0')}/${month2}/${year}`;
-          return { start, end, dias: d1Tokens.length + d2Tokens.length, raw: rawVal };
-        }
-      } else if (parts.length >= 5) {
-        let year = parts[parts.length - 1];
-        if (year.length === 2) year = '20' + year;
-        let endMonth = parts[parts.length - 2].padStart(2, '0');
-        let endDays = parts[parts.length - 3].split(',').filter(Boolean);
-        let startMonth = parts[1].padStart(2, '0');
-        let startDays = parts[0].split(',').filter(Boolean);
-
-        const start = `${(startDays[0] || '01').padStart(2, '0')}/${startMonth}/${year}`;
-        const end = `${(endDays[endDays.length - 1] || '01').padStart(2, '0')}/${endMonth}/${year}`;
-        const dias = (startDays.length || 1) + (endDays.length || 1);
-        return { start, end, dias, raw: rawVal };
-      }
-
-      const mMatch = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-      if (mMatch) {
-        let yr = mMatch[3];
-        if (yr.length === 2) yr = '20' + yr;
-        const dStr = `${mMatch[1].padStart(2, '0')}/${mMatch[2].padStart(2, '0')}/${yr}`;
-        return { start: dStr, end: dStr, dias: 1, raw: rawVal };
-      }
-
-      return { start: s, end: s, dias: 1, raw: rawVal };
-    }
-
     // ─── Confirmación y procesamiento masivo con SheetJS ────────────────────
     confirmBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -4977,7 +5591,7 @@ const ViaticosModule = (() => {
                     destino: (jr['Destino'] || jr.destino || 'SIN ESPECIFICAR').toString().trim(),
                     fechaInicio: (jr['Fecha Salida'] || jr['Fecha Inicio'] || jr.fechaInicio || '').toString().trim(),
                     fechaFin: (jr['Fecha Retorno'] || jr['Fecha Fin'] || jr.fechaFin || '').toString().trim(),
-                    dias: parseInt(jr['Días'] || jr.dias || 1) || 1,
+                    dias: (jr['Días'] !== undefined && jr['Días'] !== null && String(jr['Días']).trim() !== '') ? parseInt(jr['Días'], 10) : ((jr.dias !== undefined && jr.dias !== null && String(jr.dias).trim() !== '') ? parseInt(jr.dias, 10) : null),
                     valorDiario: parseFloat(jr['Valor Diario'] || jr.valorDiario || 0) || 0,
                     valorTotal: parseFloat(jr['Valor Total'] || jr.valorTotal || 0) || 0,
                     estado: (jr['Estado'] || jr.estado || 'Aprobada').toString().trim(),
@@ -4996,6 +5610,7 @@ const ViaticosModule = (() => {
           const headerRow = sheetData[headerIdx] || [];
           let colNombre = -1;
           let colFecha = -1;
+          let colDias = -1;
           let colDestino = -1;
           let colResolucion = -1;
           let colValor = -1;
@@ -5006,6 +5621,7 @@ const ViaticosModule = (() => {
             const hStr = String(cell || '').trim().toUpperCase();
             if (hStr.includes('NOMBRE') || hStr.includes('FUNCIONARIO') || hStr.includes('SERVIDOR')) colNombre = idx;
             else if (hStr.includes('FECHA')) colFecha = idx;
+            else if (hStr.includes('DÍA') || hStr.includes('DIA') || hStr.includes('DURAC')) colDias = idx;
             else if (hStr.includes('LUGAR') || hStr.includes('DESTINO') || hStr.includes('COMISION')) colDestino = idx;
             else if (hStr.includes('RESOLUCION') || hStr.includes('RESOL') || hStr.includes('ACTO')) colResolucion = idx;
             else if (hStr.includes('VALOR') || hStr.includes('TOTAL') || hStr.includes('COSTO')) colValor = idx;
@@ -5032,6 +5648,7 @@ const ViaticosModule = (() => {
             if (['TOTAL', 'SUBTOTAL', 'SALDO', 'FIRMA', 'RESUMEN'].includes(nomUpper)) continue;
 
             const rawFecha = row[colFecha];
+            const explicitDias = colDias !== -1 ? row[colDias] : null;
             const resolVal = row[colResolucion] ? String(row[colResolucion]).trim() : '';
             const destinoVal = row[colDestino] ? String(row[colDestino]).trim().toUpperCase() : 'SIN ESPECIFICAR';
             const valNum = colValor !== -1 && row[colValor] != null ? cleanMoneyNum(row[colValor]) : null;
@@ -5039,10 +5656,26 @@ const ViaticosModule = (() => {
             const saldoVal = colSaldo !== -1 && row[colSaldo] != null ? cleanMoneyNum(row[colSaldo]) : null;
             const obsVal = row[colObs] ? String(row[colObs]).trim() : '';
 
-            const dInfo = parseDateRobust(rawFecha, resolVal);
+            const dInfo = parseDateRobust(rawFecha, resolVal, explicitDias);
             const dias = dInfo.dias || 1;
-            const valorDiario = dias > 0 && valor > 0 ? parseFloat((valor / dias).toFixed(2)) : 0;
-            const estado = (valor === 0 || obsVal.toUpperCase().includes('SIN VIATICOS')) ? 'Finalizada' : 'Aprobada';
+
+            let detectedObs = obsVal;
+            let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destinoVal);
+            if (!hasSinViaticoText) {
+              for (let c = 0; c < row.length; c++) {
+                if (c !== colNombre && isSinViaticoText(row[c])) {
+                  hasSinViaticoText = true;
+                  if (!detectedObs) detectedObs = String(row[c]).trim();
+                  break;
+                }
+              }
+            }
+
+            const esSinViatico = hasSinViaticoText || (valor === 0 && (detectedObs ? isSinViaticoText(detectedObs) : true));
+            const finalEstado = esSinViatico ? 'Sin Viático' : 'Aprobada';
+            const finalValor = esSinViatico ? 0 : valor;
+            const finalValorDiario = (esSinViatico || !dias || dias <= 0) ? 0 : (finalValor > 0 ? parseFloat((finalValor / dias).toFixed(2)) : 0);
+            const finalObs = detectedObs || (esSinViatico ? 'SIN VIÁTICOS' : 'Carga masiva Excel');
 
             allRows.push({
               persona: nomStr,
@@ -5051,11 +5684,11 @@ const ViaticosModule = (() => {
               motivo: 'Comisión institucional de servicios',
               fechaInicio: dInfo.start,
               fechaFin: dInfo.end,
-              dias,
-              valorDiario,
-              valorTotal: valor,
-              estado,
-              observaciones: obsVal || (valor === 0 ? 'SIN VIÁTICOS' : 'Carga masiva Excel'),
+              dias: dias || 1,
+              valorDiario: finalValorDiario,
+              valorTotal: finalValor,
+              estado: finalEstado,
+              observaciones: finalObs,
               numeroResolucion: resolVal,
               saldo: saldoVal,
               hoja: sheetName
@@ -5069,7 +5702,7 @@ const ViaticosModule = (() => {
 
         App.showToast(`Importando ${allRows.length.toLocaleString('es-CO')} viáticos en ${hojasProcesadas.length} secretarías...`, 'info');
 
-        const res = await API.bulkCreateViaticos({ rows: allRows, hojasProcesadas });
+        const res = await API.bulkCreateViaticos({ rows: allRows, hojasProcesadas, nombreArchivo: selectedFile?.name });
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
 
         const { resumen = {}, errores = [] } = res;
@@ -5157,7 +5790,7 @@ const ViaticosModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }
@@ -5256,10 +5889,17 @@ const ViaticosModule = (() => {
     openAdvancedFiltersModal,
     goPage,
     calcTotal,
+    onValorTotalManualChange,
+    initSaldoPresupuestal,
+    updateCalculatedSaldo,
+    onSaldoManualInput,
+    resetSaldoPresupuestal,
     onNombreInput,
     onDocInput,
     selectEmployee,
     clearSelectedEmployee,
+    onAprobadoInput,
+    selectAprobador,
     onTipoDestinoChange,
     onDeptoChange,
     updateDestinoFinal,
@@ -5286,6 +5926,8 @@ const ViaticosModule = (() => {
     loadRanking,
     changeRankingLimit,
     exportRankingExcel,
+    renderSkeletonTable,
+    load,
   };
 })();
 window.ViaticosModule = ViaticosModule;
