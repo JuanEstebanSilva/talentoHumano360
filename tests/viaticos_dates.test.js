@@ -449,18 +449,24 @@ async function runTests() {
   assert.ok(fkRes.rows[0].def.includes('ON DELETE RESTRICT'), `Definición FK debe ser ON DELETE RESTRICT: ${fkRes.rows[0].def}`);
   console.log(`[PASS] PostgreSQL FK Constraint: ${fkRes.rows[0].conname} -> ${fkRes.rows[0].def}`);
 
-  // 2. Verificar que intentar eliminar un paquete con viáticos vía API es rechazado con 400
-  const pkgWithViaticos = await pool.query(`
-    SELECT id_paquete, COUNT(*) as cnt
-    FROM viaticos
-    WHERE id_paquete IS NOT NULL
-    GROUP BY id_paquete
-    ORDER BY cnt DESC
-    LIMIT 1
+  // 2. Probar que la API permite eliminar una ejecución presupuestal con viáticos asociados (deshacer error de carga)
+  const createTestPkg = await pool.query(`
+    INSERT INTO paquetes_viaticos (nombre, archivo_origen, anio, descripcion, creado_por)
+    VALUES ('PAQUETE TEMPORAL CON VIATICOS PRUEBA', 'ERROR_CARGA_2022.xlsx', 2026, 'Paquete temporal para prueba de eliminación', 'test_audit')
+    RETURNING id_paquete
   `);
-  assert.ok(pkgWithViaticos.rows.length > 0, 'Debe haber paquetes con viáticos en BD');
-  const targetPkgId = pkgWithViaticos.rows[0].id_paquete;
-  const viaticosCountInPkg = parseInt(pkgWithViaticos.rows[0].cnt, 10);
+  const targetPkgId = createTestPkg.rows[0].id_paquete;
+
+  // Insertar viáticos asociados al paquete de prueba
+  await pool.query(`
+    INSERT INTO viaticos (apellidos_nombres, dependencia, destino, motivo, fecha_inicio, fecha_fin, dias, valor_diario, valor_total, estado, id_paquete)
+    VALUES 
+      ('FUNCIONARIO PRUEBA 1', 'SECRETARÍA GENERAL', 'TUNJA', 'Comisión prueba 1', '2026-05-10', '2026-05-12', 3, 100000, 300000, 'Aprobado', $1),
+      ('FUNCIONARIO PRUEBA 2', 'SECRETARÍA DE SALUD', 'DUITAMA', 'Comisión prueba 2', '2026-05-15', '2026-05-16', 2, 100000, 200000, 'Legalizado', $1)
+  `, [targetPkgId]);
+
+  const countBefore = await pool.query('SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1', [targetPkgId]);
+  assert.strictEqual(parseInt(countBefore.rows[0].count, 10), 2, 'El paquete debe tener 2 viáticos creados');
 
   const deleteAttemptRes = await requestJson({
     host: 'localhost',
@@ -470,38 +476,32 @@ async function runTests() {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 
-  assert.strictEqual(deleteAttemptRes.status, 400, 'Debe responder HTTP 400 rechazando la eliminación');
-  assert.ok(deleteAttemptRes.body.error.includes('No es posible eliminar el paquete presupuestal'), 'Mensaje de error debe explicar la protección');
-  console.log(`[PASS] API bloqueó intento de eliminar paquete ${targetPkgId} (${viaticosCountInPkg} viáticos): "${deleteAttemptRes.body.error}"`);
+  assert.strictEqual(deleteAttemptRes.status, 200, 'Debe responder HTTP 200 permitiendo eliminar la ejecución');
+  assert.ok(deleteAttemptRes.body.message.includes('eliminadas exitosamente'), 'Mensaje debe confirmar eliminación exitosa');
+  assert.strictEqual(deleteAttemptRes.body.viaticos_eliminados, 2, 'Debe reportar 2 viáticos eliminados');
+  console.log(`[PASS] API eliminó exitosamente la ejecución presupuestal ${targetPkgId} con 2 viáticos asociados.`);
 
-  // Verificar que el paquete y sus viáticos siguen 100% intactos
+  // Verificar que el paquete y sus viáticos fueron eliminados limpiamente de la BD
   const checkPkgExists = await pool.query('SELECT COUNT(*) FROM paquetes_viaticos WHERE id_paquete = $1', [targetPkgId]);
-  assert.strictEqual(parseInt(checkPkgExists.rows[0].count, 10), 1, 'El paquete presupuestal debe existir intacto');
+  assert.strictEqual(parseInt(checkPkgExists.rows[0].count, 10), 0, 'El paquete presupuestal debe haber sido eliminado');
   const checkVitExists = await pool.query('SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1', [targetPkgId]);
-  assert.strictEqual(parseInt(checkVitExists.rows[0].count, 10), viaticosCountInPkg, 'Todos los viáticos asociados siguen intactos');
-  console.log(`[PASS] Integridad histórica garantizada: 0 viáticos eliminados.`);
+  assert.strictEqual(parseInt(checkVitExists.rows[0].count, 10), 0, 'Todos los viáticos asociados al paquete deben haber sido eliminados');
+  console.log(`[PASS] Limpieza completa en BD: Paquete y viáticos eliminados sin dejar registros huérfanos.`);
 
-  // 3. Probar que un paquete vacío sí puede ser eliminado sin afectar a ningún registro
-  const createEmptyPkg = await pool.query(`
-    INSERT INTO paquetes_viaticos (nombre, archivo_origen, anio, descripcion, creado_por)
-    VALUES ('PAQUETE TEMPORAL PRUEBA VACIO', 'TEMP.xlsx', 2026, 'Paquete de prueba temporal', 'test_audit')
-    RETURNING id_paquete
-  `);
-  const emptyPkgId = createEmptyPkg.rows[0].id_paquete;
-
-  const deleteEmptyRes = await requestJson({
+  // 3. Probar que intentar eliminar un paquete inexistente responde 404
+  const deleteNonExistent = await requestJson({
     host: 'localhost',
     port: 80,
-    path: `/api/viaticos/paquetes/${emptyPkgId}`,
+    path: `/api/viaticos/paquetes/999999`,
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
   });
-  assert.strictEqual(deleteEmptyRes.status, 200, 'Paquete vacío sí puede ser eliminado');
-  console.log(`[PASS] Paquete vacío ${emptyPkgId} eliminado correctamente vía API.`);
+  assert.strictEqual(deleteNonExistent.status, 404, 'Paquete inexistente debe responder HTTP 404');
+  console.log(`[PASS] Eliminación de paquete inexistente responde 404 correctamente.`);
 
-  // Limpieza de registro sintético de viático
+  // Limpieza de registro sintético de viático inicial
   await pool.query('DELETE FROM viaticos WHERE id_viatico = $1', [vitId]);
-  console.log(`[CLEANUP] Viático sintético ${vitId} eliminado limpiamente.`);
+  console.log(`[CLEANUP] Viático sintético inicial ${vitId} eliminado limpiamente.`);
 
   await pool.end();
   console.log('\n=== SUITE COMPLETADA CON ÉXITO AL 100% (FECHAS, DURACIÓN Y PROTECCIÓN CASCADE) ===');

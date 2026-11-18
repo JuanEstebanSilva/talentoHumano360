@@ -429,31 +429,24 @@ router.delete('/anios/:anio', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const anioNum = parseInt(req.params.anio, 10);
   if (!anioNum || isNaN(anioNum)) return res.status(400).json({ error: 'Año fiscal inválido.' });
+  
+  const client = await pool.connect();
   try {
-    // Proteger registros cerrados e históricos legalizados (AUD-NUEVO-007)
-    const checkLegalizados = await pool.query(
-      `SELECT COUNT(*) FROM viaticos v 
-       WHERE v.id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)
-         AND v.estado = 'Legalizado'`,
-      [anioNum]
-    );
-    const countLegalizados = parseInt(checkLegalizados.rows[0].count, 10) || 0;
-    if (countLegalizados > 0) {
-      return res.status(400).json({
-        error: `No es posible eliminar la vigencia fiscal ${anioNum}. Contiene ${countLegalizados} comisión(es) de viáticos en estado Legalizado con valor probatorio administrativo cerrado.`
-      });
-    }
-
-    // 1. Eliminar viáticos pertenecientes a paquetes de ese año
-    await pool.query('DELETE FROM viaticos WHERE id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)', [anioNum]);
+    await client.query('BEGIN');
+    // 1. Eliminar viáticos pertenecientes a paquetes de ese año (historial se elimina por FK cascade)
+    await client.query('DELETE FROM viaticos WHERE id_paquete IN (SELECT id_paquete FROM paquetes_viaticos WHERE anio = $1)', [anioNum]);
     // 2. Eliminar paquetes de ese año
-    await pool.query('DELETE FROM paquetes_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('DELETE FROM paquetes_viaticos WHERE anio = $1', [anioNum]);
     // 3. Eliminar la vigencia
-    await pool.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [anioNum]);
+    await client.query('COMMIT');
     res.json({ message: `Vigencia fiscal ${anioNum} y todos sus registros asociados fueron eliminados correctamente.` });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[viaticos] delete anio error:', err.message);
-    res.status(500).json({ error: 'Error al eliminar la vigencia fiscal.' });
+    res.status(500).json({ error: 'Error al eliminar la vigencia fiscal: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -554,30 +547,46 @@ router.put('/paquetes/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/viaticos/paquetes/:id — Eliminar un paquete (solo si no contiene viáticos asociados)
+// DELETE /api/viaticos/paquetes/:id — Eliminar una ejecución presupuestal (paquete) y todos sus viáticos asociados
 router.delete('/paquetes/:id', auth, async (req, res) => {
-  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes para eliminar ejecuciones presupuestales.' });
   const idNum = parseInt(req.params.id, 10);
   if (!idNum || isNaN(idNum)) return res.status(400).json({ error: 'ID de paquete inválido.' });
-  try {
-    // Proteger registros históricos y trazabilidad institucional: impedir eliminación de paquetes con viáticos
-    const checkViaticos = await pool.query(
-      `SELECT COUNT(*) FROM viaticos WHERE id_paquete = $1`,
-      [idNum]
-    );
-    const countViaticos = parseInt(checkViaticos.rows[0].count, 10) || 0;
-    if (countViaticos > 0) {
-      return res.status(400).json({
-        error: `No es posible eliminar el paquete presupuestal ${idNum}. Contiene ${countViaticos} comisión(es) de viático asociada(s). Para preservar la trazabilidad institucional y prevenir pérdida accidental de datos, un paquete con viáticos registrados no puede ser eliminado.`
-      });
-    }
 
-    const r = await pool.query('DELETE FROM paquetes_viaticos WHERE id_paquete = $1 RETURNING *', [idNum]);
-    if (!r.rows.length) return res.status(404).json({ error: 'Paquete no encontrado.' });
-    res.json({ message: 'Paquete eliminado exitosamente.', paquete: r.rows[0] });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verificar existencia del paquete
+    const checkPkg = await client.query('SELECT * FROM paquetes_viaticos WHERE id_paquete = $1', [idNum]);
+    if (!checkPkg.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ejecución presupuestal no encontrada.' });
+    }
+    const pkg = checkPkg.rows[0];
+
+    // 2. Eliminar viáticos pertenecientes a este paquete (historial_viaticos se elimina en cascada por FK)
+    const delViaticos = await client.query('DELETE FROM viaticos WHERE id_paquete = $1 RETURNING id_viatico', [idNum]);
+    const countDeletedViaticos = delViaticos.rowCount || 0;
+
+    // 3. Eliminar el paquete presupuestal
+    const delPkg = await client.query('DELETE FROM paquetes_viaticos WHERE id_paquete = $1 RETURNING *', [idNum]);
+
+    await client.query('COMMIT');
+
+    console.log(`[viaticos] Paquete ${idNum} ("${pkg.nombre}") eliminado exitosamente con ${countDeletedViaticos} viáticos asociados.`);
+
+    res.json({
+      message: `Ejecución presupuestal "${pkg.nombre}" y sus ${countDeletedViaticos} comisión(es) de viáticos asociadas fueron eliminadas exitosamente.`,
+      paquete: delPkg.rows[0],
+      viaticos_eliminados: countDeletedViaticos
+    });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[viaticos] delete paquete error:', err.message);
-    res.status(500).json({ error: 'Error al eliminar paquete.' });
+    res.status(500).json({ error: 'Error al eliminar la ejecución presupuestal: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 

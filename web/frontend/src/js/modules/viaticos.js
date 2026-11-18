@@ -4018,6 +4018,17 @@ const ViaticosModule = (() => {
               ${Auth.canEdit('viaticos') ? `
               <button
                 type="button"
+                class="btn-action-icon-delete"
+                onclick="ViaticosModule.confirmDeletePackage(${pkg.id_paquete}, '${escHtml(pkg.nombre)}')"
+                title="Eliminar esta ejecución presupuestal y sus registros"
+                aria-label="Eliminar esta ejecución presupuestal"
+                style="color:#dc2626;"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>` : ''}
+              ${Auth.canEdit('viaticos') ? `
+              <button
+                type="button"
                 class="btn-action-icon-add"
                 onclick="ViaticosModule.openCreate()"
                 id="btn-nuevo-viatico"
@@ -4638,44 +4649,141 @@ const ViaticosModule = (() => {
     }, 50);
   }
 
-  // ─── Confirmación de Eliminación de Paquete ──────────────────────────────────
+  // ─── Confirmación de Eliminación de Ejecución Presupuestal (Paquete) ──────────
   function confirmDeletePackage(id_paquete, nombre) {
     if (!Auth.canEdit('viaticos')) {
-      App.showToast('No tienes permisos para eliminar paquetes.', 'warning');
+      App.showToast('No tienes permisos para eliminar ejecuciones presupuestales.', 'warning');
       return;
     }
 
+    const pkg = (state.packages || []).find(p => p.id_paquete === id_paquete);
+    const countViaticos = pkg ? (parseInt(pkg.total_viaticos, 10) || 0) : 0;
+    const fileName = pkg?.archivo_origen || pkg?.nombre || nombre;
+    const anioPkg = pkg?.anio || state.selectedYear || '';
+    const requiredConfirmation = 'ELIMINAR';
+
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.danger();
 
-    App.openModal('Confirmar Eliminación de Carpeta', `
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <p style="color:var(--text-secondary); margin:0;">
-          ¿Estás seguro de que deseas eliminar la carpeta <strong style="color:var(--text-primary);">${escHtml(nombre)}</strong>?
+    const html = `
+      <div style="padding:10px 4px 6px; text-align:center;">
+        <div style="width:58px;height:58px;margin:0 auto 16px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid rgba(239,68,68,0.25);display:flex;align-items:center;justify-content:center;color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:28px;height:28px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text-primary);margin-bottom:8px;">¿Eliminar Ejecución Presupuestal?</h3>
+        <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;max-width:440px;margin:0 auto 16px;">
+          ¿Estás seguro de que deseas eliminar la ejecución <strong style="color:var(--text-primary);">${escHtml(nombre)}</strong>${anioPkg ? ` (Vigencia Fiscal ${anioPkg})` : ''}?
         </p>
-        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:12px; color:#ef4444; font-size:12.5px;">
-          ⚠️ <strong>Advertencia:</strong> Esta acción eliminará permanentemente la carpeta y todos los viáticos asociados a este archivo Excel. Esta operación no se puede deshacer.
+
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.22);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:left;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#dc2626;margin-bottom:8px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Detalle del Contenido y Motivo de Eliminación
+          </div>
+          <p style="font-size:12.5px;color:var(--text-secondary);margin:0 0 8px 0;line-height:1.45;">
+            ${countViaticos > 0 
+              ? `Esta ejecución presupuestal contiene actualmente <strong style="color:var(--text-primary);">${countViaticos.toLocaleString('es-CO')} comisión(es) de viático registrada(s)</strong>${fileName ? ` correspondientes al archivo <code>${escHtml(fileName)}</code>` : ''}.`
+              : `Esta ejecución presupuestal no contiene comisiones asociadas activas.`
+            }
+          </p>
+          <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px 0;line-height:1.45;">
+            ⚠️ <strong>¿Por qué se eliminará todo?:</strong> Si subiste este archivo por equivocación (por ejemplo, de una vigencia que no correspondía o con datos erróneos), al confirmar se eliminará de raíz la ejecución presupuestal y <strong>todos sus ${countViaticos.toLocaleString('es-CO')} viáticos asociados</strong> para que puedas corregir el error y volver a cargar el archivo correcto.
+          </p>
+          <p style="font-size:12px;color:#dc2626;margin:0;line-height:1.45;font-weight:700;">
+            Esta acción es definitiva e irreversible. Para proceder con seguridad y evitar errores involuntarios, escribe exactamente <strong style="user-select:all;text-decoration:underline;">${requiredConfirmation}</strong> a continuación:
+          </p>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <input
+            type="text"
+            id="vit-confirm-delete-pkg-input"
+            class="form-input"
+            placeholder="Escribe ${requiredConfirmation}"
+            autocomplete="off"
+            style="text-align:center; font-weight:800; font-size:14.5px; letter-spacing:0.8px; text-transform:uppercase; border:1.5px solid var(--color-border); padding:10px 14px;"
+            oninput="
+              const val = this.value.trim().toUpperCase();
+              const btn = document.getElementById('btn-confirm-delete-pkg-action');
+              if (btn) {
+                if (val === '${requiredConfirmation}') {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.cursor = 'pointer';
+                  btn.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
+                } else {
+                  btn.disabled = true;
+                  btn.style.opacity = '0.45';
+                  btn.style.cursor = 'not-allowed';
+                  btn.style.boxShadow = 'none';
+                }
+              }
+            "
+          />
         </div>
       </div>
-    `, [
+    `;
+
+    App.openModal('Confirmar Eliminación de Ejecución Presupuestal', html, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Sí, Eliminar Todo', cls: 'btn-danger', action: async () => {
-        try {
-          await API.deleteViaticosPaquete(id_paquete);
-          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
-          App.closeModal();
-          App.showToast(`Carpeta "${nombre}" eliminada exitosamente.`, 'success');
-          if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
-            state.activeView = state.selectedYear ? 'year_packages' : 'years';
-            state.activePackage = null;
+      {
+        text: 'Sí, Eliminar Ejecución',
+        cls: 'btn-danger',
+        id: 'btn-confirm-delete-pkg-action',
+        action: async () => {
+          const inputEl = document.getElementById('vit-confirm-delete-pkg-input');
+          const typedVal = inputEl ? inputEl.value.trim().toUpperCase() : '';
+          if (typedVal !== requiredConfirmation) {
+            App.showToast(`Debes escribir "${requiredConfirmation}" para confirmar la eliminación.`, 'warning');
+            if (inputEl) inputEl.focus();
+            return;
           }
-          await loadPackages();
-          await renderCurrentView();
-          loadStats();
-        } catch (err) {
-          App.showToast(err.message || 'Error al eliminar carpeta.', 'error');
+
+          const btn = document.getElementById('btn-confirm-delete-pkg-action');
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Eliminando...';
+          }
+
+          try {
+            const res = await API.deleteViaticosPaquete(id_paquete);
+            if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.danger) {
+              FX.Sound.danger();
+            } else if (typeof FX !== 'undefined' && FX.Sound && FX.Sound.confirm) {
+              FX.Sound.confirm();
+            }
+            App.closeModal();
+            const msg = (res && res.message) || `Ejecución presupuestal "${nombre}" eliminada exitosamente.`;
+            App.showToast(msg, 'success');
+            if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
+              state.activeView = state.selectedYear ? 'year_packages' : 'years';
+              state.activePackage = null;
+            }
+            await loadPackages();
+            await loadYears();
+            await renderCurrentView();
+            loadStats();
+          } catch (err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = 'Sí, Eliminar Ejecución';
+            }
+            App.showToast(err.message || 'Error al eliminar la ejecución presupuestal.', 'error');
+          }
         }
-      }},
+      }
     ]);
+
+    setTimeout(() => {
+      const btn = document.getElementById('btn-confirm-delete-pkg-action');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+        btn.style.transition = 'all 0.2s ease';
+      }
+      const inp = document.getElementById('vit-confirm-delete-pkg-input');
+      if (inp) inp.focus();
+    }, 60);
   }
 
   // ─── Exportar Excel exclusivo de un Paquete / Carpeta ─────────────────────────
