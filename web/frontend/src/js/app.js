@@ -10,6 +10,67 @@ const App = (() => {
     return activeModule;
   }
 
+  // ─── Humanización de Errores Técnicos y PostgreSQL ─────────────────────────
+  function humanizeErrorMessage(rawMsg) {
+    if (!rawMsg || typeof rawMsg !== 'string') return 'Ocurrió un error inesperado al procesar la solicitud.';
+    const str = rawMsg.trim();
+
+    // 1. Violación de restricción NOT NULL en PostgreSQL
+    if (/null value in column ["']?([^"'\s]+)["']?.*violates not-null constraint/i.test(str)) {
+      const colMatch = str.match(/null value in column ["']?([^"'\s]+)["']?.*violates not-null constraint/i);
+      const col = colMatch ? colMatch[1].toLowerCase() : '';
+      const colDict = {
+        fecha_inicio: 'La fecha de inicio de vigencia es obligatoria.',
+        fecha_fin: 'La fecha de terminación o fin es obligatoria.',
+        fecha: 'La fecha es obligatoria.',
+        numero_documento: 'El número de documento de identidad es obligatorio.',
+        documento: 'El número de documento de identidad es obligatorio.',
+        cedula: 'La cédula de ciudadanía es obligatoria.',
+        nombres: 'El nombre del servidor público es obligatorio.',
+        apellidos: 'Los apellidos del servidor público son obligatorios.',
+        apellidos_nombres: 'El nombre completo del servidor público es obligatorio.',
+        cargo: 'El cargo del servidor público es obligatorio.',
+        dependencia: 'La dependencia institucional es obligatoria.',
+        tipo_solicitud: 'El tipo de solicitud es obligatorio.',
+        modalidad: 'La modalidad laboral es obligatoria.',
+        horario: 'El esquema de horario es obligatorio.',
+        numero_consecutivo: 'El número consecutivo oficial es obligatorio.'
+      };
+      if (colDict[col]) return colDict[col];
+      return `El campo obligatorio "${col.replace(/_/g, ' ')}" no puede estar vacío.`;
+    }
+
+    // 2. Violación de restricción UNIQUE en PostgreSQL
+    if (/duplicate key value violates unique constraint/i.test(str) || /unique constraint/i.test(str)) {
+      if (/cedula|documento/i.test(str)) return 'Ya existe un servidor público registrado con este documento de identidad.';
+      if (/correo|email/i.test(str)) return 'Ya existe un usuario institucional registrado con este correo electrónico.';
+      if (/consecutivo/i.test(str)) return 'Ya existe un registro con este número consecutivo oficial.';
+      return 'Ya existe un registro con estos mismos datos en el sistema.';
+    }
+
+    // 3. Violación de llave foránea (Foreign Key)
+    if (/violates foreign key constraint/i.test(str)) {
+      return 'El servidor público o registro relacionado no existe o no se encuentra activo.';
+    }
+
+    // 4. Violación de CHECK constraint
+    if (/violates check constraint/i.test(str)) {
+      return 'Uno de los valores ingresados no cumple con el formato o los límites permitidos.';
+    }
+
+    // 5. Errores de red o conexión
+    if (/failed to fetch/i.test(str) || /networkerror/i.test(str)) {
+      return 'No fue posible conectarse con el servidor. Verifique su conexión de red.';
+    }
+
+    // 6. Limpieza de prefijos técnicos si la causa interna fue SQL
+    if (str.includes('violates') || str.includes('constraint') || str.includes('relation "')) {
+      return 'Por favor verifique los campos obligatorios del formulario.';
+    }
+
+    return str;
+  }
+
   // ─── Toast System ──────────────────────────────────────────────────────────
   function showToast(message, type = 'info') {
     if (typeof Settings !== 'undefined' && !Settings.isNotificationTypeEnabled(type)) {
@@ -23,9 +84,12 @@ const App = (() => {
       warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
       info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
     };
+
+    const finalMessage = type === 'error' ? humanizeErrorMessage(message) : message;
+
     const toast = document.createElement('div');
     toast.className = `toast toast--${type}`;
-    toast.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+    toast.innerHTML = `${icons[type] || icons.info}<span>${finalMessage}</span>`;
     container.appendChild(toast);
 
     // FX: animate toast in with sound
@@ -39,6 +103,89 @@ const App = (() => {
         setTimeout(() => toast.remove(), 300);
       }
     }, 4000);
+  }
+
+  // ─── Validación Universal de Formularios & Resaltado en Rojo ─────────────────
+  function markFieldInvalid(fieldOrId, message) {
+    if (!fieldOrId) return;
+
+    let el = null;
+    if (typeof fieldOrId === 'string') {
+      el = document.getElementById(fieldOrId);
+      if (!el) {
+        try { el = document.querySelector(fieldOrId); } catch (_) {}
+      }
+      if (!el) {
+        el = document.querySelector(`[name="${fieldOrId}"], .${fieldOrId}`);
+      }
+    } else if (fieldOrId instanceof HTMLElement) {
+      el = fieldOrId;
+    }
+
+    if (!el) {
+      if (message) showToast(message, 'error');
+      return;
+    }
+
+    // Si el campo pertenece a una pestaña oculta, cambiar automáticamente a esa pestaña
+    const tabPane = el.closest('.form-tab-pane, .tab-pane, [data-tab-content]');
+    if (tabPane && (!tabPane.classList.contains('active') || tabPane.style.display === 'none')) {
+      const tabId = tabPane.id;
+      if (typeof EmployeesModule !== 'undefined' && EmployeesModule.switchFormTab && tabId.startsWith('tab-form-')) {
+        EmployeesModule.switchFormTab(tabId);
+      } else if (typeof HorariosModule !== 'undefined' && HorariosModule.switchFormTab && tabId.startsWith('tab-hor-')) {
+        HorariosModule.switchFormTab(tabId);
+      } else {
+        const tabBtn = document.querySelector(`button[data-tab="${tabId}"], .form-wizard-tab[data-tab="${tabId}"], button[onclick*="${tabId}"]`);
+        if (tabBtn) {
+          tabBtn.click();
+        } else {
+          tabPane.classList.add('active');
+          tabPane.style.display = 'block';
+        }
+      }
+    }
+
+    // Elemento visible que recibirá foco y borde rojo (soporta flatpickr altInput)
+    const targetInput = (el._flatpickr && el._flatpickr.altInput) ? el._flatpickr.altInput : el;
+
+    el.classList.add('input-invalid');
+    targetInput.classList.add('input-invalid');
+
+    const group = el.closest('.form-group, .floating-group, .adv-filter-field');
+    if (group) group.classList.add('has-error');
+
+    // Desplazar suavemente hasta el campo y enfocar
+    setTimeout(() => {
+      try {
+        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (_) {
+        targetInput.scrollIntoView(true);
+      }
+      try {
+        targetInput.focus();
+      } catch (_) {}
+    }, 90);
+
+    if (message) {
+      showToast(message, 'error');
+    }
+
+    // Quitar el rojo automáticamente cuando el usuario ingrese o modifique el valor
+    const clearHandler = () => {
+      el.classList.remove('input-invalid');
+      targetInput.classList.remove('input-invalid');
+      if (group) group.classList.remove('has-error');
+      el.removeEventListener('input', clearHandler);
+      el.removeEventListener('change', clearHandler);
+      targetInput.removeEventListener('input', clearHandler);
+      targetInput.removeEventListener('change', clearHandler);
+    };
+
+    el.addEventListener('input', clearHandler);
+    el.addEventListener('change', clearHandler);
+    targetInput.addEventListener('input', clearHandler);
+    targetInput.addEventListener('change', clearHandler);
   }
 
   // ─── Modal System & Dirty Form Tracking ─────────────────────────────────────
@@ -345,6 +492,95 @@ const App = (() => {
     }
   }
 
+  function positionCalendarSmartly(inst, customElement) {
+    if (!inst || !inst.calendarContainer) return;
+
+    // Elemento ancla: Siempre priorizar altInput visible generado por Flatpickr
+    const target = customElement || inst.altInput || inst._positionElement || inst.input;
+    if (!target) return;
+
+    // Garantizar que toda la estructura (incluyendo footer con botones Hoy y Limpiar) esté inyectada
+    ensureCalendarCustomUI(inst);
+
+    const cal = inst.calendarContainer;
+    const targetRect = target.getBoundingClientRect();
+    if (targetRect.width === 0 && targetRect.height === 0) return;
+
+    // Medición exacta y robusta para garantizar que toda la grilla y el pie queden dentro del viewport
+    const calHeight = Math.max(cal.offsetHeight || 0, cal.scrollHeight || 0, 465);
+    const calWidth = Math.max(cal.offsetWidth || 0, 364);
+    const vpWidth = window.innerWidth || document.documentElement.clientWidth;
+    const vpHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    const spaceBelow = vpHeight - targetRect.bottom;
+    const spaceAbove = targetRect.top;
+
+    // Decisión de apertura vertical:
+    // 1. Si cabe abajo con holgura (al menos calHeight + 10px), abrir abajo.
+    // 2. Si no cabe abajo pero sí arriba (al menos calHeight + 10px), abrir arriba.
+    // 3. Si no cabe completo en ninguno de los dos, abrir en el lado que tenga MAYOR espacio disponible.
+    let openAbove = false;
+    if (spaceBelow >= calHeight + 10) {
+      openAbove = false;
+    } else if (spaceAbove >= calHeight + 10) {
+      openAbove = true;
+    } else {
+      openAbove = (spaceAbove >= spaceBelow);
+    }
+
+    let top = openAbove ? (targetRect.top - calHeight - 4) : (targetRect.bottom + 4);
+
+    // Clamping estricto en el viewport:
+    // NUNCA permitir que el pie del calendario (con los botones 'Hoy' y 'Limpiar')
+    // quede cortado fuera de la pantalla.
+    const maxTop = Math.max(8, vpHeight - calHeight - 10);
+    const minTop = 8;
+
+    if (top > maxTop) top = maxTop;
+    if (top < minTop) top = minTop;
+
+    // Si la altura del calendario supera la altura del viewport disponible
+    if (calHeight > vpHeight - 16) {
+      cal.style.maxHeight = (vpHeight - 16) + 'px';
+      cal.style.overflowY = 'auto';
+      top = 8;
+    } else {
+      cal.style.maxHeight = '';
+      cal.style.overflowY = '';
+    }
+
+    // Posicionamiento horizontal inteligente
+    let left = targetRect.left;
+    const maxLeft = vpWidth - calWidth - 8;
+    const minLeft = 8;
+    if (left > maxLeft) left = maxLeft;
+    if (left < minLeft) left = minLeft;
+
+    // Al usar position: fixed !important en CSS, las coordenadas son directamente respecto al viewport
+    cal.style.position = 'fixed';
+    cal.style.top = Math.round(top) + 'px';
+    cal.style.left = Math.round(left) + 'px';
+    cal.style.right = 'auto';
+
+    // Ajustar clases indicadoras de flecha (arriba / abajo)
+    const isVisuallyAbove = (top + calHeight / 2) < targetRect.top;
+    cal.classList.toggle('arrowTop', !isVisuallyAbove);
+    cal.classList.toggle('arrowBottom', isVisuallyAbove);
+  }
+
+  // Listener global pasivo para reposicionar el calendario si el usuario hace scroll dentro de un modal
+  if (typeof window !== 'undefined' && !window._flatpickrGlobalRepositionInit) {
+    window._flatpickrGlobalRepositionInit = true;
+    const repositionOpenPicker = () => {
+      const openCal = document.querySelector('.flatpickr-calendar.open');
+      if (openCal && openCal._flatpickrInstance) {
+        positionCalendarSmartly(openCal._flatpickrInstance);
+      }
+    };
+    window.addEventListener('scroll', repositionOpenPicker, { capture: true, passive: true });
+    window.addEventListener('resize', repositionOpenPicker, { passive: true });
+  }
+
   function initDatePickers(container = document) {
     if (typeof flatpickr === 'undefined') return;
     try {
@@ -395,6 +631,9 @@ const App = (() => {
           weekNumbers: false,
           disableMobile: true,
           monthSelectorType: 'dropdown',
+          position: function(self, customElement) {
+            positionCalendarSmartly(self, customElement);
+          },
           onChange: function(selectedDates, dateStr) {
             input.value = dateStr;
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
@@ -406,6 +645,9 @@ const App = (() => {
             input.dispatchEvent(new Event('input', { bubbles: true }));
           },
           onReady: function(selectedDates, dateStr, instance) {
+            if (instance.calendarContainer) {
+              instance.calendarContainer._flatpickrInstance = instance;
+            }
             if (instance.altInput) {
               instance.altInput.placeholder = input.getAttribute('placeholder') || ' ';
               instance.altInput.setAttribute('autocomplete', 'off');
@@ -415,12 +657,26 @@ const App = (() => {
             // Sincronización con etiquetas flotantes
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) {
-              if (currentVal || dateStr) group.classList.add('is-floated');
-              if (instance.altInput) {
+              if (currentVal || dateStr || input.value) {
+                group.classList.add('is-floated');
+              } else {
+                group.classList.remove('is-floated');
+              }
+              if (instance.altInput && !instance.altInput._hasFloatListeners) {
+                instance.altInput._hasFloatListeners = true;
                 instance.altInput.addEventListener('focus', () => group.classList.add('is-focused', 'is-floated'));
                 instance.altInput.addEventListener('blur', () => {
                   group.classList.remove('is-focused');
-                  if (!input.value) group.classList.remove('is-floated');
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  }
+                });
+                instance.altInput.addEventListener('input', () => {
+                  if (!input.value && (!instance.altInput || !instance.altInput.value)) {
+                    group.classList.remove('is-floated');
+                  } else {
+                    group.classList.add('is-floated');
+                  }
                 });
               }
             }
@@ -429,12 +685,19 @@ const App = (() => {
           },
           onYearChange: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           },
           onMonthChange: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           },
           onOpen: function(selectedDates, dateStr, instance) {
+            if (instance.calendarContainer) {
+              instance.calendarContainer._flatpickrInstance = instance;
+            }
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
+            requestAnimationFrame(() => positionCalendarSmartly(instance));
             const group = input.closest('.form-group, .adv-filter-field, .filter-group, .floating-group');
             if (group) group.classList.add('is-focused', 'is-floated');
           },
@@ -447,6 +710,7 @@ const App = (() => {
           },
           onValueUpdate: function(selectedDates, dateStr, instance) {
             ensureCalendarCustomUI(instance);
+            positionCalendarSmartly(instance);
           }
         });
       });
@@ -547,7 +811,7 @@ const App = (() => {
         }
 
         const label = group.querySelector('.form-label, .filter-label, label');
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])');
         if (!label || !control) return;
 
         // Activar grupo flotante
@@ -562,10 +826,13 @@ const App = (() => {
           let hasVal = false;
           if (control.matches('select')) {
             hasVal = Boolean(control.value && String(control.value).trim() !== '');
-          } else if (control.type === 'date' || control._flatpickr) {
-            hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
           } else {
-            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+            if (fp) {
+              hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+            } else {
+              hasVal = Boolean(control.value && String(control.value).trim() !== '');
+            }
           }
 
           if (hasVal) {
@@ -652,17 +919,33 @@ const App = (() => {
     try {
       const groups = container.querySelectorAll('.form-group, .floating-group, .adv-filter-field, .filter-group');
       groups.forEach(group => {
-        const control = group.querySelector('.form-input, .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+        if (
+          group.querySelector('.modalidad-cards-selector') ||
+          group.querySelector('.dest-toggle-group') ||
+          group.querySelector('.file-upload-zone') ||
+          group.querySelector('.excel-dropzone') ||
+          group.querySelector('#vpkg-dropzone') ||
+          group.querySelector('.form-section-header') ||
+          group.querySelector('.badge-servidor-vinculado') ||
+          group.querySelector('#ef-periodos-container') ||
+          group.querySelector('#ef-celulares-container')
+        ) {
+          return;
+        }
+        const control = group.querySelector('.flatpickr-input-custom, .form-input:not([type="hidden"]), .filter-input, .filter-select, .form-select, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
         if (!control) return;
         group.classList.add('floating-group');
         let hasVal = false;
         if (control.matches('select')) {
           hasVal = Boolean(control.value && String(control.value).trim() !== '');
           group.classList.add('is-select');
-        } else if (control.type === 'date' || control._flatpickr) {
-          hasVal = Boolean(control.value || (control._flatpickr && control._flatpickr.selectedDates && control._flatpickr.selectedDates.length > 0));
         } else {
-          hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          const fp = control._flatpickr || control.previousElementSibling?._flatpickr;
+          if (fp) {
+            hasVal = Boolean(control.value || (fp.selectedDates && fp.selectedDates.length > 0));
+          } else {
+            hasVal = Boolean(control.value && String(control.value).trim() !== '');
+          }
         }
         if (hasVal) {
           group.classList.add('is-floated');
@@ -710,6 +993,7 @@ const App = (() => {
   const MODULE_TITLES = {
     'admin-errors': 'Centro de Errores e Incidentes',
     'admin-backups': 'Copias de Seguridad del Sistema',
+    'admin-modules-unlock': 'Módulos del Sistema',
     dashboard: 'Dashboard',
     employees: 'Servidores Públicos',
     requests: 'Solicitudes de Vacaciones',
@@ -729,6 +1013,7 @@ const App = (() => {
   const MODULE_ICONS = {
     'admin-errors': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     'admin-backups': '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+    'admin-modules-unlock': '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
     employees: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     requests: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -748,6 +1033,7 @@ const App = (() => {
   const VALID_ROUTES = new Set([
     'admin-errors',
     'admin-backups',
+    'admin-modules-unlock',
     'dashboard',
     'employees',
     'requests',
@@ -770,11 +1056,24 @@ const App = (() => {
     if (scope === 'incapacidades') return { module: 'incapacidades', options: {} };
     if (scope === 'permisos') return { module: 'admin-requests', options: { tipo: 'permisos' } };
     if (scope === 'permisos_licencias') return { module: 'admin-requests', options: { tipo: 'permisos' } };
-    if (user && isUserAdmin(user)) return { module: 'admin-errors', options: {} };
+
+    if (typeof Auth !== 'undefined' && Auth.getUserModules) {
+      const u = user || Auth.getUser();
+      const mods = Auth.getUserModules(u);
+      if (!mods.includes('*') && !mods.includes('all') && !mods.includes('dashboard')) {
+        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
+        if (mods.includes('admin-backups') || mods.includes('backups')) return { module: 'admin-backups', options: {} };
+        if (mods.length > 0) return { module: mods[0], options: {} };
+      }
+    }
     return { module: 'dashboard', options: {} };
   }
 
   function applyRoleSidebarAccess(user) {
+    if (user && isUserAdmin(user)) {
+      applyNavigationPermissions(user);
+      return;
+    }
     const scope = (typeof Auth !== 'undefined' && Auth.getRoleScope) ? Auth.getRoleScope(user) : 'all';
     const showLi = (id, visible) => {
       const el = document.getElementById(id);
@@ -817,27 +1116,39 @@ const App = (() => {
 
   async function navigate(module, options = {}) {
     let rawModule = String(module || '').replace(/^#\/?/, '').trim();
+
+    // Detener auto-refresco del módulo de errores si se sale de él
+    if (rawModule !== 'admin-errors' && typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
+
     if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
       return navigate('incapacidades');
     }
 
     // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
     const alwaysAllowed = new Set(['settings', 'privacidad', 'terminos', 'accesibilidad']);
-    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn() && !alwaysAllowed.has(rawModule)) {
-      const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
-      if (scope === 'sst' && rawModule !== 'sst') {
-        return navigate('sst', { tab: options.tab || 'epidemiologico' });
+    if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
+      if (Auth.mustChangePassword && Auth.mustChangePassword()) {
+        showMandatoryPasswordModal(Auth.getUser());
+        return;
       }
-      if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
-        return navigate('incapacidades');
-      }
-      if (scope === 'permisos') {
-        if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
-          return navigate('admin-requests', { tipo: 'permisos' });
+      if (!alwaysAllowed.has(rawModule)) {
+        const scope = Auth.getRoleScope ? Auth.getRoleScope() : 'all';
+        if (scope === 'sst' && rawModule !== 'sst') {
+          return navigate('sst', { tab: options.tab || 'epidemiologico' });
         }
-      }
-      if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
-        return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+        if (scope === 'incapacidades' && rawModule !== 'incapacidades') {
+          return navigate('incapacidades');
+        }
+        if (scope === 'permisos') {
+          if (rawModule !== 'admin-requests' || (options.tipo && options.tipo !== 'permisos')) {
+            return navigate('admin-requests', { tipo: 'permisos' });
+          }
+        }
+        if (scope === 'permisos_licencias' && rawModule !== 'admin-requests') {
+          return navigate('admin-requests', { tipo: options.tipo || 'permisos' });
+        }
       }
     }
 
@@ -861,21 +1172,50 @@ const App = (() => {
     const isAdmin = isUserAdmin(user);
 
     if (isAdmin) {
-      // El Administrador General dispone de visibilidad global y supervisión sobre todos los módulos del sistema (TSK-010 / AUD-010).
-    } else {
-      // Para usuarios regulares: bloquear módulos de administración técnica
-      if (rawModule === 'admin-errors' || rawModule === 'admin-backups') {
-        showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
-        navigate('dashboard');
+      if (rawModule === 'admin-modules-unlock') {
+        const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+        if (isElevated) {
+          promptAdminUnlockedOptions();
+        } else {
+          promptAdminUnlock('dashboard');
+        }
         return;
       }
 
-      const publicRoutes = ['dashboard', 'settings', 'privacidad', 'terminos', 'accesibilidad'];
-      if (!publicRoutes.includes(rawModule)) {
-        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
-          showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
-          navigate('dashboard');
+      const isPermisos = (rawModule === 'admin-requests' && (!options || !options.tipo || options.tipo === 'permisos' || options.tipo === 'Permiso Laboral'));
+      const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+
+      if (!isPermisos && !technicalAdminRoutes.has(rawModule) && !isElevated) {
+        // El administrador intenta acceder a módulos operativos sin haber confirmado su contraseña
+        promptAdminUnlock(rawModule, options);
+        return;
+      }
+    } else {
+      // Para usuarios regulares: control granular de módulos
+      if (rawModule === 'admin-errors' || rawModule === 'admin-modules-unlock') {
+        showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
+        const defaultRoute = getDefaultLandingRoute(user);
+        navigate(defaultRoute.module, defaultRoute.options);
+        return;
+      }
+
+      if (rawModule === 'admin-backups') {
+        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess('admin-backups')) {
+          showToast('Acceso restringido: no tienes permisos asignados para copias de seguridad.', 'warning');
+          const defaultRoute = getDefaultLandingRoute(user);
+          navigate(defaultRoute.module, defaultRoute.options);
           return;
+        }
+      } else {
+        const publicRoutes = ['settings', 'privacidad', 'terminos', 'accesibilidad'];
+        if (!publicRoutes.includes(rawModule)) {
+          if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess(rawModule)) {
+            showToast('Acceso restringido: no tienes permisos asignados para acceder a este módulo.', 'warning');
+            const defaultRoute = getDefaultLandingRoute(user);
+            navigate(defaultRoute.module, defaultRoute.options);
+            return;
+          }
         }
       }
     }
@@ -905,15 +1245,24 @@ const App = (() => {
     }
 
     if (rawModule === 'admin-requests') {
-      const adminGroupBtn = document.getElementById('nav-admin-group');
-      const menu = document.getElementById('admin-submenu');
-      if (adminGroupBtn) {
-        adminGroupBtn.classList.add('active');
-        adminGroupBtn.setAttribute('aria-current', 'true');
-        adminGroupBtn.setAttribute('aria-expanded', 'true');
-      }
-      if (menu) {
-        menu.setAttribute('aria-hidden', 'false');
+      const tipoKey = (options && options.tipo) || 'permisos';
+      const navAdminPermisos = document.getElementById('nav-admin-permisos');
+      const isStandAloneVisible = navAdminPermisos && (navAdminPermisos.closest('li') ? window.getComputedStyle(navAdminPermisos.closest('li')).display !== 'none' : true);
+
+      if (tipoKey === 'permisos' && isStandAloneVisible) {
+        navAdminPermisos.classList.add('active');
+        navAdminPermisos.setAttribute('aria-current', 'page');
+      } else {
+        const adminGroupBtn = document.getElementById('nav-admin-group');
+        const menu = document.getElementById('admin-submenu');
+        if (adminGroupBtn) {
+          adminGroupBtn.classList.add('active');
+          adminGroupBtn.setAttribute('aria-current', 'true');
+          adminGroupBtn.setAttribute('aria-expanded', 'true');
+        }
+        if (menu) {
+          menu.setAttribute('aria-hidden', 'false');
+        }
       }
     } else if (rawModule === 'sst') {
       const sstGroupBtn = document.getElementById('nav-sst-group');
@@ -997,15 +1346,23 @@ const App = (() => {
           case 'admin-requests': {
             const tipoKey = options.tipo || 'permisos';
             await AdminRequestsModule.render(container, tipoKey);
-            const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
-            const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
-            if (activeSubBtn) {
-              activeSubBtn.classList.add('active');
-              activeSubBtn.setAttribute('aria-current', 'page');
+            const navAdminPermisos = document.getElementById('nav-admin-permisos');
+            const isStandAloneVisible = navAdminPermisos && (navAdminPermisos.closest('li') ? window.getComputedStyle(navAdminPermisos.closest('li')).display !== 'none' : true);
+
+            if (tipoKey === 'permisos' && isStandAloneVisible) {
+              navAdminPermisos.classList.add('active');
+              navAdminPermisos.setAttribute('aria-current', 'page');
+            } else {
+              const subnavMap = { permisos: 'nav-permisos', incapacidades: 'nav-incapacidades', licencias: 'nav-licencias' };
+              const activeSubBtn = document.getElementById(subnavMap[tipoKey] || 'nav-permisos');
+              if (activeSubBtn) {
+                activeSubBtn.classList.add('active');
+                activeSubBtn.setAttribute('aria-current', 'page');
+              }
+              const adminGroupBtn = document.getElementById('nav-admin-group');
+              if (adminGroupBtn) adminGroupBtn.classList.add('active');
+              expandAdminGroup();
             }
-            const adminGroupBtn = document.getElementById('nav-admin-group');
-            if (adminGroupBtn) adminGroupBtn.classList.add('active');
-            expandAdminGroup();
             break;
           }
           case 'incapacidades': await IncapacidadesModule.render(container); break;
@@ -1260,7 +1617,12 @@ const App = (() => {
     isReauthenticating = true;
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
-    const currentUsername = user.username || '';
+    const prefillUser = user.username || user.email || (function() {
+      try {
+        const u = JSON.parse(localStorage.getItem('h360_user') || '{}');
+        return u.username || u.email || '';
+      } catch (_) { return ''; }
+    })() || '';
 
     const overlay = document.createElement('div');
     overlay.id = 'reauth-dialog-overlay';
@@ -1288,17 +1650,17 @@ const App = (() => {
           <div id="reauth-error" style="display: none; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 0.85rem; font-weight: 500;"></div>
 
           <div style="margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
-              Usuario Institucional
+            <label for="reauth-username" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
+              Usuario Institucional o Correo
             </label>
-            <input type="text" id="reauth-username" readonly style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-subtle, #f1f5f9); color: var(--text-primary, #334155); font-weight: 600; cursor: not-allowed; box-sizing: border-box;" />
+            <input type="text" id="reauth-username" autocomplete="username" placeholder="Ingresa tu correo o usuario institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); font-weight: 600; font-size: 0.95rem; box-sizing: border-box; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="margin-bottom: 22px;">
             <label for="reauth-password" style="display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #64748b); margin-bottom: 6px;">
               Contraseña
             </label>
-            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #1e293b); box-sizing: border-box; font-size: 0.95rem;" />
+            <input type="password" id="reauth-password" required autocomplete="current-password" placeholder="Ingresa tu contraseña institucional" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border-color, #cbd5e1); background: var(--bg-surface, #ffffff); color: var(--text-primary, #0f172a); box-sizing: border-box; font-size: 0.95rem; outline: none; transition: border-color 0.2s;" />
           </div>
 
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -1316,7 +1678,9 @@ const App = (() => {
     document.body.appendChild(overlay);
 
     const userInput = overlay.querySelector('#reauth-username');
-    if (userInput) userInput.value = currentUsername;
+    if (userInput && prefillUser) {
+      userInput.value = prefillUser;
+    }
 
     const pwdInput = overlay.querySelector('#reauth-password');
     const errEl = overlay.querySelector('#reauth-error');
@@ -1324,7 +1688,18 @@ const App = (() => {
     const cancelBtn = overlay.querySelector('#reauth-btn-cancel');
     const submitBtn = overlay.querySelector('#reauth-btn-submit');
 
-    if (pwdInput) {
+    if (userInput) {
+      userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (pwdInput) pwdInput.focus();
+        }
+      });
+    }
+
+    if (userInput && !userInput.value) {
+      setTimeout(() => userInput.focus(), 80);
+    } else if (pwdInput) {
       setTimeout(() => pwdInput.focus(), 80);
     }
 
@@ -1337,6 +1712,12 @@ const App = (() => {
 
     cancelBtn.addEventListener('click', () => {
       cleanupOverlay();
+      const unlockOverlay = document.getElementById('admin-unlock-dialog-overlay');
+      if (unlockOverlay && unlockOverlay.parentNode) {
+        unlockOverlay.parentNode.removeChild(unlockOverlay);
+      }
+      isAdminUnlocking = false;
+
       if (typeof Auth !== 'undefined' && Auth.clear) Auth.clear();
       showLogin();
       showToast('Sesión finalizada. Inicie sesión nuevamente.', 'info');
@@ -1347,12 +1728,24 @@ const App = (() => {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const enteredUser = (userInput?.value || '').trim() || prefillUser;
       const pwd = pwdInput ? pwdInput.value : '';
+
+      if (!enteredUser) {
+        if (errEl) {
+          errEl.textContent = 'Por favor ingresa tu usuario institucional o correo electrónico.';
+          errEl.style.display = 'block';
+        }
+        if (userInput) userInput.focus();
+        return;
+      }
+
       if (!pwd) {
         if (errEl) {
           errEl.textContent = 'Por favor ingresa tu contraseña institucional.';
           errEl.style.display = 'block';
         }
+        if (pwdInput) pwdInput.focus();
         return;
       }
 
@@ -1363,7 +1756,7 @@ const App = (() => {
       if (errEl) errEl.style.display = 'none';
 
       try {
-        const res = await API.login(currentUsername, pwd);
+        const res = await API.login(enteredUser, pwd);
         if (res && res.token && res.user) {
           if (res.user) {
             res.user.role = sanitizeRole(res.user.role);
@@ -1401,8 +1794,417 @@ const App = (() => {
     });
   }
 
+  // ─── Desbloqueo de Módulos para Administrador Técnico ───────────────────────
+  let isAdminUnlocking = false;
+
+  function promptAdminUnlock(targetModule = 'dashboard', targetOptions = {}) {
+    if (isAdminUnlocking) {
+      const pwd = document.getElementById('admin-unlock-password');
+      if (pwd) pwd.focus();
+      return;
+    }
+    isAdminUnlocking = true;
+
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const adminEmail = user.username || user.email || 'alejoleo2022@gmail.com';
+    const adminName = user.nombre || user.name || 'Alejandro León';
+    const initials = (adminName || 'A').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AL';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'admin-unlock-dialog-overlay';
+    overlay.className = 'admin-unlock-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Desbloquear Módulos Institucionales');
+
+    overlay.innerHTML = `
+      <div class="admin-unlock-card">
+        <div class="admin-unlock-top-accent"></div>
+        <div class="admin-unlock-header">
+          <div class="admin-unlock-top-row">
+            <button type="button" class="admin-unlock-close-btn" id="admin-unlock-btn-close" title="Cerrar (Esc)" aria-label="Cerrar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-unlock-icon-container">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 class="admin-unlock-title">Módulos del Sistema</h3>
+          <p class="admin-unlock-subtitle">
+            ¿Estás seguro de que deseas desbloquear los módulos operativos? Confirma tu contraseña institucional para continuar.
+          </p>
+        </div>
+
+        <form id="admin-unlock-form" class="admin-unlock-body" novalidate>
+          <div id="admin-unlock-error" class="admin-unlock-error-banner" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span class="admin-unlock-error-text"></span>
+          </div>
+
+          <div class="admin-unlock-user-card">
+            <div class="admin-unlock-user-left">
+              <div class="admin-unlock-avatar" title="${escHtml(adminName)}">
+                <span>${escHtml(initials)}</span>
+                <span class="admin-unlock-avatar-dot" title="Sesión activa"></span>
+              </div>
+              <div class="admin-unlock-user-details">
+                <div class="admin-unlock-user-name">${escHtml(adminName)}</div>
+                <div class="admin-unlock-user-email">${escHtml(adminEmail)}</div>
+              </div>
+            </div>
+            <div class="admin-unlock-role-pill">
+              <span>Admin</span>
+            </div>
+          </div>
+
+          <div class="admin-unlock-field-group">
+            <label for="admin-unlock-password" class="admin-unlock-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Contraseña de Login</span>
+            </label>
+            <div class="admin-unlock-input-wrap">
+              <input
+                type="password"
+                id="admin-unlock-password"
+                class="admin-unlock-input"
+                required
+                autocomplete="current-password"
+                placeholder="Ingrese su contraseña institucional"
+              />
+              <button type="button" id="admin-unlock-pwd-toggle" class="admin-unlock-toggle-btn" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-open">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="eye-closed" style="display: none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="admin-unlock-advisory">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span>Esta confirmación desbloqueará temporalmente los módulos operativos (Servidores, Horarios, Viáticos y SST).</span>
+            </div>
+          </div>
+
+          <div class="admin-unlock-actions">
+            <button type="button" id="admin-unlock-btn-cancel" class="btn-unlock-cancel">
+              Cancelar
+            </button>
+            <button type="submit" id="admin-unlock-btn-submit" class="btn-unlock-submit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+              </svg>
+              <span>Desbloquear Módulos</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const pwdInput = overlay.querySelector('#admin-unlock-password');
+    const toggleBtn = overlay.querySelector('#admin-unlock-pwd-toggle');
+    const eyeOpen = toggleBtn ? toggleBtn.querySelector('.eye-open') : null;
+    const eyeClosed = toggleBtn ? toggleBtn.querySelector('.eye-closed') : null;
+    const errEl = overlay.querySelector('#admin-unlock-error');
+    const form = overlay.querySelector('#admin-unlock-form');
+    const cancelBtn = overlay.querySelector('#admin-unlock-btn-cancel');
+    const closeBtn = overlay.querySelector('#admin-unlock-btn-close');
+    const submitBtn = overlay.querySelector('#admin-unlock-btn-submit');
+    const cardEl = overlay.querySelector('.admin-unlock-card');
+
+    if (pwdInput) {
+      setTimeout(() => pwdInput.focus(), 120);
+    }
+
+    if (toggleBtn && pwdInput && eyeOpen && eyeClosed) {
+      toggleBtn.addEventListener('click', () => {
+        if (pwdInput.type === 'password') {
+          pwdInput.type = 'text';
+          eyeOpen.style.display = 'none';
+          eyeClosed.style.display = 'block';
+        } else {
+          pwdInput.type = 'password';
+          eyeOpen.style.display = 'block';
+          eyeClosed.style.display = 'none';
+        }
+      });
+    }
+
+    let keydownHandler = null;
+
+    function cleanup() {
+      isAdminUnlocking = false;
+      if (keydownHandler) {
+        window.removeEventListener('keydown', keydownHandler);
+      }
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }
+
+    function handleCancel() {
+      cleanup();
+      const current = activeModule || 'admin-errors';
+      const technicalAdminRoutes = new Set(['dashboard', 'admin-errors', 'admin-backups', 'settings', 'privacidad', 'terminos', 'accesibilidad']);
+      if (!technicalAdminRoutes.has(current)) {
+        navigate('admin-errors');
+      }
+    }
+
+    cancelBtn.addEventListener('click', handleCancel);
+    if (closeBtn) closeBtn.addEventListener('click', handleCancel);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) handleCancel();
+    });
+
+    keydownHandler = (e) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+    window.addEventListener('keydown', keydownHandler);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pwd = pwdInput ? pwdInput.value.trim() : '';
+      if (!pwd) {
+        if (errEl) {
+          const errText = errEl.querySelector('.admin-unlock-error-text') || errEl;
+          errText.textContent = 'Por favor ingrese su contraseña de login institucional.';
+          errEl.style.display = 'flex';
+        }
+        if (cardEl) {
+          cardEl.classList.remove('shake');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('shake');
+        }
+        if (pwdInput) pwdInput.focus();
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+          <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+          </svg>
+          <span>Verificando...</span>
+        `;
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      try {
+        const res = await API.verifyPassword(adminEmail, pwd);
+        if (res && res.valid) {
+          cleanup();
+          if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+            Auth.setAdminElevated(true);
+          }
+          applyNavigationPermissions(user);
+          showToast('Módulos operativos desbloqueados exitosamente.', 'success');
+          navigate(targetModule || 'dashboard', targetOptions || {});
+        } else {
+          throw new Error((res && res.error) || 'Contraseña incorrecta.');
+        }
+      } catch (err) {
+        if (typeof Auth !== 'undefined' && Auth.isLoggedIn && !Auth.isLoggedIn()) {
+          cleanup();
+          return;
+        }
+        if (errEl) {
+          const errText = errEl.querySelector('.admin-unlock-error-text') || errEl;
+          errText.textContent = err.message || 'Contraseña incorrecta. Por favor intente nuevamente.';
+          errEl.style.display = 'flex';
+        }
+        if (cardEl) {
+          cardEl.classList.remove('shake');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('shake');
+        }
+        if (pwdInput) {
+          pwdInput.value = '';
+          pwdInput.focus();
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+            <span>Desbloquear Módulos</span>
+          `;
+        }
+      }
+    });
+  }
+
+  function promptAdminUnlockedOptions() {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
+    const adminEmail = user.username || user.email || 'alejoleo2022@gmail.com';
+    const adminName = user.nombre || user.name || 'Alejandro León';
+    const initials = (adminName || 'A').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'AL';
+
+    // Limpiar overlays previos si existen
+    const existing = document.getElementById('admin-unlock-dialog-overlay');
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'admin-unlock-dialog-overlay';
+    overlay.className = 'admin-unlock-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Gestión de Módulos del Sistema');
+
+    overlay.innerHTML = `
+      <div class="admin-unlock-card">
+        <div class="admin-unlock-top-accent" style="background: linear-gradient(90deg, #0284c7 0%, #0369a1 50%, #0284c7 100%);"></div>
+        <div class="admin-unlock-header" style="background: radial-gradient(circle at 50% -10%, rgba(2, 132, 199, 0.30) 0%, transparent 65%), linear-gradient(145deg, #075985 0%, #0284c7 52%, #0369a1 100%); border-bottom: 2px solid rgba(2, 132, 199, 0.45);">
+          <div class="admin-unlock-top-row">
+            <button type="button" class="admin-unlock-close-btn" id="admin-unlocked-btn-close" title="Cerrar (Esc)" aria-label="Cerrar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="admin-unlock-icon-container" style="background: rgba(255, 255, 255, 0.20); border-color: rgba(255, 255, 255, 0.45); box-shadow: 0 0 20px rgba(2, 132, 199, 0.35);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+          </div>
+          <h3 class="admin-unlock-title">Módulos del Sistema</h3>
+          <p class="admin-unlock-subtitle">
+            Acceso completo habilitado a todos los módulos y submódulos institucionales.
+          </p>
+        </div>
+
+        <div class="admin-unlock-body">
+          <div class="admin-unlock-user-card">
+            <div class="admin-unlock-user-left">
+              <div class="admin-unlock-avatar" title="${escHtml(adminName)}" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                <span>${escHtml(initials)}</span>
+                <span class="admin-unlock-avatar-dot" title="Sesión activa"></span>
+              </div>
+              <div class="admin-unlock-user-details">
+                <div class="admin-unlock-user-name">${escHtml(adminName)}</div>
+                <div class="admin-unlock-user-email">${escHtml(adminEmail)}</div>
+              </div>
+            </div>
+            <div class="admin-unlock-role-pill" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border-color: rgba(2, 132, 199, 0.35);">
+              <span>Admin</span>
+            </div>
+          </div>
+
+          <div class="admin-unlock-advisory" style="background: rgba(2, 132, 199, 0.08); border-color: rgba(2, 132, 199, 0.35); color: #0369a1; margin-top: 0; margin-bottom: 14px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #0284c7;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Actualmente cuentas con permisos activos en los módulos operativos del sistema:</span>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px;">
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Servidores Públicos</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Horarios</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Viáticos</span>
+            <span style="font-size: 0.78rem; font-weight: 700; background: rgba(2, 132, 199, 0.10); color: #0369a1; padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(2, 132, 199, 0.25);">✓ Seguridad y Salud (SST)</span>
+          </div>
+
+          <div class="admin-unlock-actions">
+            <button type="button" id="admin-unlocked-btn-lock" class="btn-unlock-cancel" style="color: #b91c1c; border-color: rgba(239, 68, 68, 0.45);">
+              Bloquear Módulos Ahora
+            </button>
+            <button type="button" id="admin-unlocked-btn-continue" class="btn-unlock-submit">
+              <span>Continuar al Dashboard</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeOverlay = () => {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
+
+    document.getElementById('admin-unlocked-btn-close')?.addEventListener('click', closeOverlay);
+    document.getElementById('admin-unlocked-btn-continue')?.addEventListener('click', () => {
+      closeOverlay();
+      navigate('dashboard');
+    });
+    document.getElementById('admin-unlocked-btn-lock')?.addEventListener('click', () => {
+      closeOverlay();
+      if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+        Auth.setAdminElevated(false);
+      }
+      applyNavigationPermissions(user);
+      showToast('Módulos institucionales bloqueados. Se requerirá contraseña para reingresar.', 'info');
+      navigate('admin-errors');
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeOverlay();
+    });
+  }
+
   // ─── Login & App Views ──────────────────────────────────────────────────────
   function showLogin() {
+    if (typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
+
+    // Limpiar diálogos flotantes u overlays residuales en document.body
+    const unlockOverlay = document.getElementById('admin-unlock-dialog-overlay');
+    if (unlockOverlay && unlockOverlay.parentNode) {
+      unlockOverlay.parentNode.removeChild(unlockOverlay);
+    }
+    isAdminUnlocking = false;
+
+    const reauthOverlay = document.getElementById('reauth-dialog-overlay');
+    if (reauthOverlay && reauthOverlay.parentNode) {
+      reauthOverlay.parentNode.removeChild(reauthOverlay);
+    }
+    isReauthenticating = false;
+
+    closeModal();
+
+    document.querySelectorAll('.admin-unlock-overlay, #admin-unlock-dialog-overlay, #reauth-dialog-overlay').forEach(el => {
+      try { el.remove(); } catch (_) {}
+    });
+
     const uInput = document.getElementById('login-username');
     const pInput = document.getElementById('login-password');
     const err = document.getElementById('login-error');
@@ -1707,8 +2509,9 @@ const App = (() => {
 
   function isUserAdmin(user = {}) {
     const role = (user.role || '').toLowerCase();
+    const uname = (user.username || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
-    return role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all');
+    return role === 'administrador' || role === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com' || mods.includes('*') || mods.includes('all');
   }
 
   function applyNavigationPermissions(user = {}) {
@@ -1727,8 +2530,11 @@ const App = (() => {
     if (scope !== 'all') {
       setVisibility('li-admin-errors', false);
       setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-permisos', false);
+      setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
       setVisibility('nav-admin-backups', false);
+      setVisibility('nav-admin-permisos', false);
       setVisibility('nav-settings', true);
       setVisibility('nav-documents', true);
       setVisibility('nav-reports', true);
@@ -1737,27 +2543,74 @@ const App = (() => {
     }
 
     if (isAdmin) {
-      // Para el Administrador técnico (admin / admin123):
+      // Para el Administrador técnico (alejoleo2022@gmail.com):
+      setVisibility('li-nav-dashboard', true);
+      setVisibility('nav-dashboard', true);
       setVisibility('li-admin-errors', true);
       setVisibility('li-admin-backups', true);
+      setVisibility('li-admin-permisos', true);
+      setVisibility('li-admin-modules-unlock', true);
       setVisibility('nav-admin-errors', true);
       setVisibility('nav-admin-backups', true);
+      setVisibility('nav-admin-permisos', true);
       setVisibility('nav-settings', true);
 
-      // Supervisión global sobre módulos funcionales para el Administrador General (TSK-010 / AUD-010)
-      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => setVisibility(id, true));
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+      const unlockBtn = document.getElementById('nav-admin-modules-unlock');
+      const lockStatusEl = document.getElementById('admin-modules-lock-status');
+
+      if (unlockBtn) {
+        const iconEl = unlockBtn.querySelector('.nav-icon');
+        if (isElevated) {
+          unlockBtn.classList.add('is-unlocked');
+          unlockBtn.setAttribute('title', 'Módulos del Sistema (Desbloqueados - Clic para opciones)');
+          unlockBtn.setAttribute('data-tooltip', 'Módulos Desbloqueados');
+          if (iconEl) {
+            iconEl.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`;
+          }
+          if (lockStatusEl) {
+            lockStatusEl.innerHTML = `<span class="lock-status-dot"></span><span class="lock-status-text">Desbloqueado</span>`;
+          }
+        } else {
+          unlockBtn.classList.remove('is-unlocked');
+          unlockBtn.setAttribute('title', 'Módulos del Sistema (Bloqueados - Ingrese contraseña para desbloquear)');
+          unlockBtn.setAttribute('data-tooltip', 'Desbloquear Módulos');
+          if (iconEl) {
+            iconEl.innerHTML = `<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`;
+          }
+          if (lockStatusEl) {
+            lockStatusEl.innerHTML = `<span class="lock-status-dot"></span><span class="lock-status-text">Bloqueado</span>`;
+          }
+        }
+      }
+
+      // Si el administrador está elevado con contraseña, se muestran los módulos operativos; de lo contrario, permanecen ocultos ("DE RESTO NO")
+      const operationalNavs = [
+        'nav-employees', 'nav-requests', 'nav-admin-group',
+        'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos',
+        'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'
+      ];
+      operationalNavs.forEach(id => setVisibility(id, isElevated));
+
+      // Gestión Documental e Informes: disponibles para todo usuario registrado (decisión de la entidad).
       setVisibility('nav-documents', true);
       setVisibility('nav-reports', true);
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
-      // Ocultar las herramientas de administración técnica
+      // Ocultar las herramientas de administración técnica que no tengan asignadas
+      const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
       setVisibility('li-admin-errors', false);
-      setVisibility('li-admin-backups', false);
+      setVisibility('li-admin-backups', canAccessBackups);
+      setVisibility('li-admin-permisos', false);
+      setVisibility('li-admin-modules-unlock', false);
       setVisibility('nav-admin-errors', false);
-      setVisibility('nav-admin-backups', false);
+      setVisibility('nav-admin-backups', canAccessBackups);
+      setVisibility('nav-admin-permisos', false);
 
       // Mostrar sus módulos funcionales según permisos
-      setVisibility('nav-dashboard', true);
+      const hasDashboard = hasAll || mods.includes('dashboard');
+      setVisibility('li-nav-dashboard', hasDashboard);
+      setVisibility('nav-dashboard', hasDashboard);
       setVisibility('nav-employees', hasAll || mods.includes('employees'));
       setVisibility('nav-requests', hasAll || mods.includes('requests'));
       setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
@@ -1798,7 +2651,9 @@ const App = (() => {
     }
     if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
     if (mods.includes('viaticos')) return 'Gestión de Viáticos';
+    if (mods.includes('horarios') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Respaldo y Horarios';
     if (mods.includes('horarios')) return 'Gestión de Horarios y Modalidades';
+    if (mods.includes('admin-backups') || mods.includes('backups')) return 'Gestión de Copias de Seguridad';
     return 'Servidor Público';
   }
 
@@ -2059,6 +2914,22 @@ const App = (() => {
         });
       }
     }
+
+    document.getElementById('prof-name')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveProfile();
+      }
+    });
+
+    passInputs.forEach(input => {
+      input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveProfile();
+        }
+      });
+    });
   }
 
   async function saveProfile() {
@@ -2110,7 +2981,8 @@ const App = (() => {
       }
 
       updateUserDisplay(res.user);
-      closeModal();
+      markFormClean();
+      closeModal(true);
       showToast('Perfil actualizado exitosamente.', 'success');
       if (typeof FX !== 'undefined') FX.successBurst(btn);
     } catch (err) {
@@ -2240,6 +3112,300 @@ const App = (() => {
     } catch (_) {}
   }
 
+  // ─── Recuperación de Contraseña y Cambio Obligatorio ────────────────────────
+  function initPasswordRecoveryHandlers() {
+    // 1. Enlace "¿Olvidaste tu contraseña?"
+    const forgotLink = document.getElementById('link-forgot-password');
+    const forgotModal = document.getElementById('modal-forgot-password');
+    const forgotClose = document.getElementById('forgot-modal-close');
+    const forgotCancel = document.getElementById('forgot-btn-cancel');
+    const forgotForm = document.getElementById('form-forgot-password');
+    const forgotEmail = document.getElementById('forgot-email');
+    const forgotFeedback = document.getElementById('forgot-feedback');
+    const forgotSubmitBtn = document.getElementById('forgot-btn-submit');
+
+    const openForgotModal = (e) => {
+      if (e) e.preventDefault();
+      if (forgotFeedback) {
+        forgotFeedback.style.display = 'none';
+        forgotFeedback.className = 'recovery-feedback';
+        forgotFeedback.textContent = '';
+      }
+      if (forgotEmail) {
+        forgotEmail.value = '';
+        forgotEmail.disabled = false;
+      }
+      if (forgotSubmitBtn) {
+        forgotSubmitBtn.style.display = 'inline-flex';
+        forgotSubmitBtn.disabled = false;
+        const text = forgotSubmitBtn.querySelector('.btn-text');
+        const loader = forgotSubmitBtn.querySelector('.btn-loader');
+        if (text) text.style.display = 'inline-flex';
+        if (loader) loader.style.display = 'none';
+      }
+      if (forgotModal) forgotModal.style.display = 'flex';
+      setTimeout(() => { if (forgotEmail) forgotEmail.focus(); }, 150);
+    };
+
+    const closeForgotModal = () => {
+      if (forgotModal) forgotModal.style.display = 'none';
+    };
+
+    if (forgotLink) forgotLink.addEventListener('click', openForgotModal);
+    if (forgotClose) forgotClose.addEventListener('click', closeForgotModal);
+    if (forgotCancel) forgotCancel.addEventListener('click', closeForgotModal);
+
+    // Enviar solicitud de recuperación
+    if (forgotForm) {
+      forgotForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = (forgotEmail?.value || '').trim();
+        if (!email) {
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-error';
+            forgotFeedback.textContent = 'Por favor ingresa tu correo electrónico institucional.';
+            forgotFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        const btnText = forgotSubmitBtn?.querySelector('.btn-text');
+        const btnLoader = forgotSubmitBtn?.querySelector('.btn-loader');
+        if (forgotSubmitBtn) forgotSubmitBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoader) btnLoader.style.display = 'inline-flex';
+        if (forgotFeedback) forgotFeedback.style.display = 'none';
+
+        try {
+          const res = await API.forgotPassword(email);
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-success';
+            forgotFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>${res.message || 'Solicitud procesada con éxito.'}</span>
+            `;
+            forgotFeedback.style.display = 'flex';
+          }
+          if (forgotEmail) forgotEmail.disabled = true;
+          if (forgotSubmitBtn) forgotSubmitBtn.style.display = 'none';
+        } catch (err) {
+          if (forgotFeedback) {
+            forgotFeedback.className = 'recovery-feedback feedback-error';
+            forgotFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>${err.message || 'Error al procesar la solicitud de recuperación.'}</span>
+            `;
+            forgotFeedback.style.display = 'flex';
+          }
+          if (forgotSubmitBtn) forgotSubmitBtn.disabled = false;
+          if (btnText) btnText.style.display = 'inline-flex';
+          if (btnLoader) btnLoader.style.display = 'none';
+        }
+      });
+    }
+
+    // Toggle para mostrar/ocultar contraseñas
+    document.querySelectorAll('.toggle-pass-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+      });
+    });
+
+    // Validación dinámica de política de contraseñas
+    const mandatoryNewPass = document.getElementById('mandatory-new-pass');
+    if (mandatoryNewPass) {
+      mandatoryNewPass.addEventListener('input', () => {
+        const val = mandatoryNewPass.value || '';
+        const lenValid = val.length >= 8;
+        const upperValid = /[A-Z]/.test(val);
+        const lowerValid = /[a-z]/.test(val);
+        const numValid = /[0-9]/.test(val);
+
+        const toggleReq = (id, isValid) => {
+          const el = document.getElementById(id);
+          if (el) {
+            if (isValid) el.classList.add('valid');
+            else el.classList.remove('valid');
+          }
+        };
+
+        toggleReq('req-len', lenValid);
+        toggleReq('req-upper', upperValid);
+        toggleReq('req-lower', lowerValid);
+        toggleReq('req-num', numValid);
+      });
+    }
+
+    // Manejador del formulario de cambio obligatorio
+    const mandatoryForm = document.getElementById('form-mandatory-password');
+    const mandatorySubmitBtn = document.getElementById('mandatory-btn-submit');
+    const mandatoryFeedback = document.getElementById('mandatory-feedback');
+    const mandatoryLogoutBtn = document.getElementById('mandatory-btn-logout');
+
+    if (mandatoryLogoutBtn) {
+      mandatoryLogoutBtn.addEventListener('click', () => {
+        Auth.clear();
+        const mandatoryModal = document.getElementById('modal-mandatory-password');
+        if (mandatoryModal) mandatoryModal.style.display = 'none';
+        showLogin();
+      });
+    }
+
+    if (mandatoryForm) {
+      mandatoryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const curPass = (document.getElementById('mandatory-current-pass')?.value || '').trim();
+        const newPass = (document.getElementById('mandatory-new-pass')?.value || '').trim();
+        const confPass = (document.getElementById('mandatory-confirm-pass')?.value || '').trim();
+
+        if (!curPass || !newPass || !confPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'Todos los campos son obligatorios.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass !== confPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña y su confirmación no coinciden.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass === curPass) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña debe ser diferente a la contraseña provisional actual.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        if (newPass.length < 8 || !/[A-Z]/.test(newPass) || !/[a-z]/.test(newPass) || !/[0-9]/.test(newPass)) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.textContent = 'La nueva contraseña no cumple con los requisitos de seguridad institucional.';
+            mandatoryFeedback.style.display = 'flex';
+          }
+          return;
+        }
+
+        const btnText = mandatorySubmitBtn?.querySelector('.btn-text');
+        const btnLoader = mandatorySubmitBtn?.querySelector('.btn-loader');
+        if (mandatorySubmitBtn) mandatorySubmitBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (btnLoader) btnLoader.style.display = 'inline-flex';
+        if (mandatoryFeedback) mandatoryFeedback.style.display = 'none';
+
+        try {
+          const res = await API.changePassword({
+            currentPassword: curPass,
+            newPassword: newPass,
+            confirmPassword: confPass
+          });
+
+          if (res.user) {
+            res.user.mustChangePassword = false;
+            Auth.save(res.token, res.user);
+          } else {
+            Auth.setMustChangePassword(false);
+          }
+
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-success';
+            mandatoryFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>${res.message || 'Contraseña actualizada exitosamente.'}</span>
+            `;
+            mandatoryFeedback.style.display = 'flex';
+          }
+
+          setTimeout(() => {
+            const mandatoryModal = document.getElementById('modal-mandatory-password');
+            if (mandatoryModal) mandatoryModal.style.display = 'none';
+            // Ingresar limpiamente a la plataforma
+            const user = Auth.getUser();
+            const landing = getDefaultLandingRoute(user);
+            showApp();
+            navigate(landing.module, landing.options);
+            showToast('Contraseña actualizada correctamente. ¡Bienvenido a Talento 360!', 'success');
+          }, 900);
+        } catch (err) {
+          if (mandatoryFeedback) {
+            mandatoryFeedback.className = 'recovery-feedback feedback-error';
+            mandatoryFeedback.innerHTML = `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:20px;height:20px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>${err.message || 'Error al actualizar la contraseña.'}</span>
+            `;
+            mandatoryFeedback.style.display = 'flex';
+          }
+        } finally {
+          if (mandatorySubmitBtn) mandatorySubmitBtn.disabled = false;
+          if (btnText) btnText.style.display = 'inline';
+          if (btnLoader) btnLoader.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  function showMandatoryPasswordModal(user) {
+    const mandatoryModal = document.getElementById('modal-mandatory-password');
+    if (!mandatoryModal) return;
+
+    // Ocultar pantalla de login y asegurar que no se carguen módulos por detrás
+    const ls = document.getElementById('login-screen');
+    if (ls) ls.style.setProperty('display', 'none', 'important');
+    const app = document.getElementById('app');
+    if (app) app.style.setProperty('display', 'grid', 'important');
+
+    // Limpiar inputs del modal
+    const curInput = document.getElementById('mandatory-current-pass');
+    const newInput = document.getElementById('mandatory-new-pass');
+    const confInput = document.getElementById('mandatory-confirm-pass');
+    const feedback = document.getElementById('mandatory-feedback');
+
+    if (curInput) curInput.value = '';
+    if (newInput) newInput.value = '';
+    if (confInput) confInput.value = '';
+    if (feedback) {
+      feedback.style.display = 'none';
+      feedback.textContent = '';
+      feedback.className = 'recovery-feedback';
+    }
+
+    // Resetear checklist de políticas
+    ['req-len', 'req-upper', 'req-lower', 'req-num'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('valid');
+    });
+
+    mandatoryModal.style.display = 'flex';
+    setTimeout(() => { if (curInput) curInput.focus(); }, 150);
+  }
+
   // ─── Init ──────────────────────────────────────────────────────────────────
   function init() {
     // Configuración universal en Español para Flatpickr
@@ -2298,7 +3464,90 @@ const App = (() => {
       });
     }
 
-    // Login form
+    // Login form & Progressive Lockout
+    let loginLockoutInterval = null;
+
+    function handleLoginLockout(seconds, message) {
+      const errorEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+      const btnText = document.querySelector('#login-btn .btn-text');
+      const forgotLink = document.getElementById('link-forgot-password');
+
+      if (loginLockoutInterval) {
+        clearInterval(loginLockoutInterval);
+        loginLockoutInterval = null;
+      }
+
+      let remaining = Math.max(1, parseInt(seconds, 10) || 60);
+
+      const renderLockoutUi = () => {
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (errorEl) {
+          errorEl.className = 'form-error visible is-lockout';
+          errorEl.innerHTML = `
+            <div class="login-lockout-banner">
+              <div class="login-lockout-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <div class="login-lockout-content">
+                <div class="login-lockout-title">Acceso bloqueado por seguridad</div>
+                <div class="login-lockout-timer">Podrá intentar ingresar nuevamente en: <strong id="lockout-countdown-display">${formatted}</strong></div>
+                <div class="login-lockout-advice">
+                  ¿Olvidaste tu contraseña institucional? <a href="#" id="lockout-quick-recovery" class="lockout-link">Restablécela aquí de inmediato &rarr;</a>
+                </div>
+              </div>
+            </div>
+          `;
+
+          const recovBtn = document.getElementById('lockout-quick-recovery');
+          if (recovBtn) {
+            recovBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              document.getElementById('link-forgot-password')?.click();
+            });
+          }
+        }
+
+        if (btn) {
+          btn.disabled = true;
+          if (btnText) btnText.textContent = `Bloqueado (${formatted})`;
+        }
+
+        if (forgotLink) {
+          forgotLink.classList.add('forgot-link--highlight');
+        }
+      };
+
+      renderLockoutUi();
+
+      loginLockoutInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(loginLockoutInterval);
+          loginLockoutInterval = null;
+          if (btn) {
+            btn.disabled = false;
+            if (btnText) btnText.textContent = 'Iniciar sesión';
+          }
+          if (errorEl) {
+            errorEl.className = 'form-error visible';
+            errorEl.innerHTML = `El tiempo de espera ha finalizado. Ya puede intentar ingresar de nuevo o solicitar una clave provisional en '¿Olvidaste tu contraseña?'.`;
+          }
+          if (forgotLink) {
+            forgotLink.classList.remove('forgot-link--highlight');
+          }
+        } else {
+          renderLockoutUi();
+        }
+      }, 1000);
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
@@ -2312,7 +3561,7 @@ const App = (() => {
 
         if (!username || !password) {
           errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
-          errorEl.classList.add('visible');
+          errorEl.className = 'form-error visible';
           return;
         }
 
@@ -2323,6 +3572,10 @@ const App = (() => {
 
         try {
           const res = await API.login(username, password);
+          if (loginLockoutInterval) {
+            clearInterval(loginLockoutInterval);
+            loginLockoutInterval = null;
+          }
           if (res.user) {
             res.user.role = sanitizeRole(res.user.role);
             if (!res.user.jobTitle) {
@@ -2330,6 +3583,14 @@ const App = (() => {
             }
           }
           Auth.save(res.token, res.user);
+          if (typeof Auth !== 'undefined' && Auth.setAdminElevated) {
+            Auth.setAdminElevated(false);
+          }
+
+          if (res.user && res.user.mustChangePassword) {
+            showMandatoryPasswordModal(res.user);
+            return;
+          }
           const landing = getDefaultLandingRoute(res.user);
 
           const proceedToDashboard = () => {
@@ -2340,8 +3601,9 @@ const App = (() => {
               showApp();
               navigate(landing.module, landing.options);
               try { checkAndRestoreDraft(); } catch (_) {}
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                LegalModule.requireConsentModal();
+              const userIdentifier = (res.user && res.user.username) || null;
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
+                LegalModule.requireConsentModal(null, userIdentifier);
               }
             } catch (transitionErr) {
               console.error('[Login Transition Error]:', transitionErr);
@@ -2351,8 +3613,9 @@ const App = (() => {
               if (app) app.style.setProperty('display', 'grid', 'important');
               try { navigate(landing.module, landing.options); } catch (_) {}
               try { checkAndRestoreDraft(); } catch (_) {}
-              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-                LegalModule.requireConsentModal();
+              const userIdentifier = (res.user && res.user.username) || null;
+              if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
+                LegalModule.requireConsentModal(null, userIdentifier);
               }
             }
           };
@@ -2371,14 +3634,31 @@ const App = (() => {
             safeProceed();
           }
         } catch (err) {
-          errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
-          errorEl.classList.add('visible');
+          const data = err.data || {};
+          const isLocked = Boolean(data.isLocked || err.status === 429);
+          const retrySeconds = Number(data.retryAfterSeconds || 0);
+
+          if (isLocked && retrySeconds > 0) {
+            handleLoginLockout(retrySeconds, data.error || err.message);
+          } else {
+            errorEl.className = 'form-error visible';
+            errorEl.textContent = err.message || 'Error en la contraseña o en el usuario.';
+            const forgotLink = document.getElementById('link-forgot-password');
+            if (data.suggestRecovery && forgotLink) {
+              forgotLink.classList.add('forgot-link--highlight');
+            }
+          }
           // FX: error shake + sound
           if (typeof FX !== 'undefined') FX.animateLoginError();
         } finally {
-          btn.disabled = false;
-          if (btnText) btnText.style.display = 'inline';
-          if (btnLoader) btnLoader.style.display = 'none';
+          if (!loginLockoutInterval) {
+            btn.disabled = false;
+            if (btnText) btnText.style.display = 'inline';
+            if (btnLoader) btnLoader.style.display = 'none';
+          } else {
+            if (btnLoader) btnLoader.style.display = 'none';
+            if (btnText) btnText.style.display = 'inline';
+          }
         }
       });
     }
@@ -2516,9 +3796,26 @@ const App = (() => {
       if (typeof FX !== 'undefined') FX.Sound.navClick();
     });
 
+    // Módulo general de desbloqueo de módulos institucionales para Administrador
+    document.getElementById('nav-admin-modules-unlock')?.addEventListener('click', () => {
+      const btn = document.getElementById('nav-admin-modules-unlock');
+      if (typeof FX !== 'undefined') FX.animateNavClick(btn);
+      const isElevated = (typeof Auth !== 'undefined' && Auth.isAdminElevated) ? Auth.isAdminElevated() : false;
+      if (isElevated) {
+        promptAdminUnlockedOptions();
+      } else {
+        promptAdminUnlock('dashboard');
+      }
+      document.getElementById('sidebar')?.classList.remove('mobile-open');
+    });
+
     // Check existing session and cleanse stored user data
     if (Auth.isLoggedIn()) {
       const storedUser = Auth.getUser();
+      if (storedUser && storedUser.mustChangePassword) {
+        showMandatoryPasswordModal(storedUser);
+        return;
+      }
       if (storedUser && typeof storedUser === 'object') {
         let changed = false;
         if (!storedUser.modules || !Array.isArray(storedUser.modules)) {
@@ -2534,8 +3831,9 @@ const App = (() => {
       }
       showApp();
       const landing = getDefaultLandingRoute(storedUser);
-      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal()) {
-        LegalModule.requireConsentModal();
+      const storedUsername = (storedUser && storedUser.username) || null;
+      if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(storedUsername)) {
+        LegalModule.requireConsentModal(null, storedUsername);
       }
       const initialHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
       const [initMod, initQuery] = initialHash.split('?');
@@ -2626,6 +3924,9 @@ const App = (() => {
       };
     }
 
+    // Inicializar recuperación de contraseña y cambio obligatorio
+    initPasswordRecoveryHandlers();
+
     // FX: init effects engine
     if (typeof FX !== 'undefined') FX.init();
   }
@@ -2637,6 +3938,8 @@ const App = (() => {
     showLogin,
     showApp,
     showToast,
+    humanizeErrorMessage,
+    markFieldInvalid,
     openModal,
     closeModal,
     markFormClean,
@@ -2659,6 +3962,9 @@ const App = (() => {
     restoreFormDraft,
     clearFormDraft,
     promptReauthentication,
+    promptAdminUnlock,
+    promptAdminUnlockedOptions,
+    applyNavigationPermissions,
     checkAndRestoreDraft
   };
 })();
@@ -2674,7 +3980,7 @@ window.addEventListener('hashchange', () => {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
         const user = Auth.getUser ? Auth.getUser() : null;
-        const defaultMod = (user && App.isUserAdmin && App.isUserAdmin(user)) ? 'admin-errors' : 'dashboard';
+        const defaultMod = 'dashboard';
         App.navigate(defaultMod);
       } else {
         App.showLogin();
@@ -2696,12 +4002,29 @@ window.addEventListener('hashchange', () => {
 (function setupGlobalErrorMonitor() {
   if (typeof window === 'undefined') return;
 
+  function shouldIgnoreError(msg) {
+    if (!msg) return true;
+    const str = String(msg);
+    return str.includes('[Admin Errors API]') ||
+           str.includes('[AdminErrorsModule]') ||
+           str.includes('[AdminBackupsModule]') ||
+           str.includes('/api/admin/errors') ||
+           str.includes('/api/admin/backups') ||
+           str.includes('[API.reportError]') ||
+           str.includes('Acceso denegado') ||
+           str.includes('requieren permisos de Administrador') ||
+           str.includes('Token expirado') ||
+           str.includes('Token inválido') ||
+           str.includes('ResizeObserver') ||
+           str.includes('Script error.');
+  }
+
   // 1. Excepciones no capturadas de JavaScript en ventana
   window.addEventListener('error', (event) => {
     try {
       if (!event) return;
       const message = event.message || (typeof event.error === 'object' && event.error ? event.error.message : String(event));
-      if (!message || message.includes('ResizeObserver') || message.includes('Script error.')) {
+      if (shouldIgnoreError(message)) {
         return;
       }
       const stack = event.error && event.error.stack ? event.error.stack : '';
@@ -2737,6 +4060,9 @@ window.addEventListener('hashchange', () => {
         message = reason.message || reason.name || JSON.stringify(reason);
         stack = reason.stack || '';
       }
+      if (shouldIgnoreError(message)) {
+        return;
+      }
       let usuario = 'Anónimo';
       try {
         const u = localStorage.getItem('h360_user');
@@ -2768,12 +4094,7 @@ window.addEventListener('hashchange', () => {
       if (isReporting) return;
       try {
         const firstArg = args[0];
-        // Evitar bucles con las propias llamadas de monitoreo o red de admin
-        if (typeof firstArg === 'string' && (
-          firstArg.includes('[Admin Errors API]') ||
-          firstArg.includes('/api/admin/errors') ||
-          firstArg.includes('[API.reportError]')
-        )) {
+        if (shouldIgnoreError(firstArg)) {
           return;
         }
 
@@ -2785,7 +4106,7 @@ window.addEventListener('hashchange', () => {
           return String(a);
         }).join(' ');
 
-        if (!msg || msg.trim().length === 0) return;
+        if (!msg || msg.trim().length === 0 || shouldIgnoreError(msg)) return;
 
         let usuario = 'Anónimo';
         try {

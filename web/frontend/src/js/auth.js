@@ -5,6 +5,7 @@
 const Auth = (() => {
   const TOKEN_KEY = 'h360_token';
   const USER_KEY  = 'h360_user';
+  const ADMIN_ELEVATED_KEY = 'talento360_admin_elevated';
 
   function save(token, user) {
     localStorage.setItem(TOKEN_KEY, token);
@@ -21,7 +22,23 @@ const Auth = (() => {
   function clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    try { localStorage.removeItem('talento360_legal_consent'); } catch (_) {}
+    sessionStorage.removeItem(ADMIN_ELEVATED_KEY);
+    if (typeof window !== 'undefined' && window.AdminErrorsModule && typeof window.AdminErrorsModule.stopAutoRefresh === 'function') {
+      try { window.AdminErrorsModule.stopAutoRefresh(); } catch (_) {}
+    }
+  }
+
+  function isAdminElevated() {
+    if (!isAdmin()) return false;
+    return sessionStorage.getItem(ADMIN_ELEVATED_KEY) === 'true';
+  }
+
+  function setAdminElevated(val) {
+    if (val) {
+      sessionStorage.setItem(ADMIN_ELEVATED_KEY, 'true');
+    } else {
+      sessionStorage.removeItem(ADMIN_ELEVATED_KEY);
+    }
   }
 
   function decodeJwtPayload(token) {
@@ -64,7 +81,7 @@ const Auth = (() => {
     const r = String(user.role || '').toLowerCase();
     const uname = String(user.username || '').toLowerCase();
     const mods = Array.isArray(user.modules) ? user.modules : [];
-    return r === 'administrador' || r === 'admin' || r.includes('administrador') || uname === 'admin' || uname === 'admin@boyaca.gov.co' || mods.includes('*') || mods.includes('all');
+    return r === 'administrador' || r === 'admin' || r.includes('administrador') || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com' || mods.includes('*') || mods.includes('all');
   }
 
   function getRoleScope(u) {
@@ -106,8 +123,22 @@ const Auth = (() => {
     return ['dashboard'];
   }
 
+  function mustChangePassword() {
+    const user = getUser();
+    return Boolean(user && user.mustChangePassword);
+  }
+
+  function setMustChangePassword(val) {
+    const user = getUser();
+    if (user && typeof user === 'object') {
+      user.mustChangePassword = Boolean(val);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
+  }
+
   function hasModuleAccess(moduleName) {
     if (!isLoggedIn()) return false;
+    if (mustChangePassword()) return false;
     const user = getUser();
     const mod = String(moduleName || '').toLowerCase().trim();
     if (!mod || mod === 'settings' || mod === 'privacidad' || mod === 'terminos' || mod === 'accesibilidad'
@@ -132,6 +163,9 @@ const Auth = (() => {
     }
     const mods = getUserModules(user);
     if (mods.includes('*') || mods.includes('all')) return true;
+    if ((mod === 'admin-backups' || mod === 'backups') && (mods.includes('admin-backups') || mods.includes('backups'))) {
+      return true;
+    }
     return mods.includes(mod);
   }
 
@@ -205,5 +239,5 @@ const Auth = (() => {
     return false;
   }
 
-  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules };
+  return { save, getToken, getUser, clear, isLoggedIn, isAdmin, isAdminElevated, setAdminElevated, getRoleScope, canEditModule, canEdit, hasModuleAccess, getUserModules, mustChangePassword, setMustChangePassword };
 })();

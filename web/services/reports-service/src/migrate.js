@@ -5,11 +5,11 @@ const fs = require('fs');
 const path = require('path');
 
 const MIGRATIONS = [
-  '28_documentos.sql',
-  '29_informes_automatizacion.sql',
-  '30_importaciones.sql',
-  '31_soportes_solicitudes.sql',
-  '32_importaciones_resultado.sql',
+  '35_documentos.sql',
+  '36_informes_automatizacion.sql',
+  '37_importaciones.sql',
+  '38_soportes_solicitudes.sql',
+  '39_importaciones_resultado.sql',
 ];
 const LOCK_ID = 360028; // Evita que dos instancias las apliquen a la vez.
 

@@ -356,6 +356,14 @@ const AdminRequestsModule = (() => {
     document.querySelectorAll('.nav-subitem').forEach(b => b.classList.remove('active'));
     const sideBtn = document.getElementById(sideMap[tipo]);
     if (sideBtn) sideBtn.classList.add('active');
+    const navAdminPerm = document.getElementById('nav-admin-permisos');
+    if (navAdminPerm) {
+      if (tipo === 'Permiso Laboral') {
+        navAdminPerm.classList.add('active');
+      } else {
+        navAdminPerm.classList.remove('active');
+      }
+    }
 
     const countEl = document.getElementById('adm-count');
     if (countEl) {
@@ -1920,10 +1928,10 @@ const AdminRequestsModule = (() => {
           <span style="font-weight:600;">${escHtml(s.nombre_archivo)}</span>
           <span style="color:var(--text-muted);font-size:0.75rem;">(${formatBytes(s.tamano_bytes)})</span>
         </div>
-        <a href="${API.getAdminRequestSoporteUrl(r.id, s.id_soporte)}" target="_blank" download="${escHtml(s.nombre_archivo)}" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+        <button type="button" data-filename="${escHtml(s.nombre_archivo)}" onclick="API.downloadAdminRequestSoporte(${Number(r.id)}, ${Number(s.id_soporte)}, this.dataset.filename).catch(err => App && App.showToast && App.showToast(err.message, 'error'))" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Descargar
-        </a>
+        </button>
       </div>
     `).join('') : '<div style="color:var(--text-muted);font-size:0.82rem;padding:6px 0;">No se adjuntaron soportes a esta solicitud.</div>';
 
@@ -2599,10 +2607,10 @@ const AdminRequestsModule = (() => {
           <span style="font-weight:600;">${escHtml(s.nombre_archivo || s.nombre)}</span>
           <span style="color:var(--text-muted);font-size:0.75rem;">(${formatBytes(s.tamano_bytes || s.tamano)})</span>
         </div>
-        <a href="${API.getAdminRequestSoporteUrl(r.id, s.id_soporte || s.id)}" target="_blank" download="${escHtml(s.nombre_archivo || s.nombre)}" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+        <button type="button" data-filename="${escHtml(s.nombre_archivo || s.nombre || 'soporte')}" onclick="API.downloadAdminRequestSoporte(${Number(r.id)}, ${Number(s.id_soporte || s.id)}, this.dataset.filename).catch(err => App && App.showToast && App.showToast(err.message, 'error'))" class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Descargar
-        </a>
+        </button>
       </div>
     `).join('') : '<div style="color:var(--text-muted);font-size:0.82rem;padding:6px 0;">No se anexaron soportes a esta solicitud de licencia.</div>';
 
@@ -2850,7 +2858,32 @@ const AdminRequestsModule = (() => {
 
   function readForm() {
     const nombre = document.getElementById('af-nombre')?.value.trim();
-    if (!nombre) { App.showToast('El nombre es requerido.', 'warning'); return null; }
+    if (!nombre) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-nombre', 'El nombre del servidor público es requerido.');
+      } else {
+        App.showToast('El nombre es requerido.', 'warning');
+      }
+      return null;
+    }
+    const fi = document.getElementById('af-fi')?.value.trim();
+    const ff = document.getElementById('af-ff')?.value.trim();
+    if (!fi) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-fi', 'La fecha de inicio de la solicitud es requerida.');
+      } else {
+        App.showToast('La fecha de inicio de la solicitud es requerida.', 'warning');
+      }
+      return null;
+    }
+    if (fi && ff && new Date(ff) < new Date(fi)) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('af-ff', 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.');
+      } else {
+        App.showToast('La fecha de finalización debe ser posterior o igual a la de inicio.', 'error');
+      }
+      return null;
+    }
     return {
       tipo: document.getElementById('af-tipo')?.value,
       persona: nombre,

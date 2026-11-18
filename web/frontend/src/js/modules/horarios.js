@@ -1053,17 +1053,24 @@ const HorariosModule = (() => {
     if (prevTab) {
       buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-prev" onclick="HorariosModule.switchFormTab('${prevTab}')">${arrowPrevSvg}<span>Anterior</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-cancel" onclick="App.closeModal()">Cancelar</button>`;
     }
 
     if (isEdit) {
       buttonsHtml += `<button type="button" class="btn btn-gold" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm(${currentScheduleModalItem.id_horario})">${saveCheckSvg}<span>Guardar Cambios</span></button>`;
     } else {
-      buttonsHtml += `<button type="button" class="btn btn-primary" id="btn-save-horario" onclick="HorariosModule.submitScheduleForm()">${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      if (nextTab) {
+        buttonsHtml += `<button type="button" class="btn btn-wizard-submit" id="btn-save-horario" disabled title="Complete todos los pasos del formulario para crear el esquema">${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      } else {
+        const docVal = (document.getElementById('horario-documento')?.value || '').trim();
+        const nomVal = (document.getElementById('horario-nombre')?.value || '').trim();
+        const isComplete = Boolean(docVal && nomVal);
+        buttonsHtml += `<button type="button" class="btn btn-primary ${isComplete ? 'btn-wizard-submit-ready' : ''}" id="btn-save-horario" ${isComplete ? '' : 'disabled title="Debe asociar un servidor público antes de guardar"'} onclick="HorariosModule.submitScheduleForm()">${saveCheckSvg}<span>Crear Esquema</span></button>`;
+      }
     }
 
     if (nextTab) {
-      buttonsHtml += `<button type="button" class="btn btn-secondary btn-wizard-next" onclick="HorariosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
+      buttonsHtml += `<button type="button" class="btn btn-wizard-next" onclick="HorariosModule.switchFormTab('${nextTab}')"><span>Continuar</span>${arrowNextSvg}</button>`;
     }
 
     footer.innerHTML = buttonsHtml;
@@ -1534,12 +1541,6 @@ const HorariosModule = (() => {
     if (!emp) return '';
     const name = emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '';
     const doc = emp.cedula || emp.documento || '';
-    const cargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo no asignado';
-    const codigo = emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '';
-    const grado = emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '';
-    const dept = emp.dependencia || 'Sin dependencia';
-    const sec = emp.secretaria || '';
-    const tel = emp.celular || emp.telefono_fijo || emp.telefono || '';
     const initial = name.trim().charAt(0).toUpperCase() || 'S';
 
     return `
@@ -1557,31 +1558,6 @@ const HorariosModule = (() => {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
           Cambiar Servidor
         </button>
-      </div>
-      <div class="servidor-loaded-details">
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Cargo:</span>
-          <span class="pill-val">${escHtml(cargo)}</span>
-        </div>
-        ${codigo || grado ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Nivel:</span>
-          <span class="pill-val">Cód. ${escHtml(codigo || '—')} · Grado ${escHtml(grado || '—')}</span>
-        </div>` : ''}
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Dependencia:</span>
-          <span class="pill-val">${escHtml(dept)}</span>
-        </div>
-        ${sec ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Secretaría:</span>
-          <span class="pill-val">${escHtml(sec)}</span>
-        </div>` : ''}
-        ${tel ? `
-        <div class="servidor-detail-pill">
-          <span class="pill-label">Teléfono:</span>
-          <span class="pill-val">${escHtml(tel)}</span>
-        </div>` : ''}
       </div>
     `;
   }
@@ -1788,11 +1764,16 @@ const HorariosModule = (() => {
       const doc = (emp.cedula || emp.documento || '').toString().trim();
       const name = (emp.nombre_completo || emp.nombreCompleto || emp.persona || emp.apellidos_nombres || '').toString().trim();
       const cargo = (emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || '').toString().trim();
-      const codigo = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
-      const grado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
-      const dept = (emp.dependencia || '').toString().trim();
-      const sec = (emp.secretaria || '').toString().trim();
-      const tel = (emp.celular || emp.telefono_fijo || emp.telefono || '').toString().trim();
+      const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+      const codigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+      const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+      const grado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
+      const rawDept = (emp.dependencia || '').toString().trim();
+      const dept = (rawDept && rawDept !== '—') ? rawDept : 'Sin dependencia';
+      const rawSec = (emp.secretaria || '').toString().trim();
+      const sec = (rawSec && rawSec !== '—') ? rawSec : 'SECRETARÍA GENERAL';
+      const rawTel = (emp.telefono || emp.celular || emp.telefono_fijo || '').toString().trim();
+      const tel = (rawTel && rawTel !== '—' && rawTel !== '-') ? rawTel : 'N/A';
 
       const docEl = document.getElementById('horario-documento');
       const nameEl = document.getElementById('horario-nombre');
@@ -1805,12 +1786,12 @@ const HorariosModule = (() => {
 
       if (docEl && doc) docEl.value = doc;
       if (nameEl && name) nameEl.value = name;
-      if (codigoEl) codigoEl.value = codigo || '';
-      if (gradoEl) gradoEl.value = grado || '';
-      if (cargoEl) cargoEl.value = cargo || '';
-      if (deptEl) deptEl.value = dept || '';
-      if (secEl) secEl.value = sec || '';
-      if (telEl) telEl.value = tel || '';
+      if (codigoEl) codigoEl.value = codigo;
+      if (gradoEl) gradoEl.value = grado;
+      if (cargoEl) cargoEl.value = cargo || 'Cargo no asignado';
+      if (deptEl) deptEl.value = dept;
+      if (secEl) secEl.value = sec;
+      if (telEl) telEl.value = tel;
 
       if (empSearchInput && name && doc) {
         empSearchInput.value = `${name} (C.C. ${doc})`;
@@ -1851,6 +1832,12 @@ const HorariosModule = (() => {
         App.refreshFloatingLabels(document.getElementById('modal-body'));
       }
 
+      // Actualizar estado del botón en el wizard si estamos en el último paso
+      const curActiveTab = document.querySelector('.form-tab-btn.active')?.getAttribute('data-tab');
+      if (curActiveTab) {
+        updateHorariosWizardFooter(curActiveTab);
+      }
+
       if (notify && typeof App !== 'undefined' && App.showToast) {
         App.showToast(`Servidor institucional cargado: ${name}`, 'success');
       }
@@ -1884,28 +1871,34 @@ const HorariosModule = (() => {
               .map((emp, idx) => {
                 const empDoc = emp.cedula || emp.documento || '';
                 const empName = emp.nombre_completo || emp.nombreCompleto || emp.persona || 'Servidor Público';
-                const empCargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo institucional';
-                const empCodigo = emp.codigo || emp.codigoActual || emp.codigo_actual || '';
-                const empGrado = emp.grado || emp.gradoActual || emp.grado_actual || '';
+                const empCargo = emp.cargo || emp.cargoActual || emp.cargo_actual || emp.cargoBase || 'Cargo no asignado';
+                const rawCod = (emp.codigo || emp.codigoActual || emp.codigo_actual || emp.codigoBase || '').toString().trim();
+                const empCodigo = (rawCod && rawCod !== '—' && rawCod !== '-') ? rawCod : 'N/A';
+                const rawGrado = (emp.grado || emp.gradoActual || emp.grado_actual || emp.gradoBase || '').toString().trim();
+                const empGrado = (rawGrado && rawGrado !== '—' && rawGrado !== '-') ? rawGrado : 'N/A';
                 const empDept = emp.dependencia || 'Sin dependencia';
+                const initial = empName.trim().charAt(0).toUpperCase() || 'S';
 
                 return `
-                  <div class="autocomplete-item" data-idx="${idx}" style="padding:10px 14px; border-bottom:1px solid rgba(0,0,0,0.05); cursor:pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                      <strong style="color:var(--color-primary, #28871b); font-size:13px;">${escHtml(empName)}</strong>
-                      <span class="badge" style="font-size:11px; font-family:monospace; background:rgba(40,135,27,0.1); color:#1d6113; padding:2px 6px; border-radius:4px;">C.C. ${escHtml(empDoc)}</span>
-                    </div>
-                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; display:flex; gap:6px; flex-wrap:wrap;">
-                      <span><strong>Cargo:</strong> ${escHtml(empCargo)}</span>
-                      ${empCodigo || empGrado ? `<span>(Cód: <strong>${escHtml(empCodigo || '—')}</strong>, Grado: <strong>${escHtml(empGrado || '—')}</strong>)</span>` : ''}
-                      <span>· ${escHtml(empDept)}</span>
+                  <div class="servidor-autocomplete-item" data-idx="${idx}">
+                    <div class="sai-avatar">${initial}</div>
+                    <div class="sai-content">
+                      <div class="sai-row-top">
+                        <span class="sai-name">${escHtml(empName)}</span>
+                        <span class="sai-badge-cc">C.C. ${escHtml(empDoc)}</span>
+                      </div>
+                      <div class="sai-row-meta">
+                        <span class="sai-cargo-pill">💼 ${escHtml(empCargo)}</span>
+                        <span class="sai-nivel-pill">Cód. ${escHtml(empCodigo)} · Grado ${escHtml(empGrado)}</span>
+                        <span class="sai-dep-pill">🏢 ${escHtml(empDept)}</span>
+                      </div>
                     </div>
                   </div>
                 `;
               })
               .join('');
 
-            empResultsDiv.querySelectorAll('.autocomplete-item').forEach((itemEl) => {
+            empResultsDiv.querySelectorAll('.servidor-autocomplete-item').forEach((itemEl) => {
               itemEl.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -2162,9 +2155,31 @@ const HorariosModule = (() => {
     const soporte_acto = document.getElementById('horario-soporte-val')?.value?.trim() || null;
     const observaciones = document.getElementById('horario-observaciones')?.value?.trim() || '';
 
-    // Validaciones
+    // Validaciones exhaustivas de formulario con navegación visual y foco
     if (!documento || !apellidos_nombres) {
-      App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('emp-search-schedule', 'Debe buscar y seleccionar un servidor público de planta.');
+      } else {
+        App.showToast('El Documento y Nombre del servidor son requeridos.', 'warning');
+      }
+      return;
+    }
+
+    if (!fecha_inicio) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia del esquema es obligatoria.');
+      } else {
+        App.showToast('La fecha de inicio del esquema es obligatoria.', 'warning');
+      }
+      return;
+    }
+
+    if (fecha_inicio && fecha_fin && new Date(fecha_fin) < new Date(fecha_inicio)) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('horario-fecha-fin', 'La fecha de terminación debe ser posterior o igual a la fecha de inicio.');
+      } else {
+        App.showToast('La fecha de terminación no puede ser anterior a la fecha de inicio.', 'error');
+      }
       return;
     }
 
@@ -2172,11 +2187,14 @@ const HorariosModule = (() => {
     if (!existingId) {
       const cVal = numero_consecutivo ? parseInt(numero_consecutivo, 10) : null;
       if (!cVal || cVal < currentMinConsecutivo) {
-        App.showToast(`El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`, 'error');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('horario-consecutivo', `El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`);
+        } else {
+          App.showToast(`El número consecutivo oficial no puede ser menor a ${currentMinConsecutivo} (último registrado: ${currentMinConsecutivo - 1}).`, 'error');
+        }
         const cInp = document.getElementById('horario-consecutivo');
         if (cInp) {
           cInp.value = currentMinConsecutivo;
-          cInp.focus();
         }
         return;
       }
@@ -2231,7 +2249,18 @@ const HorariosModule = (() => {
       await loadData();
       await loadStats();
     } catch (err) {
-      App.showToast(err.message, 'error');
+      const msg = err.message || '';
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        if (msg.includes('fecha_inicio')) {
+          App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia es obligatoria.');
+          return;
+        }
+        if (msg.includes('consecutivo')) {
+          App.markFieldInvalid('horario-consecutivo', 'El número consecutivo ya existe o no es válido.');
+          return;
+        }
+      }
+      App.showToast(msg, 'error');
     }
   }
 
@@ -2963,7 +2992,18 @@ const HorariosModule = (() => {
       await loadData();
       loadStats();
     } catch (err) {
-      App.showToast(err.message, 'error');
+      const msg = err.message || '';
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        if (msg.includes('fecha_inicio')) {
+          App.markFieldInvalid('horario-fecha-inicio', 'La fecha de inicio de vigencia es obligatoria.');
+          return;
+        }
+        if (msg.includes('consecutivo')) {
+          App.markFieldInvalid('horario-consecutivo', 'El número consecutivo ya existe o no es válido.');
+          return;
+        }
+      }
+      App.showToast(msg, 'error');
     }
   }
 
@@ -4204,6 +4244,7 @@ const HorariosModule = (() => {
   return {
     render,
     openCreate,
+    openScheduleModal,
     openEdit,
     openView,
     openStatusPicker,

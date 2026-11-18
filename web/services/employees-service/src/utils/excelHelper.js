@@ -32,7 +32,7 @@ function sanitizeString(val) {
 function cleanNombreFuncionario(val) {
   const clean = sanitizeString(val);
   if (!clean) return '';
-  return clean.toUpperCase();
+  return clean.replace(/[\*\#\†\‡]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
 /**

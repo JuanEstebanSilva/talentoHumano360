@@ -892,7 +892,12 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
     let autoConsec = parseInt(maxConsecRes.rows[0]?.max_consec || 0, 10);
 
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+      const rawRow = rows[i];
+      // Normalizar claves de la fila para tolerar espacios al final o discrepancias en encabezados de Excel
+      const row = {};
+      for (const [k, v] of Object.entries(rawRow || {})) {
+        if (k != null) row[String(k).trim()] = v;
+      }
 
       // Consecutivo (editable / autoincrementable y sin colisiones entre hojas)
       let numConsecutivo = row.numero_consecutivo || row.consecutivo || row['No.'] || row['No'] || row['N°'] || row['Item'] || null;
@@ -948,17 +953,15 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
         try {
           const normNombre = apellidos_nombres.toUpperCase().trim();
           const pRes = await client.query(
-            `SELECT documento, cargo, dependencia FROM personas 
-             WHERE UPPER(TRIM(nombre)) = $1 
-                OR UPPER(TRIM(COALESCE(nombre,'') || ' ' || COALESCE(apellido,''))) = $1
-                OR UPPER(TRIM(COALESCE(apellido,'') || ' ' || COALESCE(nombre,''))) = $1
+            `SELECT cedula, nombre_completo FROM personas 
+             WHERE UPPER(TRIM(nombre_completo)) = $1 
+                OR UPPER(TRIM(COALESCE(primer_apellido,'') || ' ' || COALESCE(nombres,''))) = $1
+                OR UPPER(TRIM(COALESCE(nombres,'') || ' ' || COALESCE(primer_apellido,''))) = $1
              LIMIT 1`,
             [normNombre]
           );
           if (pRes.rows.length) {
-            documento = pRes.rows[0].documento;
-            if (!row.cargo && pRes.rows[0].cargo) row.cargo = pRes.rows[0].cargo;
-            if (!row.dependencia && pRes.rows[0].dependencia) row.dependencia = pRes.rows[0].dependencia;
+            documento = String(pRes.rows[0].cedula).trim();
           }
         } catch {
           // ignore lookup error
@@ -973,6 +976,41 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
 
       if (!documento || !apellidos_nombres) {
         errors.push(`Fila ${i + 1}: El nombre del servidor público es obligatorio.`);
+        skipped++;
+        continue;
+      }
+
+      // Verificar que el funcionario exista en 'personas' para cumplir con fk_horarios_personas
+      let personaExiste = false;
+      try {
+        const pCheck = await client.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [documento]);
+        if (pCheck.rows.length > 0) {
+          personaExiste = true;
+        } else {
+          // Si la cédula del archivo presenta discrepancia tipográfica, intentar resolver por coincidencia de nombre contra el censo
+          const nameTokens = apellidos_nombres.toUpperCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Z\s]/g, ' ')
+            .trim().split(/\s+/).filter(w => w.length > 2);
+
+          if (nameTokens.length >= 2) {
+            const conditions = nameTokens.map((_, idx) => `UPPER(TRANSLATE(nombre_completo, 'áéíóúÁÉÍÓÚñÑ', 'aeiouAEIOUnN')) LIKE '%' || $${idx + 1} || '%'`).join(' AND ');
+            const nCheck = await client.query(
+              `SELECT cedula, nombre_completo FROM personas WHERE ${conditions} LIMIT 1`,
+              nameTokens
+            );
+            if (nCheck.rows.length > 0) {
+              documento = String(nCheck.rows[0].cedula).trim();
+              personaExiste = true;
+            }
+          }
+        }
+      } catch (pErr) {
+        console.warn('[horarios-bulk] Aviso al verificar persona institucional:', pErr.message);
+      }
+
+      if (!personaExiste) {
+        errors.push(`Fila ${i + 1}: El documento ${documento} (${apellidos_nombres}) no corresponde a ningún servidor público registrado en la planta institucional.`);
         skipped++;
         continue;
       }
@@ -1466,6 +1504,12 @@ router.post('/', auth, async (req, res) => {
     });
   }
 
+  if (!fecha_inicio) {
+    return res.status(400).json({
+      error: 'La fecha de inicio de vigencia del esquema es obligatoria.',
+    });
+  }
+
   if (modalidad === 'Presencial') {
     return res.status(400).json({
       error: 'La presencialidad ordinaria es el régimen legal por defecto y no requiere registro de acuerdo especial. Este módulo administra exclusivamente Teletrabajo, Trabajo en casa y Horario flexible.',
@@ -1588,6 +1632,14 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
+    // Verificar que el funcionario exista en 'personas' para cumplir con la clave foránea fk_horarios_personas
+    const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [upper(documento)]);
+    if (!pCheck.rows.length) {
+      return res.status(400).json({
+        error: `El documento ${documento} no corresponde a ningún servidor público registrado en la planta institucional. Verifique el número de cédula o registre previamente al funcionario en Servidores Públicos.`
+      });
+    }
+
     const insertRes = await pool.query(
       `INSERT INTO horarios (
          numero_consecutivo, codigo, grado, secretaria,
@@ -1686,6 +1738,12 @@ router.post('/', auth, async (req, res) => {
     if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
       return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
     }
+    if (err.code === '23502' || (err.message && err.message.includes('not-null constraint'))) {
+      return res.status(400).json({ error: 'La fecha de inicio y todos los campos obligatorios del esquema de horario deben ser completados.' });
+    }
+    if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+      return res.status(409).json({ error: 'Ya existe un esquema de horario registrado con este número consecutivo oficial.' });
+    }
     res.status(500).json({ error: 'Error al registrar horario: ' + err.message });
   }
 });
@@ -1756,6 +1814,12 @@ router.put('/:id', auth, async (req, res) => {
     });
   }
 
+  if (req.body.fecha_inicio !== undefined && !req.body.fecha_inicio) {
+    return res.status(400).json({
+      error: 'La fecha de inicio de vigencia del esquema no puede estar vacía.',
+    });
+  }
+
   try {
     const isBusiness = checkIsBusiness(tipo_calculo);
     let finalDuracionTexto = duracion_texto;
@@ -1821,6 +1885,15 @@ router.put('/:id', auth, async (req, res) => {
         const fechaFinText = ov.fecha_fin ? `al ${ov.fecha_fin}` : 'indefinida';
         return res.status(400).json({
           error: `El servidor público ya cuenta con otro acuerdo activo de ${ov.modalidad} (#${ov.numero_consecutivo || ov.id_horario}) vigente desde ${ov.fecha_inicio} ${fechaFinText}. No es posible registrar acuerdos simultáneos con traslape de fechas.`
+        });
+      }
+    }
+
+    if (targetDoc) {
+      const pCheck = await pool.query('SELECT cedula FROM personas WHERE cedula = $1 LIMIT 1', [targetDoc]);
+      if (!pCheck.rows.length) {
+        return res.status(400).json({
+          error: `El documento ${targetDoc} no corresponde a ningún servidor público registrado en la planta institucional.`
         });
       }
     }
@@ -1905,6 +1978,12 @@ router.put('/:id', auth, async (req, res) => {
     console.error('[horarios-service] Error actualizando horario:', err);
     if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
       return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
+    }
+    if (err.code === '23502' || (err.message && err.message.includes('not-null constraint'))) {
+      return res.status(400).json({ error: 'La fecha de inicio y todos los campos obligatorios del esquema de horario deben ser completados.' });
+    }
+    if (err.code === '23505' || (err.message && err.message.includes('unique constraint'))) {
+      return res.status(409).json({ error: 'Ya existe un esquema de horario registrado con este número consecutivo oficial.' });
     }
     res.status(500).json({ error: 'Error al actualizar horario: ' + err.message });
   }

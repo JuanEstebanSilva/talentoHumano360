@@ -5,8 +5,10 @@
   "description": "Talento 360 — Plataforma de Gestión de Talento Humano",
   "scripts": {
     "start": "node web/backend/server.js",
-    "build": "node -e \"console.log('Build completed successfully')\"",
+    "build": "node scripts/build-frontend-env.js",
     "db:init": "node web/backend/scripts/init-db.js",
+    "db:migrate": "node web/backend/scripts/init-db.js --migrate-only",
+    "db:status": "node web/backend/scripts/init-db.js --status",
     "test": "node --test web/services/documents-service/test/utils.test.js web/services/documents-service/test/documents.integration.test.js web/services/documents-service/test/inbox.integration.test.js web/services/documents-service/test/soportes.integration.test.js web/services/reports-service/test/utils.test.js web/services/reports-service/test/reports.integration.test.js web/services/requests-service/test/importHistory.test.js web/services/requests-service/test/requests.integration.test.js web/services/admin-requests-service/test/admin-requests.integration.test.js web/services/employees-service/test/employees.integration.test.js web/services/sst-service/test/sst.integration.test.js web/services/dashboard-service/test/dashboard.integration.test.js"
   },
   "dependencies": {
@@ -16,10 +18,11 @@
     "express-rate-limit": "^8.7.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "nodemailer": "^10.5.0",
     "pg": "^8.11.3",
     "xlsx": "^0.18.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

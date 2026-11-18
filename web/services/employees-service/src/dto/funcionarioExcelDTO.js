@@ -85,18 +85,17 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       err.valor = String(rawIng);
       throw err;
     }
+  } else if (!esVacante) {
+    // Si no se le ingresa fecha de ingreso, al registrar guarda la fecha del día del registro (hoy)
+    fechaIngreso = new Date();
   }
 
   const rawEnc = rawRow['__FECHA_ENCARGO__'] || row['FECHA DE ENCARGO'] || row['FECHA ENCARGO'];
   let fechaEncargo = null;
   if (rawEnc !== undefined && rawEnc !== null && String(rawEnc).trim() !== '') {
     fechaEncargo = parseExcelDate(rawEnc);
-    if (!fechaEncargo) {
-      const err = new Error(`Formato de fecha inválido o imposible en Fecha de Encargo: "${rawEnc}"`);
-      err.campo = 'FECHA DE ENCARGO';
-      err.valor = String(rawEnc);
-      throw err;
-    }
+    // Si el campo opcional contiene texto no convertible a fecha (ej: "XXXXX", "SUPERVI", "N/A"),
+    // se asigna null de manera segura para no descartar ni rechazar la importación del funcionario.
   }
 
   // 3. Cálculo dinámico de Edad y Tiempo de Servicio (Reglas 13 y 14: "X años, Y meses, Z días")
@@ -158,9 +157,17 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   const cargoPrincipal = cargoTitularText;
 
   // 5. Nombres y Apellidos (Regla 7)
-  let primerApellido = sanitizeString(row['PRIMER APELLIDO']) || '';
-  let segundoApellido = sanitizeString(row['SEGUNDO APELLIDO']) || '';
-  let nombres = sanitizeString(row['NOMBRES']) || '';
+  const cleanNameField = (val) => {
+    if (!val) return '';
+    const s = sanitizeString(val);
+    if (!s) return '';
+    // Limpia asteriscos de llamada de pie de página y símbolos de anotación (ej. "SANDRA YOLIMA *" -> "SANDRA YOLIMA")
+    return s.replace(/[\*\#\†\‡]/g, '').replace(/\s+/g, ' ').trim();
+  };
+
+  let primerApellido = cleanNameField(row['PRIMER APELLIDO']);
+  let segundoApellido = cleanNameField(row['SEGUNDO APELLIDO']);
+  let nombres = cleanNameField(row['NOMBRES']);
   let nombreCompleto = [primerApellido, segundoApellido, nombres].filter(Boolean).join(' ').trim();
 
   if (esVacante) {
@@ -170,9 +177,12 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
     segundoApellido = cargoPrincipal;
   } else if (!nombreCompleto) {
     nombreCompleto = sanitizeString(row['NOMBRE COMPLETO'] || row['FUNCIONARIO']) || `SERVIDOR SIN CÉDULA #${rowNumber}`;
+    if (nombreCompleto) {
+      nombreCompleto = nombreCompleto.replace(/[\*\#\†\‡]/g, '').replace(/\s+/g, ' ').trim();
+    }
   } else {
-    // Validación estricta de formato: nombres y apellidos solo admiten letras, acentos y espacios
-    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'-]+$/;
+    // Validación de formato: nombres y apellidos admiten letras, acentos, espacios, puntos, comas, guiones, asteriscos y paréntesis
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\.\,\'\-\*\(\)]+$/;
     if (primerApellido && !nameRegex.test(primerApellido)) {
       const err = new Error(`El Primer Apellido "${primerApellido}" contiene caracteres o números no permitidos.`);
       err.campo = 'PRIMER APELLIDO';
@@ -246,9 +256,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       documento_pendiente: esVacante ? false : esDocumentoPendiente,
       es_vacante: Boolean(esVacante),
       sinCedula: esVacante ? false : esDocumentoPendiente,
-      expedida: esVacante ? null : lugarExpedida,
-      ciudadExpedicion: esVacante ? null : (lugarExpedida || 'TUNJA'),
-      departamentoExpedicion: esVacante ? null : 'BOYACÁ',
+      expedida: esVacante ? null : (lugarExpedida || null),
+      ciudadExpedicion: esVacante ? null : (lugarExpedida || null),
+      departamentoExpedicion: esVacante ? null : null,
       nombres: esVacante ? 'PLAZA VACANTE' : (nombres || nombreCompleto),
       primerApellido: esVacante ? 'VACANTE' : primerApellido,
       segundoApellido: esVacante ? '' : segundoApellido,

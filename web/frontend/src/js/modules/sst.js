@@ -2684,25 +2684,49 @@ const SstModule = (() => {
   function readForm() {
     const nombreCompleto = document.getElementById('sst-nombre')?.value.trim();
     const documento = document.getElementById('sst-doc')?.value.trim();
-    if (!nombreCompleto || !documento) {
-      App.showToast('El nombre del servidor y su documento son requeridos.', 'warning');
+    if (!nombreCompleto) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('sst-nombre', 'El nombre del servidor público es requerido.');
+      } else {
+        App.showToast('El nombre del servidor público es requerido.', 'warning');
+      }
+      return null;
+    }
+    if (!documento) {
+      if (typeof App !== 'undefined' && App.markFieldInvalid) {
+        App.markFieldInvalid('sst-doc', 'El documento de identidad es requerido.');
+      } else {
+        App.showToast('El documento de identidad es requerido.', 'warning');
+      }
       return null;
     }
 
     if (state.tab === 'epidemiologico') {
       const dep = document.getElementById('sst-dep')?.value.trim();
       if (!dep) {
-        App.showToast('La dependencia es requerida.', 'warning');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-dep', 'La dependencia es requerida.');
+        } else {
+          App.showToast('La dependencia es requerida.', 'warning');
+        }
         return null;
       }
       const fechaEmo = document.getElementById('sst-fecha-emo')?.value;
       if (!fechaEmo) {
-        App.showToast('La fecha del EMO es obligatoria.', 'warning');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-fecha-emo', 'La fecha de realización del examen médico (EMO) es obligatoria.');
+        } else {
+          App.showToast('La fecha del EMO es obligatoria.', 'warning');
+        }
         return null;
       }
       const tipoEmo = document.getElementById('sst-tipo-emo')?.value;
       if (!tipoEmo) {
-        App.showToast('El tipo de evaluación médica ocupacional es obligatorio.', 'warning');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-tipo-emo', 'El tipo de evaluación médica ocupacional es obligatorio.');
+        } else {
+          App.showToast('El tipo de evaluación médica ocupacional es obligatorio.', 'warning');
+        }
         return null;
       }
 
@@ -2712,7 +2736,6 @@ const SstModule = (() => {
       if (!nomComp && (apellidos || nombres)) {
         nomComp = `${apellidos} ${nombres}`.trim();
       }
-
       return {
         nombreCompleto: nomComp,
         apellidos: apellidos || (nomComp ? nomComp.split(' ').slice(0, 2).join(' ') : ''),
@@ -2747,20 +2770,58 @@ const SstModule = (() => {
     if (state.tab === 'epp') {
       const dep = document.getElementById('sst-dep')?.value.trim();
       if (!dep) {
-        App.showToast('La dependencia es obligatoria.', 'warning');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-dep', 'La dependencia es obligatoria.');
+        } else {
+          App.showToast('La dependencia es obligatoria.', 'warning');
+        }
         return null;
       }
       const elementoEpp = document.getElementById('sst-elemento-epp')?.value;
       if (!elementoEpp) {
-        App.showToast('Debe seleccionar el elemento EPP a entregar.', 'warning');
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-elemento-epp', 'Debe seleccionar el elemento EPP a entregar.');
+        } else {
+          App.showToast('Debe seleccionar el elemento EPP a entregar.', 'warning');
+        }
         return null;
       }
-      const firmaDigital = document.getElementById('sst-firma-digital')?.value || null;
+      const fechaEntrega = document.getElementById('sst-fecha-entrega')?.value;
+      if (!fechaEntrega) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-fecha-entrega', 'La fecha de entrega del elemento de protección es obligatoria.');
+        } else {
+          App.showToast('La fecha de entrega es obligatoria.', 'warning');
+        }
+        return null;
+      }
+      let firmaDigital = document.getElementById('sst-firma-digital')?.value || null;
       if (!firmaDigital) {
-        App.showToast('La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.', 'warning');
+        const cv = document.getElementById('sst-signature-canvas');
+        if (cv) {
+          try {
+            const ctx = cv.getContext('2d');
+            const pData = ctx.getImageData(0, 0, cv.width, cv.height).data;
+            let hasPixels = false;
+            for (let i = 3; i < pData.length; i += 4) {
+              if (pData[i] > 0) { hasPixels = true; break; }
+            }
+            if (hasPixels) {
+              firmaDigital = cv.toDataURL('image/png');
+              const h = document.getElementById('sst-firma-digital');
+              if (h) h.value = firmaDigital;
+            }
+          } catch (_) {}
+        }
+      }
+      if (!firmaDigital) {
+        if (typeof App !== 'undefined' && App.markFieldInvalid) {
+          App.markFieldInvalid('sst-firma-digital', 'La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.');
+        } else {
+          App.showToast('La firma digital del funcionario receptor es obligatoria para certificar la entrega de EPP.', 'warning');
+        }
         return null;
       }
-
       return {
         nombreCompleto,
         documento,
@@ -3162,6 +3223,13 @@ const SstModule = (() => {
         }
       }
     ];
+    if (state.tab === 'epp') {
+      actions.push({
+        text: 'Descargar Acta PDF',
+        cls: 'btn-primary',
+        action: () => exportSinglePdf(id)
+      });
+    }
     if (canManageCurrent()) {
       actions.push({
         text: 'Editar Registro',
@@ -3235,10 +3303,18 @@ const SstModule = (() => {
   }
 
   // ─── Generación de Formato Oficial PDF (jsPDF) ──────────────────────────────
-  function exportSinglePdf(id) {
-    const r = state.data.find(x => x.id === id);
+  async function exportSinglePdf(id) {
+    let r = (id && typeof id === 'object') ? id : state.data.find(x => String(x.id) === String(id));
+    if (!r && id && API.getSstEpp && state.tab === 'epp') {
+      try {
+        const res = await API.getSstEpp({ q: String(id), limit: 10 });
+        if (res && res.data && res.data.length) {
+          r = res.data.find(x => String(x.id) === String(id)) || res.data[0];
+        }
+      } catch (_) {}
+    }
     if (!r || !window.jspdf) {
-      App.showToast('Motor PDF no disponible.', 'warning');
+      App.showToast('Motor PDF no disponible o registro no encontrado.', 'warning');
       return;
     }
     const { jsPDF } = window.jspdf;
@@ -3293,26 +3369,51 @@ const SstModule = (() => {
       });
     }
 
-    if (state.tab === 'epp' && r.firmaDigital && String(r.firmaDigital).startsWith('data:image')) {
+    if (state.tab === 'epp') {
+      const sigData = (r.firmaDigital || r.firma_digital || '').trim();
       const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 180) + 8;
-      const sigY = (finalY + 45 > 280) ? 20 : finalY;
-      if (finalY + 45 > 280) doc.addPage();
+      const sigY = (finalY + 54 > 280) ? 22 : finalY;
+      if (finalY + 54 > 280) doc.addPage();
 
       doc.setFontSize(9);
-      doc.setTextColor(80, 80, 80);
-      doc.text('FIRMA DIGITAL DEL FUNCIONARIO RECEPTOR:', 14, sigY);
-      try {
-        doc.addImage(r.firmaDigital, 'PNG', 14, sigY + 3, 60, 20);
-      } catch (e) {
-        console.warn('Error embedding signature in PDF:', e);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 117, 34);
+      doc.text('CONSTANCIA Y FIRMA DIGITAL DE RECEPCIÓN CONFORME (EPP)', 14, sigY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Certificación electrónica de recepción de dotación en cumplimiento del SG-SST institucional.', 14, sigY + 5);
+
+      if (sigData) {
+        const imgSrc = sigData.startsWith('data:image') ? sigData : `data:image/png;base64,${sigData}`;
+        // Fondo blanco y marco para la firma
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(14, sigY + 8, 85, 26, 2, 2, 'FD');
+        try {
+          doc.addImage(imgSrc, 'PNG', 16, sigY + 9, 81, 24);
+        } catch (e) {
+          console.warn('Error al incrustar firma en PDF:', e);
+        }
+      } else {
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(14, sigY + 8, 85, 26, 2, 2, 'D');
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text('[PENDIENTE DE FIRMA DIGITAL EN PANTALLA TÁCTIL]', 18, sigY + 23);
       }
-      doc.setDrawColor(180, 180, 180);
-      doc.line(14, sigY + 25, 110, sigY + 25);
+
+      doc.setDrawColor(100, 116, 139);
+      doc.line(14, sigY + 38, 115, sigY + 38);
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
-      doc.setTextColor(50, 50, 50);
-      doc.text(`${r.nombreCompleto} — C.C. ${r.documento}`, 14, sigY + 30);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Constancia Digital de Entrega de EPP · ${formatDate(r.fechaEntrega)}`, 14, sigY + 34);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${r.nombreCompleto} — C.C. ${r.documento}`, 14, sigY + 43);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Constancia Digital de Entrega de EPP · Fecha: ${formatDate(r.fechaEntrega)} · Radicado: ${r.radicado}`, 14, sigY + 47);
     }
 
     doc.save(`${r.radicado}_${r.documento}.pdf`);
@@ -5375,7 +5476,13 @@ const SstModule = (() => {
         { header: 'Talla', key: 'talla', width: 10 },
         { header: 'Cantidad', key: 'cantidad', width: 12 },
         { header: 'Fecha Entrega', key: 'fechaEntrega', width: 14 },
-        { header: 'Estado', key: 'estadoEntrega', width: 16 }
+        { header: 'Estado', key: 'estadoEntrega', width: 16 },
+        {
+          header: 'Firma Digital',
+          key: 'firmaDigital',
+          width: 18,
+          format: (v) => ((v && String(v).trim()) ? 'Firmado (Verificado)' : 'Pendiente')
+        }
       ];
     } else {
       dateField = 'createdAt';

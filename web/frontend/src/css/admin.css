@@ -1081,6 +1081,86 @@
   color: #15803d;
 }
 
+/* ─── Modal de Ficha Técnica de Respaldos (Gobernación de Boyacá) ────────── */
+.admin-backup-modal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-backup-file-card {
+  background: rgba(37, 77, 50, 0.05);
+  border: 1px solid rgba(37, 77, 50, 0.22);
+  border-left: 4px solid #254d32;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-backup-file-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #254d32;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.admin-backup-file-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.btn-backup-file-download {
+  padding: 8px 16px !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-radius: 8px !important;
+  flex-shrink: 0;
+}
+
+.admin-detail-summary-card {
+  background: var(--bg-tertiary, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-detail-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 0.04em;
+}
+
+.admin-detail-summary-content {
+  font-size: 0.88rem;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
 /* ─── Soporte para Tema Oscuro (Dark Theme) ───────────────────────────────── */
 [data-theme="dark"] .btn-slide--green {
   background: #1b3d26 !important;
@@ -1117,6 +1197,25 @@
 [data-theme="dark"] .admin-detail-msg-card {
   background: rgba(220, 38, 38, 0.1) !important;
   border-color: rgba(220, 38, 38, 0.3) !important;
+}
+
+[data-theme="dark"] .admin-backup-file-card {
+  background: rgba(37, 77, 50, 0.16) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  border-left-color: #34d399 !important;
+}
+
+[data-theme="dark"] .admin-backup-file-title {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .admin-detail-summary-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .admin-detail-summary-title {
+  color: #94a3b8 !important;
 }
 
 [data-theme="dark"] .btn-backup-pill-now,
@@ -1183,4 +1282,618 @@
 
 [data-theme="dark"] .empty-icon-shield {
   background: rgba(37, 77, 50, 0.25);
+}
+
+/* ─── Módulo General / Desbloqueo de Módulos para Administrador ──────────────── */
+.nav-item--admin-unlock {
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 9px 12px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: var(--radius-lg) !important;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Eliminar completamente el pseudo-elemento before para evitar líneas desalineadas */
+.nav-item--admin-unlock::before {
+  display: none !important;
+  content: none !important;
+}
+
+.nav-item--admin-unlock .nav-icon {
+  width: 19px !important;
+  height: 19px !important;
+  flex-shrink: 0 !important;
+  color: #f59e0b !important;
+  transition: transform 0.22s ease, color 0.2s ease, filter 0.2s ease;
+}
+
+.nav-item--admin-unlock .nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.84rem !important;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+
+.nav-item--admin-unlock:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
+}
+
+.nav-item--admin-unlock:hover .nav-icon {
+  transform: scale(1.12);
+  filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.45));
+}
+
+/* Estado Desbloqueado */
+.nav-item--admin-unlock.is-unlocked {
+  background: rgba(16, 185, 129, 0.10) !important;
+  border-color: rgba(52, 211, 153, 0.32) !important;
+}
+
+.nav-item--admin-unlock.is-unlocked .nav-icon {
+  color: #34d399 !important;
+}
+
+.nav-item--admin-unlock.is-unlocked:hover {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
+}
+
+.nav-item--admin-unlock.is-unlocked:hover .nav-icon {
+  filter: drop-shadow(0 2px 6px rgba(52, 211, 153, 0.45));
+}
+
+/* Badge de estado compacto y perfectamente alineado que NUNCA se desborda */
+.admin-modules-lock-status {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  margin-left: auto !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.32) !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  line-height: 1.25 !important;
+  transition: all 0.22s ease;
+  box-sizing: border-box !important;
+}
+
+.lock-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.7);
+}
+
+.nav-item--admin-unlock.is-unlocked .admin-modules-lock-status {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+.nav-item--admin-unlock.is-unlocked .lock-status-dot {
+  background: #10b981;
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.8);
+}
+
+/* ─── Ajustes específicos para Barra Lateral Colapsada ("Guardada") ─────────── */
+.app.sidebar-collapsed .nav-item--admin-unlock {
+  justify-content: center !important;
+  padding: 12px 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock::before {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .nav-label {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .admin-modules-lock-status {
+  display: none !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock .nav-icon {
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+.app.sidebar-collapsed .nav-item--admin-unlock:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+}
+
+/* Dark Theme overrides */
+[data-theme="dark"] .nav-item--admin-unlock {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+[data-theme="dark"] .nav-item--admin-unlock.is-unlocked {
+  background: rgba(16, 185, 129, 0.10) !important;
+  border-color: rgba(52, 211, 153, 0.30) !important;
+}
+
+[data-theme="dark"] .app.sidebar-collapsed .nav-item--admin-unlock {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ─── Modal de Desbloqueo de Módulos (Diseño de Alta Gama) ───────────────────── */
+.admin-unlock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(10, 24, 18, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.22s ease-out;
+}
+
+.admin-unlock-card {
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #0f172a);
+  border-radius: 22px;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+  border: 1.5px solid rgba(115, 137, 147, 0.35);
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.admin-unlock-card.shake {
+  animation: modal-shake 0.35s ease;
+}
+
+.admin-unlock-top-accent {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #857352 0%, #d1ad2a 50%, #857352 100%);
+}
+
+.admin-unlock-header {
+  position: relative;
+  padding: 18px 24px 16px;
+  background: radial-gradient(circle at 50% -10%, rgba(209, 173, 42, 0.28) 0%, transparent 65%),
+              linear-gradient(145deg, #62543b 0%, #857352 52%, #4a3e2a 100%);
+  color: #ffffff;
+  text-align: center;
+  border-bottom: 2px solid rgba(209, 173, 42, 0.45);
+}
+
+.admin-unlock-top-row {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  margin-bottom: 0;
+  z-index: 2;
+}
+
+.admin-unlock-chip-badge {
+  display: none !important;
+}
+
+.admin-unlock-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.admin-unlock-close-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: rotate(90deg) scale(1.05);
+}
+
+.admin-unlock-icon-container {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18), inset 0 0 10px rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.admin-unlock-icon-container svg {
+  width: 22px;
+  height: 22px;
+}
+
+.admin-unlock-title {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.admin-unlock-subtitle {
+  margin: 0 auto;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.4;
+  max-width: 390px;
+}
+
+.admin-unlock-body {
+  padding: 22px 26px 24px;
+}
+
+.admin-unlock-user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1.5px solid #738993;
+  margin-bottom: 18px;
+}
+
+.admin-unlock-user-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-unlock-avatar {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #857352 0%, #62543b 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(133, 115, 82, 0.28);
+}
+
+.admin-unlock-avatar-dot {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+.admin-unlock-user-details {
+  min-width: 0;
+}
+
+.admin-unlock-user-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.admin-unlock-user-email {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #738993;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.admin-unlock-role-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(133, 115, 82, 0.12);
+  color: #857352;
+  border: 1px solid rgba(133, 115, 82, 0.35);
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.admin-unlock-field-group {
+  margin-bottom: 16px;
+}
+
+.admin-unlock-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #738993;
+  margin-bottom: 8px;
+}
+
+.admin-unlock-label svg {
+  color: #738993;
+}
+
+.admin-unlock-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-unlock-input-icon {
+  display: none !important;
+}
+
+.admin-unlock-input {
+  width: 100%;
+  padding: 11px 44px 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #738993;
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #0f172a);
+  font-size: 0.95rem;
+  font-weight: 500;
+  outline: none !important;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-unlock-input::placeholder {
+  color: #738993;
+  opacity: 0.85;
+}
+
+.admin-unlock-input:focus,
+.admin-unlock-input:focus-visible {
+  outline: none !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.25) !important;
+}
+
+.admin-unlock-toggle-btn {
+  position: absolute;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #738993;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.admin-unlock-toggle-btn:hover {
+  background: rgba(115, 137, 147, 0.12);
+  color: #0284c7;
+}
+
+.admin-unlock-advisory {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(115, 137, 147, 0.08);
+  border: 1.5px solid #738993;
+  font-size: 0.79rem;
+  color: #355833;
+  line-height: 1.45;
+  margin-top: 14px;
+}
+
+.admin-unlock-advisory svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #738993;
+  margin-top: 1px;
+}
+
+.admin-unlock-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.86rem;
+  font-weight: 600;
+  animation: fadeIn 0.2s ease;
+}
+
+.admin-unlock-error-banner svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #ef4444;
+}
+
+.admin-unlock-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1.5px solid rgba(115, 137, 147, 0.25);
+}
+
+.btn-unlock-cancel {
+  padding: 11px 22px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.90rem;
+  background: transparent;
+  color: #738993;
+  border: 1.5px solid #738993;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-unlock-cancel:hover {
+  background: rgba(115, 137, 147, 0.12);
+  color: #0284c7;
+  border-color: #0284c7;
+  transform: translateY(-1px);
+}
+
+.btn-unlock-submit {
+  padding: 11px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.38);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-unlock-submit:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(2, 132, 199, 0.48);
+}
+
+.btn-unlock-submit:active {
+  transform: translateY(0);
+}
+
+/* ─── Soporte para Tema Oscuro del Modal de Desbloqueo ───────────────────────── */
+[data-theme="dark"] .admin-unlock-card {
+  background: #111c15;
+  border-color: rgba(115, 137, 147, 0.35);
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .admin-unlock-user-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: #738993;
+}
+
+[data-theme="dark"] .admin-unlock-user-name {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .admin-unlock-user-email {
+  color: #738993;
+}
+
+[data-theme="dark"] .admin-unlock-role-pill {
+  background: rgba(133, 115, 82, 0.25);
+  color: #d1ad2a;
+  border-color: rgba(209, 173, 42, 0.4);
+}
+
+[data-theme="dark"] .admin-unlock-input {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #738993;
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .admin-unlock-input:focus {
+  border-color: #d1ad2a;
+  box-shadow: 0 0 0 4px rgba(209, 173, 42, 0.25);
+}
+
+[data-theme="dark"] .admin-unlock-advisory {
+  background: rgba(115, 137, 147, 0.12);
+  border-color: #738993;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .admin-unlock-advisory svg {
+  color: #738993;
+}
+
+[data-theme="dark"] .btn-unlock-cancel {
+  background: transparent;
+  border-color: #738993;
+  color: #738993;
+}
+
+[data-theme="dark"] .btn-unlock-cancel:hover {
+  background: rgba(115, 137, 147, 0.2);
+  color: #d1ad2a;
+  border-color: #d1ad2a;
+}
+
+[data-theme="dark"] .admin-unlock-actions {
+  border-top-color: rgba(115, 137, 147, 0.25);
 }
