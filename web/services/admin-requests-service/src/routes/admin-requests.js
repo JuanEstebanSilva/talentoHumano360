@@ -78,6 +78,25 @@ function canEdit(roleOrUser) {
   return false;
 }
 
+function hasModuleAccess(user, allowedModules = []) {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  const role = String(user.role || user.rol || '').trim().toLowerCase();
+  if (role === 'administrador' || role === 'admin') return true;
+
+  const mods = Array.isArray(user.modules) ? user.modules.map(m => String(m).toLowerCase()) : (typeof user.modules === 'string' ? user.modules.toLowerCase().split(',') : []);
+  const perms = Array.isArray(user.permissions) ? user.permissions.map(p => String(p).toLowerCase()) : (typeof user.permissions === 'string' ? user.permissions.toLowerCase().split(',') : []);
+
+  if (mods.includes('*') || mods.includes('all') || perms.includes('*')) return true;
+
+  for (const m of allowedModules) {
+    const ml = m.toLowerCase();
+    if (mods.includes(ml)) return true;
+    if (perms.some(p => p === ml || p.startsWith(`${ml}:`))) return true;
+  }
+  return false;
+}
+
 function upper(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
 function normalizeStatus(s) {
   if (!s) return 'Pendiente';
@@ -259,7 +278,10 @@ router.use('/incapacidades', require('./incapacidades'));
 
 // ─── GET /api/admin-requests/catalogs/permisos ────────────────────────────────
 // Catálogos y reglas del formulario de Permisos Laborales (sectoriales, cargos, motivos…)
-router.get('/catalogs/permisos', auth, (_req, res) => {
+router.get('/catalogs/permisos', auth, (req, res) => {
+  if (!hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+    return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar este recurso.' });
+  }
   const c = permisosCatalog;
   res.json({
     emailDomain: c.EMAIL_DOMAIN,
@@ -319,7 +341,10 @@ function parseGenericSoportes(list) {
 }
 
 // ─── GET /api/admin-requests/catalogs/licencias ───────────────────────────────
-router.get('/catalogs/licencias', auth, (_req, res) => {
+router.get('/catalogs/licencias', auth, (req, res) => {
+  if (!hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+    return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar este recurso.' });
+  }
   res.json(licenciasCatalog);
 });
 
@@ -332,6 +357,11 @@ router.get('/', auth, async (req, res) => {
   try {
     const permPermisos = await getModulePermission(pool, req.user, 'permisos');
     const permLicencias = await getModulePermission(pool, req.user, 'licencias');
+
+    const activePerm = tipo === 'Licencia' ? permLicencias : tipo === 'Permiso Laboral' ? permPermisos : (permPermisos.canManage || permLicencias.canManage ? { canManage: true } : { canManage: false });
+    if (!activePerm.canManage && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar solicitudes.' });
+    }
 
     const conditions = ['1=1'];
     const params = [];
@@ -346,7 +376,6 @@ router.get('/', auth, async (req, res) => {
 
     // Control de acceso RBAC (Sección 7.1):
     // Si el usuario es Funcionario en el módulo consultado, solo puede ver sus propias solicitudes.
-    const activePerm = tipo === 'Licencia' ? permLicencias : tipo === 'Permiso Laboral' ? permPermisos : (permPermisos.canManage || permLicencias.canManage ? { canManage: true } : { canManage: false });
     if (!activePerm.canManage) {
       const uname = String(req.user.username || '').trim().toLowerCase();
       const unamePrefix = uname.split('@')[0];
@@ -419,6 +448,11 @@ router.get('/stats', auth, async (req, res) => {
 
     const permPermisos = await getModulePermission(pool, req.user, 'permisos');
     const permLicencias = await getModulePermission(pool, req.user, 'licencias');
+
+    const canManageAny = permPermisos.canManage || permLicencias.canManage;
+    if (!canManageAny && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar estadísticas de solicitudes.' });
+    }
 
     // Construir filtro de periodo/dependencia/RBAC para estadísticas
     const buildFilter = (targetTipo, perm) => {

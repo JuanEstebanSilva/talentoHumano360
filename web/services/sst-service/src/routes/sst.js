@@ -592,6 +592,25 @@ function canEdit(roleOrUser) {
   return false;
 }
 
+function hasModuleAccess(user, allowedModules = []) {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  const role = String(user.role || user.rol || '').trim().toLowerCase();
+  if (role === 'administrador' || role === 'admin') return true;
+
+  const mods = Array.isArray(user.modules) ? user.modules.map(m => String(m).toLowerCase()) : (typeof user.modules === 'string' ? user.modules.toLowerCase().split(',') : []);
+  const perms = Array.isArray(user.permissions) ? user.permissions.map(p => String(p).toLowerCase()) : (typeof user.permissions === 'string' ? user.permissions.toLowerCase().split(',') : []);
+
+  if (mods.includes('*') || mods.includes('all') || perms.includes('*')) return true;
+
+  for (const m of allowedModules) {
+    const ml = m.toLowerCase();
+    if (mods.includes(ml)) return true;
+    if (perms.some(p => p === ml || p.startsWith(`${ml}:`))) return true;
+  }
+  return false;
+}
+
 function upper(v) {
   return v == null ? '' : String(v).trim().replace(/\s+/g, ' ').toUpperCase();
 }
@@ -636,7 +655,10 @@ function resolveEppItem(raw) {
 }
 
 // ─── GET /api/sst/catalogs ───────────────────────────────────────────────────
-router.get('/catalogs', auth, async (_, res) => {
+router.get('/catalogs', auth, async (req, res) => {
+  if (!hasModuleAccess(req.user, ['sst', 'epidemiologico', 'sociodemografico', 'epp'])) {
+    return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar este recurso.' });
+  }
   try {
     const dbDeps = await pool.query(
       `SELECT DISTINCT TRIM(dependencia) AS dep FROM dependencias WHERE dependencia IS NOT NULL AND TRIM(dependencia) <> '' ORDER BY dep`
@@ -1298,6 +1320,9 @@ router.get('/epidemiologico', auth, async (req, res) => {
   const { q = '', tipoEmo = '', estadoCaso = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
   try {
     const perm = await getModulePermission(pool, req.user, 'epidemiologico');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['sst', 'epidemiologico'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar perfil epidemiológico.' });
+    }
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;
@@ -1792,6 +1817,9 @@ router.delete('/epidemiologico/:id', auth, async (req, res) => {
 router.get('/epp/inventario', auth, async (req, res) => {
   try {
     const perm = await getModulePermission(pool, req.user, 'epp');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['sst', 'epp'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar inventario de EPP.' });
+    }
     const r = await pool.query(`
       SELECT
         i.id_inventario,
@@ -1878,6 +1906,9 @@ router.get('/epp', auth, async (req, res) => {
   const { q = '', elemento = '', estado = '', dependencia = '', fechaInicio = '', fechaFin = '', page = 1, limit = 20 } = req.query;
   try {
     const perm = await getModulePermission(pool, req.user, 'epp');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['sst', 'epp'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar entregas de EPP.' });
+    }
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;
@@ -2232,6 +2263,9 @@ router.get('/sociodemografico', auth, async (req, res) => {
   const { q = '', escolaridad = '', tipoVinculacion = '', dependencia = '', sexo = '', page = 1, limit = 20 } = req.query;
   try {
     const perm = await getModulePermission(pool, req.user, 'sociodemografico');
+    if (!perm.canManage && !hasModuleAccess(req.user, ['sst', 'sociodemografico'])) {
+      return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar perfil sociodemográfico.' });
+    }
     const conditions = ['1=1'];
     const params = [];
     let idx = 1;

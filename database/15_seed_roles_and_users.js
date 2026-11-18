@@ -43,6 +43,14 @@ async function main() {
         modulos: '*'
       },
       {
+        username: 'talento360.notificaciones@gmail.com',
+        pass: 'Talento360@dmin',
+        nombre: 'Gestor de Monitoreo y Respaldo',
+        rol: 'Monitoreo y Respaldo',
+        cargo: 'Gestor de Monitoreo de Errores y Copias de Seguridad',
+        modulos: 'admin-errors,admin-backups'
+      },
+      {
         username: 'angela.ussa@boyaca.gov.co',
         pass: '@Angela123',
         nombre: 'Angela Ussa',

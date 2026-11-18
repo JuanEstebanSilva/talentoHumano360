@@ -1126,8 +1126,9 @@ const App = (() => {
       const u = user || Auth.getUser();
       const mods = Auth.getUserModules(u);
       if (!mods.includes('*') && !mods.includes('all') && !mods.includes('dashboard')) {
-        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
+        if (mods.includes('admin-errors') || mods.includes('errors')) return { module: 'admin-errors', options: {} };
         if (mods.includes('admin-backups') || mods.includes('backups')) return { module: 'admin-backups', options: {} };
+        if (mods.includes('horarios')) return { module: 'horarios', options: {} };
         if (mods.length > 0) return { module: mods[0], options: {} };
       }
     }
@@ -1258,15 +1259,22 @@ const App = (() => {
       }
     } else {
       // Para usuarios regulares: control granular de módulos
-      if (rawModule === 'admin-errors' || rawModule === 'admin-modules-unlock') {
+      if (rawModule === 'admin-errors') {
+        const canAccessErrors = hasAll || mods.includes('admin-errors') || mods.includes('errors');
+        if (!canAccessErrors) {
+          showToast('Acceso restringido: no tienes permisos para el centro de monitoreo de errores.', 'warning');
+          const defaultRoute = getDefaultLandingRoute(user);
+          navigate(defaultRoute.module, defaultRoute.options);
+          return;
+        }
+      } else if (rawModule === 'admin-modules-unlock' || rawModule === 'admin-permisos') {
         showToast('Acceso restringido: módulo exclusivo para el administrador del sistema.', 'warning');
         const defaultRoute = getDefaultLandingRoute(user);
         navigate(defaultRoute.module, defaultRoute.options);
         return;
-      }
-
-      if (rawModule === 'admin-backups') {
-        if (typeof Auth !== 'undefined' && Auth.hasModuleAccess && !Auth.hasModuleAccess('admin-backups')) {
+      } else if (rawModule === 'admin-backups') {
+        const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
+        if (!canAccessBackups) {
           showToast('Acceso restringido: no tienes permisos asignados para copias de seguridad.', 'warning');
           const defaultRoute = getDefaultLandingRoute(user);
           navigate(defaultRoute.module, defaultRoute.options);
@@ -2650,14 +2658,15 @@ const App = (() => {
       operationalNavs.forEach(id => setVisibility(id, isElevated));
 
     } else {
-      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, etc.):
+      // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, Monitoreo/Respaldo, etc.):
       // Ocultar las herramientas de administración técnica que no tengan asignadas
+      const canAccessErrors = hasAll || mods.includes('admin-errors') || mods.includes('errors');
       const canAccessBackups = hasAll || mods.includes('admin-backups') || mods.includes('backups');
-      setVisibility('li-admin-errors', false);
+      setVisibility('li-admin-errors', canAccessErrors);
       setVisibility('li-admin-backups', canAccessBackups);
       setVisibility('li-admin-permisos', false);
       setVisibility('li-admin-modules-unlock', false);
-      setVisibility('nav-admin-errors', false);
+      setVisibility('nav-admin-errors', canAccessErrors);
       setVisibility('nav-admin-backups', canAccessBackups);
       setVisibility('nav-admin-permisos', false);
 
@@ -2701,6 +2710,8 @@ const App = (() => {
     if (role === 'administrador' || role === 'admin' || mods.includes('*') || mods.includes('all')) {
       return 'Administrador del Sistema';
     }
+    if (mods.includes('admin-errors') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Monitoreo y Respaldo';
+    if (mods.includes('admin-errors') || mods.includes('errors')) return 'Gestión de Monitoreo de Errores';
     if (mods.includes('employees')) return 'Gestión de Servidores Públicos';
     if (mods.includes('viaticos')) return 'Gestión de Viáticos';
     if (mods.includes('horarios') && (mods.includes('admin-backups') || mods.includes('backups'))) return 'Gestión de Respaldo y Horarios';

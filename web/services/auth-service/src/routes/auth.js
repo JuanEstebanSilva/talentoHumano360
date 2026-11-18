@@ -1308,12 +1308,16 @@ function resolvePermissions(role, modules, explicitPerms = null) {
   if (mods.includes('admin-backups') || mods.includes('backups')) {
     perms.push('admin-backups:read', 'admin-backups:write', 'admin-backups:download', 'admin-backups:delete');
   }
+  if (mods.includes('admin-errors') || mods.includes('errors')) {
+    perms.push('admin-errors:read', 'admin-errors:write', 'admin-errors:delete');
+  }
   return perms;
 }
 
 function resolveJobTitle(role) {
   if (!role) return 'Usuario del Sistema';
   const r = role.toLowerCase();
+  if (r.includes('monitoreo') || r.includes('errores')) return 'Gestor de Monitoreo de Errores y Copias de Seguridad';
   if (r.includes('respaldo') || r.includes('backup')) return 'Gestor de Copias de Seguridad y Respaldo';
   if (r === 'sst' || r.includes('sst')) return 'Responsable de Seguridad y Salud en el Trabajo (SST)';
   if (r === 'incapacidades' || r.includes('incapacidad')) return 'Responsable de Incapacidades y Ausentismo Laboral';

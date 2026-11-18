@@ -67,6 +67,7 @@ const SQL_FILES = [
   '32_clean_servidores_horarios_viaticos.sql',
   '33_viaticos_estado_sin_viatico.sql',
   '34_clean_all_viaticos_zero.sql',
+  '35_usuario_monitoreo_y_respaldo.sql',
 ];
 
 function findDatabaseDir() {
@@ -295,6 +296,28 @@ async function runSafeMigrations(client) {
         VALUES ('silvaespejojuanesteban@gmail.com', $1, 'Juan Esteban Silva Espejo', 'Administrador', 'Administrador Institucional y de Plataforma', 'ACTIVO', '*', '*', false)
       `, [hashJuan]);
       results.columnsAdded.push('usuarios: insercion segura de silvaespejojuanesteban@gmail.com');
+    }
+
+    // Asegurar que la cuenta de Monitoreo de Errores y Copias de Seguridad exista de forma segura e idempotente
+    const checkNotif = await client.query("SELECT id_usuario FROM usuarios WHERE LOWER(username) = 'talento360.notificaciones@gmail.com' LIMIT 1");
+    const hashNotif = '$2a$12$q8sVQEPGroHKAOu9qt0.Eu8qiia7hCzvrVuOBJQ88TdsxJ1.Ow7M2'; // 'Talento360@dmin'
+    if (checkNotif.rows.length === 0) {
+      await client.query(`
+        INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password)
+        VALUES ('talento360.notificaciones@gmail.com', $1, 'Gestor de Monitoreo y Respaldo', 'Monitoreo y Respaldo', 'Gestor de Monitoreo de Errores y Copias de Seguridad', 'ACTIVO', 'admin-errors,admin-backups', 'admin-errors:read,admin-errors:write,admin-errors:delete,admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete', false)
+      `, [hashNotif]);
+      results.columnsAdded.push('usuarios: insercion segura de talento360.notificaciones@gmail.com');
+    } else {
+      await client.query(`
+        UPDATE usuarios 
+        SET password = $1, nombre = 'Gestor de Monitoreo y Respaldo', rol = 'Monitoreo y Respaldo', cargo_laboral = 'Gestor de Monitoreo de Errores y Copias de Seguridad', estado = 'ACTIVO', modulos = 'admin-errors,admin-backups', permisos = 'admin-errors:read,admin-errors:write,admin-errors:delete,admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete', debe_cambiar_password = false
+        WHERE LOWER(username) = 'talento360.notificaciones@gmail.com'
+      `, [hashNotif]);
+      results.columnsAdded.push('usuarios: actualizacion segura de talento360.notificaciones@gmail.com');
+    }
+    if (!(await isMigrationRecorded(client, '35_usuario_monitoreo_y_respaldo'))) {
+      await recordMigration(client, '35_usuario_monitoreo_y_respaldo', 'Usuario tecnico con acceso exclusivo a Monitoreo de Errores y Copias de Seguridad');
+      results.migrationsRecorded.push('35_usuario_monitoreo_y_respaldo');
     }
     await recordMigration(client, '29_password_recovery', 'Columnas de recuperación de contraseña y tabla auth_failed_logins');
     results.columnsAdded.push('usuarios: rbac y password_recovery');
