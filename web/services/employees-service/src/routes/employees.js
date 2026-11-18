@@ -2315,4 +2315,64 @@ router.delete('/:cedula', auth, async (req, res) => {
   }
 });
 
+// ─── POST /api/employees/admin/wipe-all (Limpieza total a estado cero de servidores públicos) ───
+router.post('/admin/wipe-all', auth, async (req, res) => {
+  const role = String(req.user?.rol || req.user?.role || '').toLowerCase();
+  if (role !== 'administrador' && role !== 'admin') {
+    return res.status(403).json({ error: 'Permisos insuficientes. Se requiere rol de Administrador.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Desacoplar restricciones de llaves foráneas dependientes
+    await client.query(`
+      ALTER TABLE IF EXISTS horarios DROP CONSTRAINT IF EXISTS fk_horarios_personas;
+      ALTER TABLE IF EXISTS viaticos DROP CONSTRAINT IF EXISTS fk_viaticos_personas;
+      ALTER TABLE IF EXISTS vacaciones DROP CONSTRAINT IF EXISTS fk_vacaciones_personas;
+      ALTER TABLE IF EXISTS historial_solicitudes DROP CONSTRAINT IF EXISTS fk_historial_personas;
+      ALTER TABLE IF EXISTS solicitudes_admin DROP CONSTRAINT IF EXISTS fk_solicitudes_personas;
+      ALTER TABLE IF EXISTS soportes_solicitudes DROP CONSTRAINT IF EXISTS fk_soportes_personas;
+    `);
+
+    // 2. Limpiar registros de servidores públicos
+    const relCount = await client.query('SELECT COUNT(*) AS total FROM rel_principal');
+    const perCount = await client.query('SELECT COUNT(*) AS total FROM personas');
+
+    await client.query('DELETE FROM rel_principal');
+    await client.query('DELETE FROM contactos');
+    await client.query('DELETE FROM educacion');
+    await client.query('DELETE FROM personas');
+    await client.query("DELETE FROM estados WHERE id_estado NOT IN ('EST001', 'EST002', 'EST003', 'EST004', 'EST005')");
+
+    // 3. Reiniciar secuencias autonuméricas
+    await client.query(`
+      ALTER SEQUENCE IF EXISTS seq_personas_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_contactos_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_educacion_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_rel_principal_id RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_prov_cedula RESTART WITH 1;
+      ALTER SEQUENCE IF EXISTS seq_estados_id RESTART WITH 6;
+    `);
+
+    await client.query('COMMIT');
+
+    return res.json({
+      success: true,
+      message: 'Todos los servidores públicos han sido eliminados del sistema y las secuencias han sido reiniciadas a estado cero.',
+      eliminados: {
+        rel_principal: parseInt(relCount.rows[0]?.total || 0),
+        personas: parseInt(perCount.rows[0]?.total || 0)
+      }
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[employees] wipe-all error:', err.message);
+    return res.status(500).json({ error: 'Error al limpiar servidores públicos: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
