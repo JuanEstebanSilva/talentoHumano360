@@ -1239,6 +1239,9 @@ router.post('/', auth, async (req, res) => {
   if (finalDias === null && dStart && dEnd) {
     finalDias = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
   }
+  if (!finalDias || isNaN(finalDias) || finalDias < 1) {
+    finalDias = 1;
+  }
 
   let finalValorDiario = cleanMoney(valorDiario);
   if (finalValorDiario === null || finalValorDiario < 0) {
@@ -1427,6 +1430,9 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
         if (dS && dE && dE >= dS) {
           dias = Math.max(1, Math.round((dE - dS) / (1000 * 60 * 60 * 24)) + 1);
         }
+      }
+      if (!dias || isNaN(dias) || dias < 1) {
+        dias = 1;
       }
       const rawObs = (row.observaciones || row.notas || row['Observaciones'] || row['OBSERVACIONES'] || row['Notas'] || row['NOTAS'] || row['Comentarios'] || row['COMENTARIOS'] || row.comentarios || '').toString().trim();
       const rawEstado = (row.estado || row['Estado'] || row['ESTADO'] || '').toString().trim();
@@ -1648,6 +1654,9 @@ router.put('/:id', auth, async (req, res) => {
       } else {
         finalDias = currentViatico.dias;
       }
+    }
+    if (!finalDias || isNaN(finalDias) || finalDias < 1) {
+      finalDias = currentViatico.dias || 1;
     }
 
     let finalValorDiario = cleanMoney(valorDiario);

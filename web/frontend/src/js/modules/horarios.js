@@ -3613,7 +3613,7 @@ const HorariosModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-hor-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-hor-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-hor-import') || closeBtn;
     const dropzone = overlay.querySelector('#hor-excel-dropzone');
     const fileInput = overlay.querySelector('#hor-excel-file-input');
     const filePreview = overlay.querySelector('#hor-file-preview');
@@ -3876,7 +3876,7 @@ const HorariosModule = (() => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -4057,7 +4057,7 @@ const HorariosModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }

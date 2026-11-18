@@ -4628,7 +4628,7 @@ const EmployeesModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-emp-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-emp-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-emp-import') || closeBtn;
     const dropzone = overlay.querySelector('#emp-excel-dropzone');
     const fileInput = overlay.querySelector('#emp-excel-file-input');
     const filePreview = overlay.querySelector('#emp-file-preview');
@@ -4709,7 +4709,7 @@ const EmployeesModule = (() => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -4805,7 +4805,7 @@ const EmployeesModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }

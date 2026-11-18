@@ -4398,6 +4398,11 @@ const ViaticosModule = (() => {
         const presupuestoVal = document.getElementById('vpkg-presupuesto')?.value;
         const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
 
+        const fileInputEl = document.getElementById('vpkg-file-input');
+        if (!selectedPackageFile && fileInputEl && fileInputEl.files && fileInputEl.files.length > 0) {
+          selectedPackageFile = fileInputEl.files[0];
+        }
+
         const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
@@ -4514,6 +4519,7 @@ const ViaticosModule = (() => {
       }
 
       fileInput.onchange = (e) => handleFile(e.target.files[0]);
+      fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
       dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; dropzone.style.background = 'rgba(22,163,74,0.05)'; };
       dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; dropzone.style.background = 'var(--bg-primary)'; };
@@ -4964,13 +4970,24 @@ const ViaticosModule = (() => {
     }
 
     if (rawVal == null || String(rawVal).trim() === '') {
-      return { start: null, end: null, dias: expD, raw: null };
+      return { start: null, end: null, dias: expD || 1, raw: null };
     }
 
     // Las fechas de comisión NO deben extraerse de textos de resoluciones ni actos administrativos
     const rawStr = String(rawVal).trim();
+
+    // Si contiene formato combinado de resolución y fecha (ej: "2752/12/09/2023"), extraer la fecha real
+    const comboMatch = rawStr.match(/^\d{3,5}\/(\d{1,2}\/\d{1,2}\/\d{4})$/);
+    if (comboMatch) {
+      const subD = comboMatch[1];
+      const [d, m, y] = subD.split('/');
+      if (isValidCalendarDate(d, m, y)) {
+        return { start: subD, end: subD, dias: expD || 1, raw: rawVal };
+      }
+    }
+
     if (/(?:RES|RESOLUCI[OÓ]N|DECRETO|ACTO|OFICIO|MEMORANDO)/i.test(rawStr) || /^\d{3,5}\//.test(rawStr)) {
-      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
     }
 
     if (typeof rawVal === 'number' && rawVal > 30000 && rawVal < 60000) {
@@ -4991,7 +5008,7 @@ const ViaticosModule = (() => {
         const dStr = `${d}/${m}/${y}`;
         return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
       }
-      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
     }
 
     let s = String(rawVal).trim().replace(/\s+/g, '');
@@ -5006,7 +5023,7 @@ const ViaticosModule = (() => {
         const dStr = `${d}/${m}/${y}`;
         return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
       }
-      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
     }
 
     // Corrección de erratas detectadas en archivos de la Gobernación de Boyacá
@@ -5042,7 +5059,7 @@ const ViaticosModule = (() => {
       if (days.length > 0) {
         const allDaysValid = days.every(d => isValidCalendarDate(d, month, year));
         if (!allDaysValid) {
-          return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+          return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
         }
         if (days.length > 1) {
           const start = `${days[0].padStart(2, '0')}/${month}/${year}`;
@@ -5103,11 +5120,11 @@ const ViaticosModule = (() => {
         const dStr = `${d}/${mo}/${yr}`;
         return { start: dStr, end: dStr, dias: expD || 1, raw: rawVal };
       }
-      return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+      return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
     }
 
     // Si el formato no corresponde a una fecha reconocible, no inventar fechas ni duración
-    return { start: null, end: null, dias: expD, raw: rawVal, invalid: true };
+    return { start: null, end: null, dias: expD || 1, raw: rawVal, invalid: true };
   }
 
   // ─── Procesar e Importar Excel vinculado a un Paquete ────────────────────────
@@ -5196,7 +5213,7 @@ const ViaticosModule = (() => {
                 motivo: 'Comisión institucional de servicios',
                 fechaInicio: dInfo.start,
                 fechaFin: dInfo.end,
-                dias: dInfo.dias,
+                dias: dInfo.dias || 1,
                 valorDiario: finalValorDiario,
                 valorTotal: finalValor,
                 estado: finalEstado,
@@ -5362,7 +5379,7 @@ const ViaticosModule = (() => {
     document.body.appendChild(overlay);
 
     const closeBtn = overlay.querySelector('#btn-close-vit-import');
-    const cancelBtn = overlay.querySelector('#btn-cancel-vit-import');
+    const cancelBtn = overlay.querySelector('#btn-cancel-vit-import') || closeBtn;
     const dropzone = overlay.querySelector('#vit-excel-dropzone');
     const fileInput = overlay.querySelector('#vit-excel-file-input');
     const filePreview = overlay.querySelector('#vit-file-preview');
@@ -5485,7 +5502,7 @@ const ViaticosModule = (() => {
       if (!selectedFile) return;
 
       confirmBtn.disabled = true;
-      cancelBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
         Procesando Carga Masiva...
@@ -5618,7 +5635,7 @@ const ViaticosModule = (() => {
             const obsVal = row[colObs] ? String(row[colObs]).trim() : '';
 
             const dInfo = parseDateRobust(rawFecha, resolVal, explicitDias);
-            const dias = dInfo.dias;
+            const dias = dInfo.dias || 1;
 
             let detectedObs = obsVal;
             let hasSinViaticoText = isSinViaticoText(detectedObs) || isSinViaticoText(resolVal) || isSinViaticoText(destinoVal);
@@ -5645,7 +5662,7 @@ const ViaticosModule = (() => {
               motivo: 'Comisión institucional de servicios',
               fechaInicio: dInfo.start,
               fechaFin: dInfo.end,
-              dias,
+              dias: dias || 1,
               valorDiario: finalValorDiario,
               valorTotal: finalValor,
               estado: finalEstado,
@@ -5751,7 +5768,7 @@ const ViaticosModule = (() => {
         App.showToast('Error al importar: ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmText.textContent = 'Reintentar Importación';
-        cancelBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
       }
     });
   }
