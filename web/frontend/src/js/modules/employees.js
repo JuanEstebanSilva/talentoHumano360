@@ -2630,7 +2630,7 @@ const EmployeesModule = (() => {
     const isEdit = Boolean(emp.cedula || emp.id);
 
     const cleanEmpDep = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
-    const cleanEmpCargo = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
+    const cleanEmpCargo = isInvalidValue(emp.cargoTitular || emp.cargoBase || emp.cargoActual) ? '' : (emp.cargoTitular || emp.cargoBase || emp.cargoActual).trim();
     const cleanEmpEncargo = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
     const cleanEmpClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
     const cleanEmpEstudios = isInvalidValue(emp.estudios) ? '' : emp.estudios.trim();
@@ -2808,7 +2808,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-codigo-cargo">Código de Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, letras o números)</span></label>
-              <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoActual || '')}" enterkeyhint="next" />
+              <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoTitular || emp.codigoBase || emp.codigoActual || '')}" enterkeyhint="next" />
               <small id="ef-codigo-hint" style="font-size:11px; color:var(--text-muted);">Código alfanumérico asignado al cargo.</small>
             </div>
 
@@ -2816,7 +2816,7 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-grado">Grado <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
               <select id="ef-grado" class="filter-select">
                 <option value="">(Sin Grado / Vacío)</option>
-                ${cats.grados.map(g => `<option value="${escHtml(g)}" ${String(emp.gradoActual || '').toLowerCase() === String(g).toLowerCase() ? 'selected' : ''}>${escHtml(g)}</option>`).join('')}
+                ${cats.grados.map(g => `<option value="${escHtml(g)}" ${String(emp.gradoTitular || emp.gradoBase || emp.gradoActual || '').toLowerCase() === String(g).toLowerCase() ? 'selected' : ''}>${escHtml(g)}</option>`).join('')}
               </select>
             </div>
 
@@ -3269,7 +3269,7 @@ const EmployeesModule = (() => {
       });
 
       const cleanDepVal = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
-      const cleanCargoVal = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
+      const cleanCargoVal = isInvalidValue(emp.cargoTitular || emp.cargoBase || emp.cargoActual) ? '' : (emp.cargoTitular || emp.cargoBase || emp.cargoActual).trim();
       const cleanEncargoVal = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
 
       if (cleanDepVal) {

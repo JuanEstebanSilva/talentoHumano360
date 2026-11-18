@@ -463,25 +463,22 @@ router.get('/', auth, async (req, res) => {
 
     if (situacion && situacion.trim()) {
       const sitTrim = situacion.trim();
-      params.push('%' + sitTrim + '%');
-      const sIdx = params.length;
       if (sitTrim.toUpperCase() === 'ENCARGO') {
         whereConditions.push(`(
-          UPPER(COALESCE(e.situacion, '')) LIKE UPPER($${sIdx})
+          UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
           OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
           OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
           OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
           OR r.fecha_encargo IS NOT NULL
         )`);
       } else {
-        whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + sIdx + ')');
+        params.push('%' + sitTrim + '%');
+        whereConditions.push('UPPER(COALESCE(e.situacion, \'\')) LIKE UPPER($' + params.length + ')');
       }
     }
 
     if (clasificacion && clasificacion.trim()) {
       const clasTrim = clasificacion.trim();
-      params.push('%' + clasTrim + '%');
-      const cIdx = params.length;
       if (['ENCARGO', 'ENCARGOS', 'ENCARGO (TODOS)', 'ENCARGO (TODOS LOS TIPOS)', 'TODOS LOS ENCARGOS'].includes(clasTrim.toUpperCase())) {
         whereConditions.push(`(
           UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
@@ -491,7 +488,8 @@ router.get('/', auth, async (req, res) => {
           OR r.fecha_encargo IS NOT NULL
         )`);
       } else {
-        whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + cIdx + ')');
+        params.push('%' + clasTrim + '%');
+        whereConditions.push('UPPER(COALESCE(e.clasificacion_empleo, \'\')) LIKE UPPER($' + params.length + ')');
       }
     }
 

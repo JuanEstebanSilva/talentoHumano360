@@ -40,42 +40,36 @@ const uploadAny = upload.fields([{ name: 'archivo', maxCount: 1 }, { name: 'file
 function detectarMapeoCargos(worksheet) {
   if (!worksheet || !worksheet['!ref']) {
     return {
-      colEncargo: 0,
-      colEncargoCod: 1,
-      colEncargoGra: 2,
-      colEncargoAsig: 3,
+      colCargoTitular: 0,
+      colCodTitular: 1,
+      colGraTitular: 2,
+      colAsigEncargo: 3,
       colDep: 4,
-      colCargoTitular: 5,
-      colCodTitular: 6,
-      colGraTitular: 7,
-      colCargoNominal: 5,
-      colCodNominal: 6,
-      colGraNominal: 7,
-      colCargoActual: 5,
-      colCodActual: 6,
-      colGraActual: 7
+      colCargoDenom: 5,
+      colCodDenom: 6,
+      colGraDenom: 7
     };
   }
   const range = XLSX.utils.decode_range(worksheet['!ref']);
-  let colEncargo = null;
-  let colEncargoCod = null;
-  let colEncargoGra = null;
-  let colEncargoAsig = null;
-  let colDep = null;
   let colCargoTitular = null;
   let colCodTitular = null;
   let colGraTitular = null;
+  let colAsigEncargo = null;
+  let colDep = null;
+  let colCargoDenom = null;
+  let colCodDenom = null;
+  let colGraDenom = null;
 
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
     const val = String(cell?.v || '').trim().toUpperCase();
 
-    if (val.includes('DENOMINAC') && val.includes('ENCARGO')) {
-      colEncargo = C;
-    } else if (val.includes('DENOMINAC') && !val.includes('ENCARGO')) {
-      colCargoTitular = C;
+    if (val.includes('TITULAR') || (val.includes('CARGO') && C < 4)) {
+      if (colCargoTitular === null) colCargoTitular = C;
+    } else if (val.includes('DENOMINAC') || val.includes('CARGO')) {
+      if (colCargoDenom === null) colCargoDenom = C;
     } else if (val.includes('ASIGNAC')) {
-      colEncargoAsig = C;
+      colAsigEncargo = C;
     } else if (val.includes('DEPEN')) {
       colDep = C;
     }
@@ -87,42 +81,36 @@ function detectarMapeoCargos(worksheet) {
 
     if (val.startsWith('COD') || val.includes('CÓDIGO') || val.includes('CODIGO')) {
       if (colDep !== null && C < colDep) {
-        if (colEncargoCod === null) colEncargoCod = C;
-      } else if (colDep !== null && C > colDep) {
         if (colCodTitular === null) colCodTitular = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colCodDenom === null) colCodDenom = C;
       } else {
-        if (colEncargoCod === null) colEncargoCod = C;
-        else if (colCodTitular === null) colCodTitular = C;
+        if (colCodTitular === null) colCodTitular = C;
+        else if (colCodDenom === null) colCodDenom = C;
       }
     }
 
     if (val.startsWith('GRA') || val.includes('GRADO')) {
       if (colDep !== null && C < colDep) {
-        if (colEncargoGra === null) colEncargoGra = C;
-      } else if (colDep !== null && C > colDep) {
         if (colGraTitular === null) colGraTitular = C;
+      } else if (colDep !== null && C > colDep) {
+        if (colGraDenom === null) colGraDenom = C;
       } else {
-        if (colEncargoGra === null) colEncargoGra = C;
-        else if (colGraTitular === null) colGraTitular = C;
+        if (colGraTitular === null) colGraTitular = C;
+        else if (colGraDenom === null) colGraDenom = C;
       }
     }
   }
 
   return {
-    colEncargo: colEncargo !== null ? colEncargo : 0,
-    colEncargoCod: colEncargoCod !== null ? colEncargoCod : 1,
-    colEncargoGra: colEncargoGra !== null ? colEncargoGra : 2,
-    colEncargoAsig: colEncargoAsig !== null ? colEncargoAsig : 3,
+    colCargoTitular: colCargoTitular !== null ? colCargoTitular : 0,
+    colCodTitular: colCodTitular !== null ? colCodTitular : 1,
+    colGraTitular: colGraTitular !== null ? colGraTitular : 2,
+    colAsigEncargo: colAsigEncargo !== null ? colAsigEncargo : 3,
     colDep: colDep !== null ? colDep : 4,
-    colCargoTitular: colCargoTitular !== null ? colCargoTitular : 5,
-    colCodTitular: colCodTitular !== null ? colCodTitular : 6,
-    colGraTitular: colGraTitular !== null ? colGraTitular : 7,
-    colCargoNominal: colCargoTitular !== null ? colCargoTitular : 5,
-    colCodNominal: colCodTitular !== null ? colCodTitular : 6,
-    colGraNominal: colGraTitular !== null ? colGraTitular : 7,
-    colCargoActual: colCargoTitular !== null ? colCargoTitular : 5,
-    colCodActual: colCodTitular !== null ? colCodTitular : 6,
-    colGraActual: colGraTitular !== null ? colGraTitular : 7
+    colCargoDenom: colCargoDenom !== null ? colCargoDenom : 5,
+    colCodDenom: colCodDenom !== null ? colCodDenom : 6,
+    colGraDenom: colGraDenom !== null ? colGraDenom : 7
   };
 }
 const uploadMiddleware = (req, res, next) => {
@@ -364,34 +352,50 @@ async function importarExcel(req, res, pool) {
           return null;
         };
 
-        const cellEncargo = getCellVal(colMap.colEncargo);
-        const cellEncargoCod = getCellVal(colMap.colEncargoCod);
-        const cellEncargoGra = getCellVal(colMap.colEncargoGra);
-        const cellEncargoAsig = getCellVal(colMap.colEncargoAsig);
         const cellCargoTitular = getCellVal(colMap.colCargoTitular);
         const cellCodTitular = getCellVal(colMap.colCodTitular);
         const cellGraTitular = getCellVal(colMap.colGraTitular);
+        const cellAsigEncargo = getCellVal(colMap.colAsigEncargo);
+        const cellCargoDenom = getCellVal(colMap.colCargoDenom);
+        const cellCodDenom = getCellVal(colMap.colCodDenom);
+        const cellGraDenom = getCellVal(colMap.colGraDenom);
         const cellDep = getCellVal(colMap.colDep);
 
-        if (cellEncargo) rawRow['__ENCARGO_DENOMINACION__'] = cellEncargo;
-        if (cellEncargoCod) rawRow['__ENCARGO_CODIGO__'] = cellEncargoCod;
-        if (cellEncargoGra) rawRow['__ENCARGO_GRADO__'] = cellEncargoGra;
-        if (cellEncargoAsig) rawRow['__ENCARGO_ASIGNACION__'] = cellEncargoAsig;
-
-        if (cellCargoTitular) {
+        if (cellCargoTitular && cellCargoTitular.trim()) {
+          // El servidor TIENE encargo oficial:
+          // Su cargo base/titular es el de Col A
           rawRow['__CARGO_TITULAR__'] = cellCargoTitular;
-          rawRow['__CARGO_ACTUAL__'] = cellCargoTitular;
-          rawRow['__CARGO_NOMINAL__'] = cellCargoTitular;
-        }
-        if (cellCodTitular) {
           rawRow['__CODIGO_TITULAR__'] = cellCodTitular;
-          rawRow['__CODIGO_ACTUAL__'] = cellCodTitular;
-          rawRow['__CODIGO_NOMINAL__'] = cellCodTitular;
-        }
-        if (cellGraTitular) {
           rawRow['__GRADO_TITULAR__'] = cellGraTitular;
-          rawRow['__GRADO_ACTUAL__'] = cellGraTitular;
-          rawRow['__GRADO_NOMINAL__'] = cellGraTitular;
+          rawRow['__CARGO_BASE__'] = cellCargoTitular;
+          rawRow['__CODIGO_BASE__'] = cellCodTitular;
+          rawRow['__GRADO_BASE__'] = cellGraTitular;
+
+          // Su cargo en encargo es el de Col F (la plaza/empleo de encargo)
+          rawRow['__ENCARGO_DENOMINACION__'] = cellCargoDenom;
+          rawRow['__ENCARGO_CODIGO__'] = cellCodDenom;
+          rawRow['__ENCARGO_GRADO__'] = cellGraDenom;
+          rawRow['__ENCARGO_ASIGNACION__'] = cellAsigEncargo;
+          rawRow['__CARGO_ACTUAL__'] = cellCargoDenom;
+          rawRow['__CODIGO_ACTUAL__'] = cellCodDenom;
+          rawRow['__GRADO_ACTUAL__'] = cellGraDenom;
+        } else {
+          // El servidor NO tiene encargo:
+          // Su cargo titular es el de Col F
+          rawRow['__CARGO_TITULAR__'] = cellCargoDenom;
+          rawRow['__CODIGO_TITULAR__'] = cellCodDenom;
+          rawRow['__GRADO_TITULAR__'] = cellGraDenom;
+          rawRow['__CARGO_BASE__'] = cellCargoDenom;
+          rawRow['__CODIGO_BASE__'] = cellCodDenom;
+          rawRow['__GRADO_BASE__'] = cellGraDenom;
+          rawRow['__CARGO_ACTUAL__'] = cellCargoDenom;
+          rawRow['__CODIGO_ACTUAL__'] = cellCodDenom;
+          rawRow['__GRADO_ACTUAL__'] = cellGraDenom;
+
+          rawRow['__ENCARGO_DENOMINACION__'] = null;
+          rawRow['__ENCARGO_CODIGO__'] = null;
+          rawRow['__ENCARGO_GRADO__'] = null;
+          rawRow['__ENCARGO_ASIGNACION__'] = null;
         }
         if (cellDep) rawRow['__DEPENDENCIA__'] = cellDep;
 
@@ -577,5 +581,6 @@ async function importarExcel(req, res, pool) {
 
 module.exports = {
   uploadMiddleware,
-  importarExcel
+  importarExcel,
+  detectarMapeoCargos
 };
