@@ -23,16 +23,24 @@ const AdminErrorsModule = (() => {
     }
   }
 
-  function isUserAdmin() {
+  function hasErrorsAccess() {
     if (typeof Auth === 'undefined' || !Auth.getUser) return false;
     const user = Auth.getUser();
     if (!user) return false;
-    if (typeof Auth.isAdmin === 'function') {
-      return Auth.isAdmin(user);
-    }
     const r = String(user.role || '').toLowerCase();
     const uname = String(user.username || '').toLowerCase();
-    return r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com';
+    if (r === 'administrador' || r === 'admin' || uname === 'admin' || uname === 'admin@boyaca.gov.co' || uname === 'alejoleo2022@gmail.com') {
+      return true;
+    }
+    if (typeof Auth.hasModuleAccess === 'function' && (Auth.hasModuleAccess('admin-errors') || Auth.hasModuleAccess('errors'))) {
+      return true;
+    }
+    const mods = Array.isArray(user.modules) ? user.modules : ((typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : []);
+    return mods.includes('admin-errors') || mods.includes('errors') || mods.includes('*') || mods.includes('all');
+  }
+
+  function isUserAdmin() {
+    return hasErrorsAccess();
   }
 
   function isCurrentViewAdminErrors() {
