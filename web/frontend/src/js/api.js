@@ -223,13 +223,50 @@ const API = (() => {
     createDependencia: (nombre) => request('/employees/dependencias', { method: 'POST', body: JSON.stringify({ nombre }) }),
     createEmployee: (data) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     bulkCreateEmployees: (rows) => request('/employees/bulk', { method: 'POST', body: JSON.stringify({ rows }) }),
-    uploadEmployeesExcel: async (file) => {
+    previewEmployeesExcel: async (file) => {
       if (!file) throw new Error('No se ha seleccionado ningún archivo.');
       if (file.name.startsWith('~$')) {
         throw new Error('El archivo seleccionado es un temporal de Excel (~$) bloqueado por el sistema. Cierra Microsoft Excel y selecciona el archivo original.');
       }
       const formData = new FormData();
       formData.append('archivo', file);
+      const token = Auth.getToken();
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      let res;
+      try {
+        res = await fetch(BASE + '/employees/previsualizar-excel', {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+      } catch (fetchErr) {
+        console.error('[API.previewEmployeesExcel] fetch error:', fetchErr);
+        throw new Error(`Error de red al previsualizar el archivo: ${fetchErr.message || 'Verifica tu conexión.'}`);
+      }
+
+      if (res.status === 401) {
+        Auth.clear();
+        App.showLogin();
+        throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      return data;
+    },
+    uploadEmployeesExcel: async (file, options = {}) => {
+      if (!file) throw new Error('No se ha seleccionado ningún archivo.');
+      if (file.name.startsWith('~$')) {
+        throw new Error('El archivo seleccionado es un temporal de Excel (~$) bloqueado por el sistema. Cierra Microsoft Excel y selecciona el archivo original.');
+      }
+      const formData = new FormData();
+      formData.append('archivo', file);
+      if (options.marcarRetirados !== undefined) formData.append('marcarRetirados', String(options.marcarRetirados));
+      if (options.sincronizarVacantes !== undefined) formData.append('sincronizarVacantes', String(options.sincronizarVacantes));
+      if (options.fechaRetiro) formData.append('fechaRetiro', String(options.fechaRetiro));
+      if (options.motivoRetiro) formData.append('motivoRetiro', String(options.motivoRetiro));
+
       const token = Auth.getToken();
       const headers = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;

@@ -1,5 +1,11 @@
 // src/services/employeeImportService.js
-const { inferirNivelCargo } = require('../utils/employeeValidator');
+const {
+  inferirNivelCargo,
+  calcularDiferenciaFechasExacta,
+  calcularOtroTiempoNormalizado,
+  sumarTiemposExactos
+} = require('../utils/employeeValidator');
+const { parseExcelDate, formatDateISO } = require('../utils/excelHelper');
 
 class EmployeeImportService {
   constructor(pool) {
@@ -99,19 +105,33 @@ class EmployeeImportService {
 
   /**
    * Procesa un lote de funcionarios DTOs con transacciones y SAVEPOINTS.
-   * Realiza UPSERT aplicando las 22 reglas de negocio.
+   * Realiza UPSERT aplicando las 22 reglas de negocio y sincronización inteligente de planta.
    * @param {Array} dtos
+   * @param {Object} [options={}]
    */
-  async upsertBatch(dtos) {
+  async upsertBatch(dtos, options = {}) {
+    const {
+      marcarRetirados = true,
+      sincronizarVacantes = true,
+      fechaRetiro = new Date().toISOString().split('T')[0],
+      motivoRetiro = 'Corte oficial de planta'
+    } = options;
+
     const client = await this.pool.connect();
     const resumen = {
       totalFilas: dtos.length,
       procesadosExitosos: 0,
       insertados: 0,
       actualizados: 0,
+      retirados: 0,
+      vacantes: 0,
+      vacantesDepuradas: 0,
       fallidos: 0
     };
     const errores = [];
+    const listaRetirados = [];
+    const touchedCedulas = new Set();
+    const touchedVacanteIds = new Set();
 
     try {
       await client.query('BEGIN');
@@ -470,6 +490,12 @@ class EmployeeImportService {
             await client.query(`RELEASE SAVEPOINT ${savepointName}`);
             resumen.actualizados++;
             resumen.procesadosExitosos++;
+            if (funcionario.es_vacante) {
+              resumen.vacantes++;
+              if (registroId) touchedVacanteIds.add(registroId);
+            } else if (funcionario.cedula) {
+              touchedCedulas.add(funcionario.cedula);
+            }
 
           } else {
             // ───────────────────────────────────────────────
@@ -603,6 +629,12 @@ class EmployeeImportService {
             await client.query(`RELEASE SAVEPOINT ${savepointName}`);
             resumen.insertados++;
             resumen.procesadosExitosos++;
+            if (funcionario.es_vacante) {
+              resumen.vacantes++;
+              if (newRecordId) touchedVacanteIds.add(newRecordId);
+            } else if (funcionario.cedula) {
+              touchedCedulas.add(funcionario.cedula);
+            }
           }
 
         } catch (rowError) {
@@ -618,6 +650,91 @@ class EmployeeImportService {
         }
       }
 
+      // ──────────────────────────────────────────────────────────────────────────
+      // SINCRONIZACIÓN INTELIGENTE DE VACANTES (Depurar plazas provistas/eliminadas)
+      // ──────────────────────────────────────────────────────────────────────────
+      if (sincronizarVacantes) {
+        const dbVacantesRes = await client.query(`
+          SELECT r.id_registro, r.id_persona, r.id_contacto, r.id_educacion, r.id_estado
+          FROM rel_principal r
+          JOIN personas p ON p.id_persona = r.id_persona
+          WHERE p.es_vacante = true 
+             OR UPPER(COALESCE(p.primer_apellido, '')) = 'VACANTE'
+             OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+        `);
+
+        for (const v of dbVacantesRes.rows) {
+          if (!touchedVacanteIds.has(v.id_registro)) {
+            await client.query('DELETE FROM rel_principal WHERE id_registro = $1', [v.id_registro]);
+            if (v.id_contacto) await client.query('DELETE FROM contactos WHERE id_contacto = $1', [v.id_contacto]);
+            if (v.id_educacion) await client.query('DELETE FROM educacion WHERE id_educacion = $1', [v.id_educacion]);
+            if (v.id_persona) await client.query('DELETE FROM personas WHERE id_persona = $1', [v.id_persona]);
+            if (v.id_estado) await client.query("DELETE FROM estados WHERE id_estado = $1 AND id_estado NOT IN ('EST001','EST002','EST003','EST004','EST005')", [v.id_estado]);
+            resumen.vacantesDepuradas++;
+          }
+        }
+      }
+
+      // ──────────────────────────────────────────────────────────────────────────
+      // SINCRONIZACIÓN INTELIGENTE DE RETIROS (Servidores ausentes de la plantilla)
+      // ──────────────────────────────────────────────────────────────────────────
+      if (marcarRetirados && touchedCedulas.size > 0) {
+        const dbActivosRes = await client.query(`
+          SELECT 
+            p.id_persona, p.cedula, p.nombre_completo, r.id_registro, r.id_estado,
+            r.fecha_ingreso, r.otro_tiempo_gobernacion, r.otros_tiempos_periodos
+          FROM rel_principal r
+          JOIN personas p ON p.id_persona = r.id_persona
+          JOIN estados e ON e.id_estado = r.id_estado
+          WHERE COALESCE(p.es_vacante, false) = false
+            AND NOT (
+              UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
+              OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+              OR UPPER(COALESCE(p.primer_apellido, '')) = 'VACANTE'
+            )
+            AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
+            AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
+            AND p.cedula IS NOT NULL AND p.cedula != ''
+        `);
+
+        const fRetiro = fechaRetiro ? fechaRetiro.trim() : new Date().toISOString().split('T')[0];
+
+        for (const act of dbActivosRes.rows) {
+          if (!touchedCedulas.has(act.cedula)) {
+            const dateIng = parseExcelDate(act.fecha_ingreso);
+            const dateRet = parseExcelDate(fRetiro) || new Date();
+            const tiempoCongelado = dateIng ? calcularDiferenciaFechasExacta(dateIng, dateRet) : { texto: '0 años, 0 meses, 0 días' };
+            const otroCalc = calcularOtroTiempoNormalizado(act.otros_tiempos_periodos, act.otro_tiempo_gobernacion, dateIng);
+            const totalCongelado = sumarTiemposExactos(tiempoCongelado, otroCalc);
+
+            await client.query(
+              `UPDATE estados 
+               SET estado_servidor = 'Retirado',
+                   situacion = 'RETIRADO',
+                   novedades = COALESCE(novedades || ' | ', '') || 'Corte oficial de planta - Retiro automático'
+               WHERE id_estado = $1`,
+              [act.id_estado]
+            );
+
+            await client.query(
+              `UPDATE rel_principal 
+               SET fecha_retiro = $1, 
+                   tiempo_servicio = $2,
+                   tiempo_total_gobernacion = $3
+               WHERE id_registro = $4`,
+              [fRetiro, tiempoCongelado.texto, totalCongelado.texto, act.id_registro]
+            );
+
+            resumen.retirados++;
+            listaRetirados.push({
+              cedula: act.cedula,
+              nombre: act.nombre_completo,
+              fechaRetiro: fRetiro
+            });
+          }
+        }
+      }
+
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -626,7 +743,7 @@ class EmployeeImportService {
       client.release();
     }
 
-    return { resumen, errores };
+    return { resumen, errores, listaRetirados };
   }
 }
 

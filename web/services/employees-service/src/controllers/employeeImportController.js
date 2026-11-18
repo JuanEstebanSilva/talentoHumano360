@@ -174,6 +174,259 @@ function validarEstructuraHoja(worksheet, sheetName) {
 }
 
 /**
+ * Pre-auditoría / Dry-Run de importación (Vista Previa de Sincronización):
+ * Lee el archivo Excel en memoria y lo compara contra la base de datos institucional
+ * SIN escribir ningún cambio, detectando altas, actualizaciones, ausencias y vacantes.
+ */
+async function previsualizarExcel(req, res, pool) {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'No se ha adjuntado ningún archivo. Debe enviarse un archivo Excel bajo el campo "archivo".'
+    });
+  }
+
+  try {
+    let workbook;
+    try {
+      workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: false });
+    } catch (parseErr) {
+      return res.status(400).json({
+        success: false,
+        error: `El archivo Excel no pudo ser interpretado (${parseErr.message}).`
+      });
+    }
+
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El archivo Excel no contiene ninguna hoja de cálculo disponible para lectura.'
+      });
+    }
+
+    let algunaHojaConCabeceraValida = false;
+    let primerErrorEstructura = '';
+    for (const sName of workbook.SheetNames) {
+      const ws = workbook.Sheets[sName];
+      if (!ws || !ws['!ref']) continue;
+      const validacion = validarEstructuraHoja(ws, sName);
+      if (validacion.valida) {
+        algunaHojaConCabeceraValida = true;
+      } else if (!primerErrorEstructura) {
+        primerErrorEstructura = validacion.motivo;
+      }
+    }
+
+    if (!algunaHojaConCabeceraValida) {
+      return res.status(400).json({
+        success: false,
+        error: primerErrorEstructura || 'El archivo Excel no contiene las columnas requeridas para servidores públicos.'
+      });
+    }
+
+    const excelPersonas = [];
+    const excelCedulasSet = new Set();
+    const excelVacantes = [];
+    let provisionalesCount = 0;
+    const hojasProcesadas = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const worksheet = workbook.Sheets[sheetName];
+      if (!worksheet) continue;
+      const validacion = validarEstructuraHoja(worksheet, sheetName);
+      if (!validacion.valida) continue;
+
+      hojasProcesadas.push(sheetName);
+      const colMap = detectarMapeoCargos(worksheet);
+      const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : { s: { r: 0, c: 0 } };
+      const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+
+      rawRows.forEach((rawRow, idx) => {
+        const rowNumber = idx + 2;
+        if (esFilaFantasma(rawRow)) return;
+
+        const actualSheetRow = range.s.r + 1 + idx;
+        const getCellVal = (c) => {
+          if (c === undefined || c === null) return null;
+          const cell = worksheet[XLSX.utils.encode_cell({ r: actualSheetRow, c })];
+          if (cell && cell.v !== undefined && cell.v !== null) {
+            const s = String(cell.v).trim();
+            return s !== '' ? s : null;
+          }
+          return null;
+        };
+
+        const cellCargoTitular = getCellVal(colMap.colCargoTitular);
+        const cellCodTitular = getCellVal(colMap.colCodTitular);
+        const cellGraTitular = getCellVal(colMap.colGraTitular);
+        const cellCargoDenom = getCellVal(colMap.colCargoDenom);
+        const cellCodDenom = getCellVal(colMap.colCodDenom);
+        const cellGraDenom = getCellVal(colMap.colGraDenom);
+        const cellDep = getCellVal(colMap.colDep);
+
+        const cargo = cellCargoDenom || cellCargoTitular || extraerCargoExcel(rawRow) || 'CARGO POR DEFINIR';
+        const dependencia = cellDep || String(rawRow['DEPENDENCIA'] || rawRow['AREA'] || 'DIRECCIÓN DE TALENTO HUMANO').trim();
+
+        const esVacante = detectarVacante(rawRow);
+        if (esVacante) {
+          excelVacantes.push({
+            fila: rowNumber,
+            hoja: sheetName,
+            cargo,
+            dependencia,
+            codigo: cellCodDenom || cellCodTitular || 'N/A',
+            grado: cellGraDenom || cellGraTitular || 'N/A'
+          });
+          return;
+        }
+
+        const nombres = String(rawRow['NOMBRES'] || '').trim();
+        const apellido1 = String(rawRow['PRIMER APELLIDO'] || '').trim();
+        const apellido2 = String(rawRow['SEGUNDO APELLIDO'] || '').trim();
+        const nombreCompleto = [apellido1, apellido2, nombres].filter(Boolean).join(' ').trim() ||
+          String(rawRow['NOMBRE COMPLETO'] || rawRow['FUNCIONARIO'] || 'SERVIDOR').trim();
+
+        const valorCedulaCrudo = rawRow['NUMERO DE CEDULA'] ?? rawRow['NÚMERO DE CÉDULA'] ?? rawRow['NUMERO CEDULA'] ?? rawRow['CEDULA'] ?? rawRow['CÉDULA'] ?? rawRow['DOCUMENTO'] ?? rawRow['CC'];
+        const evaluacion = evaluarCedula(valorCedulaCrudo, rawRow, rowNumber, sheetName);
+
+        if (evaluacion.sinCedula || evaluacion.esProvisional || !evaluacion.cedulaLimpia) {
+          provisionalesCount++;
+          excelPersonas.push({
+            fila: rowNumber,
+            hoja: sheetName,
+            cedula: null,
+            nombreCompleto,
+            cargo,
+            dependencia,
+            esProvisional: true
+          });
+        } else {
+          excelCedulasSet.add(evaluacion.cedulaLimpia);
+          excelPersonas.push({
+            fila: rowNumber,
+            hoja: sheetName,
+            cedula: evaluacion.cedulaLimpia,
+            nombreCompleto,
+            cargo,
+            dependencia,
+            esProvisional: false
+          });
+        }
+      });
+    }
+
+    // Consultar estado actual de la base de datos
+    const [dbActivosRes, dbVacantesRes] = await Promise.all([
+      pool.query(`
+        SELECT 
+          p.id_persona,
+          p.cedula,
+          p.nombre_completo,
+          r.id_registro,
+          r.fecha_ingreso,
+          d.dependencia,
+          COALESCE(c_act.cargo, c_base.cargo, 'CARGO NO REGISTRADO') AS cargo
+        FROM rel_principal r
+        JOIN personas p ON p.id_persona = r.id_persona
+        JOIN estados e ON e.id_estado = r.id_estado
+        LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
+        LEFT JOIN cargos c_act ON c_act.id_cargo = r.id_cargo_actual
+        LEFT JOIN cargos c_base ON c_base.id_cargo = r.id_cargo_base
+        WHERE COALESCE(p.es_vacante, false) = false
+          AND NOT (
+            UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
+            OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+            OR UPPER(COALESCE(p.primer_apellido, '')) = 'VACANTE'
+          )
+          AND LOWER(COALESCE(e.estado_servidor, 'Activo')) = 'activo'
+          AND UPPER(COALESCE(e.situacion, '')) != 'RETIRADO'
+          AND p.cedula IS NOT NULL AND p.cedula != ''
+        ORDER BY p.nombre_completo ASC
+      `),
+      pool.query(`
+        SELECT 
+          r.id_registro,
+          p.id_persona,
+          d.dependencia,
+          COALESCE(c_act.cargo, c_base.cargo, 'CARGO NO REGISTRADO') AS cargo
+        FROM rel_principal r
+        JOIN personas p ON p.id_persona = r.id_persona
+        JOIN estados e ON e.id_estado = r.id_estado
+        LEFT JOIN dependencias d ON d.id_dependencia = r.id_dependencia
+        LEFT JOIN cargos c_act ON c_act.id_cargo = r.id_cargo_actual
+        LEFT JOIN cargos c_base ON c_base.id_cargo = r.id_cargo_base
+        WHERE COALESCE(p.es_vacante, false) = true
+           OR UPPER(COALESCE(e.situacion, '')) IN ('VACANTE', 'VACANTE DEFINITIVA') 
+           OR p.nombre_completo LIKE 'PLAZA VACANTE%'
+           OR UPPER(COALESCE(p.primer_apellido, '')) = 'VACANTE'
+      `)
+    ]);
+
+    const dbActivos = dbActivosRes.rows;
+    const dbVacantes = dbVacantesRes.rows;
+    const dbCedulasMap = new Map();
+    for (const a of dbActivos) {
+      if (a.cedula) dbCedulasMap.set(a.cedula, a);
+    }
+
+    const coincidentes = [];
+    const nuevosIngresos = [];
+    const ausentes = [];
+
+    for (const p of excelPersonas) {
+      if (p.cedula && dbCedulasMap.has(p.cedula)) {
+        coincidentes.push(p);
+      } else {
+        nuevosIngresos.push(p);
+      }
+    }
+
+    for (const a of dbActivos) {
+      if (!excelCedulasSet.has(a.cedula)) {
+        ausentes.push(a);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      nombreArchivo: req.file.originalname,
+      hojasProcesadas,
+      resumen: {
+        totalFilasExcel: excelPersonas.length + excelVacantes.length,
+        servidoresEnExcel: excelPersonas.length,
+        vacantesEnExcel: excelVacantes.length,
+        nuevos: nuevosIngresos.length,
+        actualizaciones: coincidentes.length,
+        ausentes: ausentes.length,
+        provisionales: provisionalesCount,
+        servidoresActivosBD: dbActivos.length,
+        vacantesActualesBD: dbVacantes.length
+      },
+      detalleAusentes: ausentes.map(a => ({
+        cedula: a.cedula,
+        nombre: a.nombre_completo,
+        cargo: a.cargo,
+        dependencia: a.dependencia,
+        fechaIngreso: a.fecha_ingreso
+      })),
+      detalleNuevos: nuevosIngresos.slice(0, 100).map(n => ({
+        cedula: n.cedula || 'TEMPORAL',
+        nombre: n.nombreCompleto,
+        cargo: n.cargo,
+        dependencia: n.dependencia
+      })),
+      totalNuevos: nuevosIngresos.length
+    });
+  } catch (err) {
+    console.error('[previsualizarExcel] error:', err);
+    return res.status(500).json({
+      success: false,
+      error: `Error interno al previsualizar el archivo Excel: ${err.message}`
+    });
+  }
+}
+
+/**
  * Controlador Senior para procesamiento e importación masiva de Excel con filtrado
  * estricto de filas fantasma, validación de llave primaria (CEDULA) y respuesta Multi-Status.
  */
@@ -491,13 +744,20 @@ async function importarExcel(req, res, pool) {
     }
 
     // 3. Procesamiento de Base de Datos:
-    // Se ejecuta el UPSERT con todos los registros válidos (los sin cédula se guardan con cedula=NULL)
-    let resultadoBD = { insertados: 0, actualizados: 0, fallidos: 0 };
+    // Se ejecuta el UPSERT con todos los registros válidos y sincronización inteligente
+    let resultadoBD = { insertados: 0, actualizados: 0, retirados: 0, vacantes: 0, vacantesDepuradas: 0, fallidos: 0, listaRetirados: [] };
 
     if (registrosValidos.length > 0) {
       const importService = new EmployeeImportService(pool);
-      const { resumen, errores: erroresBD } = await importService.upsertBatch(registrosValidos);
+      const options = {
+        marcarRetirados: req.body?.marcarRetirados !== false && req.body?.marcarRetirados !== 'false' && req.body?.marcarRetirados !== '0',
+        sincronizarVacantes: req.body?.sincronizarVacantes !== false && req.body?.sincronizarVacantes !== 'false' && req.body?.sincronizarVacantes !== '0',
+        fechaRetiro: req.body?.fechaRetiro || new Date().toISOString().split('T')[0],
+        motivoRetiro: req.body?.motivoRetiro || 'Corte oficial de planta'
+      };
+      const { resumen, errores: erroresBD, listaRetirados } = await importService.upsertBatch(registrosValidos, options);
       resultadoBD = resumen;
+      resultadoBD.listaRetirados = listaRetirados || [];
 
       // Si se produjo algún fallo residual en BD por fila (ej. constraint o dato fuera de rango)
       if (erroresBD && erroresBD.length > 0) {
@@ -525,15 +785,19 @@ async function importarExcel(req, res, pool) {
     const totalProcesadosExitosos = resultadoBD.insertados + resultadoBD.actualizados;
     const msgVacantes = totalVacantes > 0 ? ` (${totalVacantes} plazas vacantes registradas)` : '';
     const msgProvisionales = totalProvisionales > 0 ? ` (${totalProvisionales} con cédula provisional PROV-)` : '';
+    const msgRetirados = resultadoBD.retirados > 0 ? `, ${resultadoBD.retirados} pasados a Histórico de Retirados` : '';
+    const msgVacDep = resultadoBD.vacantesDepuradas > 0 ? `, ${resultadoBD.vacantesDepuradas} vacantes antiguas provistas` : '';
 
     return res.status(statusCode).json({
       success: totalProcesadosExitosos > 0 || (registrosValidos.length === 0 && filasConErrores.length === 0),
-      mensaje: `Procesamiento completado: ${resultadoBD.insertados} nuevos (Insert), ${resultadoBD.actualizados} actualizados (Update)${msgVacantes || msgProvisionales}, ${filasConErrores.length} fila(s) descartadas.`,
+      mensaje: `Sincronización oficial de planta completada: ${resultadoBD.insertados} nuevos, ${resultadoBD.actualizados} actualizados${msgRetirados}${msgVacDep}${msgVacantes || msgProvisionales}, ${filasConErrores.length} fila(s) descartadas.`,
       archivo: req.file.originalname,
       estrategiaTransaccional: 'SAVEPOINT_POR_FILA_TOLERANTE_A_FALLOS',
       filasInsertadas: resultadoBD.insertados,
       filasActualizadas: resultadoBD.actualizados,
+      filasRetiradas: resultadoBD.retirados || 0,
       filasRechazadas: filasConErrores,
+      detalleRetirados: resultadoBD.listaRetirados || [],
       metadata: {
         totalHojas: hojasProcesadas.length,
         totalFilasLeidas,
@@ -541,6 +805,8 @@ async function importarExcel(req, res, pool) {
         totalRegistrosValidos: registrosValidos.length,
         totalProvisionales,
         totalVacantes,
+        totalRetirados: resultadoBD.retirados || 0,
+        totalVacantesDepuradas: resultadoBD.vacantesDepuradas || 0,
         totalSinCedula: totalProvisionales,
         totalErrores: filasConErrores.length,
         statusHttp: statusCode
@@ -548,6 +814,8 @@ async function importarExcel(req, res, pool) {
       reporte: {
         totalInsertados: resultadoBD.insertados,
         totalActualizados: resultadoBD.actualizados,
+        totalRetirados: resultadoBD.retirados || 0,
+        totalVacantesDepuradas: resultadoBD.vacantesDepuradas || 0,
         totalProvisionales,
         totalVacantes,
         totalSinCedula: totalProvisionales,
@@ -558,8 +826,10 @@ async function importarExcel(req, res, pool) {
         procesadosExitosos: totalProcesadosExitosos,
         insertados: resultadoBD.insertados,
         actualizados: resultadoBD.actualizados,
-        provisionales: totalProvisionales,
+        retirados: resultadoBD.retirados || 0,
         vacantes: totalVacantes,
+        vacantesDepuradas: resultadoBD.vacantesDepuradas || 0,
+        provisionales: totalProvisionales,
         sinCedula: totalProvisionales,
         fallidos: filasConErrores.length,
         filasFantasmaOmitidas
@@ -581,6 +851,7 @@ async function importarExcel(req, res, pool) {
 
 module.exports = {
   uploadMiddleware,
+  previsualizarExcel,
   importarExcel,
   detectarMapeoCargos
 };

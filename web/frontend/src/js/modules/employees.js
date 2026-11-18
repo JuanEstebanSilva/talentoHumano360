@@ -4674,7 +4674,7 @@ const EmployeesModule = (() => {
       fileInput.click();
     });
 
-    const selectFile = (file) => {
+    const selectFile = async (file) => {
       if (!file) return;
       if (file.name.startsWith('~$')) {
         App.showToast('Archivo temporal de bloqueo (~$). Cierra Excel y selecciona el original.', 'error');
@@ -4688,7 +4688,7 @@ const EmployeesModule = (() => {
       }
       selectedFile = file;
 
-      // Mostrar previsualización y cuadro de confirmación
+      // Mostrar previsualización inicial y estado de análisis
       fileNameEl.textContent = file.name;
       const sizeKb = (file.size / 1024);
       fileSizeEl.textContent = sizeKb >= 1024
@@ -4697,8 +4697,149 @@ const EmployeesModule = (() => {
 
       dropzone.style.display = 'none';
       filePreview.style.display = 'block';
+      confirmBtn.disabled = true;
+      confirmText.textContent = 'Analizando archivo...';
+
+      const noticeCard = overlay.querySelector('.excel-notice-card');
+      const noticeContent = overlay.querySelector('.excel-notice-content');
+
+      noticeContent.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; padding:6px 0;">
+          <span class="btn-progress-pulse" style="border-top-color:var(--color-primary-green); width:20px; height:20px;"></span>
+          <div>
+            <strong style="color:var(--color-forest); display:block; font-size:13px;">Analizando plantilla y cotejando con la base de datos...</strong>
+            <span style="font-size:11px; color:var(--text-secondary);">Calculando variaciones de planta, altas, actualizaciones y servidores ausentes.</span>
+          </div>
+        </div>
+      `;
+
+      let preview = null;
+      try {
+        preview = await API.previewEmployeesExcel(file);
+      } catch (prevErr) {
+        noticeContent.innerHTML = `
+          <strong style="color:#dc2626; display:block; margin-bottom:4px;">Error en el análisis de la plantilla</strong>
+          <p style="margin:0; font-size:12px; color:var(--text-secondary);">${escHtml(prevErr.message || 'No se pudo leer la estructura del archivo.')}</p>
+        `;
+        confirmBtn.disabled = true;
+        confirmText.textContent = 'Archivo no válido';
+        return;
+      }
+
+      const pRes = preview.resumen || {};
+      const ausentes = preview.detalleAusentes || [];
+      const fechaHoy = new Date().toISOString().split('T')[0];
+
+      // Renderizar el Diagnóstico de Sincronización
+      noticeContent.innerHTML = `
+        <div style="margin-bottom:12px;">
+          <strong style="font-size:13px; color:var(--color-forest); display:flex; align-items:center; gap:6px;">
+            <span>🔍</span> Diagnóstico de Sincronización de Planta
+          </strong>
+          <p style="font-size:11px; margin:2px 0 0; color:var(--text-secondary);">
+            Cotejo automático entre <strong>${escHtml(file.name)}</strong> (${pRes.totalFilasExcel || 0} registros) y la planta activa actual.
+          </p>
+        </div>
+
+        <!-- 4 Indicadores de Balance de Planta -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-bottom:12px;">
+          <div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
+            <div style="font-size:9.5px; font-weight:800; color:#15803d; text-transform:uppercase;">Nuevos Ingresos</div>
+            <div style="font-size:18px; font-weight:800; color:#15803d; line-height:1.2; margin:2px 0;">+${pRes.nuevos || 0}</div>
+            <div style="font-size:9.5px; color:#16a34a;">Altas a registrar</div>
+          </div>
+          <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
+            <div style="font-size:9.5px; font-weight:800; color:#1d4ed8; text-transform:uppercase;">Actualizaciones</div>
+            <div style="font-size:18px; font-weight:800; color:#1d4ed8; line-height:1.2; margin:2px 0;">${pRes.actualizaciones || 0}</div>
+            <div style="font-size:9.5px; color:#2563eb;">Servidores vigentes</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
+            <div style="font-size:9.5px; font-weight:800; color:#b91c1c; text-transform:uppercase;">Bajas / Ausentes</div>
+            <div style="font-size:18px; font-weight:800; color:#b91c1c; line-height:1.2; margin:2px 0;">${pRes.ausentes || 0}</div>
+            <div style="font-size:9.5px; color:#dc2626;">No figuran en corte</div>
+          </div>
+          <div style="background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
+            <div style="font-size:9.5px; font-weight:800; color:#a16207; text-transform:uppercase;">Plazas Vacantes</div>
+            <div style="font-size:18px; font-weight:800; color:#a16207; line-height:1.2; margin:2px 0;">${pRes.vacantesEnExcel || 0}</div>
+            <div style="font-size:9.5px; color:#ca8a04;">Vacantes oficiales</div>
+          </div>
+        </div>
+
+        <!-- Opciones Inteligentes de Sincronización -->
+        <div style="background:var(--color-bg-secondary, rgba(255,255,255,0.04)); border:1px solid var(--color-border); border-radius:8px; padding:10px 12px; margin-bottom:4px;">
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:8px;">
+            <input type="checkbox" id="chk-sync-retirados" checked style="margin-top:2px; accent-color:var(--color-primary-green);" />
+            <div>
+              <span style="font-weight:700; font-size:12px; color:var(--text-primary);">
+                Marcar automáticamente como "Retirado" a los servidores ausentes (${pRes.ausentes || 0})
+              </span>
+              <p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0;">
+                Conserva su tiempo de servicio y hoja de vida intacta para certificaciones, pero los descuenta de la planta activa y alimenta el <strong>Histórico de Retiros</strong>.
+              </p>
+            </div>
+          </label>
+
+          ${ausentes.length > 0 ? `
+            <div style="margin-left:22px; margin-bottom:8px;">
+              <button type="button" id="btn-toggle-ausentes" class="btn btn-outline btn-sm" style="font-size:10.5px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;">
+                <span>👁️</span> <span id="btn-toggle-ausentes-text">Ver lista de servidores ausentes (${ausentes.length})</span>
+              </button>
+              <div id="list-ausentes-wrapper" style="display:none; max-height:140px; overflow-y:auto; margin-top:6px; border:1px solid var(--color-border); border-radius:6px; background:var(--color-bg-primary);">
+                <table style="width:100%; border-collapse:collapse; font-size:10.5px;">
+                  <thead>
+                    <tr style="background:var(--color-bg-secondary); position:sticky; top:0;">
+                      <th style="padding:4px 6px; text-align:left;">Cédula</th>
+                      <th style="padding:4px 6px; text-align:left;">Nombre</th>
+                      <th style="padding:4px 6px; text-align:left;">Cargo</th>
+                      <th style="padding:4px 6px; text-align:left;">Dependencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${ausentes.map(a => `
+                      <tr style="border-top:1px solid var(--color-border);">
+                        <td style="padding:3px 6px; font-weight:600;">${escHtml(a.cedula)}</td>
+                        <td style="padding:3px 6px;">${escHtml(a.nombre)}</td>
+                        <td style="padding:3px 6px; color:var(--text-secondary);">${escHtml(a.cargo)}</td>
+                        <td style="padding:3px 6px; color:var(--text-secondary);">${escHtml(a.dependencia)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ` : ''}
+
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="chk-sync-vacantes" checked style="margin-top:2px; accent-color:var(--color-primary-green);" />
+            <div>
+              <span style="font-weight:700; font-size:12px; color:var(--text-primary);">
+                Sincronizar plazas vacantes al corte del archivo (${pRes.vacantesEnExcel || 0} plazas)
+              </span>
+              <p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0;">
+                Ajusta las vacantes de la planta a las del archivo, depurando plazas anteriores que ya fueron provistas.
+              </p>
+            </div>
+          </label>
+        </div>
+      `;
+
+      // Toggle para ver la lista de ausentes
+      const toggleBtn = noticeContent.querySelector('#btn-toggle-ausentes');
+      const listWrapper = noticeContent.querySelector('#list-ausentes-wrapper');
+      const toggleText = noticeContent.querySelector('#btn-toggle-ausentes-text');
+      if (toggleBtn && listWrapper) {
+        toggleBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const isHidden = listWrapper.style.display === 'none';
+          listWrapper.style.display = isHidden ? 'block' : 'none';
+          toggleText.textContent = isHidden
+            ? `Ocultar lista de servidores ausentes (${ausentes.length})`
+            : `Ver lista de servidores ausentes (${ausentes.length})`;
+        });
+      }
+
       confirmBtn.disabled = false;
-      confirmText.textContent = 'Confirmar Importación';
+      confirmText.textContent = 'Confirmar y Sincronizar Planta';
     };
 
     dropzone.addEventListener('click', () => fileInput.click());
@@ -4722,16 +4863,24 @@ const EmployeesModule = (() => {
     confirmBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
 
+      const chkRetirados = overlay.querySelector('#chk-sync-retirados');
+      const chkVacantes = overlay.querySelector('#chk-sync-vacantes');
+      const options = {
+        marcarRetirados: chkRetirados ? chkRetirados.checked : true,
+        sincronizarVacantes: chkVacantes ? chkVacantes.checked : true,
+        fechaRetiro: new Date().toISOString().split('T')[0]
+      };
+
       confirmBtn.disabled = true;
       if (cancelBtn) cancelBtn.disabled = true;
       confirmText.innerHTML = `
         <span class="btn-progress-pulse" aria-hidden="true"></span>
-        Procesando Carga Masiva...
+        Sincronizando Planta Oficial...
       `;
-      App.showToast('Procesando archivo masivo... Por favor espere.', 'info');
+      App.showToast('Sincronizando planta oficial de personal... Por favor espere.', 'info');
 
       try {
-        const res = await API.uploadEmployeesExcel(selectedFile);
+        const res = await API.uploadEmployeesExcel(selectedFile, options);
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
 
         const { resumen = {}, errores = [], hojasProcesadas = [] } = res;
@@ -4746,10 +4895,10 @@ const EmployeesModule = (() => {
               ✅
             </div>
             <h3 class="excel-success-title">
-              ¡Carga Masiva Aceptada y Procesada con Éxito!
+              ¡Planta de Personal Sincronizada con Éxito!
             </h3>
             <p class="excel-success-desc">
-              El archivo <strong>${escHtml(selectedFile.name)}</strong> fue validado y cargado en el sistema correctamente.
+              El archivo <strong>${escHtml(selectedFile.name)}</strong> fue procesado y sincronizado con la base de datos institucional.
             </p>
           </div>
 
@@ -4757,7 +4906,7 @@ const EmployeesModule = (() => {
           <div class="excel-summary-box">
             <div class="excel-summary-topbar">
               <span class="excel-summary-heading">
-                <span>📊</span> Resumen de Operaciones Realizadas
+                <span>📊</span> Resumen Oficial de Sincronización
               </span>
               <span class="badge badge--info excel-sheets-badge">
                 ${hojasProcesadas.length} Hoja(s) Procesada(s)
@@ -4766,26 +4915,32 @@ const EmployeesModule = (() => {
 
             <div class="excel-kpi-grid">
               <div class="excel-kpi-tile excel-kpi-tile--total">
-                <span class="excel-kpi-label">Total Filas</span>
+                <span class="excel-kpi-label">Total Procesados</span>
                 <span class="excel-kpi-value">${resumen.totalFilas || 0}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--inserted">
-                <span class="excel-kpi-label">Nuevos Registros</span>
+                <span class="excel-kpi-label">Nuevos Ingresos</span>
                 <span class="excel-kpi-value">${resumen.insertados || 0}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--updated">
                 <span class="excel-kpi-label">Actualizados</span>
                 <span class="excel-kpi-value">${resumen.actualizados || 0}</span>
               </div>
-              <div class="excel-kpi-tile excel-kpi-tile--provisional">
-                <span class="excel-kpi-label">IDs Temporales</span>
-                <span class="excel-kpi-value">${resumen.provisionales || 0}</span>
+              <div class="excel-kpi-tile excel-kpi-tile--retired" style="border-top:3px solid #dc2626;">
+                <span class="excel-kpi-label">A Histórico Retiros</span>
+                <span class="excel-kpi-value" style="color:#dc2626;">${resumen.retirados || 0}</span>
               </div>
               <div class="excel-kpi-tile excel-kpi-tile--vacant">
                 <span class="excel-kpi-label">Plazas Vacantes</span>
                 <span class="excel-kpi-value">${resumen.vacantes || 0}</span>
               </div>
             </div>
+
+            ${(resumen.vacantesDepuradas > 0) ? `
+              <div style="margin-top:10px; font-size:12px; color:var(--text-secondary); background:rgba(234,179,8,0.08); padding:8px 12px; border-radius:6px; border:1px solid rgba(234,179,8,0.2);">
+                ℹ️ <strong>${resumen.vacantesDepuradas} plazas vacantes antiguas</strong> que ya fueron provistas o cerradas se sincronizaron con éxito.
+              </div>
+            ` : ''}
 
             ${errores.length > 0 ? `
               <div class="excel-error-log-card">
@@ -4804,21 +4959,24 @@ const EmployeesModule = (() => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:17px;height:17px;">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            Aceptar
+            Finalizar y Ver Servidores
           </button>
         `;
 
         const acceptBtn = modalFooter.querySelector('#btn-accept-emp-import');
         acceptBtn.addEventListener('click', async () => {
           overlay.remove();
-          App.showToast(`Carga masiva finalizada: ${resumen.insertados} creados, ${resumen.actualizados} actualizados.`, 'success');
+          App.showToast(`Planta oficial sincronizada: ${resumen.insertados} nuevos, ${resumen.actualizados} actualizados, ${resumen.retirados || 0} en histórico de retiros.`, 'success');
           await load();
+          if (typeof DashboardModule !== 'undefined' && DashboardModule.load) {
+            DashboardModule.load().catch(() => {});
+          }
         });
 
       } catch (err) {
-        App.showToast('Error al importar: ' + err.message, 'error');
+        App.showToast('Error al sincronizar: ' + err.message, 'error');
         confirmBtn.disabled = false;
-        confirmText.textContent = 'Reintentar Importación';
+        confirmText.textContent = 'Reintentar Sincronización';
         if (cancelBtn) cancelBtn.disabled = false;
       }
     });

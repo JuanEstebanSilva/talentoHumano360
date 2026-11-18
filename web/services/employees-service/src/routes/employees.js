@@ -2,7 +2,7 @@ const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
 const trackImport = require('../utils/importHistory');
-const { uploadMiddleware, importarExcel } = require('../controllers/employeeImportController');
+const { uploadMiddleware, previsualizarExcel, importarExcel } = require('../controllers/employeeImportController');
 const { parseExcelDate, formatDateISO } = require('../utils/excelHelper');
 const {
   GRADOS_VALIDOS,
@@ -126,6 +126,20 @@ function canLookup(user) {
     hasPermission(user, 'requests:write');
 }
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
+
+// ─── POST /api/employees/previsualizar-excel (Diagnóstico y Pre-auditoría de Excel) ─────────
+router.post(['/previsualizar-excel', '/preview-excel'], auth, (req, res) => {
+  if (!canEdit(req.user)) {
+    return res.status(403).json({ success: false, error: 'Permisos insuficientes para realizar la previsualización masiva.' });
+  }
+
+  uploadMiddleware(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    previsualizarExcel(req, res, pool);
+  });
+});
 
 // ─── POST /api/employees/importar-excel (Carga Masiva de Archivo Excel) ─────────
 router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, trackImport(pool, 'employees'), (req, res) => {
