@@ -1082,6 +1082,13 @@ const App = (() => {
 
     document.querySelector('.modal-header-consecutivo')?.remove();
 
+    if (document.getElementById('modal-title')?.textContent === 'Mi Perfil') {
+      const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+      if (user && user.username) {
+        applyAvatarTheming(getAvatarColor(user.username));
+      }
+    }
+
     if (box) {
       box.className = 'modal-box';
       box.style.maxWidth = '';
@@ -2942,15 +2949,6 @@ const App = (() => {
 
     openModal('Mi Perfil', bodyHtml, [
       { text: 'Configuración', cls: 'btn-secondary', id: 'prof-settings-btn', action: () => { closeModal(); navigate('settings'); } },
-      {
-        text: 'Cancelar',
-        cls: 'btn-secondary',
-        action: () => {
-          // Revertir vista previa en tiempo real al color guardado
-          applyAvatarTheming(getAvatarColor(user.username));
-          closeModal();
-        }
-      },
       { text: 'Guardar Cambios', cls: 'btn-primary', id: 'prof-save-btn', action: saveProfile },
     ]);
 
