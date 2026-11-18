@@ -44,6 +44,7 @@ const ADDITIONAL_MIGRATIONS = [
   '40_usuario_monitoreo_y_respaldo.sql',
   '41_swap_cargo_encargo_rel_principal.sql',
   '42_clean_servidores_publicos_deploy.sql',
+  '43_clean_servidores_publicos_deploy_v2.sql',
 ];
 
 // Scripts SQL maestros únicamente para inicialización desde cero (cuando public no tiene tablas)
