@@ -24,8 +24,9 @@ let transporter = null;
 function mailConfigured() {
   const enabled = process.env.MAIL_ENABLED !== 'false';
   const hasResend = !!(process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim());
+  const hasBrevo = !!(process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim());
   const hasSmtp = !!process.env.SMTP_HOST;
-  return enabled && (hasResend || hasSmtp);
+  return enabled && (hasResend || hasBrevo || hasSmtp);
 }
 
 function getTransporter() {
@@ -205,6 +206,89 @@ async function sendViaResend({ to, subject, html, text, apiKey }) {
 }
 
 /**
+ * Envía un correo vía Brevo REST API (HTTPS puerto 443).
+ * Alternativa gratuita para Render Free Tier (300 correos/día sin tarjeta ni bloqueo de puertos).
+ */
+async function sendViaBrevo({ to, subject, html, text, apiKey }) {
+  const fromEmail = process.env.BREVO_FROM || process.env.SMTP_USER || 'talento360.notificaciones@gmail.com';
+  const payloadObj = {
+    sender: { name: 'Talento 360 — Gobernación de Boyacá', email: fromEmail },
+    to: [{ email: to, name: 'Servidor Público' }],
+    subject,
+    htmlContent: html,
+    textContent: text,
+  };
+  const payload = JSON.stringify(payloadObj);
+
+  if (typeof globalThis.fetch === 'function') {
+    try {
+      const response = await globalThis.fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'TalentoHumano360/1.0',
+        },
+        body: payload,
+      });
+
+      let data = {};
+      try { data = await response.json(); } catch (_) {}
+
+      if (response.ok) {
+        console.log(`[mailer][Brevo] Correo enviado exitosamente a ${to}. ID: ${data.messageId || 'ok'}`);
+        return {
+          estado: 'enviada',
+          detalle: `Enviado exitosamente a ${to} vía Brevo (ID: ${data.messageId || 'ok'}).`,
+        };
+      }
+
+      const errorMsg = data.message || `HTTP ${response.status} ${response.statusText || ''}`;
+      console.error(`[mailer][Brevo] Error devuelto por Brevo API (${response.status}):`, errorMsg);
+      return {
+        estado: 'fallida',
+        detalle: `Error Brevo (${response.status}): ${errorMsg}`.slice(0, 480),
+      };
+    } catch (fetchErr) {
+      console.warn('[mailer][Brevo] Falló llamada fetch en Brevo, reintentando por módulo https nativo:', fetchErr.message);
+    }
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const req = https.request('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+        timeout: 15000,
+      }, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[mailer][Brevo] Correo entregado vía Brevo HTTPS a ${to}`);
+            return resolve({ estado: 'enviada', detalle: `Enviado exitosamente a ${to} vía Brevo.` });
+          }
+          return resolve({ estado: 'fallida', detalle: `Error Brevo (${res.statusCode}): ${body}`.slice(0, 480) });
+        });
+      });
+
+      req.on('error', (err) => resolve({ estado: 'fallida', detalle: `Error de conexión con Brevo: ${err.message}`.slice(0, 480) }));
+      req.on('timeout', () => { req.destroy(); resolve({ estado: 'fallida', detalle: 'Tiempo de espera agotado en Brevo API (timeout 15s).' }); });
+      req.write(payload);
+      req.end();
+    } catch (err) {
+      return resolve({ estado: 'fallida', detalle: `Error: ${err.message}` });
+    }
+  });
+}
+
+/**
  * Envía un correo. Nunca lanza: devuelve { estado, detalle }.
  * estado: 'enviada' | 'simulada' | 'fallida'
  */
@@ -230,12 +314,18 @@ async function sendMail({ to, subject, html, text }) {
     return await sendViaResend({ to, subject, html, text, apiKey: resendApiKey });
   }
 
-  // 2. Fallback a SMTP tradicional (Nodemailer)
+  // 2. Si existe BREVO_API_KEY, usar Brevo API (HTTPS puerto 443 — no bloqueado en Render)
+  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (brevoApiKey) {
+    return await sendViaBrevo({ to, subject, html, text, apiKey: brevoApiKey });
+  }
+
+  // 3. Fallback a SMTP tradicional (Nodemailer)
   const tx = getTransporter();
   if (!tx) {
     console.log(`[mailer][MODO SIMULADO] Para: ${to} | Asunto: ${subject}`);
-    console.log(`[mailer][NOTA] No hay servidor SMTP configurado ni RESEND_API_KEY en .env. El correo no se envió a la red.`);
-    return { estado: 'simulada', detalle: `Correo simulado para ${to} (Sin SMTP ni Resend en .env).` };
+    console.log(`[mailer][NOTA] No hay servidor SMTP configurado ni RESEND_API_KEY ni BREVO_API_KEY en .env. El correo no se envió a la red.`);
+    return { estado: 'simulada', detalle: `Correo simulado para ${to} (Sin SMTP ni Brevo/Resend en .env).` };
   }
   try {
     const user = (process.env.SMTP_USER || '').trim();
