@@ -2342,6 +2342,7 @@ const App = (() => {
       err.textContent = '';
       err.classList.remove('visible');
     }
+    try { setLoginLoading(false); } catch (_) {}
 
     // Clean neutral theme on the public login page
     if (typeof Settings !== 'undefined') {
@@ -3663,16 +3664,78 @@ const App = (() => {
       }, 1000);
     }
 
+    let isLoginSubmitting = false;
+
+    function setLoginLoading(isLoading) {
+      isLoginSubmitting = isLoading;
+      const btn = document.getElementById('login-btn');
+      const widget = document.getElementById('login-loading-widget');
+      const usernameInput = document.getElementById('login-username');
+      const passwordInput = document.getElementById('login-password');
+      const togglePassBtn = document.getElementById('toggle-password');
+      const forgotLink = document.getElementById('link-forgot-password');
+
+      if (isLoading) {
+        // 1. Ocultar el botón completo y desplegar la ruedita institucional de carga
+        if (btn) btn.style.display = 'none';
+        if (widget) widget.style.display = 'flex';
+
+        // 2. Bloquear totalmente los campos del login para impedir edición durante la carga
+        if (usernameInput) {
+          usernameInput.disabled = true;
+          usernameInput.classList.add('is-input-loading');
+        }
+        if (passwordInput) {
+          passwordInput.disabled = true;
+          passwordInput.classList.add('is-input-loading');
+        }
+        if (togglePassBtn) {
+          togglePassBtn.disabled = true;
+          togglePassBtn.style.pointerEvents = 'none';
+          togglePassBtn.style.opacity = '0.45';
+        }
+        if (forgotLink) {
+          forgotLink.style.pointerEvents = 'none';
+          forgotLink.style.opacity = '0.45';
+        }
+      } else {
+        // 1. Ocultar la ruedita y restaurar el botón normal
+        if (widget) widget.style.display = 'none';
+        if (btn) {
+          btn.style.display = 'flex';
+          btn.disabled = false;
+        }
+
+        // 2. Habilitar nuevamente los campos para edición
+        if (usernameInput) {
+          usernameInput.disabled = false;
+          usernameInput.classList.remove('is-input-loading');
+        }
+        if (passwordInput) {
+          passwordInput.disabled = false;
+          passwordInput.classList.remove('is-input-loading');
+        }
+        if (togglePassBtn) {
+          togglePassBtn.disabled = false;
+          togglePassBtn.style.pointerEvents = '';
+          togglePassBtn.style.opacity = '';
+        }
+        if (forgotLink) {
+          forgotLink.style.pointerEvents = '';
+          forgotLink.style.opacity = '';
+        }
+      }
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (isLoginSubmitting) return;
+
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
         const errorEl = document.getElementById('login-error');
-        const btnText = document.querySelector('#login-btn .btn-text');
-        const btnLoader = document.querySelector('#login-btn .btn-loader');
-        const btn = document.getElementById('login-btn');
 
         if (!username || !password) {
           errorEl.textContent = 'Por favor ingresa usuario y contraseña.';
@@ -3681,9 +3744,7 @@ const App = (() => {
         }
 
         errorEl.classList.remove('visible');
-        btn.disabled = true;
-        if (btnText) btnText.style.display = 'none';
-        if (btnLoader) btnLoader.style.display = 'flex';
+        setLoginLoading(true);
 
         try {
           const res = await API.login(username, password);
@@ -3703,6 +3764,7 @@ const App = (() => {
           }
 
           if (res.user && res.user.mustChangePassword) {
+            setLoginLoading(false);
             showMandatoryPasswordModal(res.user);
             return;
           }
@@ -3732,6 +3794,8 @@ const App = (() => {
               if (typeof LegalModule !== 'undefined' && !LegalModule.hasAcceptedLegal(userIdentifier)) {
                 LegalModule.requireConsentModal(null, userIdentifier);
               }
+            } finally {
+              setLoginLoading(false);
             }
           };
 
@@ -3749,6 +3813,7 @@ const App = (() => {
             safeProceed();
           }
         } catch (err) {
+          setLoginLoading(false);
           const data = err.data || {};
           const isLocked = Boolean(data.isLocked || err.status === 429);
           const retrySeconds = Number(data.retryAfterSeconds || 0);
@@ -3765,15 +3830,6 @@ const App = (() => {
           }
           // FX: error shake + sound
           if (typeof FX !== 'undefined') FX.animateLoginError();
-        } finally {
-          if (!loginLockoutInterval) {
-            btn.disabled = false;
-            if (btnText) btnText.style.display = 'inline';
-            if (btnLoader) btnLoader.style.display = 'none';
-          } else {
-            if (btnLoader) btnLoader.style.display = 'none';
-            if (btnText) btnText.style.display = 'inline';
-          }
         }
       });
     }

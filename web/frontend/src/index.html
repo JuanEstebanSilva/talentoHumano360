@@ -77,7 +77,7 @@
   <link rel="preload" as="image" href="imgs/logoCondor.png" />
   <link rel="preload" as="image" href="imgs/logoCondorBlanco.png" />
 
-  <link rel="stylesheet" href="css/main.css?v=20261108_v4" />
+  <link rel="stylesheet" href="css/main.css?v=20261117_login_spinner" />
   <link rel="stylesheet" href="css/components.css?v=20261112_floating_labels_ux" />
   <link rel="stylesheet" href="css/animations.css?v=20261117_static_backdrop" />
   <link rel="stylesheet" href="css/legal.css?v=20261104_gemini_v1" />
@@ -200,6 +200,15 @@
                 Ingresando...
               </span>
             </button>
+            <div id="login-loading-widget" class="login-loading-widget" style="display:none" role="status" aria-live="polite">
+              <div class="login-spinner-ring" aria-hidden="true"></div>
+              <div class="login-loading-info">
+                <span class="login-loading-text">Iniciando sesión</span>
+                <span class="login-loading-dots">
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
+              </div>
+            </div>
           </form>
 
           <div class="login-secure-badge">
@@ -865,7 +874,7 @@
   <script src="js/modules/legal.js?v=20261109_merged_v1"></script>
   <script src="js/modules/admin-errors.js?v=20261117_fix_depurar_dirty"></script>
   <script src="js/modules/admin-backups.js?v=20261117_fix_depurar_dirty"></script>
-  <script src="js/app.js?v=20261117_remove_profile_cancel"></script>
+  <script src="js/app.js?v=20261117_login_spinner"></script>
 </body>
 
 </html>
