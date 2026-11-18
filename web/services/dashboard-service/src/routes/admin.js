@@ -117,6 +117,9 @@ function requireErrorsAccess(req, res, next) {
 // Middleware de verificación de acceso a Copias de Seguridad (Administrador o Gestor con módulo backups)
 function requireBackupsAccess(req, res, next) {
   let token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token && req.query && req.query.token) {
+    token = String(req.query.token).trim();
+  }
   if (!token && req.headers.cookie) {
     const match = req.headers.cookie.match(/(?:^|;\s*)talento360_token=([^;]+)/);
     if (match) token = decodeURIComponent(match[1]);

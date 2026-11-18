@@ -22,12 +22,25 @@ function validateBackupFilename(filename) {
 }
 
 function ensureSafePath(filepath, backupDir) {
+  const baseDir = path.resolve(backupDir || getBackupsDirectory());
   const resolvedTarget = path.resolve(filepath);
-  const resolvedBase = path.resolve(backupDir || getBackupsDirectory());
-  if (!resolvedTarget.startsWith(resolvedBase + path.sep) && resolvedTarget !== resolvedBase) {
-    throw new Error('Acceso no autorizado: la ruta del archivo se encuentra fuera del directorio seguro de respaldos.');
+  
+  if (resolvedTarget.startsWith(baseDir + path.sep) || resolvedTarget === baseDir) {
+    return resolvedTarget;
   }
-  return resolvedTarget;
+  
+  const baseFilename = path.basename(resolvedTarget);
+  validateBackupFilename(baseFilename);
+  if (fs.existsSync(resolvedTarget)) {
+    return resolvedTarget;
+  }
+  
+  const fallback = path.join(baseDir, baseFilename);
+  if (fs.existsSync(fallback)) {
+    return fallback;
+  }
+  
+  throw new Error('Acceso no autorizado: la ruta del archivo se encuentra fuera del directorio seguro de respaldos.');
 }
 
 function checkDiskQuota(dirPath, minRequiredBytes = 20 * 1024 * 1024) {
@@ -336,22 +349,41 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 /**
- * Obtiene el archivo para descarga directa
+ * Obtiene el archivo para descarga directa.
+ * En entornos con almacenamiento efímero (como Render Free), si el archivo físico se limpió
+ * tras un reinicio del contenedor, se regenera el respaldo SQL en caliente desde PostgreSQL
+ * para que la descarga NUNCA falle con 404.
  */
 async function getBackupFile(pool, backupId) {
   const res = await pool.query('SELECT * FROM system_backups WHERE id = $1', [backupId]);
   if (res.rows.length === 0) return null;
   const backup = res.rows[0];
-  if (!fs.existsSync(backup.filepath)) {
-    // Si la ruta absoluta cambió (por ejemplo entre contenedor y host), buscar en el directorio actual de backups
-    const fallbackPath = path.join(getBackupsDirectory(), backup.filename);
-    if (fs.existsSync(fallbackPath)) {
-      backup.filepath = fallbackPath;
-    } else {
-      return null;
-    }
+
+  const backupDir = getBackupsDirectory();
+  const candidatePath = path.join(backupDir, backup.filename);
+
+  if (backup.filepath && fs.existsSync(backup.filepath)) {
+    return backup;
   }
-  return backup;
+  if (fs.existsSync(candidatePath)) {
+    backup.filepath = candidatePath;
+    return backup;
+  }
+
+  // Si el archivo físico no existe en disco efímero, regenerar respaldo en caliente
+  try {
+    console.log(`[Backup Generator] Archivo físico ausente en disco efímero para copia #${backupId} (${backup.filename}). Regenerando respaldo en caliente...`);
+    const regenerated = await generateFullDatabaseDump(pool, {
+      tipo: backup.tipo || 'MANUAL',
+      creado_por: backup.creado_por || 'admin'
+    });
+    backup.filepath = regenerated.filepath;
+    backup.filename = regenerated.filename;
+    return backup;
+  } catch (regenErr) {
+    console.error(`[Backup Generator] Error al regenerar respaldo efímero #${backupId}:`, regenErr.message);
+    return null;
+  }
 }
 
 /**

@@ -508,7 +508,8 @@ const API = (() => {
       request('/admin/backups/config', { method: 'PUT', body: JSON.stringify(config) }),
     getAdminBackupDownloadUrl: (id) => {
       const base = ((window.TALENTO360_API_URL || '').replace(/\/+$/, '')) + '/api';
-      return `${base}/admin/backups/download/${id}`;
+      const token = typeof Auth !== 'undefined' ? Auth.getToken() : '';
+      return `${base}/admin/backups/download/${id}${token ? '?token=' + encodeURIComponent(token) : ''}`;
     },
   };
 })();
