@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 const { uploadMiddleware, importarExcel } = require('../controllers/employeeImportController');
 const { parseExcelDate, formatDateISO } = require('../utils/excelHelper');
 const {
@@ -127,7 +128,7 @@ function canLookup(user) {
 function clean(v) { return v == null ? '' : String(v).trim().replace(/\s+/g,' ').toUpperCase(); }
 
 // ─── POST /api/employees/importar-excel (Carga Masiva de Archivo Excel) ─────────
-router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, (req, res) => {
+router.post(['/importar-excel', '/import-excel', '/upload-excel'], auth, trackImport(pool, 'employees'), (req, res) => {
   if (!canEdit(req.user)) {
     return res.status(403).json({ success: false, error: 'Permisos insuficientes para realizar la importación masiva.' });
   }

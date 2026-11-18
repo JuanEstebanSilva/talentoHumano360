@@ -1,6 +1,7 @@
 const router   = require('express').Router();
 const jwt      = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 const {
   ensureAuditAndRbacSchema,
   isAdminUser,
@@ -1655,7 +1656,7 @@ router.post('/epidemiologico/check-vencimientos', auth, async (req, res) => {
   }
 });
 
-router.post('/epidemiologico/bulk', auth, async (req, res) => {
+router.post('/epidemiologico/bulk', auth, trackImport(pool, 'sst'), async (req, res) => {
   const perm = await getModulePermission(pool, req.user, 'epidemiologico');
   if (!perm.canImport) {
     return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Epidemiológico (Sandra Roa) o el Administrador pueden importar registros masivamente.' });
@@ -2128,7 +2129,7 @@ router.put('/epp/:id', auth, async (req, res) => {
   }
 });
 
-router.post('/epp/bulk', auth, async (req, res) => {
+router.post('/epp/bulk', auth, trackImport(pool, 'sst'), async (req, res) => {
   const perm = await getModulePermission(pool, req.user, 'epp');
   if (!perm.canImport) {
     return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Entrega de EPP (Sandra Roa) o el Administrador pueden importar entregas masivamente.' });
@@ -2498,7 +2499,7 @@ router.put('/sociodemografico/:id', auth, async (req, res) => {
   }
 });
 
-router.post('/sociodemografico/bulk', auth, async (req, res) => {
+router.post('/sociodemografico/bulk', auth, trackImport(pool, 'sst'), async (req, res) => {
   const perm = await getModulePermission(pool, req.user, 'sociodemografico');
   if (!perm.canImport) {
     return res.status(403).json({ error: 'Solo la responsable asignada al módulo de Perfil Sociodemográfico (Sandra Roa) o el Administrador pueden realizar importaciones masivas.' });

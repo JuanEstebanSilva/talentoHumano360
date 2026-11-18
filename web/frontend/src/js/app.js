@@ -1120,6 +1120,8 @@ const App = (() => {
     viaticos: 'Viáticos',
     horarios: 'Horarios y Modalidades',
     sst: 'Seguridad y Salud en el Trabajo (SST)',
+    documents: 'Gestión Documental',
+    reports: 'Informes y Automatización',
     settings: 'Configuración',
     privacidad: 'Política de Tratamiento de Datos Personales',
     terminos: 'Términos y Condiciones de Uso',
@@ -1138,6 +1140,8 @@ const App = (() => {
     viaticos: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
     horarios: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     sst: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    documents: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+    reports: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     privacidad: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
     terminos: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
@@ -1155,6 +1159,8 @@ const App = (() => {
     'viaticos',
     'horarios',
     'sst',
+    'documents',
+    'reports',
     'settings',
     'privacidad',
     'terminos',
@@ -1495,6 +1501,12 @@ const App = (() => {
           case 'incapacidades': await IncapacidadesModule.render(container); break;
           case 'viaticos':      await ViaticosModule.render(container, options); break;
           case 'horarios':      await HorariosModule.render(container); break;
+          case 'documents':
+            if (typeof DocumentsModule !== 'undefined') await DocumentsModule.render(container);
+            break;
+          case 'reports':
+            if (typeof ReportsModule !== 'undefined') await ReportsModule.render(container);
+            break;
           case 'sst': {
             const tabKey = options.tab || 'epidemiologico';
             if (typeof SstModule !== 'undefined') await SstModule.render(container, tabKey);
@@ -2670,6 +2682,8 @@ const App = (() => {
       setVisibility('nav-admin-backups', false);
       setVisibility('nav-admin-permisos', false);
       setVisibility('nav-settings', true);
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       applyRoleSidebarAccess(user);
       return;
     }
@@ -2725,6 +2739,9 @@ const App = (() => {
       operationalNavs.forEach(id => setVisibility(id, isElevated));
       setVisibility('nav-requests', false);
 
+      // Gestión Documental e Informes: disponibles para todo usuario registrado (decisión de la entidad).
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, Monitoreo/Respaldo, etc.):
       // Ocultar las herramientas de administración técnica que no tengan asignadas
@@ -2751,6 +2768,8 @@ const App = (() => {
       setVisibility('nav-viaticos', hasAll || mods.includes('viaticos'));
       setVisibility('nav-horarios', hasAll || mods.includes('horarios'));
       setVisibility('nav-sst-group', hasAll || mods.includes('sst'));
+      setVisibility('nav-documents', true);
+      setVisibility('nav-reports', true);
       setVisibility('nav-settings', true);
     }
   }

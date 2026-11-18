@@ -60,6 +60,13 @@ npm-debug.log*
 Thumbs.db
 desktop.ini
 
+# Documentos locales
+documentos/
+documentosParaAnalisis/
+
+# Archivos de Gestión Documental en desarrollo local
+storage/
+
 # Archivos temporales de compilación
 dist/
 build/

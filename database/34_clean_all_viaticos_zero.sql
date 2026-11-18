@@ -18,7 +18,8 @@ ALTER TABLE IF EXISTS solicitudes_admin DROP CONSTRAINT IF EXISTS fk_solicitudes
 DELETE FROM historial_viaticos;
 DELETE FROM viaticos;
 DELETE FROM paquetes_viaticos;
-DELETE FROM vigencias_viaticos;
+-- La tabla la crea viaticos-service al arrancar; en una base nueva aún no existe.
+DO $$ BEGIN IF to_regclass('public.vigencias_viaticos') IS NOT NULL THEN DELETE FROM vigencias_viaticos; END IF; END $$;
 
 -- 3. Limpieza total de Horarios
 DELETE FROM historial_horarios;

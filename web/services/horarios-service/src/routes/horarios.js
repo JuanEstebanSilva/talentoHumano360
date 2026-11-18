@@ -1,6 +1,7 @@
 const router  = require('express').Router();
 const jwt     = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 
 const pool = new Pool(
   process.env.DATABASE_URL
@@ -859,7 +860,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ─── POST /api/horarios/bulk (Carga Masiva Excel) ─────────────────────────────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
   if (!canEdit(req.user)) {
     return res.status(403).json({ error: 'Permisos insuficientes para carga masiva.' });
   }

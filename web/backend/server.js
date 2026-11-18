@@ -250,6 +250,10 @@ async function startServer() {
   const adminRoutes         = require('../services/dashboard-service/src/routes/admin');
   const horariosRoutes      = require('../services/horarios-service/src/routes/horarios');
   const sstRoutes           = require('../services/sst-service/src/routes/sst');
+  // Gestión documental, informes y automatización
+  const documentsRoutes     = require('../services/documents-service/src/routes/documents');
+  const reportsRoutes       = require('../services/reports-service/src/routes/reports');
+  const automationRoutes    = require('../services/reports-service/src/routes/automation');
 
   // 3. Montaje de Rutas API
   app.use('/api/auth', authRoutes);
@@ -267,6 +271,9 @@ async function startServer() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/horarios', horariosRoutes);
   app.use('/api/sst', sstRoutes);
+  app.use('/api/documents', documentsRoutes);
+  app.use('/api/reports', reportsRoutes);
+  app.use('/api/automation', automationRoutes);
 
   // Manejador 404 para rutas API no encontradas
   app.use('/api/*', (req, res) => {

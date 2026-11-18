@@ -157,6 +157,25 @@ talento360/
 
 ---
 
+## 🗂️ Gestión Documental, Informes y Automatización
+
+Módulos añadidos sobre la base del equipo, sin cambiar los existentes:
+
+| Pieza | Dónde | Notas |
+| :--- | :--- | :--- |
+| **Gestión Documental** | `services/documents-service` (puerto 3009, `/api/documents`) | Archivos y versiones en el volumen `documents_data`; carpeta de entrada automática en `documents_inbox`. |
+| **Informes y Automatización** | `services/reports-service` (puerto 3010, `/api/reports`, `/api/automation`) | Informes limitados a los módulos que el usuario ya puede consultar; también muestra el historial de cargas masivas. |
+| **Historial de cargas masivas** | `services/*/src/utils/importHistory.js` | Registra en la tabla `importaciones` cada carga confirmada, rechazada o fallida, sin cambiar la lógica de la ruta. |
+| **Migraciones** | `database/35_…` a `database/39_…` | Tablas de documentos, informes, automatizaciones e historial de cargas. |
+
+**Accesos (decisión de la entidad):** todo usuario registrado usa Gestión Documental e Informes. Los documentos de tipos sensibles exigen el permiso `documents:sensitive`, y cada informe solo trae módulos que el usuario ya puede consultar. Los documentos se conservan hasta que alguien los elimine a mano.
+
+**Pruebas:** `npm test` con `TEST_DATABASE_URL` apuntando a una base de pruebas (nunca la de producción). Sin esa variable, las pruebas de integración se omiten.
+
+Más detalle en [docs/INFORMES_Y_AUTOMATIZACION.md](docs/INFORMES_Y_AUTOMATIZACION.md), [docs/COPIAS_DE_SEGURIDAD.md](docs/COPIAS_DE_SEGURIDAD.md) y [docs/ANALISIS_PROCESOS_E_INTEGRACIONES.md](docs/ANALISIS_PROCESOS_E_INTEGRACIONES.md).
+
+---
+
 ## 8. Procedimiento de Instalación
 
 1. **Clonar el repositorio:**

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const jwt    = require('jsonwebtoken');
 const { Pool } = require('pg');
+const trackImport = require('../utils/importHistory');
 
 const pool = new Pool(
   process.env.DATABASE_URL
@@ -185,7 +186,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // ─── POST /api/requests/bulk (Carga Masiva) ──────────────────────────────────
-router.post('/bulk', auth, async (req, res) => {
+router.post('/bulk', auth, trackImport(pool, 'requests'), async (req, res) => {
   if (!canEdit(req.user.role)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : Array.isArray(req.body) ? req.body : [];
   if (!rows.length) return res.status(400).json({ error: 'No se recibieron registros para importar.' });

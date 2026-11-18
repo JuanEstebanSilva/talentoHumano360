@@ -33,6 +33,17 @@ function buildPoolConfig(useDirectUrl = false) {
 // Pool principal de la aplicación (usa DATABASE_URL / pooled connection en Neon)
 const pool = new Pool(buildPoolConfig(false));
 
+// Gestión documental, informes e historial de cargas. Son idempotentes: se aplican al crear
+// la base y en cada arranque (runSafeMigrations), sin borrar datos.
+const ADDITIONAL_MIGRATIONS = [
+  '35_documentos.sql',
+  '36_informes_automatizacion.sql',
+  '37_importaciones.sql',
+  '38_soportes_solicitudes.sql',
+  '39_importaciones_resultado.sql',
+  '40_usuario_monitoreo_y_respaldo.sql',
+];
+
 // Scripts SQL maestros únicamente para inicialización desde cero (cuando public no tiene tablas)
 const SQL_FILES = [
   '01_schema.sql',
@@ -67,7 +78,7 @@ const SQL_FILES = [
   '32_clean_servidores_horarios_viaticos.sql',
   '33_viaticos_estado_sin_viatico.sql',
   '34_clean_all_viaticos_zero.sql',
-  '35_usuario_monitoreo_y_respaldo.sql',
+  ...ADDITIONAL_MIGRATIONS,
 ];
 
 function findDatabaseDir() {
@@ -517,6 +528,13 @@ async function runSafeMigrations(client) {
     await recordMigration(client, '34_clean_all_viaticos_zero', 'Limpieza total a estado cero de viaticos, servidores publicos, horarios y vigencias anuales');
     results.migrationsRecorded.push('34_clean_all_viaticos_zero');
     console.log('✅ [Migración 34] Estado cero absoluto garantizado: viáticos, vigencias, servidores públicos y horarios limpios.');
+  }
+
+  // Gestión documental, informes e historial de cargas (después de roles y permisos).
+  const additionalDir = findDatabaseDir();
+  for (const file of ADDITIONAL_MIGRATIONS) {
+    const sqlPath = path.join(additionalDir, file);
+    if (fs.existsSync(sqlPath)) await client.query(fs.readFileSync(sqlPath, 'utf8'));
   }
 
   console.log('✅ Migraciones aditivas verificadas sin alterar ni eliminar datos existentes.');

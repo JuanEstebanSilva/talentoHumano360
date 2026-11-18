@@ -19,6 +19,8 @@ Este directorio contiene la documentación técnica oficial, manuales de arquite
 | **[`INFORME_ORGANIZACION_FINAL_TALENTO360.md`](INFORME_ORGANIZACION_FINAL_TALENTO360.md)** | Acta técnica detallada del proceso de depuración, categorización de componentes y cierre institucional. | Líderes de Proyecto y Auditoría |
 | **[`INFORME_AUDITORIA_CIERRE_FINAL_20261111.md`](INFORME_AUDITORIA_CIERRE_FINAL_20261111.md)** | Dictamen consolidado de auditoría técnica con 148 pruebas superadas y 100% de subsanaciones. | Auditores Técnicos y Dirección de Talento |
 | **[`DEPLOY_VERCEL_RENDER_NEON.md`](DEPLOY_VERCEL_RENDER_NEON.md)** | Guía técnica de despliegue continuo en nube (GitHub `main` + Vercel + Render + Neon PostgreSQL) con protección absoluta de datos. | Administradores de Sistemas y DevOps |
+| **[`MANUAL_USUARIO_DOCUMENTOS_E_INFORMES.md`](MANUAL_USUARIO_DOCUMENTOS_E_INFORMES.md)** | Manual de usuario de Gestión Documental, Informes, automatizaciones e historial de cargas. | Funcionarios de Talento Humano |
+| **[`INFORMES_Y_AUTOMATIZACION.md`](INFORMES_Y_AUTOMATIZACION.md)** | Detalle técnico del módulo de informes: fuentes, filtros, permisos y cómo agregar informes. | Desarrolladores |
 
 ---
 
