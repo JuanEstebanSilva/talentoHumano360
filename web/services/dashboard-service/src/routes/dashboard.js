@@ -129,20 +129,14 @@ router.get('/stats', auth, async (_, res) => {
         SELECT COUNT(*) AS total,
                COALESCE(SUM(valor_total) FILTER (WHERE estado IN ('Aprobada','Aprobado','Finalizada','Legalizado')), 0) AS valor_total
         FROM viaticos`),
-      // Últimas actividades (mezcla de módulos)
+      // Últimas actividades (mezcla de módulos activos)
       pool.query(`
         SELECT tipo_modulo, persona, dependencia, estado, fecha FROM (
-          (SELECT 'Vacación' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona,
-                  COALESCE(dependencia,'') AS dependencia, COALESCE(estado,'Pendiente') AS estado,
-                  COALESCE(hoy,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
-                  id_vacacion AS orden_id
-           FROM vacaciones ORDER BY id_vacacion DESC LIMIT 5)
-          UNION ALL
-          (SELECT tipo AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre'), COALESCE(dependencia,''), estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')),
+          (SELECT tipo AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona, COALESCE(dependencia,'') AS dependencia, estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
                   id_solicitud AS orden_id
            FROM solicitudes_admin ORDER BY id_solicitud DESC LIMIT 5)
           UNION ALL
-          (SELECT 'Viático' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre'), COALESCE(dependencia,''), estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')),
+          (SELECT 'Viático' AS tipo_modulo, COALESCE(apellidos_nombres,'Sin nombre') AS persona, COALESCE(dependencia,'') AS dependencia, estado, COALESCE(fecha_solicitud,TO_CHAR(NOW(),'DD/MM/YYYY')) AS fecha,
                   id_viatico AS orden_id
            FROM viaticos ORDER BY id_viatico DESC LIMIT 5)
         ) sub
@@ -385,9 +379,7 @@ router.get('/chart', auth, async (_, res) => {
     ] = await Promise.all([
       // Por tipo de solicitud
       pool.query(`
-        SELECT 'Vacaciones' AS tipo, COUNT(*) AS cantidad FROM vacaciones
-        UNION ALL
-        SELECT 'Permisos', COUNT(*) FROM solicitudes_admin WHERE tipo='Permiso Laboral'
+        SELECT 'Permisos' AS tipo, COUNT(*) AS cantidad FROM solicitudes_admin WHERE tipo='Permiso Laboral'
         UNION ALL
         SELECT 'Incapacidades', COUNT(*) FROM solicitudes_admin WHERE tipo='Incapacidad'
         UNION ALL
@@ -398,8 +390,7 @@ router.get('/chart', auth, async (_, res) => {
       // Por estado
       pool.query(`
         SELECT estado, COUNT(*) AS cantidad FROM (
-          SELECT COALESCE(estado,'Pendiente') AS estado FROM vacaciones
-          UNION ALL SELECT estado FROM solicitudes_admin
+          SELECT estado FROM solicitudes_admin
           UNION ALL SELECT estado FROM viaticos
         ) t GROUP BY estado ORDER BY cantidad DESC
       `),

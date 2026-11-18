@@ -1150,7 +1150,6 @@ const App = (() => {
     'admin-modules-unlock',
     'dashboard',
     'employees',
-    'requests',
     'admin-requests',
     'incapacidades',
     'viaticos',
@@ -1196,11 +1195,12 @@ const App = (() => {
     };
 
     if (scope === 'all') {
-      ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      ['nav-dashboard', 'nav-employees', 'nav-admin-group', 'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'].forEach(id => showLi(id, true));
+      showLi('nav-requests', false);
       return;
     }
 
-    // Ocultar módulos generales por defecto para roles específicos de submódulo
+    // Ocultar módulos generales por defecto para roles específicos de submódulo (y vacaciones siempre oculto)
     ['nav-dashboard', 'nav-employees', 'nav-requests', 'nav-admin-group', 'nav-incapacidades', 'nav-viaticos', 'nav-horarios', 'nav-sst-group'].forEach(id => showLi(id, false));
 
     if (scope === 'sst') {
@@ -1237,6 +1237,11 @@ const App = (() => {
 
     if (rawModule === 'admin-requests' && options.tipo === 'incapacidades') {
       return navigate('incapacidades');
+    }
+
+    // Módulo de vacaciones oculto (no implementado): redirigir a dashboard
+    if (rawModule === 'requests') {
+      return navigate('dashboard');
     }
 
     // Restricción de navegación por rol específico (Sandra SST, Luis Incapacidades, Alejandro Permisos, Sebastian Permisos y Licencias)
@@ -2713,11 +2718,12 @@ const App = (() => {
 
       // Si el administrador está elevado con contraseña, se muestran los módulos operativos; de lo contrario, permanecen ocultos ("DE RESTO NO")
       const operationalNavs = [
-        'nav-employees', 'nav-requests', 'nav-admin-group',
+        'nav-employees', 'nav-admin-group',
         'nav-permisos', 'nav-licencias', 'nav-incapacidades', 'nav-viaticos',
         'nav-horarios', 'nav-sst-group', 'nav-sst-epidemiologico', 'nav-sst-epp', 'nav-sst-sociodemografico'
       ];
       operationalNavs.forEach(id => setVisibility(id, isElevated));
+      setVisibility('nav-requests', false);
 
     } else {
       // Para los demás usuarios (Angela, Doris, Bergenet, Blanca, Monitoreo/Respaldo, etc.):
@@ -2732,12 +2738,12 @@ const App = (() => {
       setVisibility('nav-admin-backups', canAccessBackups);
       setVisibility('nav-admin-permisos', false);
 
-      // Mostrar sus módulos funcionales según permisos
+      // Mostrar sus módulos funcionales según permisos (vacaciones se mantiene permanentemente oculto)
       const hasDashboard = hasAll || mods.includes('dashboard');
       setVisibility('li-nav-dashboard', hasDashboard);
       setVisibility('nav-dashboard', hasDashboard);
       setVisibility('nav-employees', hasAll || mods.includes('employees'));
-      setVisibility('nav-requests', hasAll || mods.includes('requests'));
+      setVisibility('nav-requests', false);
       setVisibility('nav-admin-group', hasAll || mods.includes('admin-requests'));
       setVisibility('nav-permisos', hasAll || mods.includes('admin-requests') || mods.includes('permisos'));
       setVisibility('nav-licencias', hasAll || mods.includes('admin-requests') || mods.includes('licencias'));

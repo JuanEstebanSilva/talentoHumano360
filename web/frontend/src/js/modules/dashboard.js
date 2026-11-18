@@ -3334,11 +3334,10 @@ const DashboardModule = (() => {
         const totalAdminPend = (solAdm.pendientes || 0);
         const totalAdminAprob = (solAdm.aprobadas || 0);
         const viatTotalVal = Math.round(viat.valorTotalAprobado || 0);
-        const totalAprobadas = (vac.aprobadas || 0) + totalAdminAprob + (viat.aprobados || 0);
+        const totalAprobadas = totalAdminAprob + (viat.aprobados || 0);
 
         let kpiRows = [
           ['Servidores Públicos en Planta', String(emp.total || 0), `${emp.activos || 0} activos · ${emp.vacantes || 0} vacantes (${emp.inactivos || 0} inactivos)`],
-          ['Solicitudes de Vacaciones', String(vac.total || 0), `${vac.pendientes || 0} pendientes · ${vac.aprobadas || 0} aprobadas`],
           ['Solicitudes Administrativas', String(solAdm.total || 0), `${totalAdminPend} pendientes · ${totalAdminAprob} aprobadas`],
           ['Viáticos Registrados', String(viat.total || 0), `${fmtCOP(viatTotalVal)} valor total aprobado`],
           ['Total Resoluciones Gestionadas', String(totalAprobadas), 'Total acumulado transversal de actos administrativos emitidos']
@@ -3534,7 +3533,6 @@ const DashboardModule = (() => {
 
         // En lugar de listar nombres individuales ('a.persona'), mostramos resumen agrupado por tipo y volumen
         const modSummaryRows = [
-          ['Gestión de Vacaciones', String(vac.total || 0), String(vac.aprobadas || 0), String(vac.pendientes || 0), 'Dirección de Talento Humano'],
           ['Solicitudes Administrativas (Permisos / Licencias)', String(solAdm.total || 0), String(totalAdminAprob), String(totalAdminPend), 'Secretaría General'],
           ['Comisiones y Liquidación de Viáticos', String(viat.total || 0), String(viat.aprobados || 0), String(viat.pendientes || 0), 'Control Presupuestal'],
           ['Esquemas de Horarios y Teletrabajo', 'Activo', 'Normalizado', '0 pend.', 'Seguimiento Laboral']
