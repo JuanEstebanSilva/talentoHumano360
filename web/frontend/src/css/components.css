@@ -670,6 +670,60 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+/* 2.1. Botón Sutil Eliminar (en Cabecera de Módulo) */
+.btn-action-icon-delete {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.btn-action-icon-delete:hover {
+  background: rgba(239, 68, 68, 0.16);
+  color: #b91c1c;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.18);
+}
+
+.btn-action-icon-delete:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+}
+
+.btn-action-icon-delete svg {
+  width: 22px !important;
+  height: 22px !important;
+  stroke: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.btn-action-icon-delete:hover svg {
+  transform: scale(1.12);
+}
+
+[data-theme="dark"] .btn-action-icon-delete {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #f87171;
+}
+
+[data-theme="dark"] .btn-action-icon-delete:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border-color: #f87171;
+}
+
 /* 3. Botón Expandible Verde Oliva Institucional Agregar (+) — Animación Tranquila y Serena */
 .btn-action-icon-add,
 .btn-action-add-circle {
