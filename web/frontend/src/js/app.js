@@ -1236,6 +1236,8 @@ const App = (() => {
     // 2.1 Control de permisos por rol / módulo
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
     const isAdmin = isUserAdmin(user);
+    const mods = (typeof Auth !== 'undefined' && Auth.getUserModules) ? Auth.getUserModules(user) : (Array.isArray(user && user.modules) ? user.modules : []);
+    const hasAll = mods.includes('*') || mods.includes('all');
 
     if (isAdmin) {
       if (rawModule === 'admin-modules-unlock') {
@@ -4050,8 +4052,8 @@ window.addEventListener('hashchange', () => {
     if (!fullHash) {
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn()) {
         const user = Auth.getUser ? Auth.getUser() : null;
-        const defaultMod = 'dashboard';
-        App.navigate(defaultMod);
+        const landing = (typeof getDefaultLandingRoute === 'function') ? getDefaultLandingRoute(user) : { module: 'dashboard', options: {} };
+        App.navigate(landing.module, landing.options);
       } else {
         App.showLogin();
       }
