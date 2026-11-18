@@ -1989,20 +1989,20 @@ const EmployeesModule = (() => {
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">💼</div>
-                  <span class="ficha-card-label">Denominación del Cargo Titular</span>
+                  <span class="ficha-card-label">Denominación del Cargo</span>
                 </div>
                 <div class="ficha-card-val ficha-val-cargo-denominacion">
                   ${escHtml(cleanCargo)}
                 </div>
-                ${emp.encargoDenominacion ? `
-                  <div class="ficha-card-sub">🔄 En encargo como: <strong>${escHtml(emp.encargoDenominacion)}</strong></div>
+                ${(emp.encargoDenominacion || (emp.clasificacionEmpleo && emp.clasificacionEmpleo.toUpperCase().includes('ENCARGO')) || (emp.situacion && emp.situacion.toUpperCase() === 'ENCARGO')) ? `
+                  <div class="ficha-card-sub">🔄 En encargo</div>
                 ` : ''}
               </div>
 
               <div class="ficha-card">
                 <div class="ficha-card-top">
                   <div class="ficha-card-icon">🏷️</div>
-                  <span class="ficha-card-label">Código y Grado Titular</span>
+                  <span class="ficha-card-label">Código y Grado</span>
                 </div>
                 <div class="ficha-card-val font-mono">
                   Cód. <strong>${escHtml(cleanCod)}</strong> • Grado <strong>${escHtml(cleanGra)}</strong>
@@ -2084,7 +2084,7 @@ const EmployeesModule = (() => {
                   </div>
                 ` : `
                   <div class="ficha-card-val" style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500; margin-top: 4px;">
-                    El servidor público ejerce sus funciones en su cargo titular de planta (sin encargo temporal vigente).
+                    El servidor público ejerce sus funciones en su cargo de planta (sin encargo temporal vigente).
                   </div>
                 `}
                 ${emp.novedades ? `
@@ -2794,7 +2794,7 @@ const EmployeesModule = (() => {
             </div>
 
             <div class="form-group span-2">
-              <label class="form-label" for="ef-cargo">Denominación del Cargo Titular <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
+              <label class="form-label" for="ef-cargo">Denominación del Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, carga dinámica según dependencia)</span></label>
               <select id="ef-cargo" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
                 ${initialAvailableCargos.map(c => `<option value="${escHtml(c.cargo)}" data-codigo="${escHtml(c.codigo || '')}" data-grado="${escHtml(c.grado || '')}" ${cleanEmpCargo && c.cargo.toUpperCase() === cleanEmpCargo.toUpperCase() ? 'selected' : ''}>${escHtml(c.cargo)}</option>`).join('')}
