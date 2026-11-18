@@ -332,51 +332,81 @@ const App = (() => {
 
     // Configurar botón Cancelar / Cerrar en la cabecera superior derecha
     const lowerTitle = String(title || '').toLowerCase();
-    const isWizardOrMajorForm = 
-      (customClass && (
-        customClass.includes('modal-wizard') ||
-        customClass.includes('modal-form-emp') ||
-        customClass.includes('modal-schedule') ||
-        customClass.includes('modal-viatico') ||
-        customClass.includes('modal-wide') ||
-        customClass.includes('modal-lg')
-      )) ||
-      lowerTitle.includes('servidor') ||
-      lowerTitle.includes('horario') ||
-      lowerTitle.includes('viático') ||
-      lowerTitle.includes('viatico');
+    const cClass = String(customClass || '').toLowerCase();
+    const bHtml = String(bodyHtml || '').toLowerCase();
 
-    const isNonFormModal = 
-      (customClass && (
-        customClass.includes('modal-ficha') ||
-        customClass.includes('modal-filter') ||
-        customClass.includes('modal-package') ||
-        customClass.includes('modal-confirm') ||
-        customClass.includes('modal-danger')
-      )) ||
-      lowerTitle.includes('ficha') ||
-      lowerTitle.includes('detalle') ||
+    // 1. Detectar si es un diálogo de confirmación o acción destructiva directa
+    const isConfirmationDialog = 
+      cClass.includes('modal-confirm') ||
+      cClass.includes('modal-danger') ||
+      cClass.includes('modal-logout') ||
       lowerTitle.includes('confirmar') ||
-      lowerTitle.includes('depurar') ||
-      lowerTitle.includes('limpiar') ||
-      lowerTitle.includes('eliminar') ||
-      lowerTitle.includes('borrar') ||
-      lowerTitle.includes('vaciar') ||
-      lowerTitle.includes('filtro') ||
-      lowerTitle.includes('histórico anual') ||
-      lowerTitle.includes('historico anual') ||
-      lowerTitle.includes('ejecución presupuestal') ||
-      lowerTitle.includes('ejecucion presupuestal') ||
-      lowerTitle.includes('carpeta') ||
-      lowerTitle.includes('respaldo') ||
-      lowerTitle.includes('copia de seguridad');
+      lowerTitle.includes('¿descartar') ||
+      lowerTitle.includes('cierre de sesión');
+
+    // 2. Detectar si es una ficha o vista de detalle de solo lectura
+    const isReadOnlyDetail = 
+      (cClass.includes('modal-ficha') || lowerTitle.includes('ficha') || lowerTitle.includes('detalle') || lowerTitle.includes('vista previa') || lowerTitle.includes('acto administrativo')) &&
+      !lowerTitle.includes('nuevo') &&
+      !lowerTitle.includes('nueva') &&
+      !lowerTitle.includes('crear') &&
+      !lowerTitle.includes('radicar') &&
+      !lowerTitle.includes('editar') &&
+      !lowerTitle.includes('modificar');
+
+    // 3. Detectar si en footerButtons se proporcionó un botón de Cancelar
+    let cancelBtnDef = null;
+    if (Array.isArray(footerButtons)) {
+      cancelBtnDef = footerButtons.find(btn => {
+        const text = String(btn.text || btn.label || '').trim().toLowerCase();
+        const cls = String(btn.cls || '').toLowerCase();
+        return text === 'cancelar' || cls.includes('btn-wizard-cancel');
+      });
+    }
+
+    // 4. Determinar si es un FORMULARIO donde el botón Cancelar debe ir en la cabecera superior derecha
+    const isFormModal = !isConfirmationDialog && !isReadOnlyDetail && (
+      Boolean(cancelBtnDef) ||
+      cClass.includes('modal-wizard') ||
+      cClass.includes('modal-form') ||
+      cClass.includes('modal-schedule') ||
+      cClass.includes('modal-viatico') ||
+      cClass.includes('modal-wide') ||
+      cClass.includes('modal-box--wide') ||
+      cClass.includes('modal-lg') ||
+      bHtml.includes('<form') ||
+      bHtml.includes('<input') ||
+      bHtml.includes('<textarea') ||
+      bHtml.includes('<select') ||
+      lowerTitle.includes('nuevo') ||
+      lowerTitle.includes('nueva') ||
+      lowerTitle.includes('crear') ||
+      lowerTitle.includes('radicar') ||
+      lowerTitle.includes('editar') ||
+      lowerTitle.includes('modificar') ||
+      lowerTitle.includes('agregar') ||
+      lowerTitle.includes('programar') ||
+      lowerTitle.includes('cargar') ||
+      lowerTitle.includes('mi perfil')
+    );
 
     if (closeBtn) {
-      if (isWizardOrMajorForm && !isNonFormModal) {
+      if (isFormModal) {
         closeBtn.className = 'modal-close is-cancel-btn btn-wizard-cancel';
         closeBtn.innerHTML = '<span>Cancelar</span>';
         closeBtn.title = 'Cancelar formulario y salir';
         closeBtn.setAttribute('aria-label', 'Cancelar formulario');
+        if (cancelBtnDef && (cancelBtnDef.action || cancelBtnDef.onClick)) {
+          closeBtn.onclick = (e) => {
+            e?.preventDefault();
+            (cancelBtnDef.action || cancelBtnDef.onClick)();
+          };
+        } else {
+          closeBtn.onclick = (e) => {
+            e?.preventDefault();
+            closeModal(false);
+          };
+        }
       } else {
         closeBtn.className = 'modal-close';
         closeBtn.innerHTML = `
@@ -387,6 +417,10 @@ const App = (() => {
         `;
         closeBtn.title = 'Cerrar';
         closeBtn.setAttribute('aria-label', 'Cerrar modal');
+        closeBtn.onclick = (e) => {
+          e?.preventDefault();
+          closeModal(false);
+        };
       }
     }
 
@@ -424,7 +458,17 @@ const App = (() => {
     titleEl.textContent = title;
     bodyEl.innerHTML = bodyHtml;
     footerEl.innerHTML = '';
-    footerButtons.forEach(btn => {
+
+    // Si es un formulario, filtrar el botón Cancelar del footer para evitar duplicidad, ya que se ubica en la parte superior derecha
+    const effectiveFooterButtons = (isFormModal && Array.isArray(footerButtons))
+      ? footerButtons.filter(btn => {
+          const text = String(btn.text || btn.label || '').trim().toLowerCase();
+          const cls = String(btn.cls || '').toLowerCase();
+          return text !== 'cancelar' && !cls.includes('btn-wizard-cancel');
+        })
+      : (Array.isArray(footerButtons) ? footerButtons : []);
+
+    effectiveFooterButtons.forEach(btn => {
       const el = document.createElement('button');
       const cls = btn.cls || btn.type || 'btn-secondary';
       el.className = `btn ${cls}`;

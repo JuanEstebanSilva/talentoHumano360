@@ -670,42 +670,49 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* 2.1. Botón Sutil Eliminar (en Cabecera de Módulo) */
+/* 2.1. Botón de Acción Eliminar (en Cabecera de Módulo) — Estilo Vino Tinto Circular Oficial */
 .btn-action-icon-delete {
   width: 54px;
   height: 54px;
-  border-radius: 16px;
+  min-width: 54px;
+  border-radius: 9999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  color: #dc2626;
+  background: #7a2e2e !important;
+  border: 1px solid #5c1f1f !important;
+  color: #ffffff !important;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
   padding: 0;
   flex-shrink: 0;
   box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(92, 31, 31, 0.20);
 }
 
 .btn-action-icon-delete:hover {
-  background: rgba(239, 68, 68, 0.16);
-  color: #b91c1c;
-  border-color: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.18);
+  background: #8e3636 !important;
+  color: #ffffff !important;
+  border-color: #7a2e2e !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(92, 31, 31, 0.32);
+}
+
+.btn-action-icon-delete:active {
+  transform: translateY(0) scale(0.97) !important;
 }
 
 .btn-action-icon-delete:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 0 3px rgba(122, 46, 46, 0.4);
 }
 
 .btn-action-icon-delete svg {
   width: 22px !important;
   height: 22px !important;
-  stroke: currentColor;
-  transition: transform 0.2s ease;
+  stroke: #ffffff !important;
+  stroke-width: 2.3;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .btn-action-icon-delete:hover svg {
@@ -713,15 +720,14 @@
 }
 
 [data-theme="dark"] .btn-action-icon-delete {
-  background: rgba(239, 68, 68, 0.14);
-  border-color: rgba(239, 68, 68, 0.32);
-  color: #f87171;
+  background: #522020 !important;
+  border-color: rgba(252, 165, 165, 0.25) !important;
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .btn-action-icon-delete:hover {
-  background: rgba(239, 68, 68, 0.25);
-  color: #fca5a5;
-  border-color: #f87171;
+  background: #6e2a2a !important;
+  border-color: rgba(252, 165, 165, 0.4) !important;
 }
 
 /* 3. Botón Expandible Verde Oliva Institucional Agregar (+) — Animación Tranquila y Serena */

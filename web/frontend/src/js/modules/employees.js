@@ -4551,7 +4551,7 @@ const EmployeesModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar servidores públicos en el sistema.</p>
           </div>
-          <button class="modal-close" id="btn-close-emp-import">&times;</button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-emp-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -4615,7 +4615,6 @@ const EmployeesModule = (() => {
         </div>
 
         <div class="modal-footer" id="emp-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-emp-import">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-emp-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <polyline points="20 6 9 17 4 12"></polyline>
@@ -4644,7 +4643,7 @@ const EmployeesModule = (() => {
 
     const closeModal = () => overlay.remove();
     closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
 
     const resetSelection = () => {
       selectedFile = null;
