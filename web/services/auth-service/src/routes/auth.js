@@ -11,6 +11,7 @@ try {
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { Pool } = require('pg');
 
 const pool = new Pool(
@@ -285,12 +286,95 @@ async function sendRecoveryMailDispatcher({ to, nombre, tempPassword, appUrl }) 
   const textBody = buildRecoveryPlainText(nombre, tempPassword);
   const htmlBody = buildRecoveryHtml(nombre, tempPassword, appUrl);
 
-  // 1. Envío mediante Resend API (HTTPS Puerto 443)
-  // Bypasea automáticamente bloqueos de firewall en nubes gratuitas como Render Free Tier
+  const errorsEncountered = [];
+
+  // 1. Envío prioritario mediante Brevo REST API (HTTPS Puerto 443)
+  // Brevo es la opción recomendada en Render Free porque permite enviar hasta 300 correos/día
+  // a CUALQUIER destinatario (Gmail, Boyacá, Outlook, etc.) sin exigir dominio corporativo propio.
+  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+  if (brevoApiKey) {
+    try {
+      console.log(`[auth-recovery] Intentando despacho vía Brevo HTTPS (Puerto 443) a: ${to}...`);
+      const brevoSenderEmail = (process.env.BREVO_FROM || process.env.SMTP_USER || 'talento360.notificaciones@gmail.com').trim();
+      const payload = JSON.stringify({
+        sender: { 
+          name: 'Talento 360 — Gobernación de Boyacá', 
+          email: brevoSenderEmail 
+        },
+        to: [{ email: to, name: nombre || 'Funcionario' }],
+        subject: subject,
+        htmlContent: htmlBody,
+        textContent: textBody
+      });
+
+      let sent = false;
+      if (typeof globalThis.fetch === 'function') {
+        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: payload
+        });
+        if (res.ok) {
+          console.log(`[auth-recovery] Correo entregado exitosamente vía Brevo HTTPS a ${to}`);
+          sent = true;
+          return;
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          const errMsg = errJson.message || `HTTP ${res.status}`;
+          console.warn(`[auth-recovery] Brevo API devolvió estado ${res.status}:`, errMsg);
+          errorsEncountered.push(`Brevo: ${errMsg}`);
+        }
+      }
+
+      if (!sent) {
+        // Fallback nativo HTTPS de Node en caso de fetch no disponible
+        await new Promise((resolve, reject) => {
+          const req = https.request('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'api-key': brevoApiKey,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            },
+            timeout: 10000
+          }, (res) => {
+            let data = '';
+            res.on('data', c => { data += c; });
+            res.on('end', () => {
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log(`[auth-recovery] Correo entregado exitosamente vía Brevo HTTPS nativo a ${to}`);
+                resolve();
+              } else {
+                reject(new Error(`Brevo HTTPS ${res.statusCode}: ${data}`));
+              }
+            });
+          });
+          req.on('error', reject);
+          req.on('timeout', () => { req.destroy(new Error('Brevo timeout')); });
+          req.write(payload);
+          req.end();
+        });
+        return;
+      }
+    } catch (brevoErr) {
+      console.warn('[auth-recovery] Aviso en envío vía Brevo, intentando siguiente transporte:', brevoErr.message);
+      errorsEncountered.push(`Brevo error: ${brevoErr.message}`);
+    }
+  }
+
+  // 2. Envío mediante Resend REST API (HTTPS Puerto 443)
+  // Bypasea automáticamente bloqueos de puertos SMTP en Render Free Tier.
+  // NOTA TÉCNICA: En el plan gratuito de Resend (sin dominio institucional con registros DNS configurados),
+  // Resend RECHAZA con error 403 cualquier correo dirigido a destinatarios distintos al dueño de la cuenta Resend.
   const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
   if (resendApiKey) {
     try {
-      console.log(`[auth-recovery] Enviando vía Resend API (HTTPS 443) a ${to}...`);
+      console.log(`[auth-recovery] Intentando despacho vía Resend API (HTTPS 443) a: ${to}...`);
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -305,81 +389,67 @@ async function sendRecoveryMailDispatcher({ to, nombre, tempPassword, appUrl }) 
           text: textBody
         })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        console.log(`[auth-recovery] Correo entregado exitosamente vía Resend HTTPS a ${to}`);
+        return;
+      } else {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(`Resend API error (${res.status}): ${errJson.message || res.statusText}`);
+        const errMsg = errJson.message || `HTTP ${res.status}`;
+        console.warn(`[auth-recovery] Resend API rechazó el envío (HTTP ${res.status}):`, errMsg);
+        if (res.status === 403 && /only send testing emails to your own email address/i.test(errMsg)) {
+          console.warn('[auth-recovery] ⚠️ DIAGNÓSTICO RESEND: La cuenta de Resend configurada está en modo prueba y solo permite enviar al correo del titular de Resend. Para enviar a cualquier funcionario sin requerir dominio DNS propio, configure BREVO_API_KEY en Render.');
+        }
+        errorsEncountered.push(`Resend (${res.status}): ${errMsg}`);
       }
-      console.log(`[auth-recovery] Correo entregado exitosamente vía Resend HTTPS a ${to}`);
-      return;
     } catch (resendErr) {
-      console.warn('[auth-recovery] Aviso en envío vía Resend, intentando siguiente transporte:', resendErr.message);
+      console.warn('[auth-recovery] Aviso en envío vía Resend, intentando transporte SMTP:', resendErr.message);
+      errorsEncountered.push(`Resend error: ${resendErr.message}`);
     }
   }
 
-  // 2. Envío mediante Brevo REST API (HTTPS Puerto 443)
-  const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
-  if (brevoApiKey) {
-    try {
-      console.log(`[auth-recovery] Enviando vía Brevo API (HTTPS 443) a ${to}...`);
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': brevoApiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { 
-            name: 'Talento 360 — Gobernación de Boyacá', 
-            email: process.env.BREVO_FROM || 'talento360.notificaciones@gmail.com' 
-          },
-          to: [{ email: to, name: nombre || 'Funcionario' }],
-          subject: subject,
-          htmlContent: htmlBody,
-          textContent: textBody
-        })
-      });
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(`Brevo API error (${res.status}): ${errJson.message || res.statusText}`);
-      }
-      console.log(`[auth-recovery] Correo entregado exitosamente vía Brevo HTTPS a ${to}`);
-      return;
-    } catch (brevoErr) {
-      console.warn('[auth-recovery] Aviso en envío vía Brevo, intentando transporte SMTP:', brevoErr.message);
-    }
-  }
-
-  // 3. Transporte SMTP estándar (Nodemailer) con timeouts estrictos para no congelar el servidor
-  const transporter = getMailTransporter();
-  const candidatePaths = [
-    path.join(__dirname, '../assets/logoCondor.png'),
-    path.join(__dirname, '../../../../frontend/src/imgs/logoCondor.png'),
-    path.join(process.cwd(), 'web/frontend/src/imgs/logoCondor.png'),
-    '/app/src/assets/logoCondor.png'
-  ];
-  const validLogoPath = candidatePaths.find(p => {
-    try { return fs.existsSync(p); } catch { return false; }
-  });
-
-  const attachments = [];
-  if (validLogoPath) {
-    attachments.push({
-      filename: 'logoCondor.png',
-      path: validLogoPath,
-      cid: 'logoCondor'
+  // 3. Transporte SMTP estándar (Nodemailer)
+  // NOTA: En la capa gratuita de Render (Free Tier), Render bloquea por firewall los puertos 25, 465 y 587.
+  // Si Render está en Free Tier, la conexión reventará con ETIMEDOUT a los 10 segundos.
+  try {
+    console.log(`[auth-recovery] Intentando despacho vía SMTP Nodemailer a: ${to}...`);
+    const transporter = getMailTransporter();
+    const candidatePaths = [
+      path.join(__dirname, '../assets/logoCondor.png'),
+      path.join(__dirname, '../../../../frontend/src/imgs/logoCondor.png'),
+      path.join(process.cwd(), 'web/frontend/src/imgs/logoCondor.png'),
+      '/app/src/assets/logoCondor.png'
+    ];
+    const validLogoPath = candidatePaths.find(p => {
+      try { return fs.existsSync(p); } catch { return false; }
     });
-  }
 
-  await transporter.sendMail({
-    from: mailFrom,
-    to: to,
-    subject: subject,
-    text: textBody,
-    html: htmlBody,
-    attachments: attachments
-  });
-  console.log(`[auth-recovery] Correo entregado exitosamente vía SMTP a ${to}`);
+    const attachments = [];
+    if (validLogoPath) {
+      attachments.push({
+        filename: 'logoCondor.png',
+        path: validLogoPath,
+        cid: 'logoCondor'
+      });
+    }
+
+    await transporter.sendMail({
+      from: mailFrom,
+      to: to,
+      subject: subject,
+      text: textBody,
+      html: htmlBody,
+      attachments: attachments
+    });
+    console.log(`[auth-recovery] Correo entregado exitosamente vía SMTP a ${to}`);
+    return;
+  } catch (smtpErr) {
+    console.error(`[auth-recovery] Falló transporte SMTP hacia ${to}:`, smtpErr.message);
+    if (/ETIMEDOUT|ECONNREFUSED|ENOTFOUND/i.test(smtpErr.message)) {
+      console.error('[auth-recovery] ⚠️ DIAGNÓSTICO RENDER FREE: El puerto SMTP está bloqueado por el cortafuegos de la capa gratuita de Render. Para enviar correos en Render Free se debe configurar BREVO_API_KEY (puerto 443 HTTPS) o actualizar Render a plan Starter ($7/mes).');
+    }
+    errorsEncountered.push(`SMTP: ${smtpErr.message}`);
+    throw new Error(`Ningún transporte de correo disponible tuvo éxito: ${errorsEncountered.join(' | ')}`);
+  }
 }
 
 function buildRecoveryPlainText(nombre, tempPassword) {

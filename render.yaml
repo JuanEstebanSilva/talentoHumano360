@@ -56,9 +56,11 @@ services:
       - key: MAIL_FROM
         sync: false
       # Proveedor de correo alternativo HTTPS (Puerto 443) para Render Free Tier (evita bloqueo de puertos SMTP 465/587)
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM
-        sync: false
-      - key: BREVO_API_KEY
         sync: false

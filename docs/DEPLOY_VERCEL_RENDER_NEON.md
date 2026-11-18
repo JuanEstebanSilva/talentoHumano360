@@ -69,9 +69,10 @@ Protecciones implementadas en `web/backend/scripts/init-db.js` y `web/backend/se
 | `SMTP_USER` | Sí (para SMTP) | Correo emisor institucional (Gmail). |
 | `SMTP_PASS` | Sí (para SMTP) | **Contraseña de aplicación** de 16 caracteres de Google (no la contraseña normal). |
 | `MAIL_FROM` | Sí | Ej. `Talento 360 - Gobernación de Boyacá <correo@gmail.com>`. |
-| `RESEND_API_KEY` | **Recomendada en Render Free** | API Key gratuita de [Resend.com](https://resend.com) (3,000 correos/mes gratis sin tarjeta). Envía vía HTTPS (Puerto 443), evitando el bloqueo de puertos SMTP 465/587 del plan Free de Render. |
+| `BREVO_API_KEY` | **Recomendada #1 en Render Free** | API Key gratuita de [Brevo.com](https://brevo.com) (300 correos/día gratis sin tarjeta vía HTTPS REST API puerto 443). **No exige dominio corporativo propio**, permitiendo enviar correos a cualquier destinatario (@gmail, @boyaca.gov.co, etc.). |
+| `BREVO_FROM` | Opcional | Correo emisor verificado en Brevo (ej: `talento360.notificaciones@gmail.com`). |
+| `RESEND_API_KEY` | Alternativa en Render (con dominio propio) | API Key gratuita de [Resend.com](https://resend.com). **Nota:** En cuentas gratuitas sin dominio DNS verificado, Resend solo permite enviar correos a la dirección del titular de la cuenta de Resend (error 403 con terceros). |
 | `RESEND_FROM` | Opcional | Remitente verificado en Resend (por defecto `Talento 360 <onboarding@resend.dev>`). |
-| `BREVO_API_KEY` | Alternativa en Render Free | API Key gratuita de [Brevo.com](https://brevo.com) (300 correos/día gratis sin tarjeta vía HTTPS REST API). |
 
 ---
 
