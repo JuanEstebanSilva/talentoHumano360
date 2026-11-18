@@ -500,7 +500,7 @@ const AdminErrorsModule = (() => {
     `;
 
     const modalActions = [
-      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal(true) }
     ];
 
     if (item.estado !== 'Resuelto') {
@@ -509,7 +509,7 @@ const AdminErrorsModule = (() => {
         cls: 'btn-primary',
         action: async () => {
           await updateStatus(item.id, 'Resuelto');
-          App.closeModal();
+          App.closeModal(true);
         }
       });
     }
@@ -518,7 +518,7 @@ const AdminErrorsModule = (() => {
       `Detalle de Incidencia Técnica #${item.id}`,
       modalBody,
       modalActions,
-      'modal-lg'
+      'modal-ficha modal-lg'
     );
   }
 
@@ -586,7 +586,7 @@ const AdminErrorsModule = (() => {
     `;
 
     App.openModal('Confirmar Eliminación de Incidencia', html, [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal(true) },
       {
         text: 'Sí, Eliminar Registro',
         cls: 'btn-danger',
@@ -606,7 +606,7 @@ const AdminErrorsModule = (() => {
           }
           try {
             await API.deleteAdminError(id);
-            App.closeModal();
+            App.closeModal(true);
             App.showToast('Registro de error eliminado correctamente.', 'success');
             await loadData(currentPagination.page);
           } catch (err) {
@@ -618,7 +618,7 @@ const AdminErrorsModule = (() => {
           }
         }
       }
-    ]);
+    ], 'modal-confirm');
 
     setTimeout(() => {
       const btn = document.getElementById('btn-confirm-delete-action');
@@ -686,7 +686,7 @@ const AdminErrorsModule = (() => {
     `;
 
     App.openModal(title, html, [
-      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal(true) },
       {
         text: onlyResolved ? 'Sí, Depurar Resueltos' : 'Sí, Vaciar Todo',
         cls: 'btn-danger',
@@ -706,7 +706,7 @@ const AdminErrorsModule = (() => {
           }
           try {
             await API.clearAllAdminErrors(onlyResolved);
-            App.closeModal();
+            App.closeModal(true);
             App.showToast(onlyResolved ? 'Incidentes resueltos eliminados.' : 'Historial de errores depurado.', 'success');
             await loadData(1);
           } catch (err) {
@@ -718,7 +718,7 @@ const AdminErrorsModule = (() => {
           }
         }
       }
-    ]);
+    ], 'modal-confirm');
 
     setTimeout(() => {
       const btn = document.getElementById('btn-confirm-clear-action');

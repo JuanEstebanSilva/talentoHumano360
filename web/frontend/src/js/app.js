@@ -203,6 +203,8 @@ const App = (() => {
     const values = [];
     controls.forEach(ctrl => {
       if (ctrl.id === 'modal-search') return;
+      if (ctrl.id && ctrl.id.toLowerCase().includes('confirm')) return;
+      if (ctrl.classList && ctrl.classList.contains('input-confirm-keyword')) return;
       if (ctrl.type === 'checkbox' || ctrl.type === 'radio') {
         values.push(`${ctrl.name || ctrl.id || ctrl.className}:${ctrl.checked}`);
       } else {
@@ -221,7 +223,21 @@ const App = (() => {
     if (
       lowerTitle.includes('filtro') ||
       lowerTitle.includes('confirmar') ||
-      (box && (box.classList.contains('modal-filter') || box.classList.contains('modal-ficha')))
+      lowerTitle.includes('depurar') ||
+      lowerTitle.includes('limpiar') ||
+      lowerTitle.includes('eliminar') ||
+      lowerTitle.includes('borrar') ||
+      lowerTitle.includes('vaciar') ||
+      lowerTitle.includes('ficha') ||
+      lowerTitle.includes('detalle') ||
+      lowerTitle.includes('respaldo') ||
+      lowerTitle.includes('copia de seguridad') ||
+      (box && (
+        box.classList.contains('modal-filter') ||
+        box.classList.contains('modal-ficha') ||
+        box.classList.contains('modal-confirm') ||
+        box.classList.contains('modal-danger')
+      ))
     ) {
       return false;
     }
@@ -320,16 +336,29 @@ const App = (() => {
       lowerTitle.includes('viatico');
 
     const isNonFormModal = 
-      (customClass && (customClass.includes('modal-ficha') || customClass.includes('modal-filter') || customClass.includes('modal-package'))) ||
+      (customClass && (
+        customClass.includes('modal-ficha') ||
+        customClass.includes('modal-filter') ||
+        customClass.includes('modal-package') ||
+        customClass.includes('modal-confirm') ||
+        customClass.includes('modal-danger')
+      )) ||
       lowerTitle.includes('ficha') ||
       lowerTitle.includes('detalle') ||
       lowerTitle.includes('confirmar') ||
+      lowerTitle.includes('depurar') ||
+      lowerTitle.includes('limpiar') ||
+      lowerTitle.includes('eliminar') ||
+      lowerTitle.includes('borrar') ||
+      lowerTitle.includes('vaciar') ||
       lowerTitle.includes('filtro') ||
       lowerTitle.includes('histórico anual') ||
       lowerTitle.includes('historico anual') ||
       lowerTitle.includes('ejecución presupuestal') ||
       lowerTitle.includes('ejecucion presupuestal') ||
-      lowerTitle.includes('carpeta');
+      lowerTitle.includes('carpeta') ||
+      lowerTitle.includes('respaldo') ||
+      lowerTitle.includes('copia de seguridad');
 
     if (closeBtn) {
       if (isWizardOrMajorForm && !isNonFormModal) {
