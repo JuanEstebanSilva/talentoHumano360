@@ -19,6 +19,7 @@ const Settings = (() => {
     highContrast: false,           // boolean
     reduceMotion: false,           // boolean
     density: 'normal',             // 'compact' | 'normal' | 'comfortable'
+    tablePageSize: 10,             // number: 5..100 (predeterminado: 10)
     language: 'es',                // 'es'
   };
 
@@ -163,8 +164,31 @@ const Settings = (() => {
     return { ..._state };
   }
 
+  // Get Table Page Size with validation and fallback
+  function getTablePageSize(fallback = 10) {
+    const val = parseInt(_state.tablePageSize, 10);
+    if (!isNaN(val) && val >= 5 && val <= 100) {
+      return val;
+    }
+    return fallback;
+  }
+
+  // Set Table Page Size with validation (clamp between 5 and 100)
+  function setTablePageSize(size) {
+    const parsed = parseInt(size, 10);
+    const valid = Math.min(100, Math.max(5, isNaN(parsed) ? 10 : parsed));
+    _state.tablePageSize = valid;
+    _save();
+    return valid;
+  }
+
   function set(key, value) {
-    _state[key] = value;
+    if (key === 'tablePageSize') {
+      const parsed = parseInt(value, 10);
+      _state.tablePageSize = Math.min(100, Math.max(5, isNaN(parsed) ? 10 : parsed));
+    } else {
+      _state[key] = value;
+    }
     switch (key) {
       case 'fontSize':
         applyFontSize(value);
@@ -219,6 +243,8 @@ const Settings = (() => {
     init,
     get,
     getAll,
+    getTablePageSize,
+    setTablePageSize,
     set,
     applyAll,
     applyFontSize,
@@ -242,6 +268,7 @@ const SettingsModule = (() => {
 
   function render(container) {
     const s = Settings.getAll();
+    const pageSizeVal = Settings.getTablePageSize(10);
 
     container.innerHTML = `
       <div class="module-enter settings-page">
@@ -491,7 +518,7 @@ const SettingsModule = (() => {
               </div>
               <div>
                 <h2 class="settings-card-title">Densidad de la Interfaz</h2>
-                <p class="settings-card-desc">Optimiza la cantidad de información visible por pantalla ajustando el espaciado de tablas y tarjetas.</p>
+                <p class="settings-card-desc">Optimiza la cantidad de información visible por pantalla ajustando el espaciado de componentes y la cantidad de registros por tabla.</p>
               </div>
             </div>
 
@@ -517,6 +544,41 @@ const SettingsModule = (() => {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><line x1="3" y1="5" x2="21" y2="5"/><line x1="3" y1="19" x2="21" y2="19"/></svg>
                   <span>Cómoda</span>
                 </button>
+              </div>
+            </div>
+
+            <!-- Cantidad de registros por tabla (Paginación) -->
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-title">Registros por tabla</div>
+                <div class="settings-item-desc">
+                  Define cuántos registros se cargan por página en las tablas del sistema (Servidores Públicos, Viáticos, Horarios, Solicitudes, etc.).
+                  <br><span style="font-size:var(--text-xs); color:var(--text-muted);">Valores válidos: de 5 a 100 registros por página (predeterminado: 10).</span>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+                <div class="segmented-control" role="radiogroup" aria-label="Cantidad de registros por tabla">
+                  ${[10, 15, 20, 25, 30, 50].map(val => `
+                    <button type="button" class="segmented-btn ${pageSizeVal === val ? 'is-active' : ''}" data-pagesize-val="${val}" id="pagesize-btn-${val}">
+                      <span>${val}</span>
+                    </button>
+                  `).join('')}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:12px; color:var(--text-secondary); font-weight:600;">Personalizado:</span>
+                  <input
+                    type="number"
+                    id="input-custom-page-size"
+                    class="form-input"
+                    min="5"
+                    max="100"
+                    step="1"
+                    value="${pageSizeVal}"
+                    style="width:72px; height:32px; text-align:center; font-weight:700; font-size:13px; padding:2px 6px; border-radius:8px;"
+                    title="Ingresa un valor entre 5 y 100 registros por página"
+                  />
+                  <span style="font-size:12px; color:var(--text-muted);">filas</span>
+                </div>
               </div>
             </div>
           </section>
@@ -694,6 +756,68 @@ const SettingsModule = (() => {
       });
     });
 
+    // ─── Table Page Size (Segmented buttons & Custom input) ──────────────────
+    const customPageSizeInput = container.querySelector('#input-custom-page-size');
+
+    container.querySelectorAll('.segmented-btn[data-pagesize-val]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = parseInt(btn.dataset.pagesizeVal, 10);
+        Settings.setTablePageSize(val);
+
+        container.querySelectorAll('.segmented-btn[data-pagesize-val]').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+
+        if (customPageSizeInput) {
+          customPageSizeInput.value = val;
+        }
+
+        if (typeof App !== 'undefined') {
+          App.showToast(`Paginación de tablas configurada en ${val} registros por página.`, 'info');
+        }
+        if (typeof FX !== 'undefined' && FX.Sound) {
+          FX.Sound.confirm();
+        }
+      });
+    });
+
+    if (customPageSizeInput) {
+      const applyCustomPageSize = () => {
+        let val = parseInt(customPageSizeInput.value, 10);
+        if (isNaN(val) || val < 5) {
+          val = 5;
+          if (typeof App !== 'undefined') {
+            App.showToast('El valor mínimo permitido es de 5 registros por página.', 'warning');
+          }
+        } else if (val > 100) {
+          val = 100;
+          if (typeof App !== 'undefined') {
+            App.showToast('El límite máximo es 100 registros por página para proteger el rendimiento de la plataforma.', 'warning');
+          }
+        }
+        customPageSizeInput.value = val;
+        Settings.setTablePageSize(val);
+
+        container.querySelectorAll('.segmented-btn[data-pagesize-val]').forEach(b => {
+          b.classList.toggle('is-active', parseInt(b.dataset.pagesizeVal, 10) === val);
+        });
+
+        if (typeof App !== 'undefined') {
+          App.showToast(`Paginación de tablas configurada en ${val} registros por página.`, 'info');
+        }
+        if (typeof FX !== 'undefined' && FX.Sound) {
+          FX.Sound.confirm();
+        }
+      };
+
+      customPageSizeInput.addEventListener('change', applyCustomPageSize);
+      customPageSizeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyCustomPageSize();
+        }
+      });
+    }
+
     // ─── Reset Settings Handlers ────────────────────────────────────────────
     const triggerReset = () => {
       if (typeof App === 'undefined') return;
@@ -710,7 +834,7 @@ const SettingsModule = (() => {
               <h3 style="font-size:var(--text-base);font-weight:700;color:var(--text-primary);margin-bottom:4px;">¿Restablecer configuración predeterminada?</h3>
               <p style="font-size:var(--text-sm);color:var(--text-muted);line-height:1.5;">
                 Todas las opciones volverán a sus valores de fábrica:
-                <strong>Tamaño Mediano, Tema Claro, Sonidos Activados, Notificaciones Completas, Contraste y Movimiento estándar, y Densidad Normal.</strong>
+                <strong>Tamaño Mediano, Tema Claro, Sonidos Activados, Notificaciones Completas, Contraste y Movimiento estándar, Densidad Normal y 10 registros por tabla.</strong>
               </p>
             </div>
           </div>

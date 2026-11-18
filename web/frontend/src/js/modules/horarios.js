@@ -826,9 +826,13 @@ const HorariosModule = (() => {
     if (!tbody) return;
 
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
       const params = {
         page: state.page,
-        limit: state.limit,
+        limit: pageSize,
         q: state.filters.q,
         modalidad: state.filters.modalidad,
         estado: state.filters.estado,

@@ -88,7 +88,10 @@ const RequestsModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const params = { page: state.page, limit: 20, ...state.filters };
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : 10;
+      const params = { page: state.page, limit: pageSize, ...state.filters };
       const res = await API.getRequests(params);
       state.data = res.data || [];
       state.total = res.total || 0;

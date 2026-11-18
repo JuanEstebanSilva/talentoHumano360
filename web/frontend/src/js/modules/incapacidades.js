@@ -859,9 +859,12 @@ const IncapacidadesModule = (() => {
       tbody.innerHTML = renderSkeletonRows(6);
     }
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : 10;
       const params = {
         page: state.page,
-        limit: 20,
+        limit: pageSize,
         q: state.filters.q || '',
         estado: state.filters.estado || 'Todos',
         causaMotivo: state.filters.causaMotivo || 'Todas',
@@ -872,7 +875,7 @@ const IncapacidadesModule = (() => {
         res = await API.getAdminRequests({
           tipo: 'Incapacidad',
           page: state.page,
-          limit: 20,
+          limit: pageSize,
           q: state.filters.q || '',
           estado: state.filters.estado || 'Todos',
         });

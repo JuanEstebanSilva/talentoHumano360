@@ -414,7 +414,10 @@ const AdminRequestsModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const params = { tipo: state.tipo, page: state.page, limit: 20, ...state.filters };
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : 10;
+      const params = { tipo: state.tipo, page: state.page, limit: pageSize, ...state.filters };
       const [res] = await Promise.all([
         API.getAdminRequests(params),
         loadDashboardStats()

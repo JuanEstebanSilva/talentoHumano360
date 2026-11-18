@@ -557,7 +557,11 @@ const ViaticosModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const params = { page: state.page, limit: 20, ...state.filters, ...state.advancedFilters };
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
+      const params = { page: state.page, limit: pageSize, ...state.filters, ...state.advancedFilters };
       if (state.activePackage && state.activePackage.id_paquete) {
         params.id_paquete = state.activePackage.id_paquete;
       }

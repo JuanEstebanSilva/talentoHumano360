@@ -1772,11 +1772,14 @@ const SstModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : 10;
       let res;
       if (state.tab === 'epidemiologico') {
         res = await API.getSstEpidemiologico({
           page: state.page,
-          limit: 20,
+          limit: pageSize,
           q: state.filters.q || '',
           tipoEmo: state.filters.subFilter1 || 'Todos',
           estadoCaso: state.filters.subFilter2 || 'Todos'
@@ -1784,7 +1787,7 @@ const SstModule = (() => {
       } else if (state.tab === 'epp') {
         res = await API.getSstEpp({
           page: state.page,
-          limit: 20,
+          limit: pageSize,
           q: state.filters.q || '',
           elemento: state.filters.subFilter1 || 'Todos',
           estado: state.filters.subFilter2 || 'Todos'
@@ -1794,7 +1797,7 @@ const SstModule = (() => {
         const vincVal = state.filters.subFilter2 || 'Todos';
         res = await API.getSstSociodemografico({
           page: state.page,
-          limit: 20,
+          limit: pageSize,
           q: state.filters.q || '',
           escolaridad: (escVal === 'Todas' || escVal === 'Todos') ? '' : escVal,
           tipoVinculacion: (vincVal === 'Todos' || vincVal === 'Todas') ? '' : vincVal

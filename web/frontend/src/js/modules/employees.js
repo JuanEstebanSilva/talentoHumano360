@@ -1358,13 +1358,17 @@ const EmployeesModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+        ? Settings.getTablePageSize(10) 
+        : (state.limit || 10);
+      state.limit = pageSize;
       const res = await API.getEmployees({
         q: state.q,
         dependencia: state.dependencia,
         cargo: state.cargo,
         ...state.advancedFilters,
         page: state.page,
-        limit: 25
+        limit: pageSize
       });
       let records = res.data || [];
       // Ordenar: 1) Activos con cédula (primeras), 2) Sin cédula (penúltimas), 3) Inactivos (últimas)
