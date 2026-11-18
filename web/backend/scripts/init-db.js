@@ -13,14 +13,22 @@ function buildPoolConfig(useDirectUrl = false) {
     ? (process.env.DIRECT_URL || process.env.DATABASE_URL)
     : process.env.DATABASE_URL;
 
+  const baseConfig = {
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    max: 10,
+  };
+
   if (connStr) {
     return {
+      ...baseConfig,
       connectionString: connStr,
       ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
     };
   }
 
   return {
+    ...baseConfig,
     host:     process.env.DB_HOST     || 'localhost',
     port:     parseInt(process.env.DB_PORT, 10) || 5432,
     database: process.env.DB_NAME     || 'talento360',

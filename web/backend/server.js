@@ -113,37 +113,35 @@ app.get(['/imgs', '/assets'], (_, res) => res.redirect('/imgs/logoCondor.png'));
 // ─── Health Checks y Diagnóstico ──────────────────────────────────────────────
 app.get(['/health', '/api/health'], async (_, res) => {
   const dbConfigured = !!process.env.DATABASE_URL;
+  let dbStatus = { connected: false, configured: dbConfigured };
   try {
-    const client = await pool.connect();
+    const client = await Promise.race([
+      pool.connect(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB connection timeout after 3000ms')), 3000))
+    ]);
     try {
       const q = await client.query('SELECT NOW() as db_time, current_database() as db_name');
-      return res.json({
-        status: 'ok',
-        system: 'Talento 360 — API Gateway',
-        database: {
-          connected: true,
-          dbName: q.rows[0].db_name,
-          dbTime: q.rows[0].db_time,
-          configured: dbConfigured
-        },
-        timestamp: new Date().toISOString()
-      });
+      dbStatus = {
+        connected: true,
+        dbName: q.rows[0].db_name,
+        dbTime: q.rows[0].db_time,
+        configured: dbConfigured
+      };
     } finally {
       client.release();
     }
   } catch (err) {
-    return res.status(500).json({
-      status: 'error',
-      system: 'Talento 360 — API Gateway',
-      database: {
-        connected: false,
-        configured: dbConfigured,
-        error: err.message,
-        code: err.code
-      },
-      timestamp: new Date().toISOString()
-    });
+    dbStatus.error = err.message;
   }
+
+  // Render health check requiere HTTP 200 para confirmar liveness y no reiniciar el contenedor
+  return res.status(200).json({
+    status: 'ok',
+    system: 'Talento 360 — API Gateway',
+    uptime: Math.round(process.uptime()),
+    database: dbStatus,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/api/db-status', async (_, res) => {
@@ -249,30 +247,7 @@ app.all('/api/admin/run-migrations', async (req, res) => {
 
 // ─── Arranque Ordenado del Servidor ───────────────────────────────────────────
 async function startServer() {
-  // 1. Verificación/inicialización segura ANTES de importar microservicios (evita condiciones de carrera CREATE TABLE en PostgreSQL)
-  if (process.env.AUTO_INIT_DB === 'true') {
-    try {
-      await initDatabase({ migrateOnly: false, forceWipeConfirmed: false, cliMode: false });
-    } catch (dbErr) {
-      console.warn('[Talento 360 DB Auto-Init] Aviso al verificar base de datos:', dbErr.message);
-    }
-  } else {
-    console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
-  }
-
-  // 1.1 Ejecución segura de migraciones pendientes registradas (idempotente vía schema_migrations)
-  try {
-    const client = await pool.connect();
-    try {
-      await runMigrations(client);
-    } finally {
-      client.release();
-    }
-  } catch (migErr) {
-    console.warn('[Talento 360 Migraciones] Aviso al verificar migraciones seguras:', migErr.message);
-  }
-
-  // 2. Importación de Microservicios
+  // 1. Importación de Microservicios
   const authRoutes          = require('../services/auth-service/src/routes/auth');
   const employeesRoutes     = require('../services/employees-service/src/routes/employees');
   const requestsRoutes      = require('../services/requests-service/src/routes/requests');
@@ -288,7 +263,7 @@ async function startServer() {
   const reportsRoutes       = require('../services/reports-service/src/routes/reports');
   const automationRoutes    = require('../services/reports-service/src/routes/automation');
 
-  // 3. Montaje de Rutas API
+  // 2. Montaje de Rutas API
   app.use('/api/auth', authRoutes);
   app.use('/api/employees', employeesRoutes);
   app.use('/api/requests', requestsRoutes);
@@ -321,12 +296,39 @@ async function startServer() {
     });
   });
 
-  // 4. Inicio de escucha HTTP
+  // 3. Inicio inmediato de escucha HTTP (garantiza que Render vincule el puerto rápidamente)
   app.listen(PORT, () => {
     console.log(`\n=============================================================`);
     console.log(`🚀 Talento 360 Backend Unificado escuchando en puerto ${PORT}`);
     console.log(`   Base de datos: ${process.env.DATABASE_URL ? 'DATABASE_URL detectada' : (process.env.DB_HOST || 'localhost')}`);
     console.log(`=============================================================\n`);
+  });
+
+  // 4. Verificación de BD y migraciones en segundo plano (no bloquea el arranque HTTP)
+  (async () => {
+    if (process.env.AUTO_INIT_DB === 'true') {
+      try {
+        await initDatabase({ migrateOnly: false, forceWipeConfirmed: false, cliMode: false });
+      } catch (dbErr) {
+        console.warn('[Talento 360 DB Auto-Init] Aviso al verificar base de datos:', dbErr.message);
+      }
+    } else {
+      console.log('[Talento 360 DB] Inicio en modo solo-conexión (AUTO_INIT_DB desactivado): el esquema y los datos permanecen intactos.');
+    }
+
+    try {
+      const client = await pool.connect();
+      try {
+        await runMigrations(client);
+        console.log('[Talento 360 Migraciones] Migraciones seguras verificadas con éxito.');
+      } finally {
+        client.release();
+      }
+    } catch (migErr) {
+      console.warn('[Talento 360 Migraciones] Aviso al verificar migraciones seguras:', migErr.message);
+    }
+  })().catch(err => {
+    console.error('[Talento 360 DB Init Background Error]', err.message);
   });
 }
 
