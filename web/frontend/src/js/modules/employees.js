@@ -780,7 +780,7 @@ const EmployeesModule = (() => {
 
   // Funciones de compatibilidad
   function startInactivation(k) { promptRetireEmployee(k); }
-  function cancelInactivation() {}
+  function cancelInactivation() { }
   async function reactivateEmployee(k) { promptReactivateEmployee(k); }
 
   const CLASIFICACION_MAP = {
@@ -909,10 +909,10 @@ const EmployeesModule = (() => {
 
     // Un servidor tiene encargo si su clasificación lo indica, su situación es encargo, o tiene fecha de encargo
     const isEncargo = normUpper.includes('ENCARGO') ||
-                      normUpper.includes('ENCAR') ||
-                      situacionUpper.includes('ENCARGO') ||
-                      situacionUpper.includes('ENCAR') ||
-                      hasFechaEncargo;
+      normUpper.includes('ENCAR') ||
+      situacionUpper.includes('ENCARGO') ||
+      situacionUpper.includes('ENCAR') ||
+      hasFechaEncargo;
 
     // Si NO tiene encargo: mantener única y exclusivamente su tipo de vinculación original con emoji 📝
     if (!isEncargo) {
@@ -976,8 +976,8 @@ const EmployeesModule = (() => {
       countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
     }
 
-    const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
-      ? Settings.getTablePageSize(10) 
+    const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize)
+      ? Settings.getTablePageSize(10)
       : (state.limit || 10);
 
     // Mockup de baja fidelidad estilo feed con avatares circulares y bloques horizontales de texto
@@ -1138,7 +1138,7 @@ const EmployeesModule = (() => {
               <label for="adv-grado">Grado del Cargo</label>
               <select id="adv-grado" class="filter-select">
                 <option value="">Todos</option>
-                ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.grado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
+                ${(state.catalogs.grados || ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']).map(g => `<option value="${g}" ${af.grado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
               </select>
             </div>
             <div class="adv-filter-field">
@@ -1183,7 +1183,7 @@ const EmployeesModule = (() => {
               <label for="adv-encargo-grado">Grado Encargo</label>
               <select id="adv-encargo-grado" class="filter-select">
                 <option value="">Todos</option>
-                ${(state.catalogs.grados || ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15']).map(g => `<option value="${g}" ${af.encargoGrado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
+                ${(state.catalogs.grados || ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']).map(g => `<option value="${g}" ${af.encargoGrado === g ? 'selected' : ''}>Grado ${g}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -1370,8 +1370,8 @@ const EmployeesModule = (() => {
   async function load() {
     renderSkeletonTable();
     try {
-      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
-        ? Settings.getTablePageSize(10) 
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize)
+        ? Settings.getTablePageSize(10)
         : (state.limit || 10);
       state.limit = pageSize;
       const res = await API.getEmployees({
@@ -1486,15 +1486,15 @@ const EmployeesModule = (() => {
             <div class="user-table-info" style="display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; text-align:left;">
               <span class="td-primary" title="${escHtml(e.nombreCompleto)}">${escHtml(e.nombreCompleto) || '—'}</span>
               ${isVac
-                ? `<span class="badge badge--vacante" style="width:fit-content; align-self:flex-start; max-width:fit-content;" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
-                : ((e.documento_pendiente || (e.cedula && e.cedula.startsWith('PROV-')))
-                  ? `<span class="badge badge--provisional font-mono" style="width:fit-content; align-self:flex-start;" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
-                  : (e.cedula
-                    ? `<span class="user-table-cc font-mono" style="width:fit-content; align-self:flex-start;" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
-                    : `<span class="badge badge--pendiente" style="width:fit-content; align-self:flex-start;">Sin Cédula</span>`
-                  )
-                )
-              }
+          ? `<span class="badge badge--vacante" style="width:fit-content; align-self:flex-start; max-width:fit-content;" title="Plaza vacante de la planta">${escHtml(e.codigoVacante || 'PLAZA VACANTE')}</span>`
+          : ((e.documento_pendiente || (e.cedula && e.cedula.startsWith('PROV-')))
+            ? `<span class="badge badge--provisional font-mono" style="width:fit-content; align-self:flex-start;" title="ID Temporal Secuencial">${escHtml(e.cedula)} (Provisional)</span>`
+            : (e.cedula
+              ? `<span class="user-table-cc font-mono" style="width:fit-content; align-self:flex-start;" title="Cédula de Ciudadanía">C.C. ${escHtml(formattedCc)}</span>`
+              : `<span class="badge badge--pendiente" style="width:fit-content; align-self:flex-start;">Sin Cédula</span>`
+            )
+          )
+        }
             </div>
           </div>
         </td>
@@ -1965,8 +1965,8 @@ const EmployeesModule = (() => {
                 </div>
                 <div class="ficha-card-sub ficha-sub-discapacidad">
                   ${emp.tipoDiscapacidad
-                    ? 'Servidor público con condición especial o de discapacidad registrada'
-                    : 'Sin registro oficial de condición especial o discapacidad'}
+          ? 'Servidor público con condición especial o de discapacidad registrada'
+          : 'Sin registro oficial de condición especial o discapacidad'}
                 </div>
               </div>
             </div>
@@ -2149,8 +2149,8 @@ const EmployeesModule = (() => {
                 </div>
                 <div class="ficha-card-sub" style="${(emp.esRetirado || (emp.estadoServidor || '').toLowerCase() === 'retirado' || (emp.situacion || '').toLowerCase() === 'retirado') ? 'color:#dc2626; font-weight:600;' : ''}">
                   ${(emp.esRetirado || (emp.estadoServidor || '').toLowerCase() === 'retirado' || (emp.situacion || '').toLowerCase() === 'retirado')
-                    ? `⏹️ Periodo finalizado al retiro (${escHtml(emp.fechaRetiro || '—')}) - Contador inactivo`
-                    : 'Cálculo dinámico a partir de la fecha de ingreso'}
+          ? `⏹️ Periodo finalizado al retiro (${escHtml(emp.fechaRetiro || '—')}) - Contador inactivo`
+          : 'Cálculo dinámico a partir de la fecha de ingreso'}
                 </div>
               </div>
 
@@ -2274,37 +2274,37 @@ const EmployeesModule = (() => {
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span style="font-size:12px; font-weight:700; color:var(--text-muted); min-width:90px;">Teléfonos:</span>
                     ${(() => {
-                      const telFijoClean = (emp.telefonoFijo || '').trim();
-                      const hasTelFijo = telFijoClean && !['NO REGISTRADO', 'NO REPORTADO', 'N/A', 'NONE', 'NULL', '0', '-', '.'].includes(telFijoClean.toUpperCase());
-                      const celulares = (Array.isArray(emp.celulares) && emp.celulares.length)
-                        ? emp.celulares.filter(c => c && !['NO REGISTRADO', 'NO REPORTADO', 'N/A'].includes(c.toUpperCase()))
-                        : (emp.celular && !['NO REGISTRADO', 'NO REPORTADO', 'N/A'].includes(emp.celular.toUpperCase()) ? [emp.celular] : []);
+          const telFijoClean = (emp.telefonoFijo || '').trim();
+          const hasTelFijo = telFijoClean && !['NO REGISTRADO', 'NO REPORTADO', 'N/A', 'NONE', 'NULL', '0', '-', '.'].includes(telFijoClean.toUpperCase());
+          const celulares = (Array.isArray(emp.celulares) && emp.celulares.length)
+            ? emp.celulares.filter(c => c && !['NO REGISTRADO', 'NO REPORTADO', 'N/A'].includes(c.toUpperCase()))
+            : (emp.celular && !['NO REGISTRADO', 'NO REPORTADO', 'N/A'].includes(emp.celular.toUpperCase()) ? [emp.celular] : []);
 
-                      const pills = [];
-                      celulares.forEach(c => {
-                        pills.push(`<a href="tel:${escHtml(c)}" class="ficha-contact-link" title="Llamar: ${escHtml(c)}">📱 ${escHtml(c)}</a>`);
-                      });
-                      if (hasTelFijo) {
-                        pills.push(`<a href="tel:${escHtml(telFijoClean)}" class="ficha-contact-link ficha-contact-link--fijo" title="Llamar: ${escHtml(telFijoClean)}">☎️ ${escHtml(telFijoClean)}</a>`);
-                      }
+          const pills = [];
+          celulares.forEach(c => {
+            pills.push(`<a href="tel:${escHtml(c)}" class="ficha-contact-link" title="Llamar: ${escHtml(c)}">📱 ${escHtml(c)}</a>`);
+          });
+          if (hasTelFijo) {
+            pills.push(`<a href="tel:${escHtml(telFijoClean)}" class="ficha-contact-link ficha-contact-link--fijo" title="Llamar: ${escHtml(telFijoClean)}">☎️ ${escHtml(telFijoClean)}</a>`);
+          }
 
-                      return pills.length > 0
-                        ? pills.join('')
-                        : '<span style="color:var(--text-muted); font-size:12px;">No registrado</span>';
-                    })()}
+          return pills.length > 0
+            ? pills.join('')
+            : '<span style="color:var(--text-muted); font-size:12px;">No registrado</span>';
+        })()}
                   </div>
 
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:2px;">
                     <span style="font-size:12px; font-weight:700; color:var(--text-muted); min-width:90px;">Residencia:</span>
                     <span style="font-size:13px; color:var(--text-primary);">
                       📍 ${(() => {
-                        const dir = sanitizeText(emp.direccion || '');
-                        const ciu = sanitizeText(emp.ciudad || '');
-                        if (dir && ciu) return `${escHtml(dir)}, ${escHtml(ciu)}`;
-                        if (dir) return escHtml(dir);
-                        if (ciu) return escHtml(ciu);
-                        return 'No registrada';
-                      })()}
+          const dir = sanitizeText(emp.direccion || '');
+          const ciu = sanitizeText(emp.ciudad || '');
+          if (dir && ciu) return `${escHtml(dir)}, ${escHtml(ciu)}`;
+          if (dir) return escHtml(dir);
+          if (ciu) return escHtml(ciu);
+          return 'No registrada';
+        })()}
                     </span>
                   </div>
                 </div>
@@ -2630,6 +2630,7 @@ const EmployeesModule = (() => {
     const isEdit = Boolean(emp.cedula || emp.id);
 
     const cleanEmpDep = isInvalidValue(emp.dependencia) ? '' : emp.dependencia.trim();
+    const cleanEmpCargo = isInvalidValue(emp.cargoActual) ? '' : emp.cargoActual.trim();
     const cleanEmpCargo = isInvalidValue(emp.cargoTitular || emp.cargoBase || emp.cargoActual) ? '' : (emp.cargoTitular || emp.cargoBase || emp.cargoActual).trim();
     const cleanEmpEncargo = isInvalidValue(emp.encargoDenominacion) ? '' : emp.encargoDenominacion.trim();
     const cleanEmpClasif = isInvalidValue(emp.clasificacionEmpleo) ? '' : emp.clasificacionEmpleo.trim();
@@ -2719,18 +2720,18 @@ const EmployeesModule = (() => {
               <select id="ef-sexo" class="filter-select">
                 <option value="">(Sin especificar / Vacío)</option>
                 ${cats.sexos.map(s => {
-                  const empVal = String(emp.sexo || '').trim().toUpperCase();
-                  const optVal = String(s || '').trim().toUpperCase();
-                  const isSelected = empVal && (
-                    empVal === optVal ||
-                    (empVal === 'F' && optVal.startsWith('FEM')) ||
-                    (empVal === 'M' && optVal.startsWith('MAS')) ||
-                    (empVal.startsWith('FEM') && optVal.startsWith('FEM')) ||
-                    (empVal.startsWith('MAS') && optVal.startsWith('MAS')) ||
-                    (empVal.includes('PREFIER') && optVal.includes('PREFIER'))
-                  );
-                  return `<option value="${escHtml(s)}" ${isSelected ? 'selected' : ''}>${escHtml(s)}</option>`;
-                }).join('')}
+      const empVal = String(emp.sexo || '').trim().toUpperCase();
+      const optVal = String(s || '').trim().toUpperCase();
+      const isSelected = empVal && (
+        empVal === optVal ||
+        (empVal === 'F' && optVal.startsWith('FEM')) ||
+        (empVal === 'M' && optVal.startsWith('MAS')) ||
+        (empVal.startsWith('FEM') && optVal.startsWith('FEM')) ||
+        (empVal.startsWith('MAS') && optVal.startsWith('MAS')) ||
+        (empVal.includes('PREFIER') && optVal.includes('PREFIER'))
+      );
+      return `<option value="${escHtml(s)}" ${isSelected ? 'selected' : ''}>${escHtml(s)}</option>`;
+    }).join('')}
               </select>
             </div>
 
@@ -2738,16 +2739,16 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-depto-exp">Depto. de Expedición Cédula</label>
               <select id="ef-depto-exp" class="filter-select">
                 <option value="">(Sin seleccionar / Vacío)</option>
-                ${(function() {
-                  const deptos = Array.from(cats.divipola?.departamentos || []).sort((a, b) => {
-                    const aB = /boyac[aá]/i.test(a);
-                    const bB = /boyac[aá]/i.test(b);
-                    if (aB && !bB) return -1;
-                    if (!aB && bB) return 1;
-                    return a.localeCompare(b, 'es');
-                  });
-                  return deptos.map(dep => `<option value="${escHtml(dep)}" ${(isEdit && emp.departamentoExpedicion === dep) ? 'selected' : ''}>${escHtml(dep)}</option>`).join('');
-                })()}
+                ${(function () {
+        const deptos = Array.from(cats.divipola?.departamentos || []).sort((a, b) => {
+          const aB = /boyac[aá]/i.test(a);
+          const bB = /boyac[aá]/i.test(b);
+          if (aB && !bB) return -1;
+          if (!aB && bB) return 1;
+          return a.localeCompare(b, 'es');
+        });
+        return deptos.map(dep => `<option value="${escHtml(dep)}" ${(isEdit && emp.departamentoExpedicion === dep) ? 'selected' : ''}>${escHtml(dep)}</option>`).join('');
+      })()}
               </select>
             </div>
 
@@ -2808,6 +2809,7 @@ const EmployeesModule = (() => {
 
             <div class="form-group">
               <label class="form-label" for="ef-codigo-cargo">Código de Cargo <span style="font-size:11px; color:var(--text-muted);">(Opcional, letras o números)</span></label>
+              <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoActual || '')}" enterkeyhint="next" />
               <input id="ef-codigo-cargo" class="form-input font-mono" placeholder="Ej: 219, C-01, 100" value="${escHtml(emp.codigoTitular || emp.codigoBase || emp.codigoActual || '')}" enterkeyhint="next" />
               <small id="ef-codigo-hint" style="font-size:11px; color:var(--text-muted);">Código alfanumérico asignado al cargo.</small>
             </div>
@@ -2816,6 +2818,7 @@ const EmployeesModule = (() => {
               <label class="form-label" for="ef-grado">Grado <span style="font-size:11px; color:var(--text-muted);">(Opcional)</span></label>
               <select id="ef-grado" class="filter-select">
                 <option value="">(Sin Grado / Vacío)</option>
+                ${cats.grados.map(g => `<option value="${escHtml(g)}" ${String(emp.gradoActual || '').toLowerCase() === String(g).toLowerCase() ? 'selected' : ''}>${escHtml(g)}</option>`).join('')}
                 ${cats.grados.map(g => `<option value="${escHtml(g)}" ${String(emp.gradoTitular || emp.gradoBase || emp.gradoActual || '').toLowerCase() === String(g).toLowerCase() ? 'selected' : ''}>${escHtml(g)}</option>`).join('')}
               </select>
             </div>
@@ -2867,37 +2870,37 @@ const EmployeesModule = (() => {
                 <select id="ef-tipo-discapacidad" class="filter-select" style="text-transform: uppercase;">
                   <option value="">NINGUNA / NO REGISTRA CONDICIÓN DE DISCAPACIDAD</option>
                   ${(cats.discapacidades || []).map(d => {
-                    const optUpper = String(d || '').trim().toUpperCase();
-                    if (!optUpper) return '';
-                    const empDisc = (emp.tipoDiscapacidad || '').trim().toUpperCase();
-                    const isSelected = empDisc && (
-                      empDisc === optUpper ||
-                      (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
-                      (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
-                      (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
-                      (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
-                      (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
-                      (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
-                      (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
-                      (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')))
-                    );
-                    return `<option value="${escHtml(optUpper)}" ${isSelected ? 'selected' : ''}>${escHtml(optUpper)}</option>`;
-                  }).join('')}
+        const optUpper = String(d || '').trim().toUpperCase();
+        if (!optUpper) return '';
+        const empDisc = (emp.tipoDiscapacidad || '').trim().toUpperCase();
+        const isSelected = empDisc && (
+          empDisc === optUpper ||
+          (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+          (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+          (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+          (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+          (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+          (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+          (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+          (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')))
+        );
+        return `<option value="${escHtml(optUpper)}" ${isSelected ? 'selected' : ''}>${escHtml(optUpper)}</option>`;
+      }).join('')}
                   ${(emp.tipoDiscapacidad && !(cats.discapacidades || []).some(d => {
-                    const empDisc = emp.tipoDiscapacidad.trim().toUpperCase();
-                    const optUpper = String(d || '').trim().toUpperCase();
-                    return empDisc === optUpper ||
-                      (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
-                      (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
-                      (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
-                      (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
-                      (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
-                      (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
-                      (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
-                      (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')));
-                  }) && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(emp.tipoDiscapacidad.trim().toUpperCase()))
-                    ? `<option value="${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}" selected>${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}</option>`
-                    : ''}
+        const empDisc = emp.tipoDiscapacidad.trim().toUpperCase();
+        const optUpper = String(d || '').trim().toUpperCase();
+        return empDisc === optUpper ||
+          (optUpper.includes('FÍSICA') && (empDisc.includes('FISI') || empDisc.includes('MOTO'))) ||
+          (optUpper.includes('AUDITIVA') && empDisc.includes('AUDIT') && !empDisc.includes('SORDOMUD')) ||
+          (optUpper.includes('VISUAL') && empDisc.includes('VISU')) ||
+          (optUpper.includes('INTELECTUAL') && (empDisc.includes('INTELECT') || empDisc.includes('COGNIT'))) ||
+          (optUpper.includes('PSICOSOCIAL') && (empDisc.includes('PSICO') || empDisc.includes('MENTAL'))) ||
+          (optUpper.includes('SORDOMUDA') && empDisc.includes('SORDOMUD')) ||
+          (optUpper.includes('SORDOCIEGA') && (empDisc.includes('SORDOCIEG') || empDisc.includes('SORDOCIEGUERA'))) ||
+          (optUpper.includes('MÚLTIPLE') && (empDisc.includes('MULTIPL') || empDisc.includes('MÚLTIPL')));
+      }) && !['NINGUNA', 'NINGUNO', 'NO REGISTRA', 'SIN ESPECIFICAR'].includes(emp.tipoDiscapacidad.trim().toUpperCase()))
+        ? `<option value="${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}" selected>${escHtml(emp.tipoDiscapacidad.trim().toUpperCase())}</option>`
+        : ''}
                   <option value="__OTRO__">+ OTRA CONDICIÓN (ESPECIFICAR)...</option>
                 </select>
               </div>
@@ -4255,7 +4258,7 @@ const EmployeesModule = (() => {
       const msgCc = res.documento_pendiente ? ` (Se asignó ID Temporal ${res.cedula})` : '';
       App.showToast(`Servidor registrado exitosamente.${msgCc}`, 'success');
       await load();
-      loadCatalogs().catch(() => {});
+      loadCatalogs().catch(() => { });
     } catch (err) {
       if (err.message && err.message.toLowerCase().includes('cédula')) {
         markInvalidField('ef-cedula', err.message);
@@ -4282,7 +4285,7 @@ const EmployeesModule = (() => {
       App.closeModal(true);
       App.showToast('Servidor actualizado exitosamente.', 'success');
       await load();
-      loadCatalogs().catch(() => {});
+      loadCatalogs().catch(() => { });
     } catch (err) {
       if (err.message && err.message.toLowerCase().includes('cédula')) {
         markInvalidField('ef-cedula', err.message);
