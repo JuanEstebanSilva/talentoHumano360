@@ -87,15 +87,10 @@ Anotaciones del equipo en el borrador anterior. Son punto de partida, no evidenc
 | Tema | Lo anotado |
 | :--- | :--- |
 | Recepción | La mayor parte de la información llega en archivos de Excel por correo |
-| Despliegue | Un computador hará de servidor y se accederá por IP, porque no hay espacio en los servidores |
-| Archivos y copias de seguridad | Quedarían en ese mismo computador |
 | Carpeta de entrada automática | No se sabe cuál sería |
 
 Consecuencias técnicas si esto se confirma:
 
-- **Conexión por IP:** `web/frontend/src/js/config.js` ya usa el backend del mismo origen al entrar por IP o por nombre de equipo. Comprobado abriendo la aplicación por la IP de la red local.
-- **Respaldo:** si los datos y sus copias están en el mismo equipo, una falla del disco pierde ambos. Procedimiento y límites de la copia actual en [Copias de seguridad](COPIAS_DE_SEGURIDAD.md).
-- **Disponibilidad:** si el computador está apagado, la aplicación no atiende y los informes programados no corren a su hora.
 - **Correo y Excel:** la carpeta de entrada no lee correo. Falta definir cómo pasarían los adjuntos a la aplicación.
 
 ## 4. Por confirmar
@@ -124,6 +119,10 @@ Consecuencias técnicas si esto se confirma:
 | DA-02 y DA-03. Documentos sensibles | Los ve quien tenga los permisos y módulos para eso. | Los tipos sensibles exigen `documents:sensitive`; los informes solo traen módulos que el usuario puede consultar. |
 | DA-04. Conservación | Hasta que alguien los elimine manualmente. | La aplicación no borra documentos de forma automática. |
 | SI-01 y SI-02. Humano y pagos | No tienen un sistema avanzado; solo lo básico. | Objetivos 7, 8 y 9: no hay API ni servicio que conectar. La integración se hace con la carga de archivos Excel y la exportación de informes, que ya existen. |
-| IN-01 e IN-06. Servidor | Un computador antiguo en la oficina de Talento Humano; acceso solo desde la misma red. | La aplicación ya funciona por IP en la red local (`config.js`). Conviene reservar una IP fija para ese equipo en el router. |
-| IN-02. Copias de seguridad | Quedan en el mismo computador. | Riesgo aceptado: si el disco falla se pierden datos y copias. Queda pendiente para próximos pasantes. |
-| IN-07. Conexión desde otros equipos de la red | En prueba. | Pendiente del resultado. |
+| IN-01, IN-02, IN-06 e IN-07. Servidor local | Se intentó dejar la aplicación en un computador de la oficina de Talento Humano, accesible por la red local. | No se concretó: la entidad no otorgó los permisos de red para ese equipo. Queda pendiente para próximos practicantes (ver sección 7). |
+
+## 7. Pendiente para próximos practicantes
+
+- **Despliegue en la entidad:** definir con el área de sistemas dónde se instala la aplicación (un servidor institucional o un equipo con los permisos de red necesarios) y ponerla en funcionamiento. Los pasos generales están en [Despliegue](DESPLIEGUE.md) e [Instalación](INSTALACION.md).
+- **Copias de seguridad:** una vez definido el servidor, guardar las copias en otro disco o equipo, como indica [Copias de seguridad](COPIAS_DE_SEGURIDAD.md).
+- **Carpeta de entrada automática:** decidir qué carpeta del servidor usará Talento Humano para dejar los documentos.
