@@ -489,6 +489,10 @@ Palacio de la Torre — Plaza de Bolívar, Tunja, Boyacá`;
 function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
   const nombreDisplay = nombre && nombre.trim() ? nombre.trim() : 'Funcionario';
   const loginUrl = appUrl && appUrl.startsWith('http') ? appUrl : 'http://localhost';
+  // URL pública del escudo oficial para máxima compatibilidad con clientes de correo y Brevo API (evita cid: roto)
+  const logoUrl = (appUrl && appUrl.startsWith('https://') && !appUrl.includes('localhost'))
+    ? `${appUrl.replace(/\/$/, '')}/imgs/logoCondor.png`
+    : 'https://raw.githubusercontent.com/JuanEstebanSilva/talentoHumano360/main/web/frontend/src/imgs/logoCondor.png';
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -513,9 +517,9 @@ function buildRecoveryHtml(nombre, tempPassword, appUrl = 'http://localhost') {
           <tr>
             <td style="background:#092e1f;background:radial-gradient(circle at 50% 0%, rgba(209, 173, 42, 0.22) 0%, transparent 70%), linear-gradient(145deg, #062316 0%, #0f4a33 55%, #08291c 100%);padding:36px 24px 30px;text-align:center;border-bottom:2px solid rgba(209, 173, 42, 0.45);">
               
-              <!-- Official Coat of Arms / Cóndor (Limpio, SIN círculo blanco ni fondo artificial) -->
+              <!-- Official Coat of Arms / Cóndor (Limpio, con URL pública HTTPS accesible por clientes de correo) -->
               <div style="text-align:center;margin:0 auto 12px;">
-                <img src="cid:logoCondor" alt="Escudo Gobernación de Boyacá" width="68" height="68" style="display:inline-block;margin:0 auto;width:68px;height:68px;max-width:68px;border:0;outline:none;" />
+                <img src="${logoUrl}" alt="Escudo Gobernación de Boyacá" width="68" height="68" style="display:inline-block;margin:0 auto;width:68px;height:68px;max-width:68px;border:0;outline:none;" />
               </div>
 
               <!-- Institutional Subtitle (Limpio, SIN fondo innecesario ni bordes) -->
