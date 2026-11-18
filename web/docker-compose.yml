@@ -94,6 +94,8 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - ./services/requests-service/src:/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -175,6 +177,8 @@ services:
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       JWT_SECRET: ${JWT_SECRET:-talento360_secret_2026}
+    volumes:
+      - ./services/dashboard-service/src:/app/src
     depends_on:
       postgres:
         condition: service_healthy
