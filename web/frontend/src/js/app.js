@@ -256,6 +256,17 @@ const App = (() => {
     document.getElementById('modal-unsaved-confirm')?.remove();
   }
 
+  function triggerModalStaticBackdropEffect() {
+    const box = document.querySelector('.modal-box');
+    if (!box) return;
+    box.classList.remove('modal-static-bounce');
+    void box.offsetWidth;
+    box.classList.add('modal-static-bounce');
+    setTimeout(() => {
+      box.classList.remove('modal-static-bounce');
+    }, 250);
+  }
+
   function showUnsavedChangesPrompt() {
     const box = document.querySelector('.modal-box');
     if (!box) return;
@@ -2075,7 +2086,16 @@ const App = (() => {
     cancelBtn.addEventListener('click', handleCancel);
     if (closeBtn) closeBtn.addEventListener('click', handleCancel);
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) handleCancel();
+      if (e.target === overlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (cardEl) {
+          cardEl.classList.remove('modal-static-bounce');
+          void cardEl.offsetWidth;
+          cardEl.classList.add('modal-static-bounce');
+          setTimeout(() => cardEl.classList.remove('modal-static-bounce'), 250);
+        }
+      }
     });
 
     keydownHandler = (e) => {
@@ -2274,7 +2294,10 @@ const App = (() => {
     });
 
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeOverlay();
+      if (e.target === overlay) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
   }
 
@@ -3832,10 +3855,13 @@ const App = (() => {
     // Modal close - Únicamente mediante los botones del modal/formulario (con confirmación si hay cambios)
     document.getElementById('modal-close')?.addEventListener('click', () => closeModal(false));
 
-    // Clic en fondo exterior (modal-overlay) con confirmación si hay cambios
+    // Clic en fondo exterior (modal-overlay): En NINGÚN formulario o modal de la plataforma
+    // se debe cerrar al hacer clic por fuera. El usuario debe usar explícitamente los botones de acción/cancelar.
     document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
       if (e.target && e.target.id === 'modal-overlay') {
-        closeModal(false);
+        e.preventDefault();
+        e.stopPropagation();
+        triggerModalStaticBackdropEffect();
       }
     });
 
