@@ -276,10 +276,13 @@ const ViaticosModule = (() => {
     return dStr;
   }
 
-  function renderSkeletonRows(count = 6) {
-    return Array.from({ length: count }).map((_, i) => `
-      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.08}s">
-        <td><div class="skeleton skeleton-line" style="width: 85px; height: 16px; border-radius: 4px;"></div></td>
+  function renderSkeletonRows(count) {
+    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10));
+    return Array.from({ length: numRows }).map((_, i) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${i * 0.05}s">
+        <td class="td-radicado"><div class="skeleton skeleton-line" style="width: 85px; height: 16px; border-radius: 4px;"></div></td>
         <td>
           <div class="skeleton-user-cell">
             <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
@@ -292,14 +295,14 @@ const ViaticosModule = (() => {
         <td><div class="skeleton skeleton-line" style="width: ${i % 3 === 0 ? '85%' : '70%'}; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 90px; height: 13px;"></div></td>
         <td><div class="skeleton skeleton-line" style="width: 75px; height: 13px;"></div></td>
-        <td><div class="skeleton skeleton-line" style="width: 35px; height: 13px;"></div></td>
-        <td><div class="skeleton skeleton-line" style="width: 80px; height: 14px; font-weight:700;"></div></td>
-        <td><div class="skeleton skeleton-badge" style="width: 88px; height: 24px;"></div></td>
-        <td>
-          <div class="skeleton-actions-wrap">
-            <div class="skeleton skeleton-btn"></div>
-            <div class="skeleton skeleton-btn"></div>
-            ${Auth.canEdit('viaticos') ? '<div class="skeleton skeleton-btn"></div>' : ''}
+        <td style="text-align:center;"><div class="skeleton skeleton-line" style="width: 35px; height: 13px; margin: 0 auto;"></div></td>
+        <td class="td-currency" style="text-align:right;"><div class="skeleton skeleton-line" style="width: 80px; height: 14px; margin-left:auto;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width: 88px; height: 24px; margin: 0 auto;"></div></td>
+        <td class="td-actions" style="text-align:center;">
+          <div class="skeleton-actions-wrap" style="justify-content:center; gap:6px;">
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            ${Auth.canEdit('viaticos') ? '<div class="skeleton skeleton-btn" style="border-radius:8px;"></div>' : ''}
           </div>
         </td>
       </tr>
@@ -331,7 +334,7 @@ const ViaticosModule = (() => {
     if (countEl) {
       countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span>`;
     }
-    tbody.innerHTML = renderSkeletonRows(6);
+    tbody.innerHTML = renderSkeletonRows();
   }
 
   function renderDetailModalSkeleton() {
@@ -2703,19 +2706,22 @@ const ViaticosModule = (() => {
   };
 
   function renderRankingSkeletonRows(count = 5) {
-    return Array.from({ length: count }, () => `
-      <tr>
+    return Array.from({ length: count }, (_, idx) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${idx * 0.05}s">
         <td style="text-align:center;"><div class="skeleton" style="width:24px;height:16px;margin:auto;border-radius:4px;"></div></td>
         <td>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div class="skeleton" style="width:65%;height:14px;border-radius:4px;"></div>
-            <div class="skeleton" style="width:35%;height:11px;border-radius:4px;"></div>
+          <div class="skeleton-user-cell">
+            <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
+            <div class="skeleton-text-group">
+              <div class="skeleton skeleton-line skeleton-line--title" style="width:${idx % 2 === 0 ? '70%' : '60%'};height:14px;border-radius:4px;"></div>
+              <div class="skeleton skeleton-line" style="width:40%;height:11px;border-radius:4px;"></div>
+            </div>
           </div>
         </td>
-        <td><div class="skeleton" style="width:50%;height:14px;border-radius:4px;"></div></td>
-        <td style="text-align:center;"><div class="skeleton" style="width:70px;height:22px;margin:auto;border-radius:12px;"></div></td>
-        <td style="text-align:right;"><div class="skeleton" style="width:80px;height:14px;margin-left:auto;border-radius:4px;"></div></td>
-        <td style="text-align:right;"><div class="skeleton" style="width:95px;height:16px;margin-left:auto;border-radius:4px;"></div></td>
+        <td><div class="skeleton skeleton-line" style="width:60%;height:14px;border-radius:4px;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:70px;height:22px;margin:auto;"></div></td>
+        <td style="text-align:right;"><div class="skeleton skeleton-line" style="width:80px;height:14px;margin-left:auto;border-radius:4px;"></div></td>
+        <td style="text-align:right;"><div class="skeleton skeleton-line" style="width:95px;height:16px;margin-left:auto;border-radius:4px;"></div></td>
       </tr>
     `).join('');
   }
@@ -3637,18 +3643,34 @@ const ViaticosModule = (() => {
   // ─── Vista de Carpetas de un Año Específico ──────────────────────────────────
   async function renderYearPackagesView(container) {
     const year = state.selectedYear;
-    const packages = await loadPackages();
-    const yearPkgs = packages.filter(p => p.anio === year);
 
+    // Estado inicial de carga Skeleton para las ejecuciones presupuestales del año
     container.innerHTML = `
       <div class="viaticos-pkg-section">
         <div class="viaticos-pkg-section-header">
           <h2 class="viaticos-pkg-section-title">Ejecuciones Presupuestales</h2>
-          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución registrada' : 'ejecuciones registradas'}</span>
+          <span class="viaticos-pkg-section-badge" id="vit-year-pkgs-badge"><span class="skeleton" style="width:80px;height:14px;border-radius:4px;display:inline-block;" aria-hidden="true"></span></span>
         </div>
-        <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid"></div>
+        <div class="viaticos-pkg-grid" id="vit-year-pkgs-grid">
+          ${Array.from({ length: 4 }).map(() => `
+            <div class="viaticos-pkg-card viaticos-folder-card" style="opacity:0.75;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                <div class="skeleton" style="width:36px;height:36px;border-radius:8px;"></div>
+                <div class="skeleton skeleton-line skeleton-line--title" style="width:60%;height:18px;margin-bottom:0;"></div>
+              </div>
+              <div class="skeleton skeleton-line" style="width:40%;height:12px;margin-bottom:16px;"></div>
+              <div class="skeleton skeleton-line" style="width:100%;height:48px;border-radius:8px;"></div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
+
+    const packages = await loadPackages();
+    const yearPkgs = packages.filter(p => p.anio === year);
+
+    const badge = document.getElementById('vit-year-pkgs-badge');
+    if (badge) badge.textContent = `${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución registrada' : 'ejecuciones registradas'}`;
 
     const grid = document.getElementById('vit-year-pkgs-grid');
     if (!grid) return;
@@ -4108,7 +4130,7 @@ const ViaticosModule = (() => {
                   <th>Fecha Inicio</th><th>Días</th><th>Valor Total</th><th>Estado</th><th>Acciones</th>
                 </tr></thead>
                 <tbody id="vit-tbody" role="progressbar" aria-busy="true" aria-label="Cargando viáticos...">
-                  ${renderSkeletonRows(6)}
+                  ${renderSkeletonRows()}
                 </tbody>
               </table>
             </div>
@@ -5904,6 +5926,8 @@ const ViaticosModule = (() => {
     loadRanking,
     changeRankingLimit,
     exportRankingExcel,
+    renderSkeletonTable,
+    load,
   };
 })();
 window.ViaticosModule = ViaticosModule;

@@ -446,9 +446,12 @@ const HorariosModule = (() => {
     `).join('');
   }
 
-  function renderSkeletonRows(count = 7) {
-    return Array.from({ length: count }).map((_, i) => `
-      <tr class="skeleton-row" style="animation-delay: ${i * 0.07}s" aria-hidden="true">
+  function renderSkeletonRows(count) {
+    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10));
+    return Array.from({ length: numRows }).map((_, i) => `
+      <tr class="skeleton-row" style="animation-delay: ${i * 0.05}s" aria-hidden="true">
         <td style="text-align:center;"><div class="skeleton" style="width:32px; height:20px; border-radius:4px; margin:0 auto;"></div></td>
         <td>
           <div class="skeleton-user-cell">
@@ -471,18 +474,19 @@ const HorariosModule = (() => {
             <div class="skeleton skeleton-line" style="width:50%; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton skeleton-badge" style="width:95px; height:22px;"></div></td>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:95px; height:22px; margin:0 auto;"></div></td>
         <td>
           <div class="skeleton-text-group">
             <div class="skeleton skeleton-line" style="width:110px; height:13px;"></div>
             <div class="skeleton skeleton-line" style="width:65px; height:11px;"></div>
           </div>
         </td>
-        <td><div class="skeleton skeleton-badge" style="width:75px; height:22px;"></div></td>
-        <td>
-          <div class="skeleton-actions-wrap">
-            <div class="skeleton skeleton-btn"></div>
-            <div class="skeleton skeleton-btn"></div>
+        <td style="text-align:center;"><div class="skeleton skeleton-badge" style="width:75px; height:22px; margin:0 auto;"></div></td>
+        <td class="td-actions" style="text-align:center;">
+          <div class="skeleton-actions-wrap" style="justify-content:center; gap:6px;">
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
+            <div class="skeleton skeleton-btn" style="border-radius:8px;"></div>
           </div>
         </td>
       </tr>
@@ -4370,6 +4374,8 @@ const HorariosModule = (() => {
     copyFichaText,
     switchFormTab,
     submitScheduleForm,
+    renderSkeletonTable,
+    loadData,
     getTemplateColumns: () => HORARIOS_EXCEL_COLUMNS,
   };
 })();

@@ -976,9 +976,13 @@ const EmployeesModule = (() => {
       countEl.innerHTML = `<span class="skeleton" style="width:110px;height:14px;border-radius:4px;" aria-hidden="true"></span>`;
     }
 
+    const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
+      ? Settings.getTablePageSize(10) 
+      : (state.limit || 10);
+
     // Mockup de baja fidelidad estilo feed con avatares circulares y bloques horizontales de texto
-    const skeletonRows = Array.from({ length: 7 }).map((_, idx) => `
-      <tr class="skeleton-row" aria-hidden="true">
+    const skeletonRows = Array.from({ length: pageSize }).map((_, idx) => `
+      <tr class="skeleton-row" aria-hidden="true" style="animation-delay: ${idx * 0.05}s">
         <td class="td-servidor">
           <div class="user-table-cell user-table-cell--avatar" style="display:flex; flex-direction:row; align-items:center; gap:12px;">
             <div class="skeleton skeleton-avatar" aria-hidden="true"></div>
@@ -1003,7 +1007,7 @@ const EmployeesModule = (() => {
         <td><div class="skeleton skeleton-line" style="width:70%; height:13px;" aria-hidden="true"></div></td>
         <td><div class="skeleton skeleton-badge" style="width:75px; height:22px; border-radius:9999px;" aria-hidden="true"></div></td>
         <td class="td-actions">
-          <div class="td-actions-wrap" style="display:flex; gap:6px;">
+          <div class="td-actions-wrap" style="display:flex; gap:6px; justify-content:center;">
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
             <div class="skeleton" style="width:28px; height:28px; border-radius:8px;" aria-hidden="true"></div>
