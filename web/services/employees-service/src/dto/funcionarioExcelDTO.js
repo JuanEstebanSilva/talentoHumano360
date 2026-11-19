@@ -102,14 +102,10 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
   const edadObj = fechaNacimiento ? calcularDiferenciaFechasExacta(fechaNacimiento) : null;
   const tiempoServicioObj = fechaIngreso ? calcularDiferenciaFechasExacta(fechaIngreso) : null;
 
-  // 4. Denominación del Cargo Titular y Datos de Encargo Oficial
+  // 4. Denominación del Cargo y Datos de Encargo Oficial
   // Estructura oficial Gobernación de Boyacá:
-  // - Si Col A ("CARGO TITULAR") tiene valor:
-  //   * Cargo Titular/Base: Col A ("CARGO TITULAR"), B ("COD."), C ("GRA.")
-  //   * Cargo en Encargo: Col F ("DENOMINACIÓN CARGO"), G ("COD._1"), H ("GRA._1"), D ("ASIGNACIÓN")
-  // - Si Col A está vacía:
-  //   * Cargo Titular/Base: Col F ("DENOMINACIÓN CARGO"), G ("COD._1"), H ("GRA._1")
-  //   * Encargo: null
+  // - Col F (5), G (6), H (7): Cargo en Planta / Desempeño (DENOMINACIÓN CARGO, CÓDIGO, GRADO)
+  // - Col A (0), B (1), C (2), D (3): Encargo / Situación Administrativa (DENOMINACIÓN ENCARGO / CARGO TITULAR, CÓDIGO, GRADO, ASIGNACIÓN)
   const rawColCargoTitular = sanitizeString(row['CARGO TITULAR'] || row['CARGO_TITULAR']);
   const rawColCargoDenom = sanitizeString(
     row['DENOMINACIÓN CARGO'] || row['DENOMINACION CARGO'] ||
@@ -120,43 +116,43 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
 
   const cargoTitularText = sanitizeString(
     rawRow['__CARGO_TITULAR__'] ||
-    (tieneEncargoPorColumnas ? rawColCargoTitular : (rawColCargoDenom || rawColCargoTitular)) ||
-    rawRow['__CARGO_ACTUAL__']
+    rawRow['__CARGO_ACTUAL__'] ||
+    (tieneEncargoPorColumnas ? rawColCargoDenom : (rawColCargoDenom || rawColCargoTitular))
   ) || 'CARGO POR DEFINIR';
 
   const codigoTitular = sanitizeString(
     rawRow['__CODIGO_TITULAR__'] ||
+    rawRow['__CODIGO_ACTUAL__'] ||
     (tieneEncargoPorColumnas
-      ? (row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO'])
-      : (row['COD._1'] || row['COD_1'] || row['CODIGO_1'] || row['CÓDIGO_1'] || row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO'])) ||
-    rawRow['__CODIGO_ACTUAL__']
+      ? (row['COD._1'] || row['COD_1'] || row['CODIGO_1'] || row['CÓDIGO_1'] || row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO'])
+      : (row['COD._1'] || row['COD_1'] || row['CODIGO_1'] || row['CÓDIGO_1'] || row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO']))
   ) || 'N/A';
 
   const gradoTitular = sanitizeString(
     rawRow['__GRADO_TITULAR__'] ||
+    rawRow['__GRADO_ACTUAL__'] ||
     (tieneEncargoPorColumnas
-      ? (row['GRA.'] || row['GRA'] || row['GRADO'])
-      : (row['GRA._1'] || row['GRA_1'] || row['GRADO_1'] || row['GRA.'] || row['GRA'] || row['GRADO'])) ||
-    rawRow['__GRADO_ACTUAL__']
+      ? (row['GRA._1'] || row['GRA_1'] || row['GRADO_1'] || row['GRA.'] || row['GRA'] || row['GRADO'])
+      : (row['GRA._1'] || row['GRA_1'] || row['GRADO_1'] || row['GRA.'] || row['GRA'] || row['GRADO']))
   ) || 'N/A';
 
   // Datos específicos del encargo si la persona lo tiene activo
   const encargoDenominacionText = sanitizeString(
     rawRow['__ENCARGO_DENOMINACION__'] ||
-    (tieneEncargoPorColumnas ? rawColCargoDenom : (row['DENOMINACIÓN ENCARGO'] || row['DENOMINACION ENCARGO'] || row['ENCARGO']))
+    (tieneEncargoPorColumnas ? rawColCargoTitular : (row['DENOMINACIÓN ENCARGO'] || row['DENOMINACION ENCARGO'] || row['ENCARGO']))
   ) || null;
 
   const encargoCodigoText = sanitizeString(
     rawRow['__ENCARGO_CODIGO__'] ||
     (tieneEncargoPorColumnas
-      ? (row['COD._1'] || row['COD_1'] || row['CODIGO_1'] || row['CÓDIGO_1'])
+      ? (row['COD.'] || row['COD'] || row['CODIGO'] || row['CÓDIGO'])
       : (encargoDenominacionText ? (row['COD.'] || row['COD'] || row['CODIGO']) : null))
   ) || null;
 
   const encargoGradoText = sanitizeString(
     rawRow['__ENCARGO_GRADO__'] ||
     (tieneEncargoPorColumnas
-      ? (row['GRA._1'] || row['GRA_1'] || row['GRADO_1'])
+      ? (row['GRA.'] || row['GRA'] || row['GRADO'])
       : (encargoDenominacionText ? (row['GRA.'] || row['GRA'] || row['GRADO']) : null))
   ) || null;
 
@@ -308,9 +304,9 @@ function mapRowToFuncionarioDTO(rawRow, rowNumber, sheetName = 'Principal', cedu
       asignacion: encargoAsignacionText
     },
     cargoActual: {
-      denominacion: encargoDenominacionText || cargoTitularText,
-      codigo: encargoCodigoText || codigoTitular,
-      grado: encargoGradoText || gradoTitular
+      denominacion: cargoTitularText,
+      codigo: codigoTitular,
+      grado: gradoTitular
     },
     dependencia: sanitizeString(rawRow['__DEPENDENCIA__'] || row['DEPENDENCIA'] || row['AREA'] || row['DEPENDENCIA ACTUAL']),
     vinculacion: {

@@ -1857,8 +1857,8 @@ const EmployeesModule = (() => {
                     💼 ${escHtml(cleanCargo)}
                   </span>
                   ${emp.encargoDenominacion ? `
-                    <span class="ficha-hero-pill pill--gold" title="Encargado en: ${escHtml(emp.encargoDenominacion)}">
-                      🔄 Encargado en: <strong>${escHtml(emp.encargoDenominacion)}</strong>
+                    <span class="ficha-hero-pill pill--gold" title="Encargo: ${escHtml(emp.encargoDenominacion)}">
+                      🔄 Encargo: <strong>${escHtml(emp.encargoDenominacion)}</strong>
                     </span>
                   ` : ''}
                   <span class="ficha-hero-pill">

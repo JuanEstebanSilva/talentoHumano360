@@ -28,7 +28,7 @@ test('Excel mapping: servidor sin encargo asigna Col F como cargo titular y enca
   assert.equal(dto.cargoActual.denominacion, 'PROFESIONAL UNIVERSITARIO');
 });
 
-test('Excel mapping: servidor CON encargo asigna Col A como cargo titular y Col F como cargo en encargo', () => {
+test('Excel mapping: servidor CON encargo asigna Col F como cargo de la planta y Col A como datos de encargo', () => {
   const rawRow = {
     'PRIMER APELLIDO': 'ACERO',
     'SEGUNDO APELLIDO': 'RONCANCIO',
@@ -46,12 +46,12 @@ test('Excel mapping: servidor CON encargo asigna Col A como cargo titular y Col 
 
   const dto = mapRowToFuncionarioDTO(rawRow, 155, 'AGOSTO', '79426900', false, false);
 
-  assert.equal(dto.cargoTitular.denominacion, 'PROFESIONAL UNIVERSITARIO');
-  assert.equal(dto.cargoTitular.codigo, '219');
-  assert.equal(dto.cargoTitular.grado, '05');
-  assert.equal(dto.encargo.denominacion, 'PROFESIONAL ESPECIALIZADO');
-  assert.equal(dto.encargo.codigo, '222');
-  assert.equal(dto.encargo.grado, '06');
+  assert.equal(dto.cargoTitular.denominacion, 'PROFESIONAL ESPECIALIZADO');
+  assert.equal(dto.cargoTitular.codigo, '222');
+  assert.equal(dto.cargoTitular.grado, '06');
+  assert.equal(dto.encargo.denominacion, 'PROFESIONAL UNIVERSITARIO');
+  assert.equal(dto.encargo.codigo, '219');
+  assert.equal(dto.encargo.grado, '05');
   assert.equal(dto.cargoActual.denominacion, 'PROFESIONAL ESPECIALIZADO');
   assert.equal(dto.encargo.asignacion, '$ 6.626.000');
 });

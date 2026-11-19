@@ -616,22 +616,22 @@ async function importarExcel(req, res, pool) {
 
         if (cellCargoTitular && cellCargoTitular.trim()) {
           // El servidor TIENE encargo oficial:
-          // Su cargo base/titular es el de Col A
-          rawRow['__CARGO_TITULAR__'] = cellCargoTitular;
-          rawRow['__CODIGO_TITULAR__'] = cellCodTitular;
-          rawRow['__GRADO_TITULAR__'] = cellGraTitular;
-          rawRow['__CARGO_BASE__'] = cellCargoTitular;
-          rawRow['__CODIGO_BASE__'] = cellCodTitular;
-          rawRow['__GRADO_BASE__'] = cellGraTitular;
-
-          // Su cargo en encargo es el de Col F (la plaza/empleo de encargo)
-          rawRow['__ENCARGO_DENOMINACION__'] = cellCargoDenom;
-          rawRow['__ENCARGO_CODIGO__'] = cellCodDenom;
-          rawRow['__ENCARGO_GRADO__'] = cellGraDenom;
-          rawRow['__ENCARGO_ASIGNACION__'] = cellAsigEncargo;
+          // Su cargo en la planta / empleo desempeñado es el de Col F (DENOMINACIÓN CARGO, COD._1, GRA._1)
+          rawRow['__CARGO_TITULAR__'] = cellCargoDenom;
+          rawRow['__CODIGO_TITULAR__'] = cellCodDenom;
+          rawRow['__GRADO_TITULAR__'] = cellGraDenom;
           rawRow['__CARGO_ACTUAL__'] = cellCargoDenom;
           rawRow['__CODIGO_ACTUAL__'] = cellCodDenom;
           rawRow['__GRADO_ACTUAL__'] = cellGraDenom;
+          rawRow['__CARGO_BASE__'] = cellCargoDenom;
+          rawRow['__CODIGO_BASE__'] = cellCodDenom;
+          rawRow['__GRADO_BASE__'] = cellGraDenom;
+
+          // Sus datos de encargo / cargo de origen son los de Col A (CARGO TITULAR, COD., GRA., ASIGNACION)
+          rawRow['__ENCARGO_DENOMINACION__'] = cellCargoTitular;
+          rawRow['__ENCARGO_CODIGO__'] = cellCodTitular;
+          rawRow['__ENCARGO_GRADO__'] = cellGraTitular;
+          rawRow['__ENCARGO_ASIGNACION__'] = cellAsigEncargo;
         } else {
           // El servidor NO tiene encargo:
           // Su cargo titular es el de Col F
@@ -644,7 +644,6 @@ async function importarExcel(req, res, pool) {
           rawRow['__CARGO_ACTUAL__'] = cellCargoDenom;
           rawRow['__CODIGO_ACTUAL__'] = cellCodDenom;
           rawRow['__GRADO_ACTUAL__'] = cellGraDenom;
-
           rawRow['__ENCARGO_DENOMINACION__'] = null;
           rawRow['__ENCARGO_CODIGO__'] = null;
           rawRow['__ENCARGO_GRADO__'] = null;
