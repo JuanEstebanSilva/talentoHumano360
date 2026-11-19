@@ -481,7 +481,6 @@ router.get('/', auth, async (req, res) => {
         whereConditions.push(`(
           UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
           OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
-          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
           OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
           OR r.fecha_encargo IS NOT NULL
         )`);
@@ -497,7 +496,6 @@ router.get('/', auth, async (req, res) => {
         whereConditions.push(`(
           UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
           OR UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
-          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
           OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
           OR r.fecha_encargo IS NOT NULL
         )`);
@@ -548,7 +546,6 @@ router.get('/', auth, async (req, res) => {
           (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
           OR UPPER(COALESCE(e.situacion, '')) = 'ENCARGO'
           OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
-          OR UPPER(COALESCE(e.novedades, '')) LIKE '%ENCARGO%'
           OR r.fecha_encargo IS NOT NULL
         )`);
       } else if (te === 'no' || te === 'false' || te === '0') {
@@ -556,7 +553,6 @@ router.get('/', auth, async (req, res) => {
           (r.encargo_denominacion IS NULL OR TRIM(r.encargo_denominacion) = '')
           AND UPPER(COALESCE(e.situacion, '')) != 'ENCARGO'
           AND UPPER(COALESCE(e.clasificacion_empleo, '')) NOT LIKE '%ENCARGO%'
-          AND UPPER(COALESCE(e.novedades, '')) NOT LIKE '%ENCARGO%'
           AND r.fecha_encargo IS NULL
         )`);
       }
