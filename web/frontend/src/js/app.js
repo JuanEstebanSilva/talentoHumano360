@@ -232,11 +232,16 @@ const App = (() => {
       lowerTitle.includes('detalle') ||
       lowerTitle.includes('respaldo') ||
       lowerTitle.includes('copia de seguridad') ||
+      lowerTitle.includes('retiro') ||
+      lowerTitle.includes('reactivar') ||
+      lowerTitle.includes('revinculaci') ||
+      lowerTitle.includes('reintegro') ||
       (box && (
         box.classList.contains('modal-filter') ||
         box.classList.contains('modal-ficha') ||
         box.classList.contains('modal-confirm') ||
-        box.classList.contains('modal-danger')
+        box.classList.contains('modal-danger') ||
+        box.classList.contains('modal-retire-dialog')
       ))
     ) {
       return false;

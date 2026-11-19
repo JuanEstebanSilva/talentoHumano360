@@ -494,7 +494,8 @@ const EmployeesModule = (() => {
     try {
       App.showToast('Registrando retiro del servidor...', 'info');
       await API.updateEmployeeStatus(targetCedula, 'Retirado', { fechaRetiro, motivoRetiro, causalRetiro: causal });
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       closeRetireModal();
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} registrado como Retirado. Contador de tiempo detenido.`, 'success');
@@ -506,13 +507,15 @@ const EmployeesModule = (() => {
   }
 
   function closeRetireModal() {
-    App.closeModal();
+    if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+    App.closeModal(true);
     const el = document.getElementById('modal-retire-employee');
     if (el) el.remove();
   }
 
   function closeReactivateModal() {
-    App.closeModal();
+    if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+    App.closeModal(true);
   }
 
   function promptReactivateEmployee(itemKey) {
@@ -767,7 +770,8 @@ const EmployeesModule = (() => {
     try {
       App.showToast('Reactivando servidor y archivando periodo anterior...', 'info');
       await API.updateEmployeeStatus(targetCedula, 'Activo', { action: 'reactivate', nuevaFechaIngreso });
-      App.closeModal();
+      if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+      App.closeModal(true);
       closeReactivateModal();
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       App.showToast(`Servidor ${emp.nombreCompleto || targetCedula} reactivado exitosamente con nueva vinculación.`, 'success');
