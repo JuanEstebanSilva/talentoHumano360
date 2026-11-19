@@ -4702,6 +4702,417 @@ select option {
   margin: 0;
 }
 
+/* ─── Excel Synchronization Diagnostic Card & Ausentes Table ─── */
+.excel-sync-card {
+  background: rgba(0, 123, 199, 0.05);
+  border: 1px solid rgba(0, 123, 199, 0.2);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 14px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+[data-theme="dark"] .excel-sync-card {
+  background: rgba(15, 23, 42, 0.65) !important;
+  border-color: rgba(59, 130, 246, 0.28) !important;
+}
+
+.excel-sync-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.excel-sync-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-forest, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+[data-theme="dark"] .excel-sync-title {
+  color: #f8fafc !important;
+}
+
+.excel-sync-subtitle {
+  font-size: 11.5px;
+  color: var(--text-secondary, #64748b);
+  margin: 3px 0 0;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .excel-sync-subtitle {
+  color: #94a3b8 !important;
+}
+
+/* 4 KPI tiles in Preview */
+.excel-sync-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 640px) {
+  .excel-sync-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.excel-sync-kpi-card {
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.excel-sync-kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.excel-sync-kpi-card--green {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+.excel-sync-kpi-card--green .excel-sync-kpi-title { color: #15803d; }
+.excel-sync-kpi-card--green .excel-sync-kpi-num { color: #15803d; }
+.excel-sync-kpi-card--green .excel-sync-kpi-sub { color: #16a34a; }
+
+.excel-sync-kpi-card--blue {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+.excel-sync-kpi-card--blue .excel-sync-kpi-title { color: #1d4ed8; }
+.excel-sync-kpi-card--blue .excel-sync-kpi-num { color: #1d4ed8; }
+.excel-sync-kpi-card--blue .excel-sync-kpi-sub { color: #2563eb; }
+
+.excel-sync-kpi-card--red {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+.excel-sync-kpi-card--red .excel-sync-kpi-title { color: #b91c1c; }
+.excel-sync-kpi-card--red .excel-sync-kpi-num { color: #b91c1c; }
+.excel-sync-kpi-card--red .excel-sync-kpi-sub { color: #dc2626; }
+
+.excel-sync-kpi-card--amber {
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+}
+.excel-sync-kpi-card--amber .excel-sync-kpi-title { color: #a16207; }
+.excel-sync-kpi-card--amber .excel-sync-kpi-num { color: #a16207; }
+.excel-sync-kpi-card--amber .excel-sync-kpi-sub { color: #ca8a04; }
+
+[data-theme="dark"] .excel-sync-kpi-card--green {
+  background: rgba(34, 197, 94, 0.14) !important;
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+[data-theme="dark"] .excel-sync-kpi-card--green .excel-sync-kpi-title { color: #86efac !important; }
+[data-theme="dark"] .excel-sync-kpi-card--green .excel-sync-kpi-num { color: #4ade80 !important; }
+[data-theme="dark"] .excel-sync-kpi-card--green .excel-sync-kpi-sub { color: #a7f3d0 !important; }
+
+[data-theme="dark"] .excel-sync-kpi-card--blue {
+  background: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+[data-theme="dark"] .excel-sync-kpi-card--blue .excel-sync-kpi-title { color: #93c5fd !important; }
+[data-theme="dark"] .excel-sync-kpi-card--blue .excel-sync-kpi-num { color: #60a5fa !important; }
+[data-theme="dark"] .excel-sync-kpi-card--blue .excel-sync-kpi-sub { color: #bfdbfe !important; }
+
+[data-theme="dark"] .excel-sync-kpi-card--red {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] .excel-sync-kpi-card--red .excel-sync-kpi-title { color: #fca5a5 !important; }
+[data-theme="dark"] .excel-sync-kpi-card--red .excel-sync-kpi-num { color: #f87171 !important; }
+[data-theme="dark"] .excel-sync-kpi-card--red .excel-sync-kpi-sub { color: #fecaca !important; }
+
+[data-theme="dark"] .excel-sync-kpi-card--amber {
+  background: rgba(234, 179, 8, 0.14) !important;
+  border-color: rgba(234, 179, 8, 0.35) !important;
+}
+[data-theme="dark"] .excel-sync-kpi-card--amber .excel-sync-kpi-title { color: #fde047 !important; }
+[data-theme="dark"] .excel-sync-kpi-card--amber .excel-sync-kpi-num { color: #facc15 !important; }
+[data-theme="dark"] .excel-sync-kpi-card--amber .excel-sync-kpi-sub { color: #fef08a !important; }
+
+.excel-sync-kpi-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.excel-sync-kpi-num {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 3px 0 2px;
+}
+.excel-sync-kpi-sub {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Options Box */
+.excel-sync-options-box {
+  background: var(--color-bg-secondary, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .excel-sync-options-box {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Toggle Ausentes Button */
+.btn-toggle-ausentes-styled {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1.5px solid var(--color-border, #cbd5e1);
+  color: var(--text-primary, #334155);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.btn-toggle-ausentes-styled:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.btn-toggle-ausentes-styled.is-active {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .btn-toggle-ausentes-styled {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .btn-toggle-ausentes-styled:hover {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="dark"] .btn-toggle-ausentes-styled.is-active {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  color: #fca5a5 !important;
+}
+
+/* Card Wrapper for Ausentes Table */
+.ausentes-table-card {
+  margin-top: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--color-bg-primary, #ffffff);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+[data-theme="dark"] .ausentes-table-card {
+  background: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ausentes-table-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--color-bg-secondary, #f8fafc);
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+[data-theme="dark"] .ausentes-table-topbar {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ausentes-search-input {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-bg-primary, #ffffff);
+  color: var(--text-primary, #0f172a);
+  width: 220px;
+  max-width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ausentes-search-input:focus {
+  border-color: var(--color-primary-green, #22c55e);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+[data-theme="dark"] .ausentes-search-input {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f8fafc !important;
+}
+
+.ausentes-table-scroll-container {
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+}
+
+.ausentes-table-scroll-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ausentes-table-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ausentes-table-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 4px;
+}
+
+.ausentes-table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* The actual table */
+.ausentes-preview-table {
+  width: 100% !important;
+  min-width: 580px !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 11px !important;
+  margin: 0 !important;
+  line-height: 1.35;
+}
+
+.ausentes-preview-table thead tr {
+  background: #f8fafc !important;
+}
+
+[data-theme="dark"] .ausentes-preview-table thead tr {
+  background: #1e293b !important;
+}
+
+.ausentes-preview-table th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 8px 12px !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  white-space: nowrap !important;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .ausentes-preview-table th {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.ausentes-preview-table td {
+  padding: 8px 12px !important;
+  font-size: 11.5px !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  max-width: none !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .ausentes-preview-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+  color: #cbd5e1 !important;
+}
+
+.ausentes-preview-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+[data-theme="dark"] .ausentes-preview-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.12) !important;
+}
+
+.ausentes-preview-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.ausentes-badge-cedula {
+  font-family: monospace, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas;
+  font-weight: 700;
+  font-size: 11px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #15803d;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .ausentes-badge-cedula {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.ausentes-badge-status {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+[data-theme="dark"] .ausentes-badge-status {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+}
+
 /* Success Banner */
 .excel-success-banner {
   background: rgba(40, 135, 27, 0.08);

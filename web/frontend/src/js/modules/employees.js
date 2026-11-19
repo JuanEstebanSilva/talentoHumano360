@@ -4550,7 +4550,7 @@ const EmployeesModule = (() => {
     overlay.id = 'excel-emp-modal-overlay';
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-      <div class="modal-box excel-import-modal-box" style="max-width: 680px; width: 95%;">
+      <div class="modal-box excel-import-modal-box" style="max-width: 820px; width: 95%;">
         <div class="modal-header">
           <div class="modal-header-info">
             <h2 class="modal-title" style="display:flex; align-items:center; gap:8px;">
@@ -4613,12 +4613,14 @@ const EmployeesModule = (() => {
                 </button>
               </div>
 
-              <!-- Cuadro Informativo de Confirmación Previa -->
-              <div class="excel-notice-card">
-                <div class="excel-notice-icon">📋</div>
-                <div class="excel-notice-content">
-                  <strong>Confirmación de Carga Masiva</strong>
-                  <p>Al confirmar la importación, se procesarán los registros del archivo para crear o actualizar los servidores públicos en la base de datos institucional.</p>
+              <!-- Contenedor del Diagnóstico de Sincronización Previa -->
+              <div id="emp-sync-diagnostic-container">
+                <div class="excel-notice-card">
+                  <div class="excel-notice-icon">📋</div>
+                  <div class="excel-notice-content">
+                    <strong>Confirmación de Carga Masiva</strong>
+                    <p>Al confirmar la importación, se procesarán los registros del archivo para crear o actualizar los servidores públicos en la base de datos institucional.</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4664,6 +4666,18 @@ const EmployeesModule = (() => {
       fileInput.value = '';
       dropzone.style.display = 'block';
       filePreview.style.display = 'none';
+      const diagContainer = overlay.querySelector('#emp-sync-diagnostic-container');
+      if (diagContainer) {
+        diagContainer.innerHTML = `
+          <div class="excel-notice-card">
+            <div class="excel-notice-icon">📋</div>
+            <div class="excel-notice-content">
+              <strong>Confirmación de Carga Masiva</strong>
+              <p>Al confirmar la importación, se procesarán los registros del archivo para crear o actualizar los servidores públicos en la base de datos institucional.</p>
+            </div>
+          </div>
+        `;
+      }
       confirmBtn.disabled = true;
       confirmText.textContent = 'Confirmar Importación';
     };
@@ -4700,27 +4714,33 @@ const EmployeesModule = (() => {
       confirmBtn.disabled = true;
       confirmText.textContent = 'Analizando archivo...';
 
-      const noticeCard = overlay.querySelector('.excel-notice-card');
-      const noticeContent = overlay.querySelector('.excel-notice-content');
-
-      noticeContent.innerHTML = `
-        <div style="display:flex; align-items:center; gap:10px; padding:6px 0;">
-          <span class="btn-progress-pulse" style="border-top-color:var(--color-primary-green); width:20px; height:20px;"></span>
-          <div>
-            <strong style="color:var(--color-forest); display:block; font-size:13px;">Analizando plantilla y cotejando con la base de datos...</strong>
-            <span style="font-size:11px; color:var(--text-secondary);">Calculando variaciones de planta, altas, actualizaciones y servidores ausentes.</span>
+      const diagContainer = overlay.querySelector('#emp-sync-diagnostic-container');
+      if (diagContainer) {
+        diagContainer.innerHTML = `
+          <div class="excel-sync-card" style="display:flex; align-items:center; gap:12px; padding:18px;">
+            <span class="btn-progress-pulse" style="border-top-color:var(--color-primary-green); width:24px; height:24px; flex-shrink:0;"></span>
+            <div>
+              <strong style="display:block; font-size:13px; color:var(--text-primary); margin-bottom:3px;">Analizando plantilla y cotejando con la base de datos...</strong>
+              <span style="font-size:11.5px; color:var(--text-secondary);">Calculando variaciones de planta, altas, actualizaciones y servidores ausentes.</span>
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
 
       let preview = null;
       try {
         preview = await API.previewEmployeesExcel(file);
       } catch (prevErr) {
-        noticeContent.innerHTML = `
-          <strong style="color:#dc2626; display:block; margin-bottom:4px;">Error en el análisis de la plantilla</strong>
-          <p style="margin:0; font-size:12px; color:var(--text-secondary);">${escHtml(prevErr.message || 'No se pudo leer la estructura del archivo.')}</p>
-        `;
+        if (diagContainer) {
+          diagContainer.innerHTML = `
+            <div class="excel-sync-card" style="border-color:rgba(239,68,68,0.4); background:rgba(239,68,68,0.06); padding:16px;">
+              <strong style="color:#dc2626; display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:4px;">
+                <span>⚠️</span> Error en el análisis de la plantilla
+              </strong>
+              <p style="margin:0; font-size:12px; color:var(--text-secondary);">${escHtml(prevErr.message || 'No se pudo leer la estructura del archivo.')}</p>
+            </div>
+          `;
+        }
         confirmBtn.disabled = true;
         confirmText.textContent = 'Archivo no válido';
         return;
@@ -4730,112 +4750,181 @@ const EmployeesModule = (() => {
       const ausentes = preview.detalleAusentes || [];
       const fechaHoy = new Date().toISOString().split('T')[0];
 
-      // Renderizar el Diagnóstico de Sincronización
-      noticeContent.innerHTML = `
-        <div style="margin-bottom:12px;">
-          <strong style="font-size:13px; color:var(--color-forest); display:flex; align-items:center; gap:6px;">
-            <span>🔍</span> Diagnóstico de Sincronización de Planta
-          </strong>
-          <p style="font-size:11px; margin:2px 0 0; color:var(--text-secondary);">
-            Cotejo automático entre <strong>${escHtml(file.name)}</strong> (${pRes.totalFilasExcel || 0} registros) y la planta activa actual.
-          </p>
-        </div>
-
-        <!-- 4 Indicadores de Balance de Planta -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-bottom:12px;">
-          <div style="background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
-            <div style="font-size:9.5px; font-weight:800; color:#15803d; text-transform:uppercase;">Nuevos Ingresos</div>
-            <div style="font-size:18px; font-weight:800; color:#15803d; line-height:1.2; margin:2px 0;">+${pRes.nuevos || 0}</div>
-            <div style="font-size:9.5px; color:#16a34a;">Altas a registrar</div>
-          </div>
-          <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
-            <div style="font-size:9.5px; font-weight:800; color:#1d4ed8; text-transform:uppercase;">Actualizaciones</div>
-            <div style="font-size:18px; font-weight:800; color:#1d4ed8; line-height:1.2; margin:2px 0;">${pRes.actualizaciones || 0}</div>
-            <div style="font-size:9.5px; color:#2563eb;">Servidores vigentes</div>
-          </div>
-          <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
-            <div style="font-size:9.5px; font-weight:800; color:#b91c1c; text-transform:uppercase;">Bajas / Ausentes</div>
-            <div style="font-size:18px; font-weight:800; color:#b91c1c; line-height:1.2; margin:2px 0;">${pRes.ausentes || 0}</div>
-            <div style="font-size:9.5px; color:#dc2626;">No figuran en corte</div>
-          </div>
-          <div style="background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.3); border-radius:8px; padding:8px 6px; text-align:center;">
-            <div style="font-size:9.5px; font-weight:800; color:#a16207; text-transform:uppercase;">Plazas Vacantes</div>
-            <div style="font-size:18px; font-weight:800; color:#a16207; line-height:1.2; margin:2px 0;">${pRes.vacantesEnExcel || 0}</div>
-            <div style="font-size:9.5px; color:#ca8a04;">Vacantes oficiales</div>
-          </div>
-        </div>
-
-        <!-- Opciones Inteligentes de Sincronización -->
-        <div style="background:var(--color-bg-secondary, rgba(255,255,255,0.04)); border:1px solid var(--color-border); border-radius:8px; padding:10px 12px; margin-bottom:4px;">
-          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-bottom:8px;">
-            <input type="checkbox" id="chk-sync-retirados" checked style="margin-top:2px; accent-color:var(--color-primary-green);" />
-            <div>
-              <span style="font-weight:700; font-size:12px; color:var(--text-primary);">
-                Marcar automáticamente como "Retirado" a los servidores ausentes (${pRes.ausentes || 0})
+      // Renderizar el Diagnóstico de Sincronización enriquecido y responsivo
+      if (diagContainer) {
+        diagContainer.innerHTML = `
+          <div class="excel-sync-card">
+            <div class="excel-sync-header">
+              <div>
+                <h4 class="excel-sync-title">
+                  <span>🔍</span> Diagnóstico de Sincronización de Planta
+                </h4>
+                <p class="excel-sync-subtitle">
+                  Cotejo automático entre <strong>${escHtml(file.name)}</strong> (${pRes.totalFilasExcel || 0} registros) y la planta activa actual.
+                </p>
+              </div>
+              <span class="badge" style="font-size:11px; font-weight:700; background:rgba(0,123,199,0.1); color:#005387; padding:4px 10px; border-radius:12px; border:1px solid rgba(0,123,199,0.2);">
+                ${pRes.totalFilasExcel || 0} Registros
               </span>
-              <p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0;">
-                Conserva su tiempo de servicio y hoja de vida intacta para certificaciones, pero los descuenta de la planta activa y alimenta el <strong>Histórico de Retiros</strong>.
-              </p>
             </div>
-          </label>
 
-          ${ausentes.length > 0 ? `
-            <div style="margin-left:22px; margin-bottom:8px;">
-              <button type="button" id="btn-toggle-ausentes" class="btn btn-outline btn-sm" style="font-size:10.5px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;">
-                <span>👁️</span> <span id="btn-toggle-ausentes-text">Ver lista de servidores ausentes (${ausentes.length})</span>
-              </button>
-              <div id="list-ausentes-wrapper" style="display:none; max-height:140px; overflow-y:auto; margin-top:6px; border:1px solid var(--color-border); border-radius:6px; background:var(--color-bg-primary);">
-                <table style="width:100%; border-collapse:collapse; font-size:10.5px;">
-                  <thead>
-                    <tr style="background:var(--color-bg-secondary); position:sticky; top:0;">
-                      <th style="padding:4px 6px; text-align:left;">Cédula</th>
-                      <th style="padding:4px 6px; text-align:left;">Nombre</th>
-                      <th style="padding:4px 6px; text-align:left;">Cargo</th>
-                      <th style="padding:4px 6px; text-align:left;">Dependencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${ausentes.map(a => `
-                      <tr style="border-top:1px solid var(--color-border);">
-                        <td style="padding:3px 6px; font-weight:600;">${escHtml(a.cedula)}</td>
-                        <td style="padding:3px 6px;">${escHtml(a.nombre)}</td>
-                        <td style="padding:3px 6px; color:var(--text-secondary);">${escHtml(a.cargo)}</td>
-                        <td style="padding:3px 6px; color:var(--text-secondary);">${escHtml(a.dependencia)}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
+            <!-- 4 Indicadores de Balance de Planta -->
+            <div class="excel-sync-kpi-grid">
+              <div class="excel-sync-kpi-card excel-sync-kpi-card--green">
+                <span class="excel-sync-kpi-title">Nuevos Ingresos</span>
+                <span class="excel-sync-kpi-num">+${pRes.nuevos || 0}</span>
+                <span class="excel-sync-kpi-sub">Altas a registrar</span>
+              </div>
+              <div class="excel-sync-kpi-card excel-sync-kpi-card--blue">
+                <span class="excel-sync-kpi-title">Actualizaciones</span>
+                <span class="excel-sync-kpi-num">${pRes.actualizaciones || 0}</span>
+                <span class="excel-sync-kpi-sub">Servidores vigentes</span>
+              </div>
+              <div class="excel-sync-kpi-card excel-sync-kpi-card--red">
+                <span class="excel-sync-kpi-title">Bajas / Ausentes</span>
+                <span class="excel-sync-kpi-num">${pRes.ausentes || 0}</span>
+                <span class="excel-sync-kpi-sub">No figuran en corte</span>
+              </div>
+              <div class="excel-sync-kpi-card excel-sync-kpi-card--amber">
+                <span class="excel-sync-kpi-title">Plazas Vacantes</span>
+                <span class="excel-sync-kpi-num">${pRes.vacantesEnExcel || 0}</span>
+                <span class="excel-sync-kpi-sub">Vacantes oficiales</span>
               </div>
             </div>
-          ` : ''}
 
-          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
-            <input type="checkbox" id="chk-sync-vacantes" checked style="margin-top:2px; accent-color:var(--color-primary-green);" />
-            <div>
-              <span style="font-weight:700; font-size:12px; color:var(--text-primary);">
-                Sincronizar plazas vacantes al corte del archivo (${pRes.vacantesEnExcel || 0} plazas)
-              </span>
-              <p style="font-size:10.5px; color:var(--text-secondary); margin:2px 0 0;">
-                Ajusta las vacantes de la planta a las del archivo, depurando plazas anteriores que ya fueron provistas.
-              </p>
+            <!-- Opciones Inteligentes de Sincronización -->
+            <div class="excel-sync-options-box">
+              <div style="margin-bottom:12px;">
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
+                  <input type="checkbox" id="chk-sync-retirados" checked style="margin-top:2px; accent-color:var(--color-primary-green); width:16px; height:16px; cursor:pointer;" />
+                  <div>
+                    <span style="font-weight:700; font-size:12.5px; color:var(--text-primary);">
+                      Marcar automáticamente como "Retirado" a los servidores ausentes (${pRes.ausentes || 0})
+                    </span>
+                    <p style="font-size:11px; color:var(--text-secondary); margin:2px 0 0; line-height:1.35;">
+                      Conserva su tiempo de servicio y hoja de vida intacta para certificaciones, pero los descuenta de la planta activa y alimenta el <strong>Histórico de Retiros</strong>.
+                    </p>
+                  </div>
+                </label>
+
+                ${ausentes.length > 0 ? `
+                  <div style="margin-left:26px; margin-top:8px;">
+                    <button type="button" id="btn-toggle-ausentes" class="btn-toggle-ausentes-styled" aria-expanded="false">
+                      <span>👥</span>
+                      <span id="btn-toggle-ausentes-text">Ver lista detallada de ausentes (${ausentes.length})</span>
+                      <span id="btn-toggle-ausentes-arrow" style="font-size:10px; transition:transform 0.2s;">▼</span>
+                    </button>
+
+                    <div id="list-ausentes-wrapper" class="ausentes-table-card" style="display:none;">
+                      <div class="ausentes-table-topbar">
+                        <div style="font-size:11.5px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                          <span>📋</span>
+                          <span id="ausentes-count-label">Servidores ausentes (${ausentes.length})</span>
+                        </div>
+                        <input type="search" id="txt-search-ausentes" class="ausentes-search-input" placeholder="🔍 Filtrar por cédula, nombre..." aria-label="Buscar servidor ausente" />
+                      </div>
+                      <div class="ausentes-table-scroll-container">
+                        <table class="ausentes-preview-table">
+                          <thead>
+                            <tr>
+                              <th style="width:115px;">Cédula</th>
+                              <th style="min-width:180px;">Nombre Completo</th>
+                              <th style="min-width:160px;">Cargo Registrado</th>
+                              <th style="min-width:180px;">Dependencia</th>
+                              <th style="width:90px; text-align:center;">Acción</th>
+                            </tr>
+                          </thead>
+                          <tbody id="ausentes-table-body">
+                            ${ausentes.map(a => `
+                              <tr data-search="${escHtml(((a.cedula || '') + ' ' + (a.nombre || '') + ' ' + (a.cargo || '') + ' ' + (a.dependencia || '')).toLowerCase())}">
+                                <td>
+                                  <span class="ausentes-badge-cedula">${escHtml(a.cedula)}</span>
+                                </td>
+                                <td>
+                                  <div style="font-weight:600; color:var(--text-primary); font-size:11.5px;">${escHtml(a.nombre)}</div>
+                                </td>
+                                <td>
+                                  <div style="color:var(--text-secondary); font-size:11px;">${escHtml(a.cargo || '—')}</div>
+                                </td>
+                                <td>
+                                  <div style="color:var(--text-muted); font-size:10.5px; word-break:break-word;">${escHtml(a.dependencia || '—')}</div>
+                                </td>
+                                <td style="text-align:center;">
+                                  <span class="ausentes-badge-status">A Retirar</span>
+                                </td>
+                              </tr>
+                            `).join('')}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+
+              <div>
+                <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
+                  <input type="checkbox" id="chk-sync-vacantes" checked style="margin-top:2px; accent-color:var(--color-primary-green); width:16px; height:16px; cursor:pointer;" />
+                  <div>
+                    <span style="font-weight:700; font-size:12.5px; color:var(--text-primary);">
+                      Sincronizar plazas vacantes al corte del archivo (${pRes.vacantesEnExcel || 0} plazas)
+                    </span>
+                    <p style="font-size:11px; color:var(--text-secondary); margin:2px 0 0; line-height:1.35;">
+                      Ajusta las vacantes de la planta a las del archivo, depurando plazas anteriores que ya fueron provistas.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
-          </label>
-        </div>
-      `;
+          </div>
+        `;
 
-      // Toggle para ver la lista de ausentes
-      const toggleBtn = noticeContent.querySelector('#btn-toggle-ausentes');
-      const listWrapper = noticeContent.querySelector('#list-ausentes-wrapper');
-      const toggleText = noticeContent.querySelector('#btn-toggle-ausentes-text');
-      if (toggleBtn && listWrapper) {
-        toggleBtn.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          const isHidden = listWrapper.style.display === 'none';
-          listWrapper.style.display = isHidden ? 'block' : 'none';
-          toggleText.textContent = isHidden
-            ? `Ocultar lista de servidores ausentes (${ausentes.length})`
-            : `Ver lista de servidores ausentes (${ausentes.length})`;
-        });
+        // Toggle para ver la lista de ausentes y buscador en tiempo real
+        const toggleBtn = diagContainer.querySelector('#btn-toggle-ausentes');
+        const listWrapper = diagContainer.querySelector('#list-ausentes-wrapper');
+        const toggleText = diagContainer.querySelector('#btn-toggle-ausentes-text');
+        const toggleArrow = diagContainer.querySelector('#btn-toggle-ausentes-arrow');
+        const searchInput = diagContainer.querySelector('#txt-search-ausentes');
+        const tableBody = diagContainer.querySelector('#ausentes-table-body');
+        const countLabel = diagContainer.querySelector('#ausentes-count-label');
+
+        if (toggleBtn && listWrapper) {
+          toggleBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const isHidden = listWrapper.style.display === 'none';
+            listWrapper.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.classList.toggle('is-active', isHidden);
+            toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+            if (toggleArrow) toggleArrow.textContent = isHidden ? '▲' : '▼';
+            if (toggleText) {
+              toggleText.textContent = isHidden
+                ? `Ocultar lista de servidores ausentes`
+                : `Ver lista detallada de ausentes (${ausentes.length})`;
+            }
+            if (isHidden && searchInput) {
+              setTimeout(() => searchInput.focus(), 60);
+            }
+          });
+        }
+
+        if (searchInput && tableBody) {
+          searchInput.addEventListener('input', (e) => {
+            const q = (e.target.value || '').trim().toLowerCase();
+            const rows = tableBody.querySelectorAll('tr');
+            let visible = 0;
+            rows.forEach(r => {
+              const dataSearch = r.getAttribute('data-search') || '';
+              const match = !q || dataSearch.includes(q);
+              r.style.display = match ? '' : 'none';
+              if (match) visible++;
+            });
+            if (countLabel) {
+              countLabel.textContent = q
+                ? `Servidores filtrados (${visible} de ${ausentes.length})`
+                : `Servidores ausentes (${ausentes.length})`;
+            }
+          });
+        }
       }
 
       confirmBtn.disabled = false;
