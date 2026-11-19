@@ -2117,6 +2117,9 @@ router.patch('/:cedula/status', auth, async (req, res) => {
       const otroCalc = calcularOtroTiempoNormalizado(row.otros_tiempos_periodos, row.otro_tiempo_gobernacion, dateIng);
       const totalCongelado = sumarTiemposExactos(tiempoCongelado, otroCalc);
 
+      const textoServicio = (tiempoCongelado && tiempoCongelado.texto) ? tiempoCongelado.texto : '0 años, 0 meses, 0 días';
+      const textoTotal = (totalCongelado && totalCongelado.texto) ? totalCongelado.texto : textoServicio;
+
       await client.query(
         `UPDATE estados SET estado_servidor = 'Retirado', situacion = 'RETIRADO' WHERE id_estado = $1`,
         [id_estado]
@@ -2128,7 +2131,7 @@ router.patch('/:cedula/status', auth, async (req, res) => {
              tiempo_servicio = $2,
              tiempo_total_gobernacion = $3
          WHERE id_registro = $4`,
-        [fRetiro, tiempoCongelado.texto, totalCongelado.texto, id_registro]
+        [fRetiro, textoServicio, textoTotal, id_registro]
       );
 
       await client.query('COMMIT');
@@ -2137,8 +2140,8 @@ router.patch('/:cedula/status', auth, async (req, res) => {
         message: `Servidor ${row.nombre_completo || cedula} marcado como Retirado el ${fRetiro}. Contador de servicio detenido.`,
         estadoServidor: 'Retirado',
         fechaRetiro: fRetiro,
-        tiempoServicioCalculado: tiempoCongelado.texto,
-        tiempoTotalGobernacion: totalCongelado.texto
+        tiempoServicioCalculado: textoServicio,
+        tiempoTotalGobernacion: textoTotal
       });
     }
 
@@ -2192,6 +2195,9 @@ router.patch('/:cedula/status', auth, async (req, res) => {
         [id_estado]
       );
 
+      const nuevoServicioTexto = (nuevoServicioCalc && nuevoServicioCalc.texto) ? nuevoServicioCalc.texto : '0 años, 0 meses, 0 días';
+      const nuevoTotalTexto = (nuevoTotalCalc && nuevoTotalCalc.texto) ? nuevoTotalCalc.texto : nuevoServicioTexto;
+
       await client.query(
         `UPDATE rel_principal 
          SET fecha_ingreso = $1,
@@ -2205,8 +2211,8 @@ router.patch('/:cedula/status', auth, async (req, res) => {
           fNuevaIngreso,
           JSON.stringify(periodosExistentes),
           nuevoOtroTiempoTexto,
-          nuevoServicioCalc.texto,
-          nuevoTotalCalc.texto,
+          nuevoServicioTexto,
+          nuevoTotalTexto,
           id_registro
         ]
       );
@@ -2217,10 +2223,10 @@ router.patch('/:cedula/status', auth, async (req, res) => {
         message: `Servidor reactivado exitosamente con nueva vinculación desde el ${fNuevaIngreso}. Periodo anterior archivado en Otro Tiempo.`,
         estadoServidor: 'Activo',
         fechaIngreso: fNuevaIngreso,
-        tiempoServicioCalculado: nuevoServicioCalc.texto,
+        tiempoServicioCalculado: nuevoServicioTexto,
         otroTiempoPeriodos: periodosExistentes,
         otroTiempoGobernacion: nuevoOtroTiempoTexto,
-        tiempoTotalGobernacion: nuevoTotalCalc.texto
+        tiempoTotalGobernacion: nuevoTotalTexto
       });
     }
 

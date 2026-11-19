@@ -707,6 +707,9 @@ class EmployeeImportService {
             const otroCalc = calcularOtroTiempoNormalizado(act.otros_tiempos_periodos, act.otro_tiempo_gobernacion, dateIng);
             const totalCongelado = sumarTiemposExactos(tiempoCongelado, otroCalc);
 
+            const textoServicio = (tiempoCongelado && tiempoCongelado.texto) ? tiempoCongelado.texto : '0 años, 0 meses, 0 días';
+            const textoTotal = (totalCongelado && totalCongelado.texto) ? totalCongelado.texto : textoServicio;
+
             await client.query(
               `UPDATE estados 
                SET estado_servidor = 'Retirado',
@@ -722,7 +725,7 @@ class EmployeeImportService {
                    tiempo_servicio = $2,
                    tiempo_total_gobernacion = $3
                WHERE id_registro = $4`,
-              [fRetiro, tiempoCongelado.texto, totalCongelado.texto, act.id_registro]
+              [fRetiro, textoServicio, textoTotal, act.id_registro]
             );
 
             resumen.retirados++;
