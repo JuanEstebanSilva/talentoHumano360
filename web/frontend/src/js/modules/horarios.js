@@ -291,6 +291,19 @@ const HorariosModule = (() => {
                     <small>Formato oficial institucional en blanco (.xlsx)</small>
                   </div>
                 </button>
+                <button
+                  type="button"
+                  class="actions-dropdown-item"
+                  role="menuitem"
+                  tabindex="-1"
+                  onclick="HorariosModule.closeActionsDropdown(); if (typeof DashboardPDF !== 'undefined') DashboardPDF.confirmExportPDF('horarios');"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  <div>
+                    <strong>Exportar Informe en PDF</strong>
+                    <small>Generar informe oficial de horarios en PDF</small>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -2592,22 +2605,23 @@ const HorariosModule = (() => {
       if (h.soporte_acto) {
         if (h.soporte_acto.startsWith('data:image/')) {
           thumbnailHtml = `
-            <div style="flex-shrink:0; cursor:pointer;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ampliar documento oficial">
-              <img src="${h.soporte_acto}" alt="Miniatura Resolución" class="ficha-soporte-thumb" style="width:72px; height:88px; object-fit:cover; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
+            <div style="flex-shrink:0; cursor:pointer; position:relative;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ampliar documento oficial">
+              <img src="${h.soporte_acto}" alt="Miniatura Resolución" class="ficha-soporte-thumb" style="width:78px; height:94px; object-fit:cover; border-radius:8px; border:2px solid rgba(22, 163, 74, 0.4); box-shadow:0 6px 18px rgba(0,0,0,0.25); transition:transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 8px 24px rgba(22,163,74,0.35)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.25)';" />
+              <span style="position:absolute; bottom:4px; right:4px; background:#16a34a; color:#fff; font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; box-shadow:0 2px 5px rgba(0,0,0,0.3);">IMG</span>
             </div>
           `;
         } else if (h.soporte_acto.startsWith('data:application/pdf')) {
           thumbnailHtml = `
-            <div class="ficha-soporte-thumb" style="width:72px; height:88px; border-radius:6px; background:rgba(239, 68, 68, 0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento PDF" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width:28px;height:28px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.5px;">PDF</span>
+            <div class="ficha-soporte-thumb" style="width:78px; height:94px; border-radius:8px; background:linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(185, 28, 28, 0.25) 100%); border:2px solid rgba(239, 68, 68, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; flex-shrink:0; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.25); transition:transform 0.2s, box-shadow 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento PDF" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 8px 24px rgba(239,68,68,0.35)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.25)';">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2" style="width:30px;height:30px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span style="font-size:10px; font-weight:800; color:#ef4444; letter-spacing:0.8px; background:rgba(239,68,68,0.12); padding:2px 6px; border-radius:4px;">PDF</span>
             </div>
           `;
         } else {
           thumbnailHtml = `
-            <div class="ficha-soporte-thumb" style="width:72px; height:88px; border-radius:6px; background:rgba(22, 163, 74, 0.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex-shrink:0; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.25); transition:transform 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-              <span style="font-size:26px;">📄</span>
-              <span style="font-size:10px; font-weight:800;" class="ficha-soporte-titulo">DOC</span>
+            <div class="ficha-soporte-thumb" style="width:78px; height:94px; border-radius:8px; background:linear-gradient(135deg, rgba(22, 163, 74, 0.15) 0%, rgba(6, 95, 70, 0.25) 100%); border:2px solid rgba(22, 163, 74, 0.4); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; flex-shrink:0; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.25); transition:transform 0.2s, box-shadow 0.2s;" onclick="HorariosModule.viewSoporte(${h.id_horario})" title="Clic para ver documento" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 8px 24px rgba(22,163,74,0.35)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.25)';">
+              <span style="font-size:28px;">📄</span>
+              <span style="font-size:10px; font-weight:800; color:#16a34a; letter-spacing:0.8px; background:rgba(22,163,74,0.12); padding:2px 6px; border-radius:4px;">DOC</span>
             </div>
           `;
         }
@@ -2909,40 +2923,58 @@ const HorariosModule = (() => {
                 <div class="ficha-card-sub">${h.fecha_fin ? 'Culminación del período autorizado' : 'Vigencia continuada'}</div>
               </div>
 
-              <!-- Soporte Documental Digitalizado -->
-              <div class="ficha-card ficha-grid--full ficha-card--featured" style="padding:16px 18px;">
-                <div class="ficha-card-top">
-                  <div class="ficha-card-icon">📎</div>
-                  <span class="ficha-card-label" style="color:var(--color-navy);">Soporte Documental Escaneado / Digitalizado</span>
-                </div>
-                <div style="margin-top:10px;">
+              <!-- Soporte Documental Digitalizado Institucional -->
+              <div class="ficha-card ficha-grid--full ficha-card--featured" style="padding:18px 20px; border-left:4px solid var(--color-gold, #d97706); background:linear-gradient(135deg, rgba(217, 119, 6, 0.04) 0%, rgba(22, 163, 74, 0.04) 100%);">
+                <div class="ficha-card-top" style="margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <div class="ficha-card-icon" style="font-size:18px;">📎</div>
+                    <span class="ficha-card-label" style="color:var(--color-navy); font-weight:700; font-size:13.5px; letter-spacing:0.3px;">Acto Administrativo / Soporte Documental Digitalizado</span>
+                  </div>
                   ${h.soporte_acto ? `
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
-                      <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:260px;">
+                    <span style="font-size:11px; font-weight:700; color:#16a34a; background:rgba(22, 163, 74, 0.12); padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+                      <span style="width:6px; height:6px; border-radius:50%; background:#16a34a;"></span>
+                      Documento Oficial Verificado
+                    </span>
+                  ` : `
+                    <span style="font-size:11px; font-weight:600; color:var(--text-muted); background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:12px;">
+                      Sin Documento Adjunto
+                    </span>
+                  `}
+                </div>
+                <div style="margin-top:6px;">
+                  ${h.soporte_acto ? `
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+                      <div style="display:flex; align-items:center; gap:16px; flex:1; min-width:280px;">
                         ${thumbnailHtml}
                         <div style="display:flex; flex-direction:column; gap:4px;">
-                          <span class="ficha-soporte-titulo" style="font-weight:700; display:inline-flex; align-items:center; gap:6px; font-size:13.5px;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
+                          <span class="ficha-soporte-titulo" style="font-weight:700; display:inline-flex; align-items:center; gap:6px; font-size:13.5px; color:var(--text-primary);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>
                             Hoja de Resolución Firmada Adjunta al Esquema
                           </span>
-                          <span style="font-size:11.5px; color:var(--text-muted);">Documento oficial adjunto disponible para consulta y verificación.</span>
+                          <span style="font-size:11.5px; color:var(--text-secondary); line-height:1.4;">
+                            Documento oficial en custodia digital para validación de la Dirección de Talento Humano.
+                          </span>
                         </div>
                       </div>
-                      <div style="display:inline-flex; gap:8px;">
+                      <div style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="HorariosModule.viewSoporte(${h.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                           Ver Documento
                         </button>
+                        <button type="button" class="btn btn-gold btn-sm" onclick="HorariosModule.downloadSoporte(${h.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          Descargar Soporte
+                        </button>
                         <button type="button" class="btn btn-outline btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:600;">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          Reemplazar Archivo
+                          Reemplazar
                         </button>
                       </div>
                     </div>
                   ` : `
-                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:rgba(0,0,0,0.02); padding:12px 14px; border-radius:8px;">
                       <span style="color:var(--text-muted); font-size:13px;">No cuenta con soporte digitalizado adjunto actualmente.</span>
-                      <button type="button" class="btn btn-primary btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})" style="font-weight:700;">
+                      <button type="button" class="btn btn-gold btn-sm" onclick="HorariosModule.openUploadSoporteModal(${h.id_horario})" style="font-weight:700; display:inline-flex; align-items:center; gap:6px;">
                         📎 Adjuntar Resolución Firmada
                       </button>
                     </div>
@@ -3250,6 +3282,38 @@ const HorariosModule = (() => {
     openDetailModal(id);
   }
 
+  function downloadSoporte(id) {
+    const item = state.data.find((x) => String(x.id_horario) === String(id));
+    if (!item || !item.soporte_acto) {
+      App.showToast('Este esquema no cuenta con documento de soporte adjunto.', 'info');
+      return;
+    }
+    const soporte = item.soporte_acto;
+    let fileName = `soporte_horario_${item.documento || item.id_horario}`;
+    if (item.numero_resolucion) {
+      fileName += `_res_${String(item.numero_resolucion).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    }
+
+    if (soporte.startsWith('data:')) {
+      let ext = '.bin';
+      if (soporte.startsWith('data:application/pdf')) ext = '.pdf';
+      else if (soporte.startsWith('data:image/png')) ext = '.png';
+      else if (soporte.startsWith('data:image/jpeg') || soporte.startsWith('data:image/jpg')) ext = '.jpg';
+      else if (soporte.startsWith('data:image/webp')) ext = '.webp';
+
+      const link = document.createElement('a');
+      link.href = soporte;
+      link.download = fileName + ext;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      App.showToast('Descarga de soporte documental iniciada.', 'success');
+    } else {
+      window.open(soporte, '_blank');
+      App.showToast('Abriendo enlace de documento oficial...', 'info');
+    }
+  }
+
   function viewSoporte(id) {
     const item = state.data.find((x) => String(x.id_horario) === String(id));
     if (!item || !item.soporte_acto) {
@@ -3257,29 +3321,69 @@ const HorariosModule = (() => {
       return;
     }
     const soporte = item.soporte_acto;
-    if (soporte.startsWith('data:image/')) {
-      App.openModal(`Acto Administrativo - ${item.numero_resolucion || 'S/N'}`, `
-        <div style="text-align:center;padding:var(--space-2);">
-          <img src="${soporte}" alt="Acto Administrativo" style="max-width:100%;max-height:70vh;border-radius:var(--radius-md);box-shadow:0 8px 24px rgba(0,0,0,0.3);" />
-          <div style="margin-top:var(--space-4);">
-            <a href="${soporte}" download="resolucion_${item.numero_resolucion || item.documento}.png" class="btn btn-primary btn-sm">Descargar Imagen</a>
+    const resTitle = item.numero_resolucion ? `Resolución ${item.numero_resolucion}` : 'Acto Administrativo S/N';
+    const isPdf = soporte.startsWith('data:application/pdf');
+    const isImg = soporte.startsWith('data:image/');
+
+    const headerHtml = `
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 16px; background:linear-gradient(135deg, rgba(22,163,74,0.08) 0%, rgba(217,119,6,0.08) 100%); border:1px solid rgba(22,163,74,0.25); border-radius:var(--radius-md); margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px; height:40px; border-radius:8px; background:linear-gradient(135deg, #16a34a 0%, #065f46 100%); display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; box-shadow:0 3px 8px rgba(22,163,74,0.3);">
+            ${isPdf ? '📄' : isImg ? '🖼️' : '📎'}
+          </div>
+          <div>
+            <div style="font-weight:700; font-size:14px; color:var(--text-primary);">${escHtml(item.apellidos_nombres || 'Servidor Público')}</div>
+            <div style="font-size:11.5px; color:var(--text-muted);">
+              C.C. ${escHtml(item.documento)} &bull; ${escHtml(resTitle)} &bull; Modalidad: <strong>${escHtml(item.modalidad || 'N/A')}</strong>
+            </div>
           </div>
         </div>
-      `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
-    } else if (soporte.startsWith('data:application/pdf')) {
-      App.openModal(`Acto Administrativo - ${item.numero_resolucion || 'S/N'}`, `
-        <div style="width:100%;height:70vh;">
-          <iframe src="${soporte}" style="width:100%;height:100%;border:none;border-radius:var(--radius-md);"></iframe>
+        <div>
+          <button type="button" class="btn btn-gold btn-sm" onclick="HorariosModule.downloadSoporte(${item.id_horario})" style="display:inline-flex; align-items:center; gap:6px; font-weight:700;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar Documento
+          </button>
         </div>
-      `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
+      </div>
+    `;
+
+    if (isImg) {
+      App.openModal(`Acto Administrativo - ${escHtml(resTitle)}`, `
+        <div style="padding:var(--space-2);">
+          ${headerHtml}
+          <div style="text-align:center; padding:10px; background:rgba(0,0,0,0.03); border-radius:var(--radius-md); border:1px solid var(--color-border);">
+            <img src="${soporte}" alt="Acto Administrativo" style="max-width:100%; max-height:65vh; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,0.25);" />
+          </div>
+        </div>
+      `, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Descargar Imagen', cls: 'btn-gold', action: () => downloadSoporte(item.id_horario) }
+      ]);
+    } else if (isPdf) {
+      App.openModal(`Acto Administrativo - ${escHtml(resTitle)}`, `
+        <div style="padding:var(--space-2);">
+          ${headerHtml}
+          <div style="width:100%; height:68vh; border:1px solid var(--color-border); border-radius:var(--radius-md); overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.15);">
+            <iframe src="${soporte}" style="width:100%; height:100%; border:none;"></iframe>
+          </div>
+        </div>
+      `, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() },
+        { text: 'Descargar PDF', cls: 'btn-gold', action: () => downloadSoporte(item.id_horario) }
+      ]);
     } else {
-      App.openModal(`Acto Administrativo - ${item.numero_resolucion || 'S/N'}`, `
-        <div style="padding:var(--space-4);text-align:center;">
-          <p style="color:var(--text-secondary);margin-bottom:var(--space-3);">Referencia documental o enlace registrado:</p>
-          <div style="font-family:monospace; background:rgba(0,0,0,0.05); padding:10px; border-radius:6px; margin-bottom:15px; word-break:break-all;">${escHtml(soporte)}</div>
-          <a href="${soporte}" target="_blank" rel="noopener" class="btn btn-primary">Abrir Documento</a>
+      App.openModal(`Acto Administrativo - ${escHtml(resTitle)}`, `
+        <div style="padding:var(--space-3);">
+          ${headerHtml}
+          <div style="padding:var(--space-4); text-align:center; background:rgba(0,0,0,0.03); border-radius:var(--radius-md); border:1px solid var(--color-border);">
+            <p style="color:var(--text-secondary); margin-bottom:var(--space-3);">Referencia documental o enlace registrado:</p>
+            <div style="font-family:monospace; background:rgba(0,0,0,0.05); padding:10px; border-radius:6px; margin-bottom:15px; word-break:break-all;">${escHtml(soporte)}</div>
+            <a href="${soporte}" target="_blank" rel="noopener" class="btn btn-gold">Abrir Documento Externo</a>
+          </div>
         </div>
-      `, [{ text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }]);
+      `, [
+        { text: 'Cerrar', cls: 'btn-secondary', action: () => App.closeModal() }
+      ]);
     }
   }
 
@@ -3393,7 +3497,7 @@ const HorariosModule = (() => {
         { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
         {
           text: 'Guardar Documento',
-          cls: 'btn-primary',
+          cls: 'btn-gold',
           id: 'btn-save-soporte-modal',
           action: async () => {
             if (!pendingBase64 && !hasCurrent) {
@@ -3702,6 +3806,36 @@ const HorariosModule = (() => {
                   <p>Al confirmar la importación, se procesarán los registros de todas las hojas del archivo para crear o actualizar los esquemas laborales en la base de datos institucional.</p>
                 </div>
               </div>
+
+              <!-- Selector de Modo de Procesamiento y Actualización -->
+              <div style="background:var(--color-bg-secondary, rgba(255,255,255,0.03)); border:1.5px solid var(--color-border); border-radius:12px; padding:14px 16px; margin-top:14px;">
+                <label style="display:block; font-size:12.5px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
+                  Modo de Procesamiento y Actualización:
+                </label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:9px 12px; border-radius:8px; border:1px solid rgba(22,163,74,0.3); background:rgba(22,163,74,0.05);">
+                    <input type="radio" name="hor-import-mode" value="fusion" checked style="margin-top:3px;" />
+                    <div style="font-size:12px; line-height:1.4;">
+                      <strong style="color:var(--text-primary);">Fusión y Actualización Inteligente (Recomendado)</strong>
+                      <div style="color:var(--text-secondary);">Actualiza los esquemas existentes por cédula y resolución/modalidad e inserta las nuevas autorizaciones.</div>
+                    </div>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:9px 12px; border-radius:8px; border:1px solid var(--color-border); background:var(--color-bg-primary);">
+                    <input type="radio" name="hor-import-mode" value="solo_nuevos" style="margin-top:3px;" />
+                    <div style="font-size:12px; line-height:1.4;">
+                      <strong style="color:var(--text-primary);">Solo Nuevos Registros</strong>
+                      <div style="color:var(--text-secondary);">Conserva intactos los esquemas ya existentes y solo agrega servidores que no registren esquema previo.</div>
+                    </div>
+                  </label>
+                  <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:9px 12px; border-radius:8px; border:1px solid rgba(239,68,68,0.25); background:rgba(239,68,68,0.03);">
+                    <input type="radio" name="hor-import-mode" value="reemplazar" style="margin-top:3px;" />
+                    <div style="font-size:12px; line-height:1.4;">
+                      <strong style="color:#ef4444;">Reemplazo Integral Consolidado</strong>
+                      <div style="color:var(--text-secondary);">Sustituye la totalidad de esquemas con el nuevo corte oficial completo del archivo.</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3710,7 +3844,7 @@ const HorariosModule = (() => {
         </div>
 
         <div class="modal-footer" id="hor-import-footer" style="padding: 16px 24px; display:flex; justify-content:flex-end; gap:12px; border-top: 1px solid var(--color-border);">
-          <button type="button" class="btn btn-primary" id="btn-confirm-hor-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-gold" id="btn-confirm-hor-import" disabled style="display:inline-flex; align-items:center; gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
@@ -4065,10 +4199,12 @@ const HorariosModule = (() => {
           throw new Error('No se encontraron filas con datos de servidores ni esquemas de horario en las hojas del archivo.');
         }
 
+        const selectedMode = overlay.querySelector('input[name="hor-import-mode"]:checked')?.value || 'fusion';
         const res = await API.bulkCreateHorarios({
           rows: allCleanRows,
           hojasProcesadas,
           nombreArchivo: selectedFile?.name,
+          modo: selectedMode
         });
 
         if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
@@ -4491,6 +4627,7 @@ const HorariosModule = (() => {
     toggleSortConsecutivo,
     openImportModal,
     viewSoporte,
+    downloadSoporte,
     openUploadSoporteModal,
     toggleActionsDropdown,
     closeActionsDropdown,

@@ -916,15 +916,22 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
   let inserted = 0;
   let updated = 0;
   let skipped = 0;
+  let skippedDuplicates = 0;
   let teletrabajoCount = 0;
   let flexCount = 0;
   let casaCount = 0;
   let presencialCount = 0;
   let otrasCount = 0;
   const errors = [];
+  const modo = (req.body.modo || 'fusion').toLowerCase();
 
   try {
     await client.query('BEGIN');
+
+    // Modo Reemplazo Integral: Limpiar horarios anteriores para cargar el nuevo corte consolidado
+    if (modo === 'reemplazar') {
+      await client.query('DELETE FROM horarios');
+    }
 
     // Obtener consecutivos existentes para garantizar unicidad secuencial
     const existingConsecs = await client.query('SELECT numero_consecutivo FROM horarios WHERE numero_consecutivo IS NOT NULL');
@@ -1289,10 +1296,10 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
       const soporte_acto = row.soporte_acto || row.soporte || null;
 
       // ──────────────────────────────────────────────────────────────────────────
-      // Carga de registros: Solo actualizar si se proporciona explícitamente id_horario.
-      // Cada fila representa una situación administrativa independiente (ej: Teletrabajo
-      // y Horario Flexible para el mismo funcionario, o autorizaciones en periodos distintos).
-      // NO pisar ni deduplicar por cédula/documento.
+      // Carga y actualización de registros según el modo seleccionado:
+      // - 'fusion' (por defecto): Actualiza esquemas existentes (por cédula y resolución o modalidad) e inserta nuevos.
+      // - 'solo_nuevos': Omite registros existentes y solo inserta nuevas autorizaciones.
+      // - 'reemplazar': Limpió la tabla previamente y carga la totalidad como nuevo consolidado.
       // ──────────────────────────────────────────────────────────────────────────
       let existingRecord = null;
 
@@ -1302,6 +1309,38 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
           [row.id_horario]
         );
         if (check.rows.length) existingRecord = check.rows[0];
+      } else if (modo === 'fusion' || modo === 'actualizar' || modo === 'solo_nuevos') {
+        // Coincidencia Inteligente
+        // 1. Por documento y resolución si se especificó acto administrativo
+        if (numero_resolucion) {
+          const checkRes = await client.query(
+            'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE documento = $1 AND UPPER(TRIM(numero_resolucion)) = UPPER(TRIM($2)) LIMIT 1',
+            [documento, numero_resolucion]
+          );
+          if (checkRes.rows.length) existingRecord = checkRes.rows[0];
+        }
+        // 2. Si no coincide por resolución, coincidir por documento y modalidad
+        if (!existingRecord && modalidad) {
+          const checkMod = await client.query(
+            'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE documento = $1 AND UPPER(TRIM(modalidad)) = UPPER(TRIM($2)) ORDER BY id_horario DESC LIMIT 1',
+            [documento, modalidad]
+          );
+          if (checkMod.rows.length) existingRecord = checkMod.rows[0];
+        }
+        // 3. Fallback: Coincidir por documento del servidor
+        if (!existingRecord && documento && !documento.startsWith('SIN-CC-')) {
+          const checkDoc = await client.query(
+            'SELECT id_horario, numero_consecutivo, soporte_acto FROM horarios WHERE documento = $1 ORDER BY id_horario DESC LIMIT 1',
+            [documento]
+          );
+          if (checkDoc.rows.length) existingRecord = checkDoc.rows[0];
+        }
+      }
+
+      if (existingRecord && modo === 'solo_nuevos') {
+        skipped++;
+        skippedDuplicates++;
+        continue;
       }
 
       let finalId = null;
@@ -1368,7 +1407,7 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
 
         await client.query(
           `INSERT INTO historial_horarios (id_horario, accion, estado_nuevo, nota, actualizado_por)
-           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (evitando duplicidad de cédula).', $3)`,
+           VALUES ($1, 'Actualización Masiva', $2, 'Actualización de esquema laboral desde importación Excel (corte consolidado).', $3)`,
           [finalId, estado, req.user.name || 'Carga Masiva']
         );
 
@@ -1459,12 +1498,18 @@ router.post('/bulk', auth, trackImport(pool, 'horarios'), async (req, res) => {
     await client.query('COMMIT');
     res.json({
       success: true,
-      message: `Carga masiva procesada: ${inserted} nuevos servidores registrados, ${updated} actualizados sin duplicidad.${skipped ? ` (${skipped} omitidos)` : ''}`,
+      message: modo === 'reemplazar'
+        ? `Reemplazo consolidado completado: ${inserted} esquemas de horario registrados.`
+        : (modo === 'solo_nuevos'
+            ? `Carga completada: ${inserted} nuevos esquemas agregados${skippedDuplicates ? `, ${skippedDuplicates} omitidos por ya existir` : ''}.`
+            : `Carga y actualización completada: ${inserted} nuevos esquemas registrados, ${updated} actualizados${skippedDuplicates ? `, ${skippedDuplicates} omitidos` : ''}.`),
       resumen: {
-        totalFilas: inserted + updated,
+        totalFilas: inserted + updated + skipped,
         servidoresUnicos: servidoresUnicos,
         insertados: inserted,
         actualizados: updated,
+        duplicadosOmitidos: skippedDuplicates,
+        omitidos: skipped,
         teletrabajo: teletrabajoFinal,
         horarioFlexible: flexFinal,
         trabajoEnCasa: casaFinal,

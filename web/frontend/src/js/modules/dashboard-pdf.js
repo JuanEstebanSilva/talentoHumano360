@@ -1714,10 +1714,13 @@ const DashboardPDF = (() => {
   // ═══════════════════════════════════════════════════════════════════════════
   // MODAL DE CONFIRMACIÓN PREVIA
   // ═══════════════════════════════════════════════════════════════════════════
-  function confirmExportPDF() {
+  let currentTargetType = null;
+
+  function confirmExportPDF(forcedType = null) {
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
-    const dbType = (typeof DashboardModule !== 'undefined' && DashboardModule.getUserDashboardType) ? DashboardModule.getUserDashboardType() : 'admin';
+    const dbType = forcedType || currentTargetType || (typeof DashboardModule !== 'undefined' && DashboardModule.getCurrentDashboardType ? DashboardModule.getCurrentDashboardType() : null) || ((typeof DashboardModule !== 'undefined' && DashboardModule.getUserDashboardType) ? DashboardModule.getUserDashboardType() : 'admin');
+    currentTargetType = dbType;
     let modalTitle = 'Confirmar Exportación de Informe Ejecutivo';
     let moduleDocName = 'el documento institucional en formato PDF de alta resolución con las métricas consolidadas, distribución gráfica y ejecución presupuestal de la Gobernación de Boyacá.';
 
@@ -1770,7 +1773,7 @@ const DashboardPDF = (() => {
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
       { text: 'Aceptar y Descargar PDF', cls: 'btn-primary-cta', id: 'btn-confirm-pdf-export', action: () => {
         App.closeModal();
-        executeExportPDF();
+        executeExportPDF(dbType);
       }}
     ]);
   }
@@ -1778,7 +1781,7 @@ const DashboardPDF = (() => {
   // ═══════════════════════════════════════════════════════════════════════════
   // EJECUCIÓN PRINCIPAL
   // ═══════════════════════════════════════════════════════════════════════════
-  async function executeExportPDF() {
+  async function executeExportPDF(forcedType = null) {
     try {
       const jsPDFConstructor = window.jspdf?.jsPDF || window.jsPDF;
       if (!jsPDFConstructor) {
@@ -1800,7 +1803,7 @@ const DashboardPDF = (() => {
         format: 'letter'
       });
 
-      const dbType = (typeof DashboardModule !== 'undefined' && DashboardModule.getUserDashboardType) ? DashboardModule.getUserDashboardType() : 'admin';
+      const dbType = forcedType || currentTargetType || (typeof DashboardModule !== 'undefined' && DashboardModule.getCurrentDashboardType ? DashboardModule.getCurrentDashboardType() : null) || ((typeof DashboardModule !== 'undefined' && DashboardModule.getUserDashboardType) ? DashboardModule.getUserDashboardType() : 'admin');
 
       if (dbType === 'viaticos') {
         await generateViaticosReport(doc, logos);
@@ -1836,8 +1839,8 @@ const DashboardPDF = (() => {
     }
   }
 
-  function exportPDF() {
-    confirmExportPDF();
+  function exportPDF(forcedType = null) {
+    confirmExportPDF(forcedType);
   }
 
   return {

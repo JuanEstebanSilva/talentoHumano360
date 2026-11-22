@@ -4123,6 +4123,19 @@ const ViaticosModule = (() => {
                       <small>Formato oficial institucional (.xlsx)</small>
                     </div>
                   </button>
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); if (typeof DashboardPDF !== 'undefined') DashboardPDF.confirmExportPDF('viaticos');"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    <div>
+                      <strong>Exportar Informe en PDF</strong>
+                      <small>Generar informe oficial de viáticos en PDF</small>
+                    </div>
+                  </button>
                   ${Auth.canEdit('viaticos') ? `
                   <button
                     type="button"

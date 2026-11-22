@@ -24,6 +24,7 @@ const DashboardModule = (() => {
   let lastViaticosStats = null;
   let lastSstStats = null;
   let lastHorariosStats = null;
+  let currentActiveDashboard = null;
 
   // Configurar tipografía global de Chart.js si está cargado
   if (typeof Chart !== 'undefined' && Chart.defaults) {
@@ -177,6 +178,7 @@ const DashboardModule = (() => {
   // 1. DASHBOARD PERSONALIZADO: ANGELA USSA (SERVIDORES PÚBLICOS)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderEmployeesDashboard(container) {
+    currentActiveDashboard = 'employees';
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const displayName = user.name || 'Servidor Público';
 
@@ -212,7 +214,7 @@ const DashboardModule = (() => {
               type="button"
               class="btn-action-icon-add btn-action-export-pdf"
               id="btn-export-dashboard-pdf"
-              onclick="DashboardModule.exportPDF()"
+              onclick="DashboardModule.exportPDF('employees')"
               title="Exportar informe oficial de servidores públicos en PDF"
               aria-label="Exportar informe en PDF"
             >
@@ -641,6 +643,7 @@ const DashboardModule = (() => {
   // 2. DASHBOARD PERSONALIZADO: BERGENET GUTIERREZ (VIÁTICOS)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderViaticosDashboard(container) {
+    currentActiveDashboard = 'viaticos';
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const displayName = user.name || 'Servidor Público';
 
@@ -676,7 +679,7 @@ const DashboardModule = (() => {
               type="button"
               class="btn-action-icon-add btn-action-export-pdf"
               id="btn-export-dashboard-pdf"
-              onclick="DashboardModule.exportPDF()"
+              onclick="DashboardModule.exportPDF('viaticos')"
               title="Exportar informe oficial de viáticos en PDF"
               aria-label="Exportar informe en PDF"
             >
@@ -1270,6 +1273,7 @@ const DashboardModule = (() => {
   // 3. DASHBOARD PERSONALIZADO: DORIS CAÑON (HORARIOS Y MODALIDADES)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderHorariosDashboard(container) {
+    currentActiveDashboard = 'horarios';
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const displayName = user.name || 'Servidor Público';
 
@@ -1305,7 +1309,7 @@ const DashboardModule = (() => {
               type="button"
               class="btn-action-icon-add btn-action-export-pdf"
               id="btn-export-dashboard-pdf"
-              onclick="DashboardModule.exportPDF()"
+              onclick="DashboardModule.exportPDF('horarios')"
               title="Exportar informe oficial de horarios en PDF"
               aria-label="Exportar informe en PDF"
             >
@@ -1763,6 +1767,7 @@ const DashboardModule = (() => {
   // 4. DASHBOARD GENERAL / ADMINISTRADOR (ADMINISTRACIÓN GENERAL 360°)
   // ═════════════════════════════════════════════════════════════════════════════
   async function renderAdminDashboard(container) {
+    currentActiveDashboard = 'admin';
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : {};
     const displayName = user.name || 'Administrador';
 
@@ -1798,7 +1803,7 @@ const DashboardModule = (() => {
               type="button"
               class="btn-action-icon-add btn-action-export-pdf"
               id="btn-export-dashboard-pdf"
-              onclick="DashboardModule.exportPDF()"
+              onclick="DashboardModule.exportPDF('admin')"
               title="Exportar informe oficial en PDF"
               aria-label="Exportar informe en PDF"
             >
@@ -2819,13 +2824,14 @@ const DashboardModule = (() => {
   }
 
   // ─── Modal de Confirmación Previa para Exportación ──────────────────────────
-  function confirmExportPDF() {
+  function confirmExportPDF(forcedType = null) {
+    const target = forcedType || currentActiveDashboard || getUserDashboardType();
     if (typeof DashboardPDF !== 'undefined' && DashboardPDF.confirmExportPDF) {
-      return DashboardPDF.confirmExportPDF();
+      return DashboardPDF.confirmExportPDF(target);
     }
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
-    const dbType = getUserDashboardType();
+    const dbType = target;
     let modalTitle = 'Confirmar Exportación de Informe Ejecutivo';
     let moduleDocName = 'el documento institucional en formato PDF de alta resolución con las métricas consolidadas, distribución gráfica y ejecución presupuestal de la Gobernación de Boyacá.';
 
@@ -3599,12 +3605,17 @@ const DashboardModule = (() => {
     }
   }
 
-  function exportPDF() {
-    if (typeof DashboardPDF !== 'undefined' && DashboardPDF.exportPDF) { return DashboardPDF.exportPDF(); }
-    confirmExportPDF();
+  function exportPDF(forcedType = null) {
+    const target = forcedType || currentActiveDashboard || getUserDashboardType();
+    if (typeof DashboardPDF !== 'undefined' && DashboardPDF.exportPDF) { return DashboardPDF.exportPDF(target); }
+    confirmExportPDF(target);
   }
 
-  return { render, exportPDF, confirmExportPDF, executeExportPDF, getUserDashboardType };
+  function getCurrentDashboardType() {
+    return currentActiveDashboard || getUserDashboardType();
+  }
+
+  return { render, exportPDF, confirmExportPDF, executeExportPDF, getUserDashboardType, getCurrentDashboardType };
 })();
 
 window.DashboardModule = DashboardModule;
