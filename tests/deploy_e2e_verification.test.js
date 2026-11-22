@@ -313,6 +313,7 @@ test('DEPLOY-10: Viáticos — Ciclo completo CRUD en nube', async () => {
       valor_dia: 150000,
       valorDiario: 150000,
       valor_total: 300000,
+      estado: 'Radicado',
       motivo: 'Comisión institucional de prueba en despliegue'
     }
   });
@@ -334,7 +335,7 @@ test('DEPLOY-10: Viáticos — Ciclo completo CRUD en nube', async () => {
   // 4. CAMBIAR ESTADO
   const patchRes = await remoteRequest('PATCH', `/api/viaticos/${idViatico}/status`, {
     token: adminToken,
-    body: { estado: 'Aprobado' }
+    body: { estado: 'Aprobado', observaciones: 'Comisión oficial aprobada' }
   });
   assert.strictEqual(patchRes.status, 200);
 
