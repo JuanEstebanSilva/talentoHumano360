@@ -283,6 +283,14 @@ async function runSafeMigrations(client) {
     results.columnsAdded.push('viaticos: paquetes_viaticos y valor_total');
   }
 
+  // 5b. Columnas aditivas en historial_viaticos
+  if (await tableExists(client, 'historial_viaticos')) {
+    await client.query(`
+      ALTER TABLE historial_viaticos ADD COLUMN IF NOT EXISTS estado_anterior VARCHAR(80);
+    `);
+    results.columnsAdded.push('historial_viaticos: estado_anterior');
+  }
+
   // 6. Columnas aditivas en horarios
   if (await tableExists(client, 'horarios')) {
     await client.query(`

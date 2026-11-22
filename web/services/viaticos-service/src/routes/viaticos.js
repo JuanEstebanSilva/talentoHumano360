@@ -60,6 +60,22 @@ function pickFirst(obj, keys) {
   return null;
 }
 
+async function safeInsertHistorialViatico(clientOrPool, { id_viatico, estado_anterior, estado_nuevo, nota, actualizado_por }) {
+  try {
+    await clientOrPool.query(
+      `INSERT INTO historial_viaticos(id_viatico, estado_anterior, estado_nuevo, nota, actualizado_por, fecha_actualizacion) 
+       VALUES($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+      [id_viatico, estado_anterior || null, estado_nuevo, nota, actualizado_por || 'web']
+    );
+  } catch (_) {
+    await clientOrPool.query(
+      `INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por, fecha_actualizacion) 
+       VALUES($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [id_viatico, estado_nuevo, nota, actualizado_por || 'web']
+    ).catch(() => {});
+  }
+}
+
 const pool = new Pool(
   process.env.DATABASE_URL
     ? {
@@ -1423,9 +1439,13 @@ router.post('/', auth, async (req, res) => {
     const newId = r.rows[0].id_viatico;
     const historialNota = 'Comisión registrada exitosamente';
 
-    await pool.query(
-      'INSERT INTO historial_viaticos(id_viatico, estado_anterior, estado_nuevo, nota, actualizado_por, fecha_actualizacion) VALUES($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)',
-      [newId, null, estadoFinal, historialNota, req.user.username||'web']);
+    await safeInsertHistorialViatico(pool, {
+      id_viatico: newId,
+      estado_anterior: null,
+      estado_nuevo: estadoFinal,
+      nota: historialNota,
+      actualizado_por: req.user.username || 'web'
+    });
 
     res.status(201).json({
       message: 'Viático creado.',
@@ -1931,11 +1951,13 @@ router.put('/:id', auth, async (req, res) => {
       ? `Estado actualizado de "${currentStatus}" a "${targetStatus}"`
       : 'Actualizado desde interfaz web';
 
-    await client.query(
-      `INSERT INTO historial_viaticos(id_viatico, estado_anterior, estado_nuevo, nota, actualizado_por, fecha_actualizacion) 
-       VALUES($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-      [numId, statusChanged ? currentStatus : null, targetStatus, historialNota, req.user.username||'web']
-    );
+    await safeInsertHistorialViatico(client, {
+      id_viatico: numId,
+      estado_anterior: statusChanged ? currentStatus : null,
+      estado_nuevo: targetStatus,
+      nota: historialNota,
+      actualizado_por: req.user.username || 'web'
+    });
 
     await client.query('COMMIT');
     res.json({ message: 'Viático actualizado.', id: numId, estado: targetStatus });
@@ -2017,11 +2039,13 @@ router.patch('/:id/status', auth, async (req, res) => {
     );
 
     const notaHistorial = justificacion || `Transición de estado de "${currentStatus}" a "${targetStatus}"`;
-    await client.query(
-      `INSERT INTO historial_viaticos(id_viatico, estado_anterior, estado_nuevo, nota, actualizado_por, fecha_actualizacion) 
-       VALUES($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-      [numId, currentStatus, targetStatus, notaHistorial, req.user.username || 'web']
-    );
+    await safeInsertHistorialViatico(client, {
+      id_viatico: numId,
+      estado_anterior: currentStatus,
+      estado_nuevo: targetStatus,
+      nota: notaHistorial,
+      actualizado_por: req.user.username || 'web'
+    });
 
     await client.query('COMMIT');
     res.json({
