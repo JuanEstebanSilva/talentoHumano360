@@ -1423,6 +1423,12 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
     const modo = (req.body.modo || '').toLowerCase();
     const actualizarExistentes = Boolean(req.body.actualizarExistentes || modo === 'actualizar');
 
+    const presInicial = (req.body.presupuesto_inicial != null && !isNaN(parseFloat(req.body.presupuesto_inicial)))
+      ? parseFloat(req.body.presupuesto_inicial)
+      : (req.body.presupuestoInicial != null && !isNaN(parseFloat(req.body.presupuestoInicial)))
+        ? parseFloat(req.body.presupuestoInicial)
+        : null;
+
     if (!targetPackageId) {
       const rawName = (req.body.nombrePaquete || req.body.nombreArchivo || '').trim();
       const fileName = (req.body.nombreArchivo || '').trim();
@@ -1431,10 +1437,10 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
       const pkgName = rawName || (fileName ? fileName.replace(/\.[^/.]+$/, '') : `Ejecución Presupuestal ${pkgYear}`);
 
       const pkgRes = await client.query(
-        `INSERT INTO paquetes_viaticos (nombre, archivo_origen, anio, descripcion, creado_por)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO paquetes_viaticos (nombre, archivo_origen, anio, descripcion, creado_por, presupuesto_inicial)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id_paquete, nombre`,
-        [pkgName, fileName || null, pkgYear, `Importado desde archivo Excel (${rows.length} registros)`, req.user.username || 'admin']
+        [pkgName, fileName || null, pkgYear, `Importado desde archivo Excel (${rows.length} registros)`, req.user.username || 'admin', presInicial]
       );
       await client.query('INSERT INTO vigencias_viaticos (anio) VALUES ($1) ON CONFLICT (anio) DO NOTHING', [pkgYear]);
       targetPackageId = pkgRes.rows[0].id_paquete;
@@ -1446,6 +1452,12 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
         await client.query(
           'UPDATE paquetes_viaticos SET archivo_origen = $1, actualizado_en = CURRENT_TIMESTAMP WHERE id_paquete = $2',
           [req.body.nombreArchivo, targetPackageId]
+        );
+      }
+      if (presInicial !== null) {
+        await client.query(
+          'UPDATE paquetes_viaticos SET presupuesto_inicial = $1 WHERE id_paquete = $2',
+          [presInicial, targetPackageId]
         );
       }
     }
