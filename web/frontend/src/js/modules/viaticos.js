@@ -3735,25 +3735,41 @@ const ViaticosModule = (() => {
           </div>
 
           <div class="viaticos-pkg-actions" onclick="event.stopPropagation()">
-            ${yearPkgs.length === 0 && Auth.canEdit('viaticos') ? `
-              <button
-                type="button"
-                class="btn-action-icon-delete"
-                onclick="event.stopPropagation(); ViaticosModule.confirmDeleteYear(${year});"
-                title="Eliminar Histórico Anual ${year} (Sin ejecuciones)"
-                aria-label="Eliminar Histórico Anual ${year}"
-                style="width:36px; height:36px; border-radius:10px; border:1px solid rgba(239,68,68,0.28); background:rgba(239,68,68,0.06); color:#dc2626; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease; flex-shrink:0;"
-                onmouseover="this.style.background='rgba(239,68,68,0.16)'; this.style.borderColor='#dc2626'; this.style.transform='scale(1.06)';"
-                onmouseout="this.style.background='rgba(239,68,68,0.06)'; this.style.borderColor='rgba(239,68,68,0.28)'; this.style.transform='scale(1)';"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:17px;height:17px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-              </button>
-            ` : `
-              <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#1D8096; font-weight:700; font-size:12.5px; white-space:nowrap; flex-shrink:0;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                <span style="white-space:nowrap;">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
-              </div>
-            `}
+            <div style="display:inline-flex; align-items:center; gap:6px;">
+              ${Auth.canEdit('viaticos') ? `
+                <button
+                  type="button"
+                  class="btn-action-edit"
+                  onclick="event.stopPropagation(); ViaticosModule.openEditYearModal(${year});"
+                  title="Editar Histórico Anual ${year}"
+                  aria-label="Editar Histórico Anual ${year}"
+                  style="width:36px; height:36px; border-radius:10px; border:1px solid rgba(245,158,11,0.28); background:rgba(245,158,11,0.08); color:#d97706; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease; flex-shrink:0;"
+                  onmouseover="this.style.background='rgba(245,158,11,0.18)'; this.style.borderColor='#d97706'; this.style.transform='scale(1.06)';"
+                  onmouseout="this.style.background='rgba(245,158,11,0.08)'; this.style.borderColor='rgba(245,158,11,0.28)'; this.style.transform='scale(1)';"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+              ` : ''}
+              ${yearPkgs.length === 0 && Auth.canEdit('viaticos') ? `
+                <button
+                  type="button"
+                  class="btn-action-icon-delete"
+                  onclick="event.stopPropagation(); ViaticosModule.confirmDeleteYear(${year});"
+                  title="Eliminar Histórico Anual ${year} (Sin ejecuciones)"
+                  aria-label="Eliminar Histórico Anual ${year}"
+                  style="width:36px; height:36px; border-radius:10px; border:1px solid rgba(239,68,68,0.28); background:rgba(239,68,68,0.06); color:#dc2626; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease; flex-shrink:0;"
+                  onmouseover="this.style.background='rgba(239,68,68,0.16)'; this.style.borderColor='#dc2626'; this.style.transform='scale(1.06)';"
+                  onmouseout="this.style.background='rgba(239,68,68,0.06)'; this.style.borderColor='rgba(239,68,68,0.28)'; this.style.transform='scale(1)';"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="width:17px;height:17px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                </button>
+              ` : `
+                <div class="viaticos-pkg-exec-count" style="display:inline-flex; align-items:center; gap:6px; color:#1D8096; font-weight:700; font-size:12.5px; white-space:nowrap; flex-shrink:0;" title="${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución presupuestal' : 'ejecuciones presupuestales'}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:16px;height:16px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  <span style="white-space:nowrap;">${yearPkgs.length} ${yearPkgs.length === 1 ? 'ejecución' : 'ejecuciones'}</span>
+                </div>
+              `}
+            </div>
             <button
               type="button"
               class="viaticos-pkg-btn-enter viaticos-btn-olive"
@@ -4060,6 +4076,19 @@ const ViaticosModule = (() => {
                     class="actions-dropdown-item"
                     role="menuitem"
                     tabindex="-1"
+                    onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openEditYearModal(${year});"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <div>
+                      <strong>Editar Histórico Anual</strong>
+                      <small>Modificar año o descripción de la vigencia fiscal ${year}</small>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    class="actions-dropdown-item"
+                    role="menuitem"
+                    tabindex="-1"
                     onclick="ViaticosModule.closeActionsDropdown(); ViaticosModule.openCreatePackageModal(${year});"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -4198,6 +4227,7 @@ const ViaticosModule = (() => {
                   <line x1="10" y1="11" x2="10" y2="17"></line>
                   <line x1="14" y1="11" x2="14" y2="17"></line>
                 </svg>
+                <span class="btn-action-delete-label">Eliminar Ejecución</span>
               </button>` : ''}
               ${Auth.canEdit('viaticos') ? `
               <button
@@ -4338,6 +4368,12 @@ const ViaticosModule = (() => {
           return;
         }
 
+        if (state.years && state.years.some(y => Number(y.anio) === anio)) {
+          App.showToast(`La vigencia fiscal ${anio} ya se encuentra registrada.`, 'warning');
+          document.getElementById('vyear-input')?.focus();
+          return;
+        }
+
         const btn = document.getElementById('btn-save-vyear');
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
@@ -4355,6 +4391,89 @@ const ViaticosModule = (() => {
           App.showToast(err.message || 'Error al crear la vigencia fiscal.', 'error');
         } finally {
           if (btn) { btn.disabled = false; btn.textContent = 'Guardar Vigencia'; }
+        }
+      }}
+    ], 'modal-package');
+
+    setTimeout(() => {
+      const modalBodyEl = document.getElementById('modal-body');
+      if (modalBodyEl && typeof App !== 'undefined') {
+        if (App.initFormUX) App.initFormUX(modalBodyEl);
+        if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+    }, 60);
+  }
+
+  // ─── Modal para Editar Histórico Anual / Vigencia Fiscal ──────────────────────
+  function openEditYearModal(currentYear) {
+    if (!Auth.canEdit('viaticos')) {
+      App.showToast('No tienes permisos para editar vigencias fiscales.', 'warning');
+      return;
+    }
+    const yearNum = parseInt(currentYear, 10);
+    const yearObj = (state.years || []).find(y => Number(y.anio) === yearNum);
+    const existingDesc = yearObj?.descripcion || '';
+
+    if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
+
+    const modalBody = `
+      <form id="vit-year-edit-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
+        <div class="form-group floating-group">
+          <label class="form-label required" for="vedit-year-input">Año de Vigencia Fiscal</label>
+          <input id="vedit-year-input" type="number" min="2000" max="2050" class="form-input font-mono" placeholder="Ej: ${yearNum}" required value="${yearNum}" />
+        </div>
+        <div class="form-group floating-group">
+          <label class="form-label" for="vedit-year-desc">Descripción o Notas (Opcional)</label>
+          <textarea id="vedit-year-desc" class="form-input" rows="3" placeholder="Ej: Histórico anual para ejecuciones presupuestales de comisiones y viáticos" autocomplete="off">${escHtml(existingDesc)}</textarea>
+        </div>
+        <div class="vpkg-modal-notice" style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:10px; padding:10px 14px; font-size:12.5px; color:var(--text-secondary); display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" style="width:18px;height:18px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Si modificas el número de año, todas las ejecuciones presupuestales y viáticos vinculados se trasladarán automáticamente a la nueva vigencia.</span>
+        </div>
+      </form>
+    `;
+
+    App.openModal(`Editar Histórico Anual · Vigencia ${yearNum}`, modalBody, [
+      { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
+      { text: 'Guardar Cambios', cls: 'btn-gold', id: 'btn-save-edit-vyear', action: async () => {
+        const anioVal = document.getElementById('vedit-year-input')?.value;
+        const anioNuevo = parseInt(anioVal, 10);
+        const descripcion = document.getElementById('vedit-year-desc')?.value.trim();
+
+        if (!anioNuevo || isNaN(anioNuevo) || anioNuevo < 2000 || anioNuevo > 2050) {
+          App.showToast('El año de vigencia fiscal es obligatorio (entre 2000 y 2050).', 'warning');
+          document.getElementById('vedit-year-input')?.focus();
+          return;
+        }
+
+        if (anioNuevo !== yearNum && state.years && state.years.some(y => Number(y.anio) === anioNuevo)) {
+          App.showToast(`La vigencia fiscal ${anioNuevo} ya se encuentra registrada.`, 'warning');
+          document.getElementById('vedit-year-input')?.focus();
+          return;
+        }
+
+        const btn = document.getElementById('btn-save-edit-vyear');
+        if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+        try {
+          await API.updateViaticosAnio(yearNum, { anioNuevo, descripcion });
+          if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+          if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+          App.closeModal(true);
+          App.showToast(`Histórico anual actualizado exitosamente a la vigencia ${anioNuevo}.`, 'success');
+          await loadYears();
+          await loadPackages();
+          if (state.activeView === 'year_packages') {
+            if (state.selectedYear === yearNum) {
+              state.selectedYear = anioNuevo;
+            }
+          }
+          await renderCurrentView();
+          loadStats();
+        } catch (err) {
+          App.showToast(err.message || 'Error al actualizar la vigencia fiscal.', 'error');
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
         }
       }}
     ], 'modal-package');
@@ -4502,7 +4621,7 @@ const ViaticosModule = (() => {
 
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
 
-    let selectedPackageFile = null;
+    let selectedPackageFiles = [];
 
     const modalBody = `
       <form id="vit-pkg-create-form" onsubmit="event.preventDefault();" style="display:flex; flex-direction:column; gap:18px;">
@@ -4535,12 +4654,12 @@ const ViaticosModule = (() => {
             </button>
           </div>
           <div class="excel-dropzone" id="vpkg-dropzone" style="padding:22px 20px; border-radius:14px; border:2px dashed rgba(22, 163, 74, 0.45); text-align:center; cursor:pointer; background:rgba(22, 163, 74, 0.03); transition:all 0.2s ease;">
-            <input type="file" id="vpkg-file-input" accept=".xlsx, .xls" style="display:none;" />
+            <input type="file" id="vpkg-file-input" accept=".xlsx, .xls" multiple style="display:none;" />
             <div style="margin-bottom:8px; color:#16a34a;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:38px;height:38px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
             </div>
-            <div id="vpkg-file-name" style="font-size:13.5px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra tu archivo Excel</div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Formatos admitidos: archivos Excel (.xlsx, .xls) de comisiones y viáticos</div>
+            <div id="vpkg-file-name" style="font-size:13.5px; font-weight:700; color:var(--text-primary);">Haz clic aquí para seleccionar o arrastra uno o varios archivos Excel</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">Formatos admitidos: archivos Excel (.xlsx, .xls). Puedes seleccionar varias ejecuciones presupuestales a la vez.</div>
           </div>
           <div id="vpkg-sheets-preview" style="display:none; margin-top:12px;"></div>
         </div>
@@ -4571,16 +4690,52 @@ const ViaticosModule = (() => {
         const presupuestoInicial = (presupuestoVal !== undefined && presupuestoVal !== null && presupuestoVal.trim() !== '') ? parseFloat(presupuestoVal) : null;
 
         const fileInputEl = document.getElementById('vpkg-file-input');
-        if (!selectedPackageFile && fileInputEl && fileInputEl.files && fileInputEl.files.length > 0) {
-          selectedPackageFile = fileInputEl.files[0];
+        if (!selectedPackageFiles.length && fileInputEl && fileInputEl.files && fileInputEl.files.length > 0) {
+          selectedPackageFiles = Array.from(fileInputEl.files);
         }
-
-        const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
 
         const btn = document.getElementById('btn-save-vpkg');
         if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
 
         try {
+          // Si se seleccionaron múltiples archivos Excel, procesarlos secuencialmente
+          if (selectedPackageFiles.length > 1) {
+            let totalViaticos = 0;
+            for (let i = 0; i < selectedPackageFiles.length; i++) {
+              const file = selectedPackageFiles[i];
+              btn.textContent = `Procesando ${i + 1}/${selectedPackageFiles.length}...`;
+              const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+              const m = file.name.match(/\b(20\d\d)\b/);
+              const pkgYear = (m && m[1]) ? parseInt(m[1], 10) : anio;
+
+              const newPkg = await API.createViaticosPaquete({
+                nombre: cleanName,
+                anio: pkgYear,
+                archivoOrigen: file.name,
+                descripcion: descripcion || `Importado vía carga masiva múltiple (${file.name})`,
+                presupuestoInicial: null
+              });
+
+              if (typeof XLSX !== 'undefined') {
+                const count = await processAndImportPackageExcel(file, newPkg.id_paquete);
+                totalViaticos += (count || 0);
+              }
+            }
+
+            if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+            if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
+            App.closeModal(true);
+            App.showToast(`Se crearon exitosamente ${selectedPackageFiles.length} ejecuciones presupuestales (${totalViaticos.toLocaleString('es-CO')} viáticos importados).`, 'success');
+            await loadPackages();
+            await renderCurrentView();
+            loadStats();
+            return;
+          }
+
+          // Flujo de 1 archivo o creación manual
+          const selectedPackageFile = selectedPackageFiles[0] || null;
+          const archivoOrigen = selectedPackageFile ? selectedPackageFile.name : `${nombre}.xlsx`;
+
           // 1. Crear el paquete en base de datos
           const newPkg = await API.createViaticosPaquete({
             nombre,
@@ -4634,64 +4789,91 @@ const ViaticosModule = (() => {
 
       dropzone.onclick = () => fileInput.click();
 
-      function handleFile(f) {
-        if (!f) return;
-        selectedPackageFile = f;
-        nameEl.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-            <span style="color:#16a34a;font-size:18px;">✓</span>
-            <span style="color:var(--text-primary);font-weight:700;">${escHtml(f.name)}</span>
-            <span style="color:var(--text-muted);font-size:12px;">(${(f.size/1024).toFixed(1)} KB)</span>
-          </div>
-        `;
-        // Deducir año del nombre del archivo si tiene 4 dígitos (e.g. 2026) y el año está vacío
-        const m = f.name.match(/\b(20\d\d)\b/);
-        if (m && m[1] && (!anioInput.value || anioInput.value === '')) {
-          anioInput.value = m[1];
-        }
-        // Deducir nombre sugerido si está vacío
-        nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-
-        // Inspección y vista previa en tiempo real de las hojas y dependencias del Excel
-        if (typeof XLSX !== 'undefined') {
-          const reader = new FileReader();
-          reader.onload = (re) => {
-            try {
-              const wb = XLSX.read(new Uint8Array(re.target.result), { type: 'array' });
-              const previewBox = document.getElementById('vpkg-sheets-preview');
-              if (previewBox && wb.SheetNames && wb.SheetNames.length) {
-                previewBox.style.display = 'block';
-                const sheetsList = wb.SheetNames.map(sName => {
-                  const ws = wb.Sheets[sName];
-                  const rowsCount = ws ? Math.max(0, XLSX.utils.sheet_to_json(ws, { header: 1 }).length - 1) : 0;
-                  return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-                    <strong>${escHtml(sName)}</strong> <span style="color:#64748b;">(${rowsCount.toLocaleString('es-CO')} filas)</span>
-                  </span>`;
-                }).join('');
-                previewBox.innerHTML = `
-                  <div style="font-size:12px; font-weight:700; color:var(--color-green-dark, #16a34a); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    <span>${wb.SheetNames.length} Dependencias / Hojas detectadas en el Excel:</span>
-                  </div>
-                  <div style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:2px;">
-                    ${sheetsList}
-                  </div>
-                `;
-              }
-            } catch (err) {
-              console.warn('Error previewing sheets:', err);
+      function previewSingleExcel(f) {
+        if (typeof XLSX === 'undefined') return;
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          try {
+            const wb = XLSX.read(new Uint8Array(re.target.result), { type: 'array' });
+            const previewBox = document.getElementById('vpkg-sheets-preview');
+            if (previewBox && wb.SheetNames && wb.SheetNames.length) {
+              previewBox.style.display = 'block';
+              const sheetsList = wb.SheetNames.map(sName => {
+                const ws = wb.Sheets[sName];
+                const rowsCount = ws ? Math.max(0, XLSX.utils.sheet_to_json(ws, { header: 1 }).length - 1) : 0;
+                return `<span style="display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+                  <strong>${escHtml(sName)}</strong> <span style="color:#64748b;">(${rowsCount.toLocaleString('es-CO')} filas)</span>
+                </span>`;
+              }).join('');
+              previewBox.innerHTML = `
+                <div style="font-size:12px; font-weight:700; color:var(--color-green-dark, #16a34a); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  <span>${wb.SheetNames.length} Dependencias / Hojas detectadas en el Excel:</span>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; max-height:130px; overflow-y:auto; padding:2px;">
+                  ${sheetsList}
+                </div>
+              `;
             }
-          };
-          reader.readAsArrayBuffer(f);
-        }
-
-        if (modalBodyEl && App.refreshFloatingLabels) {
-          App.refreshFloatingLabels(modalBodyEl);
-        }
+          } catch (err) {
+            console.warn('Error previewing sheets:', err);
+          }
+        };
+        reader.readAsArrayBuffer(f);
       }
 
-      fileInput.onchange = (e) => handleFile(e.target.files[0]);
-      fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+      function handleFiles(files) {
+        if (!files || !files.length) return;
+        selectedPackageFiles = Array.from(files);
+        if (selectedPackageFiles.length === 1) {
+          const f = selectedPackageFiles[0];
+          nameEl.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+              <span style="color:#16a34a;font-size:18px;">✓</span>
+              <span style="color:var(--text-primary);font-weight:700;">${escHtml(f.name)}</span>
+              <span style="color:var(--text-muted);font-size:12px;">(${(f.size/1024).toFixed(1)} KB)</span>
+            </div>
+          `;
+          const m = f.name.match(/\b(20\d\d)\b/);
+          if (m && m[1] && (!anioInput.value || anioInput.value === '')) {
+            anioInput.value = m[1];
+          }
+          if (!nombreInput.value || nombreInput.value === '') {
+            nombreInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+          }
+          previewSingleExcel(f);
+        } else {
+          nameEl.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px;">
+              <span style="color:#16a34a;font-size:18px;">✓</span>
+              <span style="color:var(--text-primary);font-weight:700;">${selectedPackageFiles.length} archivos Excel seleccionados</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:110px;overflow-y:auto;padding:2px;">
+              ${selectedPackageFiles.map(f => `
+                <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--color-bg-secondary);border:1px solid var(--color-border);color:var(--text-primary);">
+                  📄 ${escHtml(f.name)} <small style="color:var(--text-muted);">(${(f.size/1024).toFixed(0)} KB)</small>
+                </span>
+              `).join('')}
+            </div>
+          `;
+          if (!nombreInput.value || nombreInput.value === '') {
+            nombreInput.value = `Lote (${selectedPackageFiles.length} ejecuciones)`;
+          }
+          const previewBox = document.getElementById('vpkg-sheets-preview');
+          if (previewBox) {
+            previewBox.style.display = 'block';
+            previewBox.innerHTML = `
+              <div style="font-size:12px;font-weight:700;color:var(--color-green-dark, #16a34a);padding:4px 0;">
+                ℹ️ Carga simultánea múltiple: Se creará una ejecución presupuestal por cada archivo Excel seleccionado.
+              </div>
+            `;
+          }
+        }
+        if (modalBodyEl && App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+
+      fileInput.onchange = (e) => handleFiles(e.target.files);
+      fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
       dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.borderColor = '#16a34a'; dropzone.style.background = 'rgba(22,163,74,0.05)'; };
       dropzone.ondragleave = (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--border)'; dropzone.style.background = 'var(--bg-primary)'; };
@@ -4699,8 +4881,7 @@ const ViaticosModule = (() => {
         e.preventDefault();
         dropzone.style.borderColor = 'var(--border)';
         dropzone.style.background = 'var(--bg-primary)';
-        const f = e.dataTransfer.files[0];
-        handleFile(f);
+        handleFiles(e.dataTransfer.files);
       };
     }, 50);
   }
@@ -4718,6 +4899,8 @@ const ViaticosModule = (() => {
     }
 
     if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.modalOpen();
+
+    let selectedEditFile = null;
 
     const modalBody = `
       <div class="vpkg-edit-modal-wrapper">
@@ -4774,6 +4957,42 @@ const ViaticosModule = (() => {
             <textarea id="vedit-desc" class="form-input" rows="2" placeholder="Ej: Vigencia fiscal en curso para trámites departamentales">${escHtml(pkg.descripcion || '')}</textarea>
           </div>
 
+          <!-- Sección para Actualizar o Re-cargar Archivo Excel -->
+          <div style="background:var(--color-bg-secondary); border:1px solid var(--color-border); border-radius:12px; padding:16px; margin-top:2px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <span style="font-size:13px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Actualizar o Re-cargar Archivo Excel (Corte consolidado a fin de año)
+              </span>
+            </div>
+
+            <div class="excel-dropzone" id="vedit-dropzone" style="padding:16px 14px; border-radius:10px; border:2px dashed rgba(217, 119, 6, 0.45); text-align:center; cursor:pointer; background:rgba(217, 119, 6, 0.03); transition:all 0.2s ease;">
+              <input type="file" id="vedit-file-input" accept=".xlsx, .xls" style="display:none;" />
+              <div id="vedit-file-name" style="font-size:12.5px; font-weight:600; color:var(--text-primary);">
+                📎 Haz clic aquí para adjuntar una nueva versión del Excel (Opcional)
+              </div>
+              <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+                Sube el archivo actualizado para sincronizar o reemplazar los registros de esta ejecución.
+              </div>
+            </div>
+
+            <div id="vedit-mode-wrap" style="display:none; margin-top:12px; padding:10px 12px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--color-border);">
+              <label style="font-size:12px; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                Modo de Actualización de Registros:
+              </label>
+              <div style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--text-primary);">
+                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                  <input type="radio" name="vedit-sync-mode" value="actualizar" checked style="margin-top:2px;" />
+                  <span><strong>Fusión y actualización:</strong> Conserva registros, actualiza montos/fechas/estados coincidentes e inserta las nuevas comisiones.</span>
+                </label>
+                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                  <input type="radio" name="vedit-sync-mode" value="reemplazar" style="margin-top:2px;" />
+                  <span><strong>Reemplazo integral:</strong> Reemplaza todos los registros del paquete con el nuevo corte a fin de año del Excel.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="vpkg-modal-notice">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             <span>Al modificar el año de vigencia, la carpeta se reubicará automáticamente en el año correspondiente.</span>
@@ -4784,7 +5003,7 @@ const ViaticosModule = (() => {
 
     App.openModal('Editar Carpeta de Viáticos', modalBody, [
       { text: 'Cancelar', cls: 'btn-secondary', action: () => App.closeModal() },
-      { text: 'Guardar Cambios', cls: 'btn-primary-cta', id: 'btn-update-vpkg', action: async () => {
+      { text: 'Guardar Cambios', cls: 'btn-gold', id: 'btn-update-vpkg', action: async () => {
         const nombre = document.getElementById('vedit-nombre')?.value.trim();
         const anio = parseInt(document.getElementById('vedit-anio')?.value, 10) || pkg.anio;
         const archivoOrigen = document.getElementById('vedit-archivo')?.value.trim();
@@ -4802,6 +5021,14 @@ const ViaticosModule = (() => {
 
         try {
           await API.updateViaticosPaquete(id_paquete, { nombre, anio, archivoOrigen, descripcion, presupuestoInicial });
+
+          if (selectedEditFile && typeof XLSX !== 'undefined') {
+            const modeVal = document.querySelector('input[name="vedit-sync-mode"]:checked')?.value || 'actualizar';
+            btn.textContent = 'Actualizando Excel...';
+            App.showToast('Procesando archivo Excel actualizado...', 'info');
+            await processAndImportPackageExcel(selectedEditFile, id_paquete, { modo: modeVal, actualizarExistentes: true });
+          }
+
           if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
           if (typeof App !== 'undefined' && App.markFormClean) App.markFormClean();
           App.closeModal(true);
@@ -4810,7 +5037,6 @@ const ViaticosModule = (() => {
           if (state.activePackage && state.activePackage.id_paquete === id_paquete) {
             state.activePackage = state.packages.find(p => p.id_paquete === id_paquete) || state.activePackage;
           }
-          // Si el año cambió y estábamos en la vista de carpetas del año previo, sincronizar año
           if (state.activeView === 'year_packages') {
             if (state.selectedYear !== anio) {
               state.selectedYear = anio;
@@ -4831,6 +5057,39 @@ const ViaticosModule = (() => {
       if (modalBodyEl && typeof App !== 'undefined') {
         if (App.initFormUX) App.initFormUX(modalBodyEl);
         if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalBodyEl);
+      }
+
+      const editDropzone = document.getElementById('vedit-dropzone');
+      const editFileInput = document.getElementById('vedit-file-input');
+      const editFileName = document.getElementById('vedit-file-name');
+      const editModeWrap = document.getElementById('vedit-mode-wrap');
+      const editArchivoInput = document.getElementById('vedit-archivo');
+
+      if (editDropzone && editFileInput) {
+        editDropzone.onclick = () => editFileInput.click();
+        const handleEditFile = (f) => {
+          if (!f) return;
+          selectedEditFile = f;
+          if (editFileName) {
+            editFileName.innerHTML = `
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span style="color:#d97706;font-size:16px;">✓</span>
+                <span style="font-weight:700;">${escHtml(f.name)}</span>
+                <span style="color:var(--text-muted);font-size:11.5px;">(${(f.size/1024).toFixed(1)} KB)</span>
+              </div>
+            `;
+          }
+          if (editModeWrap) editModeWrap.style.display = 'block';
+          if (editArchivoInput) editArchivoInput.value = f.name;
+        };
+        editFileInput.onchange = (e) => handleEditFile(e.target.files[0]);
+        editDropzone.ondragover = (e) => { e.preventDefault(); editDropzone.style.borderColor = '#d97706'; };
+        editDropzone.ondragleave = (e) => { e.preventDefault(); editDropzone.style.borderColor = 'rgba(217, 119, 6, 0.45)'; };
+        editDropzone.ondrop = (e) => {
+          e.preventDefault();
+          editDropzone.style.borderColor = 'rgba(217, 119, 6, 0.45)';
+          handleEditFile(e.dataTransfer.files[0]);
+        };
       }
     }, 50);
   }
@@ -5302,7 +5561,7 @@ const ViaticosModule = (() => {
   }
 
   // ─── Procesar e Importar Excel vinculado a un Paquete ────────────────────────
-  async function processAndImportPackageExcel(file, id_paquete) {
+  async function processAndImportPackageExcel(file, id_paquete, options = {}) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -5400,8 +5659,15 @@ const ViaticosModule = (() => {
           }
 
           if (allRows.length > 0) {
-            await API.bulkCreateViaticos({ rows: allRows, id_paquete, nombreArchivo: file?.name });
-            App.showToast(`Se importaron ${allRows.length.toLocaleString('es-CO')} viáticos en esta vigencia.`, 'success');
+            const bulkRes = await API.bulkCreateViaticos({
+              rows: allRows,
+              id_paquete,
+              nombreArchivo: file?.name,
+              actualizarExistentes: Boolean(options.actualizarExistentes || options.modo === 'actualizar'),
+              modo: options.modo || 'insertar'
+            });
+            const msg = (bulkRes && bulkRes.message) || `Se procesaron ${allRows.length.toLocaleString('es-CO')} viáticos en esta vigencia.`;
+            App.showToast(msg, 'success');
           }
           resolve(allRows.length);
         } catch (parseErr) {
@@ -6000,6 +6266,7 @@ const ViaticosModule = (() => {
     backToYearPackages,
     backToPackages,
     openCreateYearModal,
+    openEditYearModal,
     confirmDeleteYear,
     openCreatePackageModal,
     openEditPackageModal,

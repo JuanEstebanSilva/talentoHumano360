@@ -424,6 +424,60 @@ router.post('/anios', auth, async (req, res) => {
   }
 });
 
+// PUT /api/viaticos/anios/:anio — Editar un histórico anual de vigencia fiscal (año y/o descripción)
+router.put('/anios/:anio', auth, async (req, res) => {
+  if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
+  const oldYear = parseInt(req.params.anio, 10);
+  if (!oldYear || isNaN(oldYear)) return res.status(400).json({ error: 'Año fiscal actual inválido.' });
+
+  const { anioNuevo, anio, descripcion } = req.body;
+  const targetYear = parseInt(anioNuevo !== undefined ? anioNuevo : anio, 10);
+  if (!targetYear || isNaN(targetYear) || targetYear < 2000 || targetYear > 2100) {
+    return res.status(400).json({ error: 'Año fiscal destino inválido (debe ser entre 2000 y 2100).' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const checkOld = await client.query('SELECT * FROM vigencias_viaticos WHERE anio = $1', [oldYear]);
+    if (checkOld.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: `La vigencia fiscal ${oldYear} no existe.` });
+    }
+
+    if (targetYear !== oldYear) {
+      const checkExists = await client.query('SELECT anio FROM vigencias_viaticos WHERE anio = $1', [targetYear]);
+      if (checkExists.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `La vigencia fiscal ${targetYear} ya se encuentra registrada.` });
+      }
+
+      await client.query(
+        `INSERT INTO vigencias_viaticos (anio, descripcion, creado_por)
+         VALUES ($1, $2, $3)`,
+        [targetYear, descripcion !== undefined ? descripcion : checkOld.rows[0].descripcion, req.user.username || 'admin']
+      );
+      await client.query('UPDATE paquetes_viaticos SET anio = $1, actualizado_en = CURRENT_TIMESTAMP WHERE anio = $2', [targetYear, oldYear]);
+      await client.query('DELETE FROM vigencias_viaticos WHERE anio = $1', [oldYear]);
+    } else {
+      await client.query('UPDATE vigencias_viaticos SET descripcion = $1 WHERE anio = $2', [descripcion || null, oldYear]);
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      message: `Vigencia fiscal ${targetYear} actualizada exitosamente.`,
+      anio: targetYear,
+      descripcion: descripcion || null
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[viaticos] update anio error:', err.message);
+    res.status(500).json({ error: 'Error al actualizar vigencia fiscal: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // DELETE /api/viaticos/anios/:anio — Eliminar un histórico anual y todas sus ejecuciones/viáticos
 router.delete('/anios/:anio', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
@@ -1366,6 +1420,8 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
     // Determinar o crear el paquete de destino para esta importación
     let targetPackageId = req.body.id_paquete ? parseInt(req.body.id_paquete) : (rows[0]?.id_paquete ? parseInt(rows[0].id_paquete) : null);
     let targetPackageName = '';
+    const modo = (req.body.modo || '').toLowerCase();
+    const actualizarExistentes = Boolean(req.body.actualizarExistentes || modo === 'actualizar');
 
     if (!targetPackageId) {
       const rawName = (req.body.nombrePaquete || req.body.nombreArchivo || '').trim();
@@ -1386,6 +1442,17 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
     } else {
       const pNameRes = await client.query('SELECT nombre FROM paquetes_viaticos WHERE id_paquete = $1', [targetPackageId]);
       if (pNameRes.rows.length) targetPackageName = pNameRes.rows[0].nombre;
+      if (req.body.nombreArchivo) {
+        await client.query(
+          'UPDATE paquetes_viaticos SET archivo_origen = $1, actualizado_en = CURRENT_TIMESTAMP WHERE id_paquete = $2',
+          [req.body.nombreArchivo, targetPackageId]
+        );
+      }
+    }
+
+    // Modo Reemplazo Integral: Limpiar registros previos del paquete para cargar el corte consolidado completo
+    if (modo === 'reemplazar' && targetPackageId) {
+      await client.query('DELETE FROM viaticos WHERE id_paquete = $1', [targetPackageId]);
     }
 
     // 1. Cargar catálogo de personas en memoria para asignación inteligente de cédula y cargo
@@ -1527,6 +1594,44 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
       const existingId = existingMap.get(keyPrimary) || (resolKey ? existingMap.get(resolKey) : null);
 
       if (existingId) {
+        if (actualizarExistentes) {
+          try {
+            await client.query('SAVEPOINT row_upd_sp');
+            await client.query(`
+              UPDATE viaticos
+              SET dependencia = COALESCE(NULLIF($1, ''), dependencia),
+                  cargo = COALESCE(NULLIF($2, ''), cargo),
+                  destino = COALESCE(NULLIF($3, ''), destino),
+                  motivo = COALESCE(NULLIF($4, ''), motivo),
+                  fecha_inicio = COALESCE($5, fecha_inicio),
+                  fecha_fin = COALESCE($6, fecha_fin),
+                  dias = COALESCE($7, dias),
+                  valor_diario = COALESCE($8, valor_diario),
+                  valor_total = COALESCE($9, valor_total),
+                  estado = COALESCE(NULLIF($10, ''), estado),
+                  observaciones = COALESCE(NULLIF($11, ''), observaciones),
+                  tipo_destino = COALESCE(NULLIF($12, ''), tipo_destino),
+                  numero_resolucion = COALESCE(NULLIF($13, ''), numero_resolucion),
+                  saldo = COALESCE($14, saldo)
+              WHERE id_viatico = $15
+            `, [upper(dependencia), upper(cargo), destUpper, motivo, fechaInicio || null, fechaFin || null, dias, valorDiario, rowValorTotal, estado, (rawObs || '').trim(), tipoDestino, numeroResolucion || null, saldo, existingId]);
+
+            await client.query(
+              'INSERT INTO historial_viaticos(id_viatico, estado_nuevo, nota, actualizado_por) VALUES($1, $2, $3, $4)',
+              [existingId, estado, 'Actualizado masivamente vía nuevo Excel', req.user.username || 'web']
+            );
+            updated++;
+            if (rowValorTotal !== null) totalValor += rowValorTotal;
+            await client.query('RELEASE SAVEPOINT row_upd_sp');
+          } catch (updErr) {
+            await client.query('ROLLBACK TO SAVEPOINT row_upd_sp');
+            console.warn(`[viaticos-bulk] Error actualizando fila ${i + 1} (${persona}):`, updErr.message);
+            errors.push(`Fila ${i + 1} (${persona}): ${updErr.message}`);
+            skipped++;
+          }
+          continue;
+        }
+
         // En viáticos: se conserva el PRIMER registro procesado y se omite cualquier duplicado posterior
         skipped++;
         skippedDuplicates++;
@@ -1580,13 +1685,17 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
 
     await client.query('COMMIT');
     res.json({
-      message: `Carga masiva completada: ${inserted} nuevos viáticos importados, ${skippedDuplicates} duplicados omitidos (conservando el primer registro).`,
+      message: modo === 'reemplazar'
+        ? `Reemplazo consolidado completado: ${inserted} viáticos registrados en la ejecución "${targetPackageName}".`
+        : (actualizarExistentes
+            ? `Actualización completada: ${inserted} nuevos viáticos agregados, ${updated} viáticos actualizados.`
+            : `Carga masiva completada: ${inserted} nuevos viáticos importados, ${skippedDuplicates} duplicados omitidos (conservando el primer registro).`),
       id_paquete: targetPackageId,
       nombre_paquete: targetPackageName,
       resumen: {
         totalFilas: rows.length,
         insertados: inserted,
-        actualizados: 0,
+        actualizados: updated,
         duplicadosOmitidos: skippedDuplicates,
         omitidos: skipped,
         advertencias: warnings.length,

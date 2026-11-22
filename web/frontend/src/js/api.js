@@ -358,6 +358,7 @@ const API = (() => {
     getViaticosStats: (params = {}) => request('/viaticos/stats' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
     getViaticosAnios: () => request('/viaticos/anios'),
     createViaticosAnio: (data) => request('/viaticos/anios', { method: 'POST', body: JSON.stringify(data) }),
+    updateViaticosAnio: (anio, data) => request(`/viaticos/anios/${anio}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteViaticosAnio: (anio) => request(`/viaticos/anios/${anio}`, { method: 'DELETE' }),
     getViaticosPaquetes: () => request('/viaticos/paquetes'),
     createViaticosPaquete: (data) => request('/viaticos/paquetes', { method: 'POST', body: JSON.stringify(data) }),
