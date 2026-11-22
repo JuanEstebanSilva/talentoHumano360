@@ -25,14 +25,20 @@ class EmployeeImportService {
       dependencias: 'seq_dependencias_id',
       cargos: 'seq_cargos_id'
     };
+    let seqVal = 0;
     if (seqMap[table]) {
       const q = `SELECT last_value FROM ${seqMap[table]}`;
       const res = await client.query(q).catch(() => null);
-      if (res && res.rows[0]) return Number(res.rows[0].last_value || 0);
+      if (res && res.rows[0]) seqVal = Number(res.rows[0].last_value || 0);
     }
     const q = `SELECT COALESCE(MAX(NULLIF(regexp_replace(${col}, '\\D', '', 'g'), '')::bigint), 0) AS max_val FROM ${table}`;
     const res = await client.query(q);
-    return Number(res.rows[0]?.max_val || 0);
+    const tableMax = Number(res.rows[0]?.max_val || 0);
+    const finalVal = Math.max(seqVal, tableMax);
+    if (seqMap[table] && finalVal > seqVal) {
+      await client.query(`SELECT setval($1, $2)`, [seqMap[table], finalVal]).catch(() => {});
+    }
+    return finalVal;
   }
 
   /**

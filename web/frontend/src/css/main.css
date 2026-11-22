@@ -994,38 +994,38 @@ textarea,
   transform: translateY(-1.5px) !important;
 }
 
-/* ─── Botón Guardar Cambios Modo Edición (#D14600 Naranja Quemado - Colorimetría Oficial) ─── */
+/* ─── Botón Guardar Cambios Modo Edición (Vibrante, Moderno y Pulido - Naranja Institucional) ─── */
 .btn-gold {
-  background: linear-gradient(135deg, #eb5a0e 0%, #D14600 50%, #a83500 100%) !important;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 55%, #c2410c 100%) !important;
   color: #ffffff !important;
   font-family: var(--font-main, 'Nunito Sans', sans-serif) !important;
   font-weight: 700 !important;
-  font-size: 0.88rem !important;
-  letter-spacing: 0.015em !important;
+  font-size: 0.89rem !important;
+  letter-spacing: 0.02em !important;
   border-radius: 9999px !important;
-  border: 1px solid #9e3200 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.2), 0 4px 14px rgba(209, 70, 0, 0.38) !important;
+  border: 1px solid rgba(194, 65, 12, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35), 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.38) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25) !important;
+  text-shadow: none !important;
   cursor: pointer !important;
   transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .btn-gold:hover {
-  background: linear-gradient(135deg, #f26618 0%, #de4c02 50%, #ba3b00 100%) !important;
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 50%, #c2410c 100%) !important;
   color: #ffffff !important;
-  border-color: #b03800 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 6px 20px rgba(209, 70, 0, 0.48) !important;
-  transform: translateY(-1.5px) !important;
+  border-color: rgba(194, 65, 12, 0.6) !important;
+  box-shadow: 0 7px 22px rgba(234, 88, 12, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  transform: translateY(-2px) !important;
 }
 
 .btn-gold:active {
-  background: linear-gradient(135deg, #ba3b00 0%, #9e3200 100%) !important;
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
   transform: translateY(0.5px) scale(0.98) !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(209, 70, 0, 0.25) !important;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.15) !important;
 }
 
 .btn-gold svg,
@@ -1033,8 +1033,8 @@ textarea,
   width: 17px !important;
   height: 17px !important;
   stroke: #ffffff !important;
-  stroke-width: 2.8 !important;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)) !important;
+  stroke-width: 2.6 !important;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15)) !important;
   flex-shrink: 0 !important;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.2s ease !important;
 }
@@ -2743,34 +2743,47 @@ textarea,
   transform: translateY(0.5px) scale(0.98);
 }
 
-/* Botón Cancelar en la Cabecera de Modales Principales y Wizards */
+/* Botón Cancelar en la Cabecera de Modales Principales y Wizards (Pill Redondeado Suave y Elegante) */
 .modal-close.is-cancel-btn {
   width: auto !important;
-  min-width: 104px !important;
-  height: 38px !important;
-  padding: 0 18px !important;
-  font-size: 13.5px !important;
+  min-width: 106px !important;
+  height: 36px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
   letter-spacing: 0.2px !important;
-  border-radius: var(--radius-md, 8px) !important;
+  border-radius: 9999px !important;
   background: #fff1f2 !important;
   color: #e11d48 !important;
   border: 1.5px solid #fecdd3 !important;
-  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08) !important;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  gap: 6px !important;
   cursor: pointer !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 .modal-close.is-cancel-btn:hover {
   background: #ffe4e6 !important;
   border-color: #fda4af !important;
   color: #be123c !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.16) !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.18), inset 0 1px 0 rgba(255, 255, 255, 1) !important;
 }
 .modal-close.is-cancel-btn:active {
   transform: translateY(0.5px) scale(0.98) !important;
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.12) !important;
+}
+.modal-close.is-cancel-btn svg {
+  width: 13px !important;
+  height: 13px !important;
+  stroke-width: 2.4 !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.2s ease !important;
+}
+.modal-close.is-cancel-btn:hover svg {
+  transform: scale(1.15) rotate(90deg) !important;
 }
 
 .modal-body {

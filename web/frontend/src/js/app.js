@@ -398,7 +398,10 @@ const App = (() => {
     if (closeBtn) {
       if (isFormModal) {
         closeBtn.className = 'modal-close is-cancel-btn btn-wizard-cancel';
-        closeBtn.innerHTML = '<span>Cancelar</span>';
+        closeBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <span>Cancelar</span>
+        `;
         closeBtn.title = 'Cancelar formulario y salir';
         closeBtn.setAttribute('aria-label', 'Cancelar formulario');
         if (cancelBtnDef && (cancelBtnDef.action || cancelBtnDef.onClick)) {

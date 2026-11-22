@@ -392,7 +392,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const trimmedDep = (dependencia || '').trim();
-    if (trimmedDep && trimmedDep !== 'Todas' && trimmedDep !== 'Todas las Dependencias') {
+    if (trimmedDep && trimmedDep.toUpperCase() !== 'TODAS' && trimmedDep.toUpperCase() !== 'TODAS LAS DEPENDENCIAS') {
       params.push(trimmedDep);
       const depIdx = params.length;
       whereConditions.push(`(
@@ -402,7 +402,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const trimmedCargo = (cargo || '').trim();
-    if (trimmedCargo && trimmedCargo !== 'Todos' && trimmedCargo !== 'Todos los Cargos') {
+    if (trimmedCargo && trimmedCargo.toUpperCase() !== 'TODOS' && trimmedCargo.toUpperCase() !== 'TODOS LOS CARGOS') {
       params.push(trimmedCargo);
       const cargoIdx = params.length;
       whereConditions.push(`(
@@ -483,6 +483,12 @@ router.get('/', auth, async (req, res) => {
           OR UPPER(COALESCE(e.clasificacion_empleo, '')) LIKE '%ENCARGO%'
           OR (r.encargo_denominacion IS NOT NULL AND TRIM(r.encargo_denominacion) != '')
           OR r.fecha_encargo IS NOT NULL
+        )`);
+      } else if (sitTrim.toUpperCase() === 'RETIRADO' || sitTrim.toUpperCase() === 'INACTIVO') {
+        whereConditions.push(`(
+          UPPER(COALESCE(e.situacion, '')) LIKE '%RETIRAD%'
+          OR UPPER(COALESCE(e.estado_servidor, '')) = 'RETIRADO'
+          OR UPPER(COALESCE(e.estado_servidor, '')) = 'INACTIVO'
         )`);
       } else {
         params.push('%' + sitTrim + '%');
@@ -1249,8 +1255,16 @@ router.post('/', auth, async (req, res) => {
         cargos: 'seq_cargos_id'
       };
       const seqName = seqMap[table] || `seq_${table}_id`;
-      const r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
-      return r.rows[0].id;
+      let r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+      let candId = r.rows[0].id;
+      // Auto-reparación preventiva si la secuencia está desfasada respecto a la tabla
+      const checkExists = await client.query(`SELECT 1 FROM ${table} WHERE ${col} = $1 LIMIT 1`, [candId]);
+      if (checkExists.rows.length > 0) {
+        await client.query(`SELECT setval($1, GREATEST((SELECT COALESCE(MAX(SUBSTRING(${col} FROM ${prefix.length + 1})::integer), 0) FROM ${table}), 1))`, [seqName]);
+        r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+        candId = r.rows[0].id;
+      }
+      return candId;
     };
 
     const findOrCreate = async (table, idCol, nameCol, prefix, width, name, insertFn) => {

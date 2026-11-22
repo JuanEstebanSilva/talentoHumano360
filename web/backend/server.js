@@ -7,6 +7,42 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+
+// Cargar variables de entorno locales de web/.env si no estamos en Render (sin DATABASE_URL)
+if (!process.env.DATABASE_URL) {
+  const envPath = path.resolve(__dirname, '../.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const idx = trimmed.indexOf('=');
+        if (idx > 0) {
+          const key = trimmed.slice(0, idx).trim();
+          let val = trimmed.slice(idx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!process.env[key] && key !== 'NODE_ENV') {
+            process.env[key] = val;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+  // Resolver DB_PORT automáticamente para desarrollo local (Docker usa 5434 por defecto)
+  if (!process.env.DB_PORT) {
+    if (process.env.POSTGRES_PORT) {
+      const p = parseInt(process.env.POSTGRES_PORT.split(':')[0], 10);
+      if (!isNaN(p)) process.env.DB_PORT = String(p);
+    } else {
+      process.env.DB_PORT = '5434';
+    }
+  }
+}
+
 const jwt = require('jsonwebtoken');
 const { pool, initDatabase, runMigrations } = require('./scripts/init-db');
 
@@ -34,7 +70,18 @@ const configuredFrontendOrigins = [process.env.APP_PUBLIC_URL, process.env.APP_U
   .map(normalizeOrigin)
   .filter(Boolean);
 
-const defaultDevOrigins = ['http://localhost', 'http://localhost:80', 'http://127.0.0.1', 'http://127.0.0.1:80'];
+const defaultDevOrigins = [
+  'http://localhost',
+  'http://localhost:80',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://localhost:8080',
+  'http://127.0.0.1',
+  'http://127.0.0.1:80',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:8080'
+];
 const allowedOrigins = Array.from(new Set([
   ...defaultDevOrigins,
   ...explicitEnvOrigins,
@@ -287,6 +334,21 @@ async function startServer() {
   app.use('/api/*', (req, res) => {
     res.status(404).json({ error: `Ruta no encontrada: ${req.method} ${req.originalUrl}` });
   });
+
+  // ─── Servir Frontend Estático (Permite desarrollo local en puerto 3000) ──────
+  const frontendDir = path.resolve(__dirname, '../frontend/src');
+  if (fs.existsSync(frontendDir)) {
+    app.use(express.static(frontendDir));
+    // SPA Fallback: cualquier ruta que no sea API ni health devuelve index.html
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/') || req.path === '/health') return next();
+      const indexPath = path.join(frontendDir, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+      next();
+    });
+  }
 
   // Manejador global de errores
   app.use((err, req, res, next) => {

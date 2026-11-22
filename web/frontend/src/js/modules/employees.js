@@ -1065,10 +1065,36 @@ const EmployeesModule = (() => {
 
     const modalBodyHtml = `
       <div class="adv-filter-modal-body">
-        <!-- Tarjeta 1: Datos Personales y Demográficos -->
+        <!-- Tarjeta 1: Criterio de Ordenamiento (Primero por solicitud de usuario) -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#1D8096;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="adv-filter-emoji">📊</span>
+            <span>Criterio de Ordenamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field" style="grid-column: 1 / -1;">
+              <label for="adv-sort-by">Ordenar resultados por</label>
+              <select id="adv-sort-by" class="filter-select">
+                <option value="" ${!af.sortBy ? 'selected' : ''}>Predeterminado (Activos con cédula de primeras)</option>
+                <option value="fecha_ingreso_asc" ${af.sortBy === 'fecha_ingreso_asc' ? 'selected' : ''}>📅 Fecha de Ingreso: Menor a Mayor (Más antiguos primero)</option>
+                <option value="fecha_ingreso_desc" ${af.sortBy === 'fecha_ingreso_desc' ? 'selected' : ''}>📅 Fecha de Ingreso: Mayor a Menor (Más recientes primero)</option>
+                <option value="tiempo_servicio_asc" ${af.sortBy === 'tiempo_servicio_asc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Menor a Mayor</option>
+                <option value="tiempo_servicio_desc" ${af.sortBy === 'tiempo_servicio_desc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Mayor a Menor</option>
+                <option value="edad_asc" ${af.sortBy === 'edad_asc' ? 'selected' : ''}>🎂 Edad: Menor a Mayor (Más jóvenes primero)</option>
+                <option value="edad_desc" ${af.sortBy === 'edad_desc' ? 'selected' : ''}>🎂 Edad: Mayor a Menor (Más mayores primero)</option>
+                <option value="alfabetico_asc" ${af.sortBy === 'alfabetico_asc' ? 'selected' : ''}>🔤 Alfabético por Nombre: A - Z</option>
+                <option value="alfabetico_desc" ${af.sortBy === 'alfabetico_desc' ? 'selected' : ''}>🔤 Alfabético por Nombre: Z - A</option>
+                <option value="cedula_asc" ${af.sortBy === 'cedula_asc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Menor a Mayor</option>
+                <option value="cedula_desc" ${af.sortBy === 'cedula_desc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Mayor a Menor</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Datos Personales y Demográficos -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <span class="adv-filter-emoji">👤</span>
             <span>Datos Demográficos y Personales</span>
           </div>
           <div class="adv-filter-grid">
@@ -1097,26 +1123,29 @@ const EmployeesModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label for="adv-discapacidad-toggle">¿Tiene Discapacidad?</label>
-              <select id="adv-discapacidad-toggle" class="filter-select">
+              <select id="adv-discapacidad-toggle" class="filter-select" onchange="const c = document.getElementById('adv-tipo-discapacidad-container'); const s = document.getElementById('adv-tipo-discapacidad'); if (c) { if (this.value === 'si') { c.style.setProperty('display', 'flex', 'important'); } else { c.style.setProperty('display', 'none', 'important'); if (s) s.value = ''; } }">
                 <option value="">Todos</option>
                 <option value="si" ${af.tieneDiscapacidad === 'si' ? 'selected' : ''}>Sí (Con Discapacidad)</option>
                 <option value="no" ${af.tieneDiscapacidad === 'no' ? 'selected' : ''}>No (Sin Discapacidad)</option>
               </select>
             </div>
-            <div class="adv-filter-field">
+            <div class="adv-filter-field" id="adv-tipo-discapacidad-container" style="${af.tieneDiscapacidad === 'si' ? '' : 'display:none !important;'}">
               <label for="adv-tipo-discapacidad">Tipo de Discapacidad</label>
               <select id="adv-tipo-discapacidad" class="filter-select">
                 <option value="">Todas las condiciones</option>
-                ${(state.catalogs.discapacidades || []).map(d => `<option value="${escHtml(d)}" ${af.tipoDiscapacidad === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+                ${((state.catalogs.discapacidades && state.catalogs.discapacidades.length)
+        ? state.catalogs.discapacidades
+        : ['FÍSICA / MOTRIZ', 'VISUAL', 'AUDITIVA', 'INTELECTUAL / COGNITIVA', 'PSICOSOCIAL / MENTAL', 'SORDOCIEGA', 'MÚLTIPLE', 'OTRA']
+      ).map(d => `<option value="${escHtml(d)}" ${af.tipoDiscapacidad === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
             </div>
           </div>
         </div>
 
-        <!-- Tarjeta 2: Cargo, Vinculación y Concurso -->
+        <!-- Tarjeta 3: Cargo, Vinculación y Concurso -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#d97706;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span class="adv-filter-emoji">🏛️</span>
             <span>Cargo, Vinculación y Situación Administrativa</span>
           </div>
           <div class="adv-filter-grid">
@@ -1160,10 +1189,10 @@ const EmployeesModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjeta 3: Encargo Administrativo -->
+        <!-- Tarjeta 4: Encargo Administrativo -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#d97706;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span class="adv-filter-emoji">🔄</span>
             <span>Situación de Encargo Administrativo</span>
           </div>
           <div class="adv-filter-grid">
@@ -1193,11 +1222,11 @@ const EmployeesModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjeta 4: Tiempos de Servicio y Ordenamiento -->
+        <!-- Tarjeta 5: Tiempos de Servicio -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#10b981;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>Tiempos de Servicio y Ordenamiento</span>
+            <span class="adv-filter-emoji">📅</span>
+            <span>Fechas de Ingreso y Tiempos de Servicio</span>
           </div>
           <div class="adv-filter-grid">
             <div class="adv-filter-field">
@@ -1208,29 +1237,13 @@ const EmployeesModule = (() => {
               <label for="adv-fecha-ingreso-hasta">Fecha Ingreso Hasta</label>
               <input type="text" id="adv-fecha-ingreso-hasta" class="input-date" placeholder="AAAA-MM-DD" value="${escHtml(af.fechaIngresoHasta || '')}" />
             </div>
-            <div class="adv-filter-field" style="grid-column: span 2;">
-              <label for="adv-sort-by" style="color:#b45309;">Criterio de Ordenamiento</label>
-              <select id="adv-sort-by" class="filter-select" style="border-color:rgba(217,119,6,0.4);font-weight:600;">
-                <option value="" ${!af.sortBy ? 'selected' : ''}>Predeterminado (Activos con cédula de primeras)</option>
-                <option value="fecha_ingreso_asc" ${af.sortBy === 'fecha_ingreso_asc' ? 'selected' : ''}>📅 Fecha de Ingreso: Menor a Mayor (Más antiguos primero)</option>
-                <option value="fecha_ingreso_desc" ${af.sortBy === 'fecha_ingreso_desc' ? 'selected' : ''}>📅 Fecha de Ingreso: Mayor a Menor (Más recientes primero)</option>
-                <option value="tiempo_servicio_asc" ${af.sortBy === 'tiempo_servicio_asc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Menor a Mayor</option>
-                <option value="tiempo_servicio_desc" ${af.sortBy === 'tiempo_servicio_desc' ? 'selected' : ''}>⏱️ Tiempo de Servicio: Mayor a Menor</option>
-                <option value="edad_asc" ${af.sortBy === 'edad_asc' ? 'selected' : ''}>🎂 Edad: Menor a Mayor (Más jóvenes primero)</option>
-                <option value="edad_desc" ${af.sortBy === 'edad_desc' ? 'selected' : ''}>🎂 Edad: Mayor a Menor (Más mayores primero)</option>
-                <option value="alfabetico_asc" ${af.sortBy === 'alfabetico_asc' ? 'selected' : ''}>🔤 Alfabético por Nombre: A - Z</option>
-                <option value="alfabetico_desc" ${af.sortBy === 'alfabetico_desc' ? 'selected' : ''}>🔤 Alfabético por Nombre: Z - A</option>
-                <option value="cedula_asc" ${af.sortBy === 'cedula_asc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Menor a Mayor</option>
-                <option value="cedula_desc" ${af.sortBy === 'cedula_desc' ? 'selected' : ''}>🔢 Cédula de Ciudadanía: Mayor a Menor</option>
-              </select>
-            </div>
           </div>
         </div>
 
-        <!-- Tarjeta 5: Educación y Formación Académica -->
+        <!-- Tarjeta 6: Educación y Formación Académica -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:#8b5cf6;"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span class="adv-filter-emoji">🎓</span>
             <span>Educación y Formación Académica</span>
           </div>
           <div class="adv-filter-grid">
@@ -1296,7 +1309,7 @@ const EmployeesModule = (() => {
           const valDiscToggle = getVal('adv-discapacidad-toggle');
           if (valDiscToggle) newFilters.tieneDiscapacidad = valDiscToggle;
 
-          const valTipoDisc = getVal('adv-tipo-discapacidad');
+          const valTipoDisc = (valDiscToggle === 'si') ? getVal('adv-tipo-discapacidad') : '';
           if (valTipoDisc) newFilters.tipoDiscapacidad = valTipoDisc;
 
           const valSituacion = getVal('adv-situacion');
@@ -1358,15 +1371,29 @@ const EmployeesModule = (() => {
           App.showToast(count > 0 ? `Filtros avanzados aplicados (${count} activo${count > 1 ? 's' : ''}).` : 'Filtros aplicados.', 'success');
         }
       }
-    ], 'modal-lg');
+    ], 'modal-lg modal-adv-filters');
 
-    // Inicializar calendarios y floating labels en el modal
+    // Inicializar calendarios, floating labels y visibilidad condicional de discapacidad en el modal
     setTimeout(() => {
       const modalEl = document.getElementById('modal-body') || document;
       if (typeof App !== 'undefined') {
         if (App.initDatePickers) App.initDatePickers(modalEl);
         if (App.initFormUX) App.initFormUX(modalEl);
         if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
+      }
+      const discToggle = modalEl.querySelector('#adv-discapacidad-toggle');
+      const discContainer = modalEl.querySelector('#adv-tipo-discapacidad-container');
+      const discSelect = modalEl.querySelector('#adv-tipo-discapacidad');
+      if (discToggle && discContainer) {
+        discToggle.addEventListener('change', () => {
+          if (discToggle.value === 'si') {
+            discContainer.style.setProperty('display', 'flex', 'important');
+            if (typeof App !== 'undefined' && App.refreshFloatingLabels) App.refreshFloatingLabels(discContainer);
+          } else {
+            discContainer.style.setProperty('display', 'none', 'important');
+            if (discSelect) discSelect.value = '';
+          }
+        });
       }
     }, 50);
   }
@@ -1405,12 +1432,15 @@ const EmployeesModule = (() => {
         return 0; // Activos con cédula
       };
 
-      records.sort((a, b) => {
-        const pA = getPriority(a);
-        const pB = getPriority(b);
-        if (pA !== pB) return pA - pB;
-        return (a.nombreCompleto || '').localeCompare(b.nombreCompleto || '');
-      });
+      // Ordenar por prioridad solo si no hay un criterio de ordenamiento activo seleccionado
+      if (!state.advancedFilters || !state.advancedFilters.sortBy) {
+        records.sort((a, b) => {
+          const pA = getPriority(a);
+          const pB = getPriority(b);
+          if (pA !== pB) return pA - pB;
+          return (a.nombreCompleto || '').localeCompare(b.nombreCompleto || '');
+        });
+      }
       state.data = records;
       state.total = res.total || 0;
       state.totalPages = res.totalPages || 1;
@@ -4530,17 +4560,37 @@ const EmployeesModule = (() => {
     }
   }
 
-  function downloadTemplate() {
-    if (typeof ExcelService !== 'undefined') {
-      ExcelService.downloadTemplate({
-        filename: 'PLANTILLA_OFICIAL_SERVIDORES_PUBLICOS',
-        sheetName: 'Servidores Públicos',
-        columns: EXCEL_COLUMNS,
-        sampleRows: []
-      });
-      App.showToast('Descargando plantilla oficial de Servidores Públicos en blanco...', 'info');
-    } else {
-      App.showToast('Servicio Excel no disponible.', 'warning');
+  async function downloadTemplate() {
+    try {
+      const url = 'plantillas/PLANTILLA_SERVIDORES_PUBLICOS.xlsx';
+      const filename = 'PLANTILLA_SERVIDORES_PUBLICOS.xlsx';
+      if (typeof ExcelService !== 'undefined' && ExcelService.downloadStaticTemplate) {
+        await ExcelService.downloadStaticTemplate(url, filename);
+      } else {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      }
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+      if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+      App.showToast('Plantilla oficial institucional de Servidores Públicos descargada exitosamente.', 'success');
+    } catch (err) {
+      console.error('[EmployeesModule] Error al descargar plantilla oficial:', err);
+      const a = document.createElement('a');
+      a.href = 'plantillas/PLANTILLA_SERVIDORES_PUBLICOS.xlsx';
+      a.download = 'PLANTILLA_SERVIDORES_PUBLICOS.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      App.showToast('Descargando plantilla oficial de Servidores Públicos...', 'info');
     }
   }
 
@@ -4569,7 +4619,10 @@ const EmployeesModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar servidores públicos en el sistema.</p>
           </div>
-          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-emp-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-emp-import" title="Cancelar importación y salir" aria-label="Cancelar importación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Cancelar</span>
+          </button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -5062,7 +5115,7 @@ const EmployeesModule = (() => {
           App.showToast(`Planta oficial sincronizada: ${resumen.insertados} nuevos, ${resumen.actualizados} actualizados, ${resumen.retirados || 0} en histórico de retiros.`, 'success');
           await load();
           if (typeof DashboardModule !== 'undefined' && DashboardModule.load) {
-            DashboardModule.load().catch(() => {});
+            DashboardModule.load().catch(() => { });
           }
         });
 

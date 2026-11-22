@@ -783,12 +783,44 @@ router.get('/', auth, async (req, res) => {
 
     // ── Filtros Avanzados Viáticos ───────────────────────────────────────────
     if (tipoDestino && !['todos', 'todas', ''].includes(tipoDestino.trim().toLowerCase())) {
-      conditions.push(`LOWER(v.tipo_destino) = LOWER($${idx++})`);
-      params.push(tipoDestino.trim());
+      const tNorm = tipoDestino.trim().toLowerCase();
+      if (tNorm === 'departamental') {
+        conditions.push(`(
+          LOWER(v.tipo_destino) = 'departamental'
+          OR EXISTS (
+            SELECT 1 FROM v_destinos_boyaca b
+            WHERE TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER(b.municipio), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          )
+          OR TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%guican%'
+          OR TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%campo hermoso%'
+        )`);
+      } else if (tNorm === 'nacional') {
+        conditions.push(`(
+          LOWER(v.tipo_destino) = 'nacional'
+          OR (
+            NOT EXISTS (
+              SELECT 1 FROM v_destinos_boyaca b
+              WHERE TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER(b.municipio), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+            )
+            AND TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') NOT LIKE '%guican%'
+            AND TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') NOT LIKE '%campo hermoso%'
+            AND (v.tipo_destino IS NULL OR LOWER(v.tipo_destino) != 'internacional')
+          )
+        )`);
+      } else {
+        conditions.push(`LOWER(v.tipo_destino) = LOWER($${idx++})`);
+        params.push(tipoDestino.trim());
+      }
     }
     if (destino && destino.trim()) {
+      let destTerm = destino.trim();
+      if (/^bogot[aá]/i.test(destTerm)) {
+        destTerm = 'bogota';
+      } else {
+        destTerm = destTerm.split(',')[0].replace(/\s+(d\.?c\.?|de la sierra|del santuario)$/i, '').trim();
+      }
       conditions.push(`TRANSLATE(LOWER(v.destino), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
-      params.push(destino.trim());
+      params.push(destTerm);
     }
     if (numeroResolucion && numeroResolucion.trim()) {
       conditions.push(`v.numero_resolucion ILIKE $${idx++}`);
@@ -1057,18 +1089,21 @@ router.get('/ranking-funcionarios', auth, async (req, res) => {
     }
 
     if (dependencia && dependencia.trim() !== '' && dependencia !== 'todos' && dependencia !== 'all') {
-      conditions.push(`LOWER(TRIM(v.dependencia)) = LOWER(TRIM($${idx++}))`);
+      conditions.push(`(
+        LOWER(TRIM(v.dependencia)) = LOWER(TRIM($${idx}))
+        OR TRANSLATE(LOWER(v.dependencia), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`);
       params.push(dependencia.trim());
+      idx++;
     }
 
     if (q && q.trim() !== '') {
-      const searchClean = `%${q.trim().toLowerCase()}%`;
       conditions.push(`(
-        LOWER(v.apellidos_nombres) LIKE $${idx} OR 
-        LOWER(COALESCE(v.documento, '')) LIKE $${idx} OR
-        LOWER(COALESCE(v.dependencia, '')) LIKE $${idx}
+        TRANSLATE(LOWER(v.apellidos_nombres), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%' OR 
+        v.documento LIKE $${idx} OR
+        TRANSLATE(LOWER(COALESCE(v.dependencia, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
       )`);
-      params.push(searchClean);
+      params.push(`%${q.trim()}%`);
       idx++;
     }
 
@@ -1096,7 +1131,8 @@ router.get('/ranking-funcionarios', auth, async (req, res) => {
     }
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(100, Math.max(5, parseInt(limit, 10) || 10));
+    const isAll = limit === 'all' || limit === '0' || parseInt(limit, 10) >= 10000;
+    const limitNum = isAll ? 100000 : Math.min(10000, Math.max(1, parseInt(limit, 10) || 10));
     const offset = (pageNum - 1) * limitNum;
 
     const sql = `

@@ -360,8 +360,8 @@ const ExcelService = (() => {
           let stylesXml = typeof stylesEntry.content === 'string'
             ? stylesEntry.content
             : (typeof TextDecoder !== 'undefined'
-                ? new TextDecoder('utf-8').decode(stylesEntry.content)
-                : String.fromCharCode.apply(null, stylesEntry.content));
+              ? new TextDecoder('utf-8').decode(stylesEntry.content)
+              : String.fromCharCode.apply(null, stylesEntry.content));
 
           if (stylesXml.includes('<fonts count="1">')) {
             stylesXml = stylesXml.replace(
@@ -394,8 +394,8 @@ const ExcelService = (() => {
           let sheetXml = typeof sheetEntry.content === 'string'
             ? sheetEntry.content
             : (typeof TextDecoder !== 'undefined'
-                ? new TextDecoder('utf-8').decode(sheetEntry.content)
-                : String.fromCharCode.apply(null, sheetEntry.content));
+              ? new TextDecoder('utf-8').decode(sheetEntry.content)
+              : String.fromCharCode.apply(null, sheetEntry.content));
 
           // Asegurar que la fila 1 de títulos tenga exactamente 41 píxeles de alto en Excel (30.75 pt)
           if (sheetXml.includes('<row r="1"')) {
@@ -444,11 +444,47 @@ const ExcelService = (() => {
   }
 
   /**
+   * Descarga de forma nativa e inalterada un archivo de plantilla oficial preexistente (.xlsx).
+   * Utiliza fetch + Blob + ObjectURL para asegurar la descarga del archivo exacto tal cual está montado.
+   */
+  async function downloadStaticTemplate(templatePath, targetFilename) {
+    const filename = targetFilename || templatePath.split('/').pop();
+    try {
+      const resp = await fetch(templatePath);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      return true;
+    } catch (err) {
+      console.warn('[ExcelService] Fallback de descarga directa para:', templatePath, err);
+      const a = document.createElement('a');
+      a.href = templatePath;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return true;
+    }
+  }
+
+  /**
    * Genera y descarga una plantilla oficial de Excel con ejemplos y cabeceras exactas.
    * Aplica: fila 1 con altura de 41 píxeles (30.75 pt), texto en mayúscula sostenida,
    * negrita y centrado (horizontal y vertical), y autofiltro de tabla.
    */
-  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [], preserveCase = false }) {
+  function downloadTemplate({ filename = 'Plantilla', sheetName = 'Plantilla', columns = [], sampleRows = [], preserveCase = false, staticTemplateUrl = null }) {
+    if (staticTemplateUrl) {
+      const targetName = filename ? (filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`) : staticTemplateUrl.split('/').pop();
+      return downloadStaticTemplate(staticTemplateUrl, targetName);
+    }
+
     if (typeof XLSX === 'undefined') {
       alert('La biblioteca de Excel aún no está disponible.');
       return;
@@ -564,7 +600,10 @@ const ExcelService = (() => {
             </h2>
             <p class="modal-desc">${subtitle}</p>
           </div>
-          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-excel-modal" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-excel-modal" title="Cancelar importación y salir" aria-label="Cancelar importación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Cancelar</span>
+          </button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 74vh; overflow-y: auto;">
@@ -958,9 +997,9 @@ const ExcelService = (() => {
             <strong>${item._col}:</strong> ${String(item._msg || '').substring(0, 65)}
           </td>
           ${columns.map(col => {
-            const val = item[col.key] ?? item[col.header] ?? '';
-            return `<td>${String(val).substring(0, 35)}</td>`;
-          }).join('')}
+          const val = item[col.key] ?? item[col.header] ?? '';
+          return `<td>${String(val).substring(0, 35)}</td>`;
+        }).join('')}
         `;
         tbody.appendChild(tr);
       });
@@ -998,6 +1037,7 @@ const ExcelService = (() => {
     exportToCSV,
     buildCSVContent,
     downloadTemplate,
+    downloadStaticTemplate,
     openImportModal,
     buildWorkbookBuffer,
     sanitizeExcelValue,

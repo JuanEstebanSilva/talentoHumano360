@@ -533,25 +533,41 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (estado && !['todos', 'todas', ''].includes(estado.trim().toLowerCase())) {
-      conditions.push(`LOWER(h.estado) = LOWER($${idx++})`);
+      conditions.push(`(
+        TRANSLATE(LOWER(h.estado), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') = TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn')
+        OR ($${idx} ILIKE 'activa%' AND LOWER(h.estado) IN ('activa', 'vigente'))
+      )`);
       params.push(estado.trim());
+      idx++;
     }
 
     if (dependencia && !['todas', 'todos', ''].includes(dependencia.trim().toLowerCase())) {
-      conditions.push(`LOWER(h.dependencia) LIKE LOWER($${idx++})`);
-      params.push(`%${dependencia.trim()}%`);
+      const cleanDep = dependencia.trim().replace(/^\d+[\.\-\s]+/, '').trim();
+      conditions.push(`(
+        TRANSLATE(LOWER(COALESCE(h.dependencia, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        OR TRANSLATE(LOWER(COALESCE(h.secretaria, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+      )`);
+      params.push(cleanDep || dependencia.trim());
+      idx++;
     }
 
     if (q) {
       conditions.push(
-        `(LOWER(h.apellidos_nombres) LIKE LOWER($${idx}) OR h.documento LIKE $${idx} OR LOWER(h.dependencia) LIKE LOWER($${idx}) OR LOWER(COALESCE(h.numero_resolucion,'')) LIKE LOWER($${idx}))`
+        `(
+          TRANSLATE(LOWER(h.apellidos_nombres), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          OR h.documento LIKE $${idx}
+          OR TRANSLATE(LOWER(h.cargo), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          OR TRANSLATE(LOWER(COALESCE(h.dependencia, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          OR TRANSLATE(LOWER(COALESCE(h.secretaria, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          OR TRANSLATE(LOWER(COALESCE(h.numero_resolucion,'')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        )`
       );
-      params.push(`%${q}%`);
+      params.push(`%${q.trim()}%`);
       idx++;
     }
 
     // ── Filtros Avanzados Horarios ───────────────────────────────────────────
-    if (cargo && cargo.trim()) {
+    if (cargo && cargo.trim() && !['todos', 'todas', ''].includes(cargo.trim().toLowerCase())) {
       conditions.push(`TRANSLATE(LOWER(h.cargo), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
       params.push(cargo.trim());
     }
@@ -560,16 +576,29 @@ router.get('/', auth, async (req, res) => {
       params.push(`%${codigo.trim()}%`);
     }
     if (grado && grado.trim()) {
-      conditions.push(`h.grado ILIKE $${idx++}`);
-      params.push(`%${grado.trim()}%`);
+      const gClean = grado.trim();
+      const gNum = parseInt(gClean, 10);
+      if (!isNaN(gNum)) {
+        const gPadded = String(gNum).padStart(2, '0');
+        conditions.push(`(
+          h.grado = $${idx} 
+          OR h.grado = $${idx+1} 
+          OR h.grado ILIKE $${idx+2}
+        )`);
+        params.push(String(gNum), gPadded, `%${gPadded}%`);
+        idx += 3;
+      } else {
+        conditions.push(`h.grado ILIKE $${idx++}`);
+        params.push(`%${gClean}%`);
+      }
     }
     if (subtipoTeletrabajo && !['todos', 'todas', ''].includes(subtipoTeletrabajo.trim().toLowerCase())) {
-      conditions.push(`LOWER(h.subtipo_teletrabajo) = LOWER($${idx++})`);
+      conditions.push(`TRANSLATE(LOWER(h.subtipo_teletrabajo), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
       params.push(subtipoTeletrabajo.trim());
     }
     if (numeroResolucion && numeroResolucion.trim()) {
-      conditions.push(`h.numero_resolucion ILIKE $${idx++}`);
-      params.push(`%${numeroResolucion.trim()}%`);
+      conditions.push(`TRANSLATE(LOWER(h.numero_resolucion), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'`);
+      params.push(numeroResolucion.trim());
     }
     if (fechaInicioDesde) {
       conditions.push(`h.fecha_inicio >= $${idx++}::date`);
@@ -588,12 +617,25 @@ router.get('/', auth, async (req, res) => {
       params.push(fechaFinHasta);
     }
     if (diasSemana && diasSemana.trim()) {
-      conditions.push(`(
-        TRANSLATE(LOWER(COALESCE(h.dias_teletrabajo, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
-        OR TRANSLATE(LOWER(COALESCE(h.dias_presencial, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
-      )`);
-      params.push(diasSemana.trim());
-      idx++;
+      const term = diasSemana.trim();
+      const parts = term.split(/[\s,yY]+/).filter(w => w.length > 2);
+      if (parts.length > 1) {
+        const subConds = parts.map(p => {
+          params.push(p);
+          return `(
+            TRANSLATE(LOWER(COALESCE(h.dias_teletrabajo, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx++}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+            OR TRANSLATE(LOWER(COALESCE(h.dias_presencial, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx-1}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          )`;
+        });
+        conditions.push(`(${subConds.join(' AND ')})`);
+      } else {
+        conditions.push(`(
+          TRANSLATE(LOWER(COALESCE(h.dias_teletrabajo, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+          OR TRANSLATE(LOWER(COALESCE(h.dias_presencial, '')), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') LIKE '%' || TRANSLATE(LOWER($${idx}), 'áéíóúÁÉÍÓÚüÜñÑ', 'aeiouaeiouuunn') || '%'
+        )`);
+        params.push(term);
+        idx++;
+      }
     }
     if (notificacionArl) {
       const v = notificacionArl.trim().toLowerCase();

@@ -382,14 +382,135 @@ const ViaticosModule = (() => {
     }
   }
 
+  function getDestinationOptionsHtml(tipoDestino, selectedValue) {
+    const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const selNorm = norm(selectedValue);
+
+    const frequentBoyaca = [
+      'TUNJA', 'SOGAMOSO', 'PAIPA', 'DUITAMA', 'AQUITANIA', 'PUERTO BOYACÁ', 
+      'SOCHA', 'MIRAFLORES', 'SOATÁ', 'VILLA DE LEYVA', 'PESCA', 'MONIQUIRÁ', 
+      'MARIPÍ', 'FIRAVITOBA', 'SOCOTÁ', 'CUBARÁ', 'OTANCHE', 'PAJARITO', 
+      'GARAGOA', 'TOGÜÍ', 'SABOYÁ', 'SANTA ROSA DE VITERBO', 'CHIQUINQUIRÁ'
+    ];
+
+    const frequentNacional = [
+      'BOGOTÁ', 'MEDELLÍN', 'CALI', 'BARRANQUILLA', 'CARTAGENA', 'BUCARAMANGA', 
+      'CÚCUTA', 'PEREIRA', 'MANIZALES', 'IBAGUÉ', 'NEIVA', 'VILLAVICENCIO', 
+      'SANTA MARTA', 'VALLEDUPAR', 'MONTERÍA', 'PASTO', 'POPAYÁN', 'ARMENIA', 
+      'SINCELEJO', 'RIOHACHA', 'YOPAL', 'FLORENCIA'
+    ];
+
+    const boyacaMunis = (COLOMBIA_GEO['Boyacá'] || []).filter(m => m !== 'Otro municipio').sort((a,b) => a.localeCompare(b, 'es'));
+    
+    const nationalCities = [];
+    Object.keys(COLOMBIA_GEO).forEach(dep => {
+      if (dep === 'Boyacá') return;
+      (COLOMBIA_GEO[dep] || []).forEach(city => {
+        if (city !== 'Otro municipio' && !nationalCities.includes(city)) {
+          nationalCities.push(city);
+        }
+      });
+    });
+    nationalCities.sort((a,b) => a.localeCompare(b, 'es'));
+
+    let html = `<option value="">TODOS LOS DESTINOS</option>`;
+
+    const isBoyaca = tipoDestino === 'Departamental';
+    const isNac = tipoDestino === 'Nacional';
+    const isInter = tipoDestino === 'Internacional';
+
+    let hasMatched = false;
+
+    if (!isInter) {
+      if (!isBoyaca) {
+        html += `<optgroup label="★ Destinos Más Frecuentes (Nacionales y Capitales)">`;
+        frequentNacional.forEach(d => {
+          const isSel = selNorm === norm(d) || (selNorm === 'bogota' && norm(d) === 'bogota');
+          if (isSel) hasMatched = true;
+          html += `<option value="${escHtml(d)}" ${isSel ? 'selected' : ''}>${escHtml(d)}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (!isNac) {
+        html += `<optgroup label="★ Destinos Más Frecuentes de Boyacá">`;
+        frequentBoyaca.forEach(d => {
+          const isSel = selNorm === norm(d);
+          if (isSel) hasMatched = true;
+          html += `<option value="${escHtml(d)}" ${isSel ? 'selected' : ''}>${escHtml(d)}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (!isNac) {
+        html += `<optgroup label="Municipios de Boyacá (DIVIPOLA)">`;
+        boyacaMunis.forEach(m => {
+          const isSel = selNorm === norm(m);
+          if (isSel) hasMatched = true;
+          html += `<option value="${escHtml(m)}" ${isSel ? 'selected' : ''}>${escHtml(m)}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (!isBoyaca) {
+        html += `<optgroup label="Ciudades y Capitales de Colombia (DIVIPOLA)">`;
+        nationalCities.forEach(c => {
+          const isSel = selNorm === norm(c);
+          if (isSel) hasMatched = true;
+          html += `<option value="${escHtml(c)}" ${isSel ? 'selected' : ''}>${escHtml(c)}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+    }
+
+    if (!isBoyaca && !isNac) {
+      html += `<optgroup label="Destinos Internacionales">`;
+      (PAISES_INTERNACIONAL || []).filter(p => p !== 'Otro País').forEach(p => {
+        const isSel = selNorm === norm(p);
+        if (isSel) hasMatched = true;
+        html += `<option value="${escHtml(p)}" ${isSel ? 'selected' : ''}>${escHtml(p)}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    const isCustomSelected = !!selectedValue && !hasMatched;
+    html += `<option value="__custom__" ${isCustomSelected ? 'selected' : ''}>-- Escribir otro destino manualmente... --</option>`;
+
+    return html;
+  }
+
   function openAdvancedFiltersModal() {
     const current = state.advancedFilters || {};
     const html = `
       <div class="adv-filter-modal-body">
-        <!-- Tarjeta 1: Fechas de Comisión -->
+        <!-- Tarjeta 1: Criterio de Ordenamiento (Primero por solicitud de usuario) -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="adv-filter-emoji">📊</span>
+            <span>Criterio de Ordenamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field" style="grid-column: 1 / -1;">
+              <label>Ordenar resultados por</label>
+              <select id="vit-filter-sort-by" class="filter-select">
+                <option value="" ${!current.sortBy ? 'selected' : ''}>Predeterminado (Últimos registrados)</option>
+                <option value="fecha_desc" ${current.sortBy === 'fecha_desc' ? 'selected' : ''}>Fecha de Salida (Más recientes primero)</option>
+                <option value="fecha_asc" ${current.sortBy === 'fecha_asc' ? 'selected' : ''}>Fecha de Salida (Más antiguas primero)</option>
+                <option value="valor_desc" ${current.sortBy === 'valor_desc' ? 'selected' : ''}>Valor Liquidado (Mayor a menor)</option>
+                <option value="valor_asc" ${current.sortBy === 'valor_asc' ? 'selected' : ''}>Valor Liquidado (Menor a mayor)</option>
+                <option value="radicado_desc" ${current.sortBy === 'radicado_desc' ? 'selected' : ''}>Radicado (Descendente)</option>
+                <option value="radicado_asc" ${current.sortBy === 'radicado_asc' ? 'selected' : ''}>Radicado (Ascendente)</option>
+                <option value="persona_asc" ${current.sortBy === 'persona_asc' ? 'selected' : ''}>Servidor Público (A - Z)</option>
+                <option value="persona_desc" ${current.sortBy === 'persona_desc' ? 'selected' : ''}>Servidor Público (Z - A)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Fechas de Comisión y Desplazamiento -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <span class="adv-filter-emoji">📅</span>
             <span>Fechas de Comisión y Desplazamiento</span>
           </div>
           <div class="adv-filter-grid">
@@ -412,10 +533,10 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjeta 2: Destino y Parámetros de Comisión -->
+        <!-- Tarjeta 3: Destino y Parámetros de Comisión -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <span class="adv-filter-emoji">📍</span>
             <span>Destino y Acto Administrativo</span>
           </div>
           <div class="adv-filter-grid">
@@ -430,7 +551,12 @@ const ViaticosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Municipio / Destino</label>
-              <input type="text" id="vit-filter-destino" placeholder="Ej: Tunja, Bogotá, Paipa..." value="${escHtml(current.destino || '')}">
+              <select id="vit-filter-destino" class="filter-select">
+                ${getDestinationOptionsHtml(current.tipoDestino || '', current.destino || '')}
+              </select>
+              <div id="vit-filter-destino-custom-wrap" style="display:none; margin-top:8px;">
+                <input type="text" id="vit-filter-destino-custom" placeholder="Escriba el nombre del municipio o destino..." value="${escHtml(current.destino || '')}">
+              </div>
             </div>
             <div class="adv-filter-field">
               <label>Número de Resolución</label>
@@ -439,10 +565,10 @@ const ViaticosModule = (() => {
           </div>
         </div>
 
-        <!-- Tarjeta 3: Valores Liquidados y Duración -->
+        <!-- Tarjeta 4: Valores Liquidados y Duración -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span class="adv-filter-emoji">💰</span>
             <span>Montos Liquidados y Duración</span>
           </div>
           <div class="adv-filter-grid">
@@ -464,30 +590,6 @@ const ViaticosModule = (() => {
             </div>
           </div>
         </div>
-
-        <!-- Tarjeta 4: Ordenamiento y Visualización -->
-        <div class="adv-filter-card">
-          <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="7 10 12 15 17 10"/><polyline points="7 14 12 9 17 14"/></svg>
-            <span>Criterio de Ordenamiento</span>
-          </div>
-          <div class="adv-filter-grid">
-            <div class="adv-filter-field" style="grid-column: 1 / -1;">
-              <label>Ordenar resultados por</label>
-              <select id="vit-filter-sort-by" class="filter-select">
-                <option value="" ${!current.sortBy ? 'selected' : ''}>Predeterminado (Últimos registrados)</option>
-                <option value="fecha_desc" ${current.sortBy === 'fecha_desc' ? 'selected' : ''}>Fecha de Salida (Más recientes primero)</option>
-                <option value="fecha_asc" ${current.sortBy === 'fecha_asc' ? 'selected' : ''}>Fecha de Salida (Más antiguas primero)</option>
-                <option value="valor_desc" ${current.sortBy === 'valor_desc' ? 'selected' : ''}>Valor Liquidado (Mayor a menor)</option>
-                <option value="valor_asc" ${current.sortBy === 'valor_asc' ? 'selected' : ''}>Valor Liquidado (Menor a mayor)</option>
-                <option value="radicado_desc" ${current.sortBy === 'radicado_desc' ? 'selected' : ''}>Radicado (Descendente)</option>
-                <option value="radicado_asc" ${current.sortBy === 'radicado_asc' ? 'selected' : ''}>Radicado (Ascendente)</option>
-                <option value="persona_asc" ${current.sortBy === 'persona_asc' ? 'selected' : ''}>Servidor Público (A - Z)</option>
-                <option value="persona_desc" ${current.sortBy === 'persona_desc' ? 'selected' : ''}>Servidor Público (Z - A)</option>
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
     `;
 
@@ -495,6 +597,7 @@ const ViaticosModule = (() => {
       {
         text: 'Limpiar Filtros',
         cls: 'btn-secondary',
+        id: 'btn-clear-adv-filters',
         action: () => {
           state.advancedFilters = {};
           updateAdvFilterBadge();
@@ -515,7 +618,13 @@ const ViaticosModule = (() => {
           const fRegresoDesde = document.getElementById('vit-filter-regreso-desde')?.value.trim();
           const fRegresoHasta = document.getElementById('vit-filter-regreso-hasta')?.value.trim();
           const tipoDestino = document.getElementById('vit-filter-tipo-destino')?.value;
-          const destino = document.getElementById('vit-filter-destino')?.value.trim();
+          
+          const destSelect = document.getElementById('vit-filter-destino');
+          let destino = destSelect ? destSelect.value.trim() : '';
+          if (destino === '__custom__') {
+            destino = document.getElementById('vit-filter-destino-custom')?.value.trim() || '';
+          }
+
           const numeroResolucion = document.getElementById('vit-filter-resolucion')?.value.trim();
           const valorMin = document.getElementById('vit-filter-valor-min')?.value.trim();
           const valorMax = document.getElementById('vit-filter-valor-max')?.value.trim();
@@ -545,14 +654,48 @@ const ViaticosModule = (() => {
           App.showToast(count > 0 ? `Se aplicaron ${count} filtros avanzados a viáticos` : 'Filtros aplicados', 'success');
         }
       }
-    ]);
+    ], 'modal-lg modal-adv-filters');
 
     setTimeout(() => {
+      const modalBox = document.querySelector('.modal-box');
+      if (modalBox) {
+        modalBox.classList.add('modal-adv-filters');
+        modalBox.style.maxWidth = '1220px';
+        modalBox.style.width = '96vw';
+      }
       const modalEl = document.getElementById('modal-body') || document;
       if (typeof App !== 'undefined') {
         if (App.initDatePickers) App.initDatePickers(modalEl);
         if (App.initFormUX) App.initFormUX(modalEl);
         if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
+      }
+
+      const tipoDestinoSelect = modalEl.querySelector('#vit-filter-tipo-destino');
+      const destSelect = modalEl.querySelector('#vit-filter-destino');
+      const customWrap = modalEl.querySelector('#vit-filter-destino-custom-wrap');
+      const customInput = modalEl.querySelector('#vit-filter-destino-custom');
+
+      const checkCustom = () => {
+        if (!destSelect || !customWrap) return;
+        if (destSelect.value === '__custom__') {
+          customWrap.style.display = 'block';
+          if (customInput) customInput.focus();
+        } else {
+          customWrap.style.display = 'none';
+        }
+      };
+
+      if (destSelect) {
+        checkCustom();
+        destSelect.addEventListener('change', checkCustom);
+      }
+
+      if (tipoDestinoSelect && destSelect) {
+        tipoDestinoSelect.addEventListener('change', () => {
+          const curVal = destSelect.value === '__custom__' && customInput ? customInput.value : destSelect.value;
+          destSelect.innerHTML = getDestinationOptionsHtml(tipoDestinoSelect.value, curVal);
+          checkCustom();
+        });
       }
     }, 50);
   }
@@ -2935,7 +3078,7 @@ const ViaticosModule = (() => {
       App.showToast('Generando reporte Excel del consolidado...', 'info');
       const params = {
         page: 1,
-        limit: 2000,
+        limit: 10000,
         orden: st.orden || 'viajes_desc'
       };
       if (st.q && st.q.trim()) params.q = st.q.trim();
@@ -4384,6 +4527,13 @@ const ViaticosModule = (() => {
         </div>
 
         <div style="margin-top:2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:8px 14px; border-radius:8px; border:1px solid var(--color-border); flex-wrap:wrap; gap:8px;">
+            <span style="font-size:12px; color:var(--text-muted);">¿Necesitas la plantilla oficial para diligenciar?</span>
+            <button type="button" class="btn btn-outline btn-sm" onclick="ViaticosModule.downloadOfficialTemplate()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px; font-weight:600;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+              Descargar Plantilla Oficial Excel
+            </button>
+          </div>
           <div class="excel-dropzone" id="vpkg-dropzone" style="padding:22px 20px; border-radius:14px; border:2px dashed rgba(22, 163, 74, 0.45); text-align:center; cursor:pointer; background:rgba(22, 163, 74, 0.03); transition:all 0.2s ease;">
             <input type="file" id="vpkg-file-input" accept=".xlsx, .xls" style="display:none;" />
             <div style="margin-bottom:8px; color:#16a34a;">
@@ -4824,13 +4974,15 @@ const ViaticosModule = (() => {
 
   // ─── Exportar Excel exclusivo de un Paquete / Carpeta ─────────────────────────
   async function exportExcelPackage(id_paquete = null) {
+    const isInsideActive = !id_paquete || (state.activePackage && state.activePackage.id_paquete === id_paquete);
     const targetPkg = id_paquete 
       ? (state.packages.find(p => p.id_paquete === id_paquete) || state.activePackage)
       : state.activePackage;
     if (!targetPkg) return exportExcel();
     try {
       App.showToast(`Generando Excel para "${targetPkg.nombre}"...`, 'info');
-      const res = await API.getViaticos({ id_paquete: targetPkg.id_paquete, ...state.filters, ...state.advancedFilters, page: 1, limit: 20000 });
+      const filterParams = isInsideActive ? { ...state.filters, ...state.advancedFilters } : {};
+      const res = await API.getViaticos({ id_paquete: targetPkg.id_paquete, ...filterParams, page: 1, limit: 20000 });
       const records = res.data || [];
       const cleanName = (targetPkg.archivo_origen || targetPkg.nombre || 'Viaticos').replace(/\.xlsx$/i, '').replace(/[^a-zA-Z0-9_\-]/g, '_');
       ExcelService.exportToExcel({
@@ -5332,10 +5484,21 @@ const ViaticosModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) institucional para importar o actualizar comisiones y viáticos con soporte para múltiples secretarías/hojas.</p>
           </div>
-          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-vit-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-vit-import" title="Cancelar importación y salir" aria-label="Cancelar importación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Cancelar</span>
+          </button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:var(--color-bg-secondary, rgba(255,255,255,0.04)); padding:8px 14px; border-radius:8px; border:1px solid var(--color-border); flex-wrap:wrap; gap:8px;">
+            <span style="font-size:12px; color:var(--text-muted);">¿Necesitas la plantilla oficial para diligenciar?</span>
+            <button type="button" class="btn btn-outline btn-sm" onclick="ViaticosModule.downloadOfficialTemplate()" style="font-size:12px; padding:4px 10px; display:inline-flex; align-items:center; gap:5px; font-weight:600;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+              Descargar Plantilla Oficial Excel
+            </button>
+          </div>
+
           <!-- Sección de Selección y Confirmación de Archivo -->
           <div id="vit-upload-section">
             <div class="excel-dropzone" id="vit-excel-dropzone">
@@ -5795,71 +5958,37 @@ const ViaticosModule = (() => {
     });
   }
 
-  function downloadOfficialTemplate() {
-    if (typeof XLSX === 'undefined') {
-      App.showToast('La biblioteca de Excel (SheetJS) aún no se ha cargado.', 'error');
-      return;
-    }
-
+  async function downloadOfficialTemplate() {
     try {
-      const wb = XLSX.utils.book_new();
-
-      // 17 Secretarías y Despachos Institucionales de la Gobernación de Boyacá
-      const SECRETARIAS_PLANTILLA = [
-        { code: 'DESPACHOGOBER', name: 'DESPACHO DEL GOBERNADOR' },
-        { code: 'HACIENDA', name: 'SECRETARÍA DE HACIENDA' },
-        { code: 'PLANEACION', name: 'SECRETARÍA DE PLANEACIÓN' },
-        { code: 'GENERAL', name: 'SECRETARÍA GENERAL' },
-        { code: 'INFRAESTRUCTURA', name: 'SECRETARÍA DE INFRAESTRUCTURA' },
-        { code: 'EDUCACION', name: 'SECRETARÍA DE EDUCACIÓN' },
-        { code: 'AGRICULTURA', name: 'SECRETARÍA DE AGRICULTURA' },
-        { code: 'INTEGRACION SOCIAL', name: 'SECRETARÍA DE INTEGRACIÓN SOCIAL' },
-        { code: 'CULTURA', name: 'SECRETARÍA DE CULTURA Y PATRIMONIO' },
-        { code: 'MINAS', name: 'SECRETARÍA DE MINAS Y ENERGÍA' },
-        { code: 'GOBIERNO', name: 'SECRETARÍA DE GOBIERNO Y ACCIÓN COMUNAL' },
-        { code: 'DESARROLLOEMP', name: 'SECRETARÍA DE DESARROLLO EMPRESARIAL' },
-        { code: 'CONTRATACION', name: 'SECRETARÍA DE CONTRATACIÓN' },
-        { code: 'AMBIENTE', name: 'SECRETARÍA DE AMBIENTE Y DESARROLLO SOSTENIBLE' },
-        { code: 'TURISMO', name: 'SECRETARÍA DE TURISMO' },
-        { code: 'TIC', name: 'SECRETARÍA TIC Y GOBIERNO ABIERTO' },
-        { code: 'SALUD', name: 'SECRETARÍA DE SALUD' }
-      ];
-
-      SECRETARIAS_PLANTILLA.forEach(sec => {
-        const rows = [
-          ['GOBERNACIÓN DE BOYACÁ - EJECUCIÓN PRESUPUESTAL VIÁTICOS'],
-          [sec.name],
-          [],
-          ['ITEM', 'NOMBRE', 'FECHA COMISION', 'LUGAR COMISION', 'No.RESOLUCION', 'VALOR', 'SALDO', 'OBSERVACIONES'],
-        ];
-        // 20 filas en blanco para ingreso directo del usuario
-        for (let i = 1; i <= 20; i++) {
-          rows.push([i, null, null, null, null, null, null, null]);
-        }
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [
-          { wch: 8 },   // ITEM
-          { wch: 38 },  // NOMBRE
-          { wch: 22 },  // FECHA COMISION
-          { wch: 30 },  // LUGAR COMISION
-          { wch: 24 },  // No.RESOLUCION
-          { wch: 18 },  // VALOR
-          { wch: 20 },  // SALDO
-          { wch: 35 }   // OBSERVACIONES
-        ];
-        // Habilitar autofiltros expandibles en Excel
-        ws['!autofilter'] = { ref: 'A4:H24' };
-        XLSX.utils.book_append_sheet(wb, ws, sec.code);
-      });
-
-      const dateStr = new Date().toISOString().split('T')[0];
-      XLSX.writeFile(wb, `Plantilla_Oficial_Viaticos_Gobernacion_Boyaca_${dateStr}.xlsx`);
+      const url = 'plantillas/PLANTILLA_VIATICOS.xlsx';
+      const filename = 'PLANTILLA_VIATICOS.xlsx';
+      if (typeof ExcelService !== 'undefined' && ExcelService.downloadStaticTemplate) {
+        await ExcelService.downloadStaticTemplate(url, filename);
+      } else {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      }
       if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
       if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
-      App.showToast('Plantilla oficial institucional de viáticos (17 secretarías) descargada exitosamente.', 'success');
+      App.showToast('Plantilla oficial institucional de Viáticos descargada exitosamente.', 'success');
     } catch (err) {
       console.error('[ViaticosModule] Error al descargar plantilla oficial:', err);
-      App.showToast('Error al generar la plantilla oficial de viáticos: ' + err.message, 'error');
+      const a = document.createElement('a');
+      a.href = 'plantillas/PLANTILLA_VIATICOS.xlsx';
+      a.download = 'PLANTILLA_VIATICOS.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      App.showToast('Descargando plantilla oficial de Viáticos...', 'info');
     }
   }
 
@@ -5912,6 +6041,7 @@ const ViaticosModule = (() => {
     exportExcel,
     openImportModal,
     downloadOfficialTemplate,
+    downloadTemplate: downloadOfficialTemplate,
     toggleActionsDropdown,
     closeActionsDropdown,
     handleDropdownKeydown,

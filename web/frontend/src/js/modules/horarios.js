@@ -6,7 +6,7 @@
 const HorariosModule = (() => {
   let mainContainer = null;
   const MODALIDADES = ['Todas', 'Teletrabajo', 'Trabajo en casa', 'Horario flexible'];
-  const ESTADOS     = ['Todos', 'Activa', 'Pendiente', 'En revisión', 'Caducada', 'Finalizada'];
+  const ESTADOS = ['Todos', 'Activa', 'Pendiente', 'En revisión', 'Caducada', 'Finalizada'];
   const INSTITUTIONAL_DEPENDENCIAS = [
     'CONTROL INTERNO DE GESTION',
     'DESPACHO GOBERNADOR',
@@ -249,9 +249,8 @@ const HorariosModule = (() => {
                 aria-labelledby="horarios-dropdown-toggle"
                 hidden
               >
-                ${
-                  canManage
-                    ? `<button
+                ${canManage
+        ? `<button
                         type="button"
                         class="actions-dropdown-item"
                         role="menuitem"
@@ -264,8 +263,8 @@ const HorariosModule = (() => {
                           <small>Importar registros desde plantilla institucional</small>
                         </div>
                       </button>`
-                    : ''
-                }
+        : ''
+      }
                 <button
                   type="button"
                   class="actions-dropdown-item"
@@ -296,9 +295,8 @@ const HorariosModule = (() => {
             </div>
 
             <!-- Botón Agregar Horario (+) -->
-            ${
-              canManage
-                ? `<button
+            ${canManage
+        ? `<button
                      type="button"
                      class="btn-action-icon-add"
                      onclick="HorariosModule.openCreate()"
@@ -312,8 +310,8 @@ const HorariosModule = (() => {
                      </svg>
                      <span class="btn-action-add-label">Nuevo Horario</span>
                    </button>`
-                : ''
-            }
+        : ''
+      }
           </div>
         </div>
 
@@ -327,19 +325,18 @@ const HorariosModule = (() => {
           <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div class="filter-group" style="flex:3; min-width:240px;">
               <input id="horarios-search" class="filter-input" placeholder=" " value="${escHtml(
-                state.filters.q || ''
-              )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" oninput="HorariosModule.onSearchInput(this.value)" />
+        state.filters.q || ''
+      )}" onkeypress="if(event.key==='Enter')HorariosModule.applyFilters()" oninput="HorariosModule.onSearchInput(this.value)" />
               <label class="filter-label" for="horarios-search">Buscar por nombre, cédula, cargo o resolución...</label>
             </div>
             <div class="filter-group" style="flex:1; min-width:160px;">
               <select id="filter-estado" class="filter-select" onchange="HorariosModule.applyFilters()" aria-label="Filtrar por estado">
                 <option value="">TODOS</option>
                 ${ESTADOS.filter(e => e !== 'Todos').map(
-                  (e) =>
-                    `<option value="${e}" ${
-                      state.filters.estado === e ? 'selected' : ''
-                    }>${e}</option>`
-                ).join('')}
+        (e) =>
+          `<option value="${e}" ${state.filters.estado === e ? 'selected' : ''
+          }>${e}</option>`
+      ).join('')}
               </select>
               <label class="filter-label" for="filter-estado">Estado</label>
             </div>
@@ -447,8 +444,8 @@ const HorariosModule = (() => {
   }
 
   function renderSkeletonRows(count) {
-    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize) 
-      ? Settings.getTablePageSize(10) 
+    const numRows = count || ((typeof Settings !== 'undefined' && Settings.getTablePageSize)
+      ? Settings.getTablePageSize(10)
       : (state.limit || 10));
     return Array.from({ length: numRows }).map((_, i) => `
       <tr class="skeleton-row" style="animation-delay: ${i * 0.05}s" aria-hidden="true">
@@ -583,7 +580,7 @@ const HorariosModule = (() => {
   }
 
   // ─── Carga de Datos y Tabla ────────────────────────────────────────────────
-  
+
   function getActiveFiltersCount() {
     return Object.values(state.advancedFilters || {}).filter(v => v !== null && v !== undefined && String(v).trim() !== '').length;
   }
@@ -605,15 +602,68 @@ const HorariosModule = (() => {
     }
   }
 
+  const HORARIOS_CARGOS = [
+    'PROFESIONAL UNIVERSITARIO',
+    'AUXILIAR ADMINISTRATIVO',
+    'PROFESIONAL ESPECIALIZADO',
+    'TECNICO ADMINISTRATIVO',
+    'OPERARIO',
+    'SECRETARIA EJECUTIVA',
+    'TECNICO OPERATIVO',
+    'GOBERNADOR',
+    'ASESOR',
+    'SECRETARIO DE DESPACHO',
+    'DIRECTOR TECNICO',
+    'SUBDIRECTOR TECNICO',
+    'JEFE DE OFICINA'
+  ];
+
   function openAdvancedFiltersModal() {
     const current = state.advancedFilters || {};
     const depList = dependenciasCatalog || INSTITUTIONAL_DEPENDENCIAS || [];
+    const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const isCustomCargo = current.cargo && !HORARIOS_CARGOS.some(c => norm(c) === norm(current.cargo));
+    const isCustomGrado = current.grado && (isNaN(parseInt(current.grado, 10)) || parseInt(current.grado, 10) < 1 || parseInt(current.grado, 10) > 20);
+    const standardDays = [
+      'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado',
+      'Martes y Jueves', 'Lunes y Viernes', 'Miércoles y Viernes', 'Jueves y Viernes',
+      'Lunes y Martes', 'Martes y Viernes', 'Miércoles, Jueves y Viernes',
+      'Lunes, Miércoles y Viernes', 'Lunes, Jueves y Viernes', 'Martes, Miércoles y Jueves'
+    ];
+    const isCustomDias = current.diasSemana && !standardDays.some(d => norm(d) === norm(current.diasSemana));
+
     const html = `
       <div class="adv-filter-modal-body">
-        <!-- Tarjeta 1: Fechas de Vigencia y Acto Administrativo -->
+        <!-- Tarjeta 1: Criterio de Ordenamiento (Primero por solicitud de usuario) -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="adv-filter-emoji">📊</span>
+            <span>Criterio de Ordenamiento</span>
+          </div>
+          <div class="adv-filter-grid">
+            <div class="adv-filter-field" style="grid-column: 1 / -1;">
+              <label>Ordenar registros por</label>
+              <select id="hor-filter-sort-by" class="filter-select">
+                <option value="" ${!current.sortBy ? 'selected' : ''}>Consecutivo Oficial (# Ascendente)</option>
+                <option value="consecutivo_desc" ${current.sortBy === 'consecutivo_desc' ? 'selected' : ''}>Consecutivo Oficial (# Descendente)</option>
+                <option value="fecha_inicio_desc" ${current.sortBy === 'fecha_inicio_desc' ? 'selected' : ''}>Fecha Inicio Vigencia (Más recientes primero)</option>
+                <option value="fecha_inicio_asc" ${current.sortBy === 'fecha_inicio_asc' ? 'selected' : ''}>Fecha Inicio Vigencia (Más antiguas primero)</option>
+                <option value="fecha_fin_asc" ${current.sortBy === 'fecha_fin_asc' ? 'selected' : ''}>Fecha Fin (Próximos a vencer)</option>
+                <option value="fecha_fin_desc" ${current.sortBy === 'fecha_fin_desc' ? 'selected' : ''}>Fecha Fin (Más lejanos)</option>
+                <option value="nombre_asc" ${current.sortBy === 'nombre_asc' ? 'selected' : ''}>Servidor Público (A - Z)</option>
+                <option value="nombre_desc" ${current.sortBy === 'nombre_desc' ? 'selected' : ''}>Servidor Público (Z - A)</option>
+                <option value="cedula_asc" ${current.sortBy === 'cedula_asc' ? 'selected' : ''}>Cédula / Documento (Ascendente)</option>
+                <option value="cedula_desc" ${current.sortBy === 'cedula_desc' ? 'selected' : ''}>Cédula / Documento (Descendente)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta 2: Fechas de Vigencia y Acto Administrativo -->
+        <div class="adv-filter-card">
+          <div class="adv-filter-card-header">
+            <span class="adv-filter-emoji">📅</span>
             <span>Fechas de Vigencia y Acto Administrativo</span>
           </div>
           <div class="adv-filter-grid">
@@ -635,15 +685,15 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Número de Resolución / Acto</label>
-              <input type="text" id="hor-filter-resolucion" placeholder="Ej: 0021, Res-2026..." value="${escHtml(current.numeroResolucion || '')}">
+              <input type="text" id="hor-filter-resolucion" placeholder="Ej: 0045, Res-2026..." value="${escHtml(current.numeroResolucion || '')}">
             </div>
           </div>
         </div>
 
-        <!-- Tarjeta 2: Dependencia y Cargo -->
+        <!-- Tarjeta 3: Dependencia y Clasificación del Cargo -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span class="adv-filter-emoji">🏢</span>
             <span>Dependencia y Clasificación del Cargo</span>
           </div>
           <div class="adv-filter-grid">
@@ -651,12 +701,19 @@ const HorariosModule = (() => {
               <label>Dependencia / Secretaría</label>
               <select id="hor-filter-dependencia" class="filter-select">
                 <option value="">TODAS LAS DEPENDENCIAS</option>
-                ${depList.filter(d => d !== 'Todas').map(d => `<option value="${escHtml(d)}" ${current.dependencia === d ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
+                ${depList.filter(d => d && d !== 'Todas').map(d => `<option value="${escHtml(d)}" ${norm(current.dependencia) === norm(d) ? 'selected' : ''}>${escHtml(d)}</option>`).join('')}
               </select>
             </div>
             <div class="adv-filter-field">
               <label>Denominación del Cargo</label>
-              <input type="text" id="hor-filter-cargo" placeholder="Ej: PROFESIONAL UNIVERSITARIO" value="${escHtml(current.cargo || '')}">
+              <select id="hor-filter-cargo" class="filter-select">
+                <option value="">TODOS LOS CARGOS</option>
+                ${HORARIOS_CARGOS.map(c => `<option value="${escHtml(c)}" ${norm(current.cargo) === norm(c) ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
+                <option value="__custom__" ${isCustomCargo ? 'selected' : ''}>-- Escribir otro cargo manualmente... --</option>
+              </select>
+              <div id="hor-filter-cargo-custom-wrap" style="${isCustomCargo ? 'display:block;' : 'display:none;'} margin-top:8px;">
+                <input type="text" id="hor-filter-cargo-custom" placeholder="Escriba la denominación del cargo..." value="${escHtml(current.cargo || '')}">
+              </div>
             </div>
             <div class="adv-filter-field">
               <label>Código del Cargo</label>
@@ -664,15 +721,26 @@ const HorariosModule = (() => {
             </div>
             <div class="adv-filter-field">
               <label>Grado del Cargo</label>
-              <input type="text" id="hor-filter-grado" placeholder="Ej: 04" value="${escHtml(current.grado || '')}">
+              <select id="hor-filter-grado" class="filter-select">
+                <option value="">TODOS LOS GRADOS</option>
+                ${Array.from({ length: 20 }, (_, i) => {
+      const val = String(i + 1).padStart(2, '0');
+      const isSel = String(current.grado || '').trim() === val || String(current.grado || '').trim() === String(i + 1);
+      return `<option value="${val}" ${isSel ? 'selected' : ''}>Grado ${val}</option>`;
+    }).join('')}
+                <option value="__custom__" ${isCustomGrado ? 'selected' : ''}>-- Escribir otro grado... --</option>
+              </select>
+              <div id="hor-filter-grado-custom-wrap" style="${isCustomGrado ? 'display:block;' : 'display:none;'} margin-top:8px;">
+                <input type="text" id="hor-filter-grado-custom" placeholder="Escriba el grado..." value="${escHtml(current.grado || '')}">
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Tarjeta 3: Modalidad y Parámetros del Esquema -->
+        <!-- Tarjeta 4: Modalidad, Esquema y Parámetros -->
         <div class="adv-filter-card">
           <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="adv-filter-emoji">💻</span>
             <span>Modalidad, Esquema y Parámetros</span>
           </div>
           <div class="adv-filter-grid">
@@ -689,7 +757,8 @@ const HorariosModule = (() => {
             <div class="adv-filter-field">
               <label>Subtipo de Teletrabajo</label>
               <select id="hor-filter-subtipo" class="filter-select">
-                <option value="">TODOS</option>
+                <option value="">TODOS LOS SUBTIPOS</option>
+                <option value="Suplementario (Híbrido)" ${current.subtipoTeletrabajo === 'Suplementario (Híbrido)' ? 'selected' : ''}>Suplementario (Híbrido)</option>
                 <option value="Suplementario" ${current.subtipoTeletrabajo === 'Suplementario' ? 'selected' : ''}>Suplementario</option>
                 <option value="Autónomo" ${current.subtipoTeletrabajo === 'Autónomo' ? 'selected' : ''}>Autónomo</option>
                 <option value="Móvil" ${current.subtipoTeletrabajo === 'Móvil' ? 'selected' : ''}>Móvil</option>
@@ -699,12 +768,31 @@ const HorariosModule = (() => {
               <label>Día Aplicable de la Semana</label>
               <select id="hor-filter-dias-semana" class="filter-select">
                 <option value="">TODOS LOS DÍAS</option>
-                <option value="Lunes" ${current.diasSemana === 'Lunes' ? 'selected' : ''}>Lunes</option>
-                <option value="Martes" ${current.diasSemana === 'Martes' ? 'selected' : ''}>Martes</option>
-                <option value="Miércoles" ${current.diasSemana === 'Miércoles' ? 'selected' : ''}>Miércoles</option>
-                <option value="Jueves" ${current.diasSemana === 'Jueves' ? 'selected' : ''}>Jueves</option>
-                <option value="Viernes" ${current.diasSemana === 'Viernes' ? 'selected' : ''}>Viernes</option>
+                <optgroup label="★ Días Individuales">
+                  <option value="Lunes" ${norm(current.diasSemana) === 'lunes' ? 'selected' : ''}>Lunes (cualquier esquema con Lunes)</option>
+                  <option value="Martes" ${norm(current.diasSemana) === 'martes' ? 'selected' : ''}>Martes (cualquier esquema con Martes)</option>
+                  <option value="Miércoles" ${norm(current.diasSemana) === 'miercoles' ? 'selected' : ''}>Miércoles (cualquier esquema con Miércoles)</option>
+                  <option value="Jueves" ${norm(current.diasSemana) === 'jueves' ? 'selected' : ''}>Jueves (cualquier esquema con Jueves)</option>
+                  <option value="Viernes" ${norm(current.diasSemana) === 'viernes' ? 'selected' : ''}>Viernes (cualquier esquema con Viernes)</option>
+                  <option value="Sábado" ${norm(current.diasSemana) === 'sabado' ? 'selected' : ''}>Sábado</option>
+                </optgroup>
+                <optgroup label="★ Esquemas y Combinaciones Frecuentes">
+                  <option value="Martes y Jueves" ${current.diasSemana === 'Martes y Jueves' ? 'selected' : ''}>Martes y Jueves</option>
+                  <option value="Lunes y Viernes" ${current.diasSemana === 'Lunes y Viernes' ? 'selected' : ''}>Lunes y Viernes</option>
+                  <option value="Miércoles y Viernes" ${current.diasSemana === 'Miércoles y Viernes' ? 'selected' : ''}>Miércoles y Viernes</option>
+                  <option value="Jueves y Viernes" ${current.diasSemana === 'Jueves y Viernes' ? 'selected' : ''}>Jueves y Viernes</option>
+                  <option value="Lunes y Martes" ${current.diasSemana === 'Lunes y Martes' ? 'selected' : ''}>Lunes y Martes</option>
+                  <option value="Martes y Viernes" ${current.diasSemana === 'Martes y Viernes' ? 'selected' : ''}>Martes y Viernes</option>
+                  <option value="Miércoles, Jueves y Viernes" ${current.diasSemana === 'Miércoles, Jueves y Viernes' ? 'selected' : ''}>Miércoles, Jueves y Viernes</option>
+                  <option value="Lunes, Miércoles y Viernes" ${current.diasSemana === 'Lunes, Miércoles y Viernes' ? 'selected' : ''}>Lunes, Miércoles y Viernes</option>
+                  <option value="Lunes, Jueves y Viernes" ${current.diasSemana === 'Lunes, Jueves y Viernes' ? 'selected' : ''}>Lunes, Jueves y Viernes</option>
+                  <option value="Martes, Miércoles y Jueves" ${current.diasSemana === 'Martes, Miércoles y Jueves' ? 'selected' : ''}>Martes, Miércoles y Jueves</option>
+                </optgroup>
+                <option value="__custom__" ${isCustomDias ? 'selected' : ''}>-- Escribir otro día o esquema manual... --</option>
               </select>
+              <div id="hor-filter-dias-custom-wrap" style="${isCustomDias ? 'display:block;' : 'display:none;'} margin-top:8px;">
+                <input type="text" id="hor-filter-dias-custom" placeholder="Escriba los días del esquema..." value="${escHtml(current.diasSemana || '')}">
+              </div>
             </div>
             <div class="adv-filter-field">
               <label>Notificación / Reporte ARL</label>
@@ -724,31 +812,6 @@ const HorariosModule = (() => {
             </div>
           </div>
         </div>
-
-        <!-- Tarjeta 4: Criterio de Ordenamiento -->
-        <div class="adv-filter-card">
-          <div class="adv-filter-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polyline points="7 10 12 15 17 10"/><polyline points="7 14 12 9 17 14"/></svg>
-            <span>Criterio de Ordenamiento</span>
-          </div>
-          <div class="adv-filter-grid">
-            <div class="adv-filter-field" style="grid-column: 1 / -1;">
-              <label>Ordenar registros por</label>
-              <select id="hor-filter-sort-by" class="filter-select">
-                <option value="" ${!current.sortBy ? 'selected' : ''}>Consecutivo Oficial (# Ascendente)</option>
-                <option value="consecutivo_desc" ${current.sortBy === 'consecutivo_desc' ? 'selected' : ''}>Consecutivo Oficial (# Descendente)</option>
-                <option value="fecha_inicio_desc" ${current.sortBy === 'fecha_inicio_desc' ? 'selected' : ''}>Fecha Inicio Vigencia (Más recientes primero)</option>
-                <option value="fecha_inicio_asc" ${current.sortBy === 'fecha_inicio_asc' ? 'selected' : ''}>Fecha Inicio Vigencia (Más antiguas primero)</option>
-                <option value="fecha_fin_asc" ${current.sortBy === 'fecha_fin_asc' ? 'selected' : ''}>Fecha Fin (Próximos a vencer)</option>
-                <option value="fecha_fin_desc" ${current.sortBy === 'fecha_fin_desc' ? 'selected' : ''}>Fecha Fin (Más lejanos)</option>
-                <option value="nombre_asc" ${current.sortBy === 'nombre_asc' ? 'selected' : ''}>Servidor Público (A - Z)</option>
-                <option value="nombre_desc" ${current.sortBy === 'nombre_desc' ? 'selected' : ''}>Servidor Público (Z - A)</option>
-                <option value="cedula_asc" ${current.sortBy === 'cedula_asc' ? 'selected' : ''}>Cédula / Documento (Ascendente)</option>
-                <option value="cedula_desc" ${current.sortBy === 'cedula_desc' ? 'selected' : ''}>Cédula / Documento (Descendente)</option>
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
     `;
 
@@ -756,6 +819,7 @@ const HorariosModule = (() => {
       {
         text: 'Limpiar Filtros',
         cls: 'btn-secondary',
+        id: 'btn-clear-adv-filters',
         action: () => {
           state.advancedFilters = {};
           updateAdvFilterBadge();
@@ -777,12 +841,27 @@ const HorariosModule = (() => {
           const fFinHasta = document.getElementById('hor-filter-fin-hasta')?.value.trim();
           const resolucion = document.getElementById('hor-filter-resolucion')?.value.trim();
           const dependencia = document.getElementById('hor-filter-dependencia')?.value;
-          const cargo = document.getElementById('hor-filter-cargo')?.value.trim();
+
+          let cargo = document.getElementById('hor-filter-cargo')?.value;
+          if (cargo === '__custom__') {
+            cargo = document.getElementById('hor-filter-cargo-custom')?.value.trim() || '';
+          }
+
           const codigo = document.getElementById('hor-filter-codigo')?.value.trim();
-          const grado = document.getElementById('hor-filter-grado')?.value.trim();
+
+          let grado = document.getElementById('hor-filter-grado')?.value;
+          if (grado === '__custom__') {
+            grado = document.getElementById('hor-filter-grado-custom')?.value.trim() || '';
+          }
+
           const modalidad = document.getElementById('hor-filter-modalidad')?.value;
           const subtipo = document.getElementById('hor-filter-subtipo')?.value;
-          const diasSemana = document.getElementById('hor-filter-dias-semana')?.value;
+
+          let diasSemana = document.getElementById('hor-filter-dias-semana')?.value;
+          if (diasSemana === '__custom__') {
+            diasSemana = document.getElementById('hor-filter-dias-custom')?.value.trim() || '';
+          }
+
           const arl = document.getElementById('hor-filter-arl')?.value;
           const prorroga = document.getElementById('hor-filter-prorroga')?.value;
           const sortBy = document.getElementById('hor-filter-sort-by')?.value;
@@ -812,15 +891,42 @@ const HorariosModule = (() => {
           App.showToast(count > 0 ? `Se aplicaron ${count} filtros avanzados a horarios` : 'Filtros aplicados', 'success');
         }
       }
-    ]);
+    ], 'modal-lg modal-adv-filters');
 
     setTimeout(() => {
+      const modalBox = document.querySelector('.modal-box');
+      if (modalBox) {
+        modalBox.classList.add('modal-adv-filters');
+        modalBox.style.maxWidth = '1220px';
+        modalBox.style.width = '96vw';
+      }
       const modalEl = document.getElementById('modal-body') || document;
       if (typeof App !== 'undefined') {
         if (App.initDatePickers) App.initDatePickers(modalEl);
         if (App.initFormUX) App.initFormUX(modalEl);
         if (App.refreshFloatingLabels) App.refreshFloatingLabels(modalEl);
       }
+
+      // Configurar toggles para campos custom
+      const bindCustomToggle = (selId, wrapId, inputId) => {
+        const sel = modalEl.querySelector(selId);
+        const wrap = modalEl.querySelector(wrapId);
+        const inp = modalEl.querySelector(inputId);
+        if (sel && wrap) {
+          sel.addEventListener('change', () => {
+            if (sel.value === '__custom__') {
+              wrap.style.display = 'block';
+              if (inp) inp.focus();
+            } else {
+              wrap.style.display = 'none';
+            }
+          });
+        }
+      };
+
+      bindCustomToggle('#hor-filter-cargo', '#hor-filter-cargo-custom-wrap', '#hor-filter-cargo-custom');
+      bindCustomToggle('#hor-filter-grado', '#hor-filter-grado-custom-wrap', '#hor-filter-grado-custom');
+      bindCustomToggle('#hor-filter-dias-semana', '#hor-filter-dias-custom-wrap', '#hor-filter-dias-custom');
     }, 50);
   }
 
@@ -830,8 +936,8 @@ const HorariosModule = (() => {
     if (!tbody) return;
 
     try {
-      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize) 
-        ? Settings.getTablePageSize(10) 
+      const pageSize = (typeof Settings !== 'undefined' && Settings.getTablePageSize)
+        ? Settings.getTablePageSize(10)
         : (state.limit || 10);
       state.limit = pageSize;
       const params = {
@@ -1150,7 +1256,7 @@ const HorariosModule = (() => {
     const title = isEdit ? 'Editar Esquema de Horario' : 'Registrar Nuevo Esquema de Horario';
 
     const curModalidad = isEdit ? (item?.modalidad || 'Teletrabajo') : '';
-    const curTipoCalc  = isEdit ? (item?.tipo_calculo || 'Hábiles') : (item?.tipo_calculo || '');
+    const curTipoCalc = isEdit ? (item?.tipo_calculo || 'Hábiles') : (item?.tipo_calculo || '');
 
     const initialDaysLower = isEdit ? (item?.dias_teletrabajo || '').toLowerCase() : '';
     const hasLun = isEdit ? initialDaysLower.includes('lun') : false;
@@ -1452,23 +1558,20 @@ const HorariosModule = (() => {
               </div>
 
               <div class="form-group floating-group ${(item?.fecha_aprobacion || item?.fecha_resolucion) ? 'is-floated' : ''}">
-                <input type="date" id="horario-fecha-aprobacion" class="form-input" value="${
-                  item?.fecha_aprobacion ? item.fecha_aprobacion.split('T')[0] : (item?.fecha_resolucion ? item.fecha_resolucion.split('T')[0] : '')
-                }" />
+                <input type="date" id="horario-fecha-aprobacion" class="form-input" value="${item?.fecha_aprobacion ? item.fecha_aprobacion.split('T')[0] : (item?.fecha_resolucion ? item.fecha_resolucion.split('T')[0] : '')
+      }" />
                 <label for="horario-fecha-aprobacion" class="form-label">Fecha del Acto / Aprobación (Opcional)</label>
               </div>
 
               <div class="form-group floating-group ${item?.fecha_inicio ? 'is-floated' : ''}">
-                <input type="date" id="horario-fecha-inicio" class="form-input" value="${
-                  item?.fecha_inicio ? item.fecha_inicio.split('T')[0] : ''
-                }" />
+                <input type="date" id="horario-fecha-inicio" class="form-input" value="${item?.fecha_inicio ? item.fecha_inicio.split('T')[0] : ''
+      }" />
                 <label for="horario-fecha-inicio" class="form-label">Fecha de Inicio del Esquema</label>
               </div>
 
               <div class="form-group floating-group ${item?.fecha_fin ? 'is-floated' : ''}">
-                <input type="date" id="horario-fecha-fin" class="form-input" value="${
-                  item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
-                }" />
+                <input type="date" id="horario-fecha-fin" class="form-input" value="${item?.fecha_fin ? item.fecha_fin.split('T')[0] : ''
+      }" />
                 <label for="horario-fecha-fin" class="form-label">Fecha de Terminación (Opcional)</label>
               </div>
 
@@ -1571,7 +1674,7 @@ const HorariosModule = (() => {
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     bindModalFormEvents(item);
@@ -2644,9 +2747,9 @@ const HorariosModule = (() => {
                   </div>
                   <div class="ficha-card-val">
                     ${h.notificacion_arl
-                      ? '<span class="badge badge--success" style="font-size:12px; font-weight:700;">✓ Notificado formalmente a ARL</span>'
-                      : '<span class="badge badge--revision" style="font-size:12px; font-weight:700;">⏳ Trámite ante ARL pendiente</span>'
-                    }
+            ? '<span class="badge badge--success" style="font-size:12px; font-weight:700;">✓ Notificado formalmente a ARL</span>'
+            : '<span class="badge badge--revision" style="font-size:12px; font-weight:700;">⏳ Trámite ante ARL pendiente</span>'
+          }
                   </div>
                   <div class="ficha-card-sub">
                     ${h.fecha_reporte_arl ? `Radicado formal: ${formatDate(h.fecha_reporte_arl)}` : 'Cobertura de riesgos laborales en domicilio'}
@@ -3126,7 +3229,7 @@ const HorariosModule = (() => {
           currentMinConsecutivo = apiNext;
         }
       }
-    } catch (_) {}
+    } catch (_) { }
     openScheduleModal();
   }
 
@@ -3540,7 +3643,10 @@ const HorariosModule = (() => {
             </h2>
             <p class="modal-desc">Cargue un archivo Excel (.xlsx o .xls) para importar o actualizar esquemas de trabajo y alternancia en el sistema.</p>
           </div>
-          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-hor-import" title="Cancelar importación y salir" aria-label="Cancelar importación"><span>Cancelar</span></button>
+          <button class="modal-close is-cancel-btn btn-wizard-cancel" id="btn-close-hor-import" title="Cancelar importación y salir" aria-label="Cancelar importación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Cancelar</span>
+          </button>
         </div>
 
         <div class="modal-body" style="padding: 20px 24px; max-height: 75vh; overflow-y: auto;">
@@ -4089,18 +4195,37 @@ const HorariosModule = (() => {
     { header: 'tel.', key: 'telefono', width: 18, sample: '3112256904' }
   ];
 
-  function downloadTemplate() {
-    if (typeof ExcelService !== 'undefined') {
-      ExcelService.downloadTemplate({
-        filename: 'PLANTILLA_OFICIAL_HORARIOS_Y_MODALIDADES',
-        sheetName: 'Situación Administrativa',
-        columns: HORARIOS_EXCEL_COLUMNS,
-        sampleRows: [],
-        preserveCase: true
-      });
-      App.showToast('Descargando plantilla oficial de Horarios y Modalidades en blanco...', 'info');
-    } else {
-      App.showToast('Servicio Excel no disponible.', 'warning');
+  async function downloadTemplate() {
+    try {
+      const url = 'plantillas/PLANTILLA_HORARIOS.xlsx';
+      const filename = 'PLANTILLA_HORARIOS.xlsx';
+      if (typeof ExcelService !== 'undefined' && ExcelService.downloadStaticTemplate) {
+        await ExcelService.downloadStaticTemplate(url, filename);
+      } else {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      }
+      if (typeof FX !== 'undefined' && FX.Sound) FX.Sound.confirm();
+      if (typeof Fx !== 'undefined' && Fx.play) Fx.play('success');
+      App.showToast('Plantilla oficial institucional de Horarios y Modalidades descargada exitosamente.', 'success');
+    } catch (err) {
+      console.error('[HorariosModule] Error al descargar plantilla oficial:', err);
+      const a = document.createElement('a');
+      a.href = 'plantillas/PLANTILLA_HORARIOS.xlsx';
+      a.download = 'PLANTILLA_HORARIOS.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      App.showToast('Descargando plantilla oficial de Horarios y Modalidades...', 'info');
     }
   }
 
