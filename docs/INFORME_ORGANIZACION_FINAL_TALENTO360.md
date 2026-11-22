@@ -30,9 +30,8 @@ Se realizó una inspección completa desde la raíz hasta el último nivel de an
 ├── [Cat. B] deploy/ (scripts de actualización y unidades systemd)
 ├── [Cat. C] docs/ (suite técnica oficial de 8 documentos)
 ├── [Cat. B] tests/ (suites de regresión automatizadas RBAC y algoritmos)
-├── [Cat. D] Adicionales/ (archivo histórico local 100% preservado fuera de Git)
-├── [Cat. F] documentos/ (expedientes institucionales, estrictamente intactos)
-└── [Cat. B] scratch/ (utilidades diagnósticas y pruebas especializadas)
+├── [Cat. F] documentos/ (expedientes institucionales, plantillas oficiales y subcarpeta adicionales/)
+└── [Cat. A] web/ (arquitectura desacoplada: backend, frontend, microservicios)
 ```
 
 ---
@@ -51,21 +50,22 @@ Se realizó una inspección completa desde la raíz hasta el último nivel de an
 
 ---
 
-## 4. Archivos Trasladados a `Adicionales/` y Justificación
+## 4. Archivos Centralizados en `documentos/adicionales/` y Justificación
 
-Para cumplir con el requerimiento de un repositorio de entrega limpio sin destruir la trazabilidad histórica del proyecto, se creó el directorio local `Adicionales/` (ignorado en Git):
+Para cumplir con el requerimiento de un repositorio institucional ordenado sin destruir la trazabilidad histórica del proyecto, se centralizó todo el material complementario dentro del directorio local `documentos/adicionales/` (ignorado en Git):
 
-| Categoría en `Adicionales/` | Componentes Reubicados | Justificación Técnica |
+| Categoría en `documentos/adicionales/` | Componentes Reubicados | Justificación Técnica |
 | :--- | :--- | :--- |
 | **`Auditorias/Respaldos_de_auditoria/`** | 4 archivos `.sql` de volcado de base de datos (~32.5 MB). | Protección de datos institucionales; los volcados no deben publicarse en repositorios remotos. |
 | **`Auditorias/Auditorias_anteriores/`** | Informes intermedios, notas de remediación y reportes de auditorías 04, 05, 06 y previas. | Documentación histórica sustituida por el informe de cierre definitivo. |
 | **`Auditorias/Evidencias/`** | Capturas de pantalla y registros de validación visual de auditoría. | Evidencias de trabajo superadas por la suite de pruebas automatizadas. |
 | **`Auditorias/Informes_consolidados/`** | `INFORME_CIERRE_CORRECTIVO_FINAL_TALENTO360_20261111.md`. | Resguardo del dictamen de cierre con 148 pruebas aprobadas. |
-| **`QA/` (5 subcarpetas)** | Carpetas `QA_E2E_*` y el informe de pruebas E2E consolidado. | Carpetas con más de 180 archivos de prueba que congestionaban la raíz del proyecto. |
+| **`QA/` (subcarpetas)** | Carpetas `QA_*` y el informe de pruebas E2E consolidado. | Carpetas con archivos de prueba y evidencias que anteriormente estaban en la raíz. |
+| **`scratch_diagnostico/`** | Scripts de validación E2E, capturas y diagnósticos de pruebas previas. | Scripts auxiliares y capturas de prueba centralizadas fuera de la raíz. |
 | **`Documentacion_Historica/Guias_obsoletas/`** | `netlify.toml`, `render.yaml`, `Dockerfile` monolítico, `DEPLOY_NETLIFY_RENDER.md` y guía original Linux. | Configuraciones prototipo en desuso frente al despliegue on-premise oficial. |
 | **`Evidencias_Desarrollo/`** | Scripts auxiliares `push_to_main.bat` y `push_to_main.ps1`. | Utilidades de conveniencia de desarrollo interno. |
 
-Se redactó el documento `Adicionales/Inventario_Adicionales.md` con la matriz completa de trazabilidad de cada archivo.
+Se redactó el documento `documentos/adicionales/Inventario_Adicionales.md` con la matriz completa de trazabilidad de cada archivo.
 
 ---
 

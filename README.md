@@ -297,7 +297,7 @@ El desarrollador o administrador de sistemas que reciba este proyecto cuenta con
 * Guía de despliegue continuo en nube (GitHub `main` + Vercel + Render + Neon): [`docs/DEPLOY_VERCEL_RENDER_NEON.md`](docs/DEPLOY_VERCEL_RENDER_NEON.md).
 * Manual de mantenimiento y backups: [`docs/MANTENIMIENTO.md`](docs/MANTENIMIENTO.md).
 * Solución de problemas comunes: [`docs/SOLUCION_PROBLEMAS.md`](docs/SOLUCION_PROBLEMAS.md).
-* Inventario de archivos históricos archivados: `Adicionales/Inventario_Adicionales.md` (archivo local).
+* Inventario de archivos históricos archivados: `documentos/adicionales/Inventario_Adicionales.md` (archivo local).
 
 ---
 

@@ -13,6 +13,7 @@ web/.env.*
 
 # Archivo local de documentación histórica, evidencias y respaldos
 Adicionales/
+documentos/adicionales/
 
 # Dependencias de paquetes
 node_modules/
@@ -59,10 +60,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Documentos locales
-documentos/
-documentosParaAnalisis/
 
 # Archivos de Gestión Documental en desarrollo local
 storage/
