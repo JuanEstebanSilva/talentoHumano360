@@ -1387,7 +1387,7 @@ router.post('/', auth, async (req, res) => {
   let obsFinal = (observaciones || '').trim();
 
   const d = new Date();
-  const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const today = d.toISOString().slice(0, 10);
   try {
     let pkgId = id_paquete ? parseInt(id_paquete, 10) : null;
     if (!pkgId) {
@@ -1439,7 +1439,7 @@ router.post('/', auth, async (req, res) => {
     if (err.code === '23503' || (err.message && err.message.includes('foreign key constraint'))) {
       return res.status(400).json({ error: 'El documento especificado no corresponde a ningún servidor público registrado en la plataforma.' });
     }
-    res.status(500).json({ error: 'Error al crear viático.' });
+    res.status(500).json({ error: 'Error al crear viático: ' + err.message });
   }
 });
 
@@ -1461,7 +1461,7 @@ router.post('/bulk', auth, trackImport(pool, 'viaticos'), async (req, res) => {
   try {
     await client.query('BEGIN');
     const d = new Date();
-    const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    const today = d.toISOString().slice(0, 10);
 
     // Determinar o crear el paquete de destino para esta importación
     let targetPackageId = req.body.id_paquete ? parseInt(req.body.id_paquete) : (rows[0]?.id_paquete ? parseInt(rows[0].id_paquete) : null);
