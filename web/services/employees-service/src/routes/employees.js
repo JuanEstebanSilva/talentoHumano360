@@ -1110,50 +1110,49 @@ router.post('/dependencias', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
 
-  const {
-    nombreCompleto,
-    cedula,
-    departamentoExpedicion,
-    municipioExpedicion,
-    ciudadExpedicion,
-    sexo,
-    tipoSangre,
-    fechaNacimiento,
-    dependencia,
-    cargoActual,
-    codigoCargo,
-    grado,
-    asignacion,
-    clasificacionEmpleo,
-    estadoServidor,
-    situacion,
-    tipoDiscapacidad,
-    opec,
-    fechaIngreso,
-    fechaEncargo,
-    encargoDenominacion,
-    encargoCodigo,
-    encargoGrado,
-    encargoAsignacion,
-    otroTiempoGobernacion,
-    otroTiempoPeriodos,
-    funciones,
-    novedades,
-    estudios,
-    matriculaProfesional,
-    institucionEstudios,
-    postgrado,
-    institucionPostgrado,
-    tieneDiplomado,
-    diplomadoCapSena,
-    direccion,
-    ciudad,
-    telefonoFijo,
-    celular,
-    celulares,
-    correo,
-    correoPersonal
-  } = req.body;
+  const b = req.body || {};
+  const nombreCompleto = b.nombreCompleto || b.nombre_completo || (b.nombres && b.apellidos ? `${b.nombres} ${b.apellidos}` : (b.nombres || b.apellidos || b.nombre));
+  const cedula = b.cedula || b.numero_documento || b.documento;
+  const departamentoExpedicion = b.departamentoExpedicion || b.departamento_expedicion;
+  const municipioExpedicion = b.municipioExpedicion || b.municipio_expedicion || b.municipio;
+  const ciudadExpedicion = b.ciudadExpedicion || b.ciudad_expedicion;
+  const sexo = b.sexo;
+  const tipoSangre = b.tipoSangre || b.tipo_sangre;
+  const fechaNacimiento = b.fechaNacimiento || b.fecha_nacimiento;
+  const dependencia = b.dependencia || b.secretaria;
+  const cargoActual = b.cargoActual || b.denominacion_cargo || b.cargo || b.cargo_actual;
+  const codigoCargo = b.codigoCargo || b.codigo_cargo || b.codigo;
+  const grado = b.grado || b.grado_cargo;
+  const asignacion = b.asignacion || b.asignacion_basica || b.sueldo;
+  const clasificacionEmpleo = b.clasificacionEmpleo || b.clasificacion_empleo || b.tipo_vinculacion;
+  const estadoServidor = b.estadoServidor || b.estado_servidor || b.estado;
+  const situacion = b.situacion || b.situacion_administrativa;
+  const tipoDiscapacidad = b.tipoDiscapacidad || b.tipo_discapacidad;
+  const opec = b.opec;
+  const fechaIngreso = b.fechaIngreso || b.fecha_ingreso || b.fecha_posesion;
+  const fechaEncargo = b.fechaEncargo || b.fecha_encargo;
+  const encargoDenominacion = b.encargoDenominacion || b.encargo_denominacion;
+  const encargoCodigo = b.encargoCodigo || b.encargo_codigo;
+  const encargoGrado = b.encargoGrado || b.encargo_grado;
+  const encargoAsignacion = b.encargoAsignacion || b.encargo_asignacion;
+  const otroTiempoGobernacion = b.otroTiempoGobernacion || b.otro_tiempo_gobernacion;
+  const otroTiempoPeriodos = b.otroTiempoPeriodos || b.otro_tiempo_periodos;
+  const funciones = b.funciones;
+  const novedades = b.novedades;
+  const estudios = b.estudios || b.nivel_educativo || b.titulo;
+  const matriculaProfesional = b.matriculaProfesional || b.matricula_profesional;
+  const institucionEstudios = b.institucionEstudios || b.institucion_estudios;
+  const postgrado = b.postgrado;
+  const institucionPostgrado = b.institucionPostgrado || b.institucion_postgrado;
+  const tieneDiplomado = b.tieneDiplomado ?? b.tiene_diplomado;
+  const diplomadoCapSena = b.diplomadoCapSena || b.diplomado_cap_sena;
+  const direccion = b.direccion;
+  const ciudad = b.ciudad;
+  const telefonoFijo = b.telefonoFijo || b.telefono_fijo || b.telefono;
+  const celular = b.celular || b.telefono_movil;
+  const celulares = b.celulares;
+  const correo = b.correo || b.email || b.correo_institucional;
+  const correoPersonal = b.correoPersonal || b.correo_personal;
 
   // 1. Validar Nombres y Apellidos (Regla 7: solo letras y espacios)
   const nombreValidado = validateAndSplitNombre(nombreCompleto);
@@ -1255,14 +1254,28 @@ router.post('/', auth, async (req, res) => {
         cargos: 'seq_cargos_id'
       };
       const seqName = seqMap[table] || `seq_${table}_id`;
-      let r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
-      let candId = r.rows[0].id;
+      let candId;
+      try {
+        const r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+        candId = r.rows[0].id;
+      } catch (_) {
+        const maxRes = await client.query(`SELECT COALESCE(MAX(SUBSTRING(${col} FROM ${prefix.length + 1})::integer), 0) + 1 AS next_val FROM ${table}`);
+        const nextVal = maxRes.rows[0]?.next_val || 1;
+        candId = prefix + String(nextVal).padStart(width, '0');
+      }
+
       // Auto-reparación preventiva si la secuencia está desfasada respecto a la tabla
       const checkExists = await client.query(`SELECT 1 FROM ${table} WHERE ${col} = $1 LIMIT 1`, [candId]);
       if (checkExists.rows.length > 0) {
-        await client.query(`SELECT setval($1, GREATEST((SELECT COALESCE(MAX(SUBSTRING(${col} FROM ${prefix.length + 1})::integer), 0) FROM ${table}), 1))`, [seqName]);
-        r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
-        candId = r.rows[0].id;
+        try {
+          await client.query(`SELECT setval($1, GREATEST((SELECT COALESCE(MAX(SUBSTRING(${col} FROM ${prefix.length + 1})::integer), 0) FROM ${table}), 1))`, [seqName]);
+          const r = await client.query('SELECT next_formatted_id($1, $2, $3) AS id', [seqName, prefix, width]);
+          candId = r.rows[0].id;
+        } catch (_) {
+          const maxRes = await client.query(`SELECT COALESCE(MAX(SUBSTRING(${col} FROM ${prefix.length + 1})::integer), 0) + 1 AS next_val FROM ${table}`);
+          const nextVal = maxRes.rows[0]?.next_val || 1;
+          candId = prefix + String(nextVal).padStart(width, '0');
+        }
       }
       return candId;
     };
@@ -1684,50 +1697,60 @@ router.get('/:cedula', auth, async (req, res) => {
 router.put('/:cedula', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
-  const {
-    nombreCompleto,
-    nuevaCedula,
-    departamentoExpedicion,
-    municipioExpedicion,
-    ciudadExpedicion,
-    sexo,
-    tipoSangre,
-    fechaNacimiento,
-    dependencia,
-    cargoActual,
-    codigoCargo,
-    grado,
-    asignacion,
-    clasificacionEmpleo,
-    estadoServidor,
-    situacion,
-    tipoDiscapacidad,
-    opec,
-    fechaIngreso,
-    fechaEncargo,
-    encargoDenominacion,
-    encargoCodigo,
-    encargoGrado,
-    encargoAsignacion,
-    otroTiempoGobernacion,
-    otroTiempoPeriodos,
-    funciones,
-    novedades,
-    estudios,
-    matriculaProfesional,
-    institucionEstudios,
-    postgrado,
-    institucionPostgrado,
-    tieneDiplomado,
-    diplomadoCapSena,
-    direccion,
-    ciudad,
-    telefonoFijo,
-    celular,
-    celulares,
-    correo,
-    correoPersonal
-  } = req.body;
+  const b = req.body || {};
+  let nombreCompleto = b.nombreCompleto || b.nombre_completo || (b.nombres && b.apellidos ? `${b.nombres} ${b.apellidos}` : (b.nombres || b.apellidos));
+  const nuevaCedula = b.nuevaCedula || b.nueva_cedula;
+  const departamentoExpedicion = b.departamentoExpedicion || b.departamento_expedicion;
+  const municipioExpedicion = b.municipioExpedicion || b.municipio_expedicion || b.municipio;
+  const ciudadExpedicion = b.ciudadExpedicion || b.ciudad_expedicion;
+  let sexo = b.sexo;
+  let tipoSangre = b.tipoSangre || b.tipo_sangre;
+  const fechaNacimiento = b.fechaNacimiento || b.fecha_nacimiento;
+  const dependencia = b.dependencia || b.secretaria;
+  const cargoActual = b.cargoActual || b.denominacion_cargo || b.cargo || b.cargo_actual;
+  const codigoCargo = b.codigoCargo || b.codigo_cargo || b.codigo;
+  const grado = b.grado || b.grado_cargo;
+  const asignacion = b.asignacion || b.asignacion_basica || b.sueldo;
+  const clasificacionEmpleo = b.clasificacionEmpleo || b.clasificacion_empleo || b.tipo_vinculacion;
+  const estadoServidor = b.estadoServidor || b.estado_servidor || b.estado;
+  const situacion = b.situacion || b.situacion_administrativa;
+  const tipoDiscapacidad = b.tipoDiscapacidad || b.tipo_discapacidad;
+  const opec = b.opec;
+  const fechaIngreso = b.fechaIngreso || b.fecha_ingreso || b.fecha_posesion;
+  const fechaEncargo = b.fechaEncargo || b.fecha_encargo;
+  const encargoDenominacion = b.encargoDenominacion || b.encargo_denominacion;
+  const encargoCodigo = b.encargoCodigo || b.encargo_codigo;
+  const encargoGrado = b.encargoGrado || b.encargo_grado;
+  const encargoAsignacion = b.encargoAsignacion || b.encargo_asignacion;
+  const otroTiempoGobernacion = b.otroTiempoGobernacion || b.otro_tiempo_gobernacion;
+  const otroTiempoPeriodos = b.otroTiempoPeriodos || b.otro_tiempo_periodos;
+  const funciones = b.funciones;
+  const novedades = b.novedades;
+  const estudios = b.estudios || b.nivel_educativo || b.titulo;
+  const matriculaProfesional = b.matriculaProfesional || b.matricula_profesional;
+  const institucionEstudios = b.institucionEstudios || b.institucion_estudios;
+  const postgrado = b.postgrado;
+  const institucionPostgrado = b.institucionPostgrado || b.institucion_postgrado;
+  const tieneDiplomado = b.tieneDiplomado ?? b.tiene_diplomado;
+  const diplomadoCapSena = b.diplomadoCapSena || b.diplomado_cap_sena;
+  const direccion = b.direccion;
+  const ciudad = b.ciudad;
+  const telefonoFijo = b.telefonoFijo || b.telefono_fijo || b.telefono;
+  const celular = b.celular || b.telefono_movil;
+  const celulares = b.celulares;
+  const correo = b.correo || b.email || b.correo_institucional;
+  const correoPersonal = b.correoPersonal || b.correo_personal;
+
+  if (!nombreCompleto || !sexo) {
+    try {
+      const existCheck = await pool.query('SELECT nombre_completo, sexo, tipo_sangre FROM personas WHERE cedula = $1 OR id_persona = $1 LIMIT 1', [(cedula || '').trim()]);
+      if (existCheck.rows.length > 0) {
+        if (!nombreCompleto) nombreCompleto = existCheck.rows[0].nombre_completo;
+        if (!sexo) sexo = existCheck.rows[0].sexo;
+        if (tipoSangre === undefined) tipoSangre = existCheck.rows[0].tipo_sangre;
+      }
+    } catch (_) {}
+  }
 
   // Validaciones
   const nombreValidado = validateAndSplitNombre(nombreCompleto);
@@ -2066,8 +2089,17 @@ router.put('/:cedula', auth, async (req, res) => {
 router.patch('/:cedula/status', auth, async (req, res) => {
   if (!canEdit(req.user)) return res.status(403).json({ error: 'Permisos insuficientes.' });
   const { cedula } = req.params;
-  const { estadoServidor, fechaRetiro, motivoRetiro, action, nuevaFechaIngreso } = req.body;
+  const b = req.body || {};
+  let estadoServidor = b.estadoServidor || b.estado_servidor || b.estado;
+  const fechaRetiro = b.fechaRetiro || b.fecha_retiro;
+  const motivoRetiro = b.motivoRetiro || b.motivo_retiro;
+  const action = b.action;
+  const nuevaFechaIngreso = b.nuevaFechaIngreso || b.nueva_fecha_ingreso;
+
   if (!estadoServidor) return res.status(400).json({ error: 'estadoServidor es requerido.' });
+  if (String(estadoServidor).trim().toLowerCase() === 'inactivo' || String(estadoServidor).trim().toLowerCase() === 'inactiva') {
+    estadoServidor = 'Retirado';
+  }
 
   const estadoServidorValidado = validateEstadoServidor(estadoServidor);
   if (!estadoServidorValidado.valido) return res.status(400).json({ error: estadoServidorValidado.error });

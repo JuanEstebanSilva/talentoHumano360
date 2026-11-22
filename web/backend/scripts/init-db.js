@@ -555,6 +555,70 @@ async function runSafeMigrations(client) {
     console.log('✅ [Migración 34] Estado cero absoluto garantizado: viáticos, vigencias, servidores públicos y horarios limpios.');
   }
 
+  // 14. Secuencias y función atómica next_formatted_id para servidores públicos
+  await client.query(`
+    CREATE SEQUENCE IF NOT EXISTS seq_personas_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_contactos_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_educacion_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_estados_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_rel_principal_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_dependencias_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_cargos_id;
+    CREATE SEQUENCE IF NOT EXISTS seq_prov_cedula;
+
+    CREATE OR REPLACE FUNCTION next_formatted_id(p_seq_name TEXT, p_prefix TEXT, p_width INT)
+    RETURNS TEXT AS $$
+    BEGIN
+      RETURN p_prefix || LPAD(nextval(p_seq_name)::TEXT, p_width, '0');
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  // 15. Asentamientos DIVIPOLA y vista unificada v_destinos_boyaca
+  if (await tableExists(client, 'divipola')) {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS divipola_asentamientos (
+          id_asentamiento SERIAL PRIMARY KEY,
+          codigo_depto VARCHAR(5) NOT NULL DEFAULT '15',
+          codigo_mpio VARCHAR(10) NOT NULL REFERENCES divipola(codigo_mpio) ON DELETE RESTRICT ON UPDATE CASCADE,
+          nombre VARCHAR(120) NOT NULL,
+          tipo VARCHAR(50) NOT NULL DEFAULT 'CORREGIMIENTO',
+          codigo_dane_asentamiento VARCHAR(20),
+          activo BOOLEAN NOT NULL DEFAULT TRUE,
+          creado_en TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT uq_asentamiento_mpio_nombre UNIQUE (codigo_mpio, nombre)
+      );
+
+      CREATE OR REPLACE VIEW v_destinos_boyaca AS
+      SELECT 
+          d.codigo_mpio AS codigo,
+          d.codigo_mpio,
+          d.municipio AS nombre,
+          d.municipio,
+          d.departamento,
+          'MUNICIPIO'::VARCHAR(50) AS tipo,
+          NULL::VARCHAR(120) AS asentamiento,
+          d.municipio || ', BOYACÁ' AS destino_completo,
+          d.municipio AS municipio_base_tarifa
+      FROM divipola d
+      WHERE d.codigo_depto = '15'
+      UNION ALL
+      SELECT 
+          COALESCE(a.codigo_dane_asentamiento, a.codigo_mpio || '-' || a.id_asentamiento::text) AS codigo,
+          d.codigo_mpio,
+          a.nombre || ' (' || d.municipio || ')' AS nombre,
+          d.municipio,
+          d.departamento,
+          a.tipo,
+          a.nombre AS asentamiento,
+          a.nombre || ', ' || d.municipio || ', BOYACÁ' AS destino_completo,
+          d.municipio AS municipio_base_tarifa
+      FROM divipola_asentamientos a
+      JOIN divipola d ON d.codigo_mpio = a.codigo_mpio
+      WHERE a.activo = TRUE;
+    `);
+  }
+
   // Gestión documental, informes e historial de cargas (después de roles y permisos).
   const additionalDir = findDatabaseDir();
   for (const file of ADDITIONAL_MIGRATIONS) {

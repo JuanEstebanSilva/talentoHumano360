@@ -220,7 +220,7 @@ async function loadVisible(db, id, user) {
 }
 
 // ─── Tipos de documento ───────────────────────────────────────────────────────
-router.get('/tipos', auth, async (req, res) => {
+router.get(['/tipos', '/types'], auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id_tipo AS id, codigo, nombre, categoria, palabras_clave AS "palabrasClave",
@@ -236,7 +236,7 @@ router.get('/tipos', auth, async (req, res) => {
   }
 });
 
-router.post('/tipos', auth, requireSensitive, async (req, res) => {
+router.post(['/tipos', '/types'], auth, requireSensitive, async (req, res) => {
   const nombre = cleanText(req.body?.nombre, 160);
   if (!nombre) return res.status(400).json({ error: 'El nombre del tipo es obligatorio.' });
   const codigo = nombre
