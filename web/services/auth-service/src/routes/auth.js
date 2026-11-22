@@ -30,7 +30,7 @@ const pool = new Pool(
       }
 );
 
-// Asegurar que las columnas para permisos, recuperación de contraseña y cambio obligatorio existan
+// Asegurar que las columnas para permisos, recuperación de contraseña, cambio obligatorio, versiones de sesión y auditoría existan
 async function initDb() {
   try {
     await pool.query(`
@@ -38,6 +38,7 @@ async function initDb() {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN DEFAULT FALSE;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
       CREATE TABLE IF NOT EXISTS auth_failed_logins (
         identifier VARCHAR(160) PRIMARY KEY,
         failed_attempts INT NOT NULL DEFAULT 0,
@@ -45,12 +46,35 @@ async function initDb() {
         locked_until TIMESTAMP WITH TIME ZONE DEFAULT NULL,
         last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS security_events (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(80) NOT NULL,
+        identifier VARCHAR(160),
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
+      CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC);
     `);
   } catch (err) {
     console.warn('[auth] Verificación de columnas de esquema:', err.message);
   }
 }
 initDb();
+
+async function auditSecurityEvent(eventType, identifier, ip, userAgent, details = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO security_events (event_type, identifier, ip_address, user_agent, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [eventType, identifier || 'Anónimo', ip || null, userAgent || null, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.warn('[security-audit] Error registrando evento de seguridad:', err.message);
+  }
+}
 
 // Servir assets institucionales (escudo, logos) públicos para correos y clientes
 router.get(['/assets/:file', '/logo.png'], (req, res) => {
@@ -235,6 +259,15 @@ const forgotLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiadas solicitudes de recuperación. Por seguridad, intente nuevamente en 15 minutos.' }
+});
+
+// Máximo 15 intentos de cambio de contraseña cada 15 minutos por IP
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de cambio de contraseña. Por seguridad institucional, intente nuevamente en 15 minutos.' }
 });
 
 // ─── Utilidades de Correo y Generación Segura de Contraseña ───────────────────
@@ -736,22 +769,23 @@ router.post('/login', loginLimiter, async (req, res) => {
     let userResult;
     try {
       userResult = await pool.query(
-        `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password, password_reset_expires
+        `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password, password_reset_expires, token_version
          FROM usuarios
          WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
          LIMIT 1`,
         [lookupUser]
       );
     } catch (colErr) {
-      if (colErr.message && (colErr.message.includes('modulos') || colErr.message.includes('permisos') || colErr.message.includes('debe_cambiar_password') || colErr.message.includes('password_reset_expires'))) {
+      if (colErr.message && (colErr.message.includes('modulos') || colErr.message.includes('permisos') || colErr.message.includes('debe_cambiar_password') || colErr.message.includes('password_reset_expires') || colErr.message.includes('token_version'))) {
         console.warn('[auth] Columnas de autenticación o recuperación pendientes, ejecutando migración segura...');
         try {
           await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS modulos VARCHAR(255) DEFAULT '*'`);
           await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT`);
           await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN DEFAULT FALSE`);
           await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP WITH TIME ZONE DEFAULT NULL`);
+          await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1`);
           userResult = await pool.query(
-            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password, password_reset_expires
+            `SELECT id_usuario, username, password, nombre, rol, cargo_laboral, estado, modulos, permisos, debe_cambiar_password, password_reset_expires, token_version
              FROM usuarios
              WHERE (LOWER(username) = $1 OR LOWER(SPLIT_PART(username, '@', 1)) = $1)
              LIMIT 1`,
@@ -775,7 +809,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (userResult.rows.length === 0) {
       await bcrypt.compare(normalizedPass, DUMMY_HASH);
       const act = await recordFailedAttempt(userKey);
+      await auditSecurityEvent('LOGIN_FAILED', lookupUser, getClientIp(req), req.headers['user-agent'], { reason: 'User not found', remainingAttempts: act.remainingAttempts });
       if (act.isLocked) {
+        await auditSecurityEvent('ACCOUNT_LOCKED', lookupUser, getClientIp(req), req.headers['user-agent'], { tier: act.lockoutTier, retryAfterSeconds: act.retryAfterSeconds });
         return res.status(429).json({
           error: `Ha superado los 5 intentos permitidos. Por seguridad institucional, su acceso ha sido bloqueado por ${formatLockoutTime(act.retryAfterSeconds)}. Si olvidó su contraseña, recupérela haciendo clic en '¿Olvidaste tu contraseña?'.`,
           isLocked: true,
@@ -795,12 +831,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // Verificar si la cuenta está activa
-    if (user.estado && user.estado.toUpperCase() !== 'ACTIVO') {
-      return res.status(403).json({ error: 'Usuario inactivo. Contacte a la Dirección de Talento Humano.' });
-    }
-
-    // 2. Verificación criptográfica segura con bcrypt
+    // 2. Verificación criptográfica segura con bcrypt antes de revelar estado de cuenta (anti-enumeración)
     let passwordMatches = false;
     const isBcrypt = user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'));
 
@@ -825,7 +856,9 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!passwordMatches) {
       const act = await recordFailedAttempt(userKey);
+      await auditSecurityEvent('LOGIN_FAILED', lookupUser, getClientIp(req), req.headers['user-agent'], { reason: 'Invalid password', remainingAttempts: act.remainingAttempts });
       if (act.isLocked) {
+        await auditSecurityEvent('ACCOUNT_LOCKED', lookupUser, getClientIp(req), req.headers['user-agent'], { tier: act.lockoutTier, retryAfterSeconds: act.retryAfterSeconds });
         return res.status(429).json({
           error: `Ha superado los 5 intentos permitidos. Por seguridad institucional, su acceso ha sido bloqueado por ${formatLockoutTime(act.retryAfterSeconds)}. Si olvidó su contraseña, recupérela haciendo clic en '¿Olvidaste tu contraseña?'.`,
           isLocked: true,
@@ -843,8 +876,15 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
+    // Verificar si la cuenta está activa (solo después de validar contraseña)
+    if (user.estado && user.estado.toUpperCase() !== 'ACTIVO') {
+      await auditSecurityEvent('LOGIN_INACTIVE_USER', lookupUser, getClientIp(req), req.headers['user-agent'], { id_usuario: user.id_usuario });
+      return res.status(403).json({ error: 'Usuario inactivo. Contacte a la Dirección de Talento Humano.' });
+    }
+
     // Login exitoso: Limpiar intentos fallidos y bloqueos
     await clearLockout(userKey);
+    await auditSecurityEvent('LOGIN_SUCCESS', user.username, getClientIp(req), req.headers['user-agent'], { role: user.rol });
 
     // Verificar si la contraseña provisional ha vencido
     if (user.debe_cambiar_password) {
@@ -882,7 +922,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       department: resolveDepartment(user.rol),
       modules:  allowedModules,
       permissions: permissions,
-      mustChangePassword: !!user.debe_cambiar_password
+      mustChangePassword: !!user.debe_cambiar_password,
+      tokenVersion: parseInt(user.token_version, 10) || 1
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -966,11 +1007,23 @@ router.post('/logout', (req, res) => {
 });
 
 // ─── POST /api/auth/verify ────────────────────────────────────────────────────
-router.post('/verify', (req, res) => {
+router.post('/verify', async (req, res) => {
   const token = req.body?.token || extractToken(req);
   if (!token) return res.status(400).json({ error: 'Token requerido.' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.tokenVersion !== undefined && decoded.username) {
+      try {
+        const uQ = await pool.query('SELECT token_version FROM usuarios WHERE LOWER(username) = $1 LIMIT 1', [decoded.username.toLowerCase()]);
+        if (uQ.rows.length > 0 && uQ.rows[0].token_version) {
+          const currentVersion = parseInt(uQ.rows[0].token_version, 10);
+          const tokenVersion = parseInt(decoded.tokenVersion, 10);
+          if (currentVersion > tokenVersion) {
+            return res.status(401).json({ valid: false, error: 'Sesión invalidada por cambio de contraseña.', sessionInvalidated: true });
+          }
+        }
+      } catch (_) {}
+    }
     return res.json({ valid: true, user: decoded });
   } catch {
     return res.status(401).json({ valid: false, error: 'Token inválido o expirado.' });
@@ -1004,6 +1057,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     if (userResult.rows.length === 0) {
       // Mitigación de timing attack si el usuario no existe
       await bcrypt.compare(normalizedInput, DUMMY_HASH);
+      await auditSecurityEvent('PASSWORD_RESET_ATTEMPT', normalizedInput, getClientIp(req), req.headers['user-agent'], { result: 'User not found (masked)' });
       return res.json(GENERIC_SUCCESS);
     }
 
@@ -1012,12 +1066,14 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     // 2. Segunda comprobación: vinculación efectiva con la plataforma y rol válido
     if (!user.rol || typeof user.rol !== 'string' || !user.rol.trim()) {
       await bcrypt.compare(normalizedInput, DUMMY_HASH);
+      await auditSecurityEvent('PASSWORD_RESET_ATTEMPT', normalizedInput, getClientIp(req), req.headers['user-agent'], { result: 'Invalid role (masked)' });
       return res.json(GENERIC_SUCCESS);
     }
 
     // 3. Tercera comprobación: estado activo de la cuenta
     if (!user.estado || user.estado.toUpperCase() !== 'ACTIVO') {
       await bcrypt.compare(normalizedInput, DUMMY_HASH);
+      await auditSecurityEvent('PASSWORD_RESET_ATTEMPT', normalizedInput, getClientIp(req), req.headers['user-agent'], { result: 'Inactive user (masked)' });
       return res.json(GENERIC_SUCCESS);
     }
 
@@ -1039,15 +1095,18 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
     const prevDebeCambiar = user.debe_cambiar_password || false;
     const prevExpires = user.password_reset_expires || null;
 
-    // 5. Actualizar en base de datos con vigencia de 24 horas y cambio obligatorio
+    // 5. Actualizar en base de datos con vigencia estricta de 1 hora, cambio obligatorio e invalidación de sesiones
     await pool.query(
       `UPDATE usuarios
        SET password = $1,
            debe_cambiar_password = true,
-           password_reset_expires = NOW() + INTERVAL '24 hours'
+           password_reset_expires = NOW() + INTERVAL '1 hour',
+           token_version = COALESCE(token_version, 1) + 1
        WHERE id_usuario = $2`,
       [tempHash, user.id_usuario]
     );
+
+    await auditSecurityEvent('PASSWORD_RESET_REQUESTED', user.username, getClientIp(req), req.headers['user-agent'], { destination: destinationEmail, expires: '1 hour' });
 
     // Restablecer intentos fallidos y bloqueos temporales de la cuenta
     try {
@@ -1100,7 +1159,7 @@ router.post('/forgot-password', forgotLimiter, async (req, res) => {
 });
 
 // ─── POST /api/auth/change-password ───────────────────────────────────────────
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', changePasswordLimiter, async (req, res) => {
   const token = extractToken(req) || req.body?.token;
   let username = null;
 
@@ -1187,16 +1246,21 @@ router.post('/change-password', async (req, res) => {
 
     const newHash = await bcrypt.hash(newPass, BCRYPT_SALT_ROUNDS);
 
-    await pool.query(
+    const updResult = await pool.query(
       `UPDATE usuarios
        SET password = $1,
            debe_cambiar_password = false,
-           password_reset_expires = NULL
-       WHERE id_usuario = $2`,
+           password_reset_expires = NULL,
+           token_version = COALESCE(token_version, 1) + 1
+       WHERE id_usuario = $2
+       RETURNING token_version`,
       [newHash, user.id_usuario]
     );
 
-    console.log(`[auth] Contraseña actualizada exitosamente para usuario id=${user.id_usuario} (${user.username}). Bandera de cambio obligatorio desactivada.`);
+    const updatedTokenVersion = parseInt(updResult.rows[0]?.token_version, 10) || 1;
+    await auditSecurityEvent('PASSWORD_CHANGED', user.username, getClientIp(req), req.headers['user-agent'], { id_usuario: user.id_usuario, tokenVersion: updatedTokenVersion });
+
+    console.log(`[auth] Contraseña actualizada exitosamente para usuario id=${user.id_usuario} (${user.username}). Bandera de cambio obligatorio desactivada. Versión de token incrementada a ${updatedTokenVersion}.`);
 
     // Restablecer contadores y bloqueos tras cambio exitoso
     try {
@@ -1233,7 +1297,8 @@ router.post('/change-password', async (req, res) => {
       department: resolveDepartment(user.rol),
       modules:  allowedModules,
       permissions: permissions,
-      mustChangePassword: false
+      mustChangePassword: false,
+      tokenVersion: updatedTokenVersion
     };
 
     const newToken = jwt.sign(freshPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -1252,17 +1317,36 @@ router.post('/change-password', async (req, res) => {
 });
 
 // ─── Auth Middleware ──────────────────────────────────────────────────────────
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const token = extractToken(req);
   if (!token) return res.status(401).json({ error: 'Token de autenticación requerido.' });
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
     if (req.user.mustChangePassword && req.path !== '/change-password' && req.path !== '/logout' && req.path !== '/verify') {
       return res.status(403).json({
         error: 'Debe cambiar su contraseña provisional antes de continuar.',
         mustChangePassword: true
       });
     }
+
+    // Invalidación inmediata de sesiones activas tras cambio de contraseña
+    if (decoded.tokenVersion !== undefined && decoded.username) {
+      try {
+        const uQ = await pool.query('SELECT token_version FROM usuarios WHERE LOWER(username) = $1 LIMIT 1', [decoded.username.toLowerCase()]);
+        if (uQ.rows.length > 0 && uQ.rows[0].token_version) {
+          const currentVersion = parseInt(uQ.rows[0].token_version, 10);
+          const tokenVersion = parseInt(decoded.tokenVersion, 10);
+          if (currentVersion > tokenVersion) {
+            return res.status(401).json({
+              error: 'Sesión invalidada por cambio de contraseña. Por favor inicie sesión nuevamente.',
+              sessionInvalidated: true
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     next();
   } catch {
     return res.status(401).json({ error: 'Sesión expirada o token inválido.' });
@@ -1323,10 +1407,17 @@ router.put('/profile', authMiddleware, profileLimiter, async (req, res) => {
       finalPassword = await bcrypt.hash(newPassword.trim(), BCRYPT_SALT_ROUNDS);
     }
 
+    const passwordChanged = Boolean(newPassword && newPassword.trim());
+
     // Actualizar en base de datos únicamente campos autorizados (nombre, password)
     const updateQ = await pool.query(
-      'UPDATE usuarios SET nombre = $1, password = $2 WHERE LOWER(username) = LOWER($3) RETURNING username, nombre, rol, cargo_laboral, modulos, permisos',
-      [cleanNombre, finalPassword, username]
+      `UPDATE usuarios 
+       SET nombre = $1, 
+           password = $2,
+           token_version = CASE WHEN $4 = true THEN COALESCE(token_version, 1) + 1 ELSE COALESCE(token_version, 1) END
+       WHERE LOWER(username) = LOWER($3) 
+       RETURNING username, nombre, rol, cargo_laboral, modulos, permisos, token_version`,
+      [cleanNombre, finalPassword, username, passwordChanged]
     );
 
     const updatedUser = updateQ.rows[0];
@@ -1346,7 +1437,12 @@ router.put('/profile', authMiddleware, profileLimiter, async (req, res) => {
       department: resolveDepartment(updatedUser.rol),
       modules:  userMods,
       permissions: userPerms,
+      tokenVersion: parseInt(updatedUser.token_version, 10) || 1
     };
+
+    if (passwordChanged) {
+      await auditSecurityEvent('PASSWORD_CHANGED_PROFILE', username, getClientIp(req), req.headers['user-agent'], { tokenVersion: payload.tokenVersion });
+    }
 
     const newToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
     setAuthCookie(res, newToken);

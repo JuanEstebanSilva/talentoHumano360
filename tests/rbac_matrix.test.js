@@ -43,11 +43,14 @@ async function runAdmin15Operations() {
   assert.ok(token, 'Token JWT de Administrador generado correctamente');
   console.log('✅ Autenticación de Administrador (alejoleo2022@gmail.com) exitosa.\n');
 
-  // Obtener servidor base para FKs sin acuerdos previos de horario
+  // Obtener servidor base para FKs sin acuerdos previos de horario y en estado activo
   const empRes = await pool.query(`
     SELECT p.cedula, p.nombre_completo 
     FROM personas p 
+    JOIN rel_principal r ON r.id_persona = p.id_persona
+    JOIN estados e ON e.id_estado = r.id_estado
     WHERE p.es_vacante = false 
+      AND (LOWER(COALESCE(e.estado_servidor, 'activo')) = 'activo')
       AND p.cedula NOT IN (SELECT documento FROM horarios WHERE documento IS NOT NULL)
     LIMIT 1
   `);

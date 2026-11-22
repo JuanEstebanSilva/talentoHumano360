@@ -302,6 +302,7 @@ async function runSafeMigrations(client) {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS debe_cambiar_password BOOLEAN DEFAULT FALSE;
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
       CREATE TABLE IF NOT EXISTS auth_failed_logins (
         identifier VARCHAR(160) PRIMARY KEY,
         failed_attempts INT NOT NULL DEFAULT 0,
@@ -309,6 +310,17 @@ async function runSafeMigrations(client) {
         locked_until TIMESTAMP WITH TIME ZONE DEFAULT NULL,
         last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS security_events (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(80) NOT NULL,
+        identifier VARCHAR(160),
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
+      CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC);
     `);
 
     // Asegurar que la cuenta oficial de Juan Esteban Silva Espejo exista de forma segura e idempotente

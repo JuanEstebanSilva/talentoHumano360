@@ -52,6 +52,40 @@ const PORT = process.env.PORT || 3000;
 // Confianza en proxies inversos (Render, Cloudflare, Nginx) para rate limiting y headers
 app.set('trust proxy', 1);
 
+// ─── Cabeceras de Seguridad Institucional OWASP ASVS (HSTS, X-Frame-Options, etc.) ───
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// ─── Bloqueo Estricto de Archivos Sensibles y Traversal de Directorios ────────
+app.use((req, res, next) => {
+  const rawPath = req.path || '';
+  let decodedPath = '';
+  try {
+    decodedPath = decodeURIComponent(rawPath).toLowerCase();
+  } catch {
+    decodedPath = rawPath.toLowerCase();
+  }
+
+  const isSensitive = 
+    decodedPath.startsWith('/.') ||
+    decodedPath.includes('/..') ||
+    /\.(env|git|sql|bak|log|config|key|pem|crt|db|sqlite|yml|yaml|ini|sh|bat|cmd|ps1)$/i.test(decodedPath) ||
+    /package(-lock)?\.json$/i.test(decodedPath) ||
+    /\/docker/i.test(decodedPath);
+
+  if (isSensitive) {
+    return res.status(404).send('Not Found');
+  }
+  next();
+});
+
 // Configuración de CORS segura con lista de orígenes permitidos
 function normalizeOrigin(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') return '';
@@ -118,12 +152,87 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 
-// Límite amplio para permitir importaciones masivas de Excel y adjuntos
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// ─── Protección CSRF para Peticiones Mutantes (POST, PUT, PATCH, DELETE) ──────
+app.use((req, res, next) => {
+  const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (!mutatingMethods.includes(req.method)) {
+    return next();
+  }
+
+  const originHeader = req.headers['origin'];
+  const refererHeader = req.headers['referer'];
+  const requestOrigin = originHeader ? normalizeOrigin(originHeader) : (refererHeader ? normalizeOrigin(refererHeader) : null);
+
+  if (requestOrigin) {
+    const host = req.headers.host;
+    const isSameHost = host && (requestOrigin.includes(host) || requestOrigin === `http://${host}` || requestOrigin === `https://${host}`);
+    const isAllowed = allowedOrigins.includes(requestOrigin) || isSameHost;
+
+    if (!isAllowed) {
+      return res.status(403).json({ error: 'Solicitud rechazada por política de seguridad CSRF (Origen no autorizado).' });
+    }
+  }
+
+  next();
+});
+
+// Límite controlado para prevenir DoS por memoria permitiendo importaciones institucionales
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
+// ─── Sanitización de Entradas y Bloqueo de Inyección de Prompts ───────────────
+function sanitizeStringValue(str) {
+  if (typeof str !== 'string') return str;
+  // 1. Eliminar bytes nulos (\0)
+  let clean = str.replace(/\0/g, '');
+  // 2. Neutralizar etiquetas script y vectores XSS directos
+  clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  clean = clean.replace(/javascript\s*:/gi, 'blocked-script:');
+  clean = clean.replace(/on(error|load|click|mouseover)\s*=/gi, 'data-blocked=');
+  // 3. Neutralizar marcadores de prompt injection
+  clean = clean.replace(/(\[INST\]|\[\/INST\]|<<SYS>>|<\/SYS>|<\|im_start\|>|<\|im_end\|>)/gi, '');
+  clean = clean.replace(/---\s*BEGIN\s+INSTRUCTION\s*---/gi, '');
+  clean = clean.replace(/\bignore\s+(all\s+)?(previous|prior)\s+instructions\b/gi, '[instruccion_omitida]');
+  return clean;
+}
+
+function sanitizeObjectRecursively(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      if (typeof obj[i] === 'string') {
+        obj[i] = sanitizeStringValue(obj[i]);
+      } else if (typeof obj[i] === 'object' && obj[i] !== null) {
+        sanitizeObjectRecursively(obj[i]);
+      }
+    }
+    return obj;
+  }
+  for (const key of Object.keys(obj)) {
+    if (typeof obj[key] === 'string') {
+      obj[key] = sanitizeStringValue(obj[key]);
+    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+      sanitizeObjectRecursively(obj[key]);
+    }
+  }
+  return obj;
+}
+
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    sanitizeObjectRecursively(req.body);
+  }
+  if (req.query && typeof req.query === 'object') {
+    sanitizeObjectRecursively(req.query);
+  }
+  if (req.params && typeof req.params === 'object') {
+    sanitizeObjectRecursively(req.params);
+  }
+  next();
+});
 
 // ─── Servir Archivos Estáticos y Logos Institucionales (Públicos) ─────────────
 const serveInstitutionalAsset = (req, res) => {
@@ -191,7 +300,22 @@ app.get(['/health', '/api/health'], async (_, res) => {
   });
 });
 
-app.get('/api/db-status', async (_, res) => {
+app.get('/api/db-status', async (req, res) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  const JWT_SECRET = process.env.JWT_SECRET || 'talento360_secret_2026';
+  let authorized = false;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const role = String(decoded.role || decoded.rol || '').toLowerCase();
+      if (role === 'admin' || role === 'administrador') authorized = true;
+    } catch (_) {}
+  }
+
+  if (!authorized) {
+    return res.status(401).json({ error: 'No autorizado. Se requiere token de sesión con rol de Administrador para consultar el estado interno de la base de datos.' });
+  }
+
   const dbConfigured = !!process.env.DATABASE_URL;
   try {
     const client = await pool.connect();
@@ -201,11 +325,7 @@ app.get('/api/db-status', async (_, res) => {
         SELECT table_name FROM information_schema.tables 
         WHERE table_schema = 'public'
       `);
-      const usersCheck = await client.query(`
-        SELECT id_usuario, username, rol, estado, 
-               EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='modulos') as has_modulos
-        FROM usuarios LIMIT 10
-      `).catch(e => ({ error: e.message }));
+      const usersCount = await client.query('SELECT COUNT(*) as count FROM usuarios').catch(() => ({ rows: [{ count: -1 }] }));
 
       const colCheck = await client.query(`
         SELECT column_name FROM information_schema.columns 
@@ -236,8 +356,8 @@ app.get('/api/db-status', async (_, res) => {
           estados: parseInt(countEstados.rows[0].count),
           viaticos: parseInt(countViaticos.rows[0].count),
           horarios: parseInt(countHorarios.rows[0].count),
+          usuarios: parseInt(usersCount.rows[0].count)
         },
-        users: Array.isArray(usersCheck.rows) ? usersCheck.rows.map(u => ({ username: u.username, rol: u.rol, hasModulos: u.has_modulos })) : usersCheck,
         databaseUrlConfigured: dbConfigured
       });
     } finally {
