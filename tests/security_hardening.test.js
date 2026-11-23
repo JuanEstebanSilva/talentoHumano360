@@ -239,12 +239,23 @@ test('SEC-06: Mitigación de enumeración de usuarios en forgot-password', async
   assert.strictEqual(nonExistentRes.status, 200);
   assert.strictEqual(nonExistentRes.data?.success, true);
 
+  // Guardar estado original del usuario antes de invocar forgot-password
+  const prevUser = await pool.query("SELECT password, debe_cambiar_password FROM usuarios WHERE LOWER(username) = 'alejoleo2022@gmail.com'");
+
   // Caso 2: Correo que sí existe
   const existentRes = await apiRequest('POST', '/api/auth/forgot-password', {
     body: { email: 'alejoleo2022@gmail.com' }
   });
   assert.strictEqual(existentRes.status, 200);
   assert.strictEqual(existentRes.data?.success, true);
+
+  // Restaurar contraseña original del usuario tras la prueba de recuperación
+  if (prevUser.rows.length > 0) {
+    await pool.query(
+      "UPDATE usuarios SET password = $1, debe_cambiar_password = $2 WHERE LOWER(username) = 'alejoleo2022@gmail.com'",
+      [prevUser.rows[0].password, prevUser.rows[0].debe_cambiar_password]
+    );
+  }
 
   // Mensajes de respuesta idénticos para no revelar si la cuenta existe o no
   assert.strictEqual(nonExistentRes.data?.message, existentRes.data?.message);
@@ -487,9 +498,10 @@ test('SEC-15: Configuración de atributos de cookies de autenticación (HttpOnly
     t.skip('Requiere PostgreSQL activo');
     return;
   }
-  // Limpiar posibles intentos fallidos residuales y asegurar estado activo sin cambio obligatorio pendiente
+  // Asegurar hash de @Alejo123, limpiar intentos fallidos residuales y desactivar cambio obligatorio
+  const adminHash = '$2b$10$Q4vw3M5G7cFCLqJptbxyzuDAVbf6XAO5md25UVuhAt.5JrWfqIh9C';
+  await pool.query("UPDATE usuarios SET password = $1, debe_cambiar_password = false WHERE LOWER(username) = 'alejoleo2022@gmail.com'", [adminHash]);
   await pool.query("DELETE FROM auth_failed_logins WHERE identifier LIKE '%alejoleo%'");
-  await pool.query("UPDATE usuarios SET debe_cambiar_password = false WHERE LOWER(username) = 'alejoleo2022@gmail.com'");
 
   // Login legítimo con administrador
   const res = await apiRequest('POST', '/api/auth/login', {
