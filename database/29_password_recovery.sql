@@ -24,7 +24,11 @@ CREATE TABLE IF NOT EXISTS security_events (
   identifier VARCHAR(160),
   ip_address VARCHAR(100),
   user_agent TEXT,
+  details JSONB DEFAULT '{}'::jsonb,
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE security_events ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE security_events ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
 

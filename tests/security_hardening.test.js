@@ -436,7 +436,8 @@ test('SEC-13: Registro persistente de eventos de seguridad en tabla security_eve
   });
   assert.strictEqual(auditRes.status, 401);
 
-  // Consultar BD para verificar que el evento quedó registrado
+  // Consultar BD para verificar que el evento quedó registrado (con breve espera para inserción asíncrona)
+  await new Promise(r => setTimeout(r, 200));
   const logCheck = await pool.query(
     "SELECT event_type, identifier, ip_address, created_at FROM security_events WHERE identifier = $1 ORDER BY created_at DESC LIMIT 1",
     ['auditor_verificacion_seguridad@boyaca.gov.co']
@@ -486,6 +487,10 @@ test('SEC-15: Configuración de atributos de cookies de autenticación (HttpOnly
     t.skip('Requiere PostgreSQL activo');
     return;
   }
+  // Limpiar posibles intentos fallidos residuales y asegurar estado activo sin cambio obligatorio pendiente
+  await pool.query("DELETE FROM auth_failed_logins WHERE identifier LIKE '%alejoleo%'");
+  await pool.query("UPDATE usuarios SET debe_cambiar_password = false WHERE LOWER(username) = 'alejoleo2022@gmail.com'");
+
   // Login legítimo con administrador
   const res = await apiRequest('POST', '/api/auth/login', {
     body: { username: 'alejoleo2022@gmail.com', password: '@Alejo123' }

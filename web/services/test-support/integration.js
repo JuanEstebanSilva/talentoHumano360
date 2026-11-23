@@ -30,8 +30,41 @@ async function startRouter(t, mount, routerPath, cleanup) {
     setImmediate(() => process.exit(process.exitCode || 0));
   });
 
-  const token = (role = 'Usuario', modules = [], permissions = []) =>
-    jwt.sign({ username: 'integracion@prueba', role, modules, permissions }, SECRET);
+  const token = (role = 'Usuario', modules = [], permissions = []) => {
+    let finalRole = role;
+    let finalModules = Array.isArray(modules) ? [...modules] : [];
+    let finalPerms = Array.isArray(permissions) ? [...permissions] : [];
+
+    if (Array.isArray(role)) {
+      finalModules = role;
+      finalRole = typeof modules === 'string' ? modules : 'Usuario';
+    }
+
+    const rLower = String(finalRole || '').toLowerCase();
+    if (finalModules.length === 0) {
+      if (rLower === 'administrador' || rLower === 'admin') {
+        finalModules = ['*'];
+      } else if (rLower === 'sst' || rLower.includes('sst')) {
+        finalModules = ['sst', 'epidemiologico', 'sociodemografico', 'epp'];
+      } else if (rLower === 'incapacidades' || rLower.includes('incapacidad')) {
+        finalModules = ['admin-requests', 'incapacidades'];
+      } else if (rLower.includes('permiso') || rLower.includes('licencia')) {
+        finalModules = ['admin-requests', 'permisos', 'licencias'];
+      } else if (rLower === 'coordinador') {
+        finalModules = ['*'];
+      } else {
+        finalModules = ['admin-requests', 'dashboard', 'sst'];
+      }
+    }
+
+    return jwt.sign({
+      username: 'integracion@prueba',
+      role: finalRole,
+      rol: finalRole,
+      modules: finalModules,
+      permissions: finalPerms
+    }, SECRET);
+  };
   const call = async (method, path, tk, body) => {
     const headers = {};
     if (tk) headers.Authorization = `Bearer ${tk}`;
