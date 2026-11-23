@@ -21,7 +21,7 @@ DELETE FROM usuarios WHERE LOWER(username) IN (
 );
 
 INSERT INTO usuarios (username, password, nombre, rol, cargo_laboral, estado, modulos, permisos) VALUES
-('alejoleo2022@gmail.com', '$2a$12$qwOU8oMZCzVX8cIMzNBNlugoXmFlAH612Dfusnf.jktA55pTJ/lae', 'Administrador', 'Administrador', 'Administrador del Sistema', 'ACTIVO', '*', '*'),
+('alejoleo2022@gmail.com', '$2b$10$Q4vw3M5G7cFCLqJptbxyzuDAVbf6XAO5md25UVuhAt.5JrWfqIh9C', 'Administrador', 'Administrador', 'Administrador del Sistema', 'ACTIVO', '*', '*'),
 ('talento360.notificaciones@gmail.com', '$2a$12$q8sVQEPGroHKAOu9qt0.Eu8qiia7hCzvrVuOBJQ88TdsxJ1.Ow7M2', 'Gestor de Monitoreo y Respaldo', 'Monitoreo y Respaldo', 'Gestor de Monitoreo de Errores y Copias de Seguridad', 'ACTIVO', 'admin-errors,admin-backups', 'admin-errors:read,admin-errors:write,admin-errors:delete,admin-backups:read,admin-backups:write,admin-backups:download,admin-backups:delete'),
 ('angela.ussa@boyaca.gov.co', '$2a$10$Qiy07yznq5fSnFhEUTHKaux5uBZrWZ6E34uB.uFEJIMmF9WK/vzhy', 'Angela Ussa', 'Usuario', 'Gestión de Servidores Públicos', 'ACTIVO', 'dashboard,employees,horarios,viaticos', 'dashboard:read,employees:read,employees:write,employees:delete,employees:import,employees:export,horarios:read,viaticos:read'),
 ('blanca.soler@boyaca.gov.co', '$2a$10$z.YAD5e1rQ1Y80g3yZvNAeYdwxDYvprlaXBFro4.7PQLYL4dd6NWm', 'Blanca Soler', 'Usuario', 'Gestión de Servidores Públicos', 'ACTIVO', 'dashboard,employees,horarios,viaticos', 'dashboard:read,employees:read,employees:write,employees:delete,employees:import,employees:export,horarios:read,viaticos:read'),

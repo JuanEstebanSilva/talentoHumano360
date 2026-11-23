@@ -9,9 +9,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '45_delete_user_silvaespejojuanesteban') THEN
     RAISE NOTICE '[Migración 45] Eliminando usuario silvaespejojuanesteban@gmail de la plataforma...';
 
-    -- 1. Eliminar intentos fallidos o bloqueos de acceso asociados
-    DELETE FROM auth_failed_logins 
-    WHERE LOWER(identifier) LIKE '%silvaespejojuanesteban%';
+    -- 1. Eliminar intentos fallidos o bloqueos de acceso asociados si la tabla existe
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'auth_failed_logins') THEN
+      DELETE FROM auth_failed_logins 
+      WHERE LOWER(identifier) LIKE '%silvaespejojuanesteban%';
+    END IF;
 
     -- 2. Eliminar el usuario de la tabla usuarios
     DELETE FROM usuarios 
