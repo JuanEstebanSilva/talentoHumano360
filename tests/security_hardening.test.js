@@ -4,10 +4,11 @@
  * Gobernación de Boyacá · Verificación de 16 Medidas de Seguridad OWASP ASVS
  */
 
-const test = require('node:test');
+const { test, before, after } = require('node:test');
 const assert = require('node:assert');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('node:child_process');
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
 
@@ -36,6 +37,50 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'humano360_secret_super_seguro_2026';
+
+let localServerProcess = null;
+let dbConnected = false;
+
+before(async () => {
+  // 1. Probar conexión a la base de datos
+  try {
+    const client = await pool.connect();
+    client.release();
+    dbConnected = true;
+  } catch (_) {
+    dbConnected = false;
+  }
+
+  // 2. Comprobar si el servidor ya responde en BASE_URL
+  try {
+    const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(1000) });
+    if (res.ok) return;
+  } catch (_) {}
+
+  // 3. Levantar servidor backend automáticamente
+  localServerProcess = spawn(process.execPath, [path.resolve(__dirname, '../web/backend/server.js')], {
+    env: { ...process.env, PORT: '3000', NODE_ENV: 'test', AUTO_INIT_DB: 'false' },
+    stdio: 'ignore'
+  });
+
+  for (let i = 0; i < 40; i++) {
+    try {
+      const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(1000) });
+      if (res.ok) return;
+    } catch (_) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+});
+
+after(async () => {
+  if (localServerProcess) {
+    try {
+      localServerProcess.kill();
+    } catch (_) {}
+  }
+  await pool.end().catch(() => {});
+});
 
 // Helper HTTP request
 async function apiRequest(method, path, options = {}) {
@@ -111,7 +156,11 @@ test('SEC-02: Bloqueo de archivos sensibles, copias de seguridad y carpetas ocul
 });
 
 // ─── 3. Protección de Endpoints Expuestos (/api/db-status) ────────────────────
-test('SEC-03: Endpoint interno /api/db-status protegido contra acceso no autorizado', async () => {
+test('SEC-03: Endpoint interno /api/db-status protegido contra acceso no autorizado', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   // Petición anónima
   const anonRes = await apiRequest('GET', '/api/db-status');
   assert.strictEqual(anonRes.status, 401, 'Acceso sin token debe ser 401');
@@ -152,7 +201,11 @@ test('SEC-04: Protección CSRF en peticiones de modificación de estado (POST, P
 });
 
 // ─── 5. Anti-Enumeración de Usuarios en Login ─────────────────────────────────
-test('SEC-05: Mitigación de enumeración de usuarios en login (respuestas idénticas)', async () => {
+test('SEC-05: Mitigación de enumeración de usuarios en login (respuestas idénticas)', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   // Caso 1: Usuario inexistente
   const nonExistentRes = await apiRequest('POST', '/api/auth/login', {
     body: { username: 'usuario_totalmente_inexistente_99999@boyaca.gov.co', password: 'PasswordIncorrecto#1' }
@@ -172,7 +225,11 @@ test('SEC-05: Mitigación de enumeración de usuarios en login (respuestas idén
 });
 
 // ─── 6. Anti-Enumeración de Usuarios en Recuperación de Contraseña ───────────
-test('SEC-06: Mitigación de enumeración de usuarios en forgot-password', async () => {
+test('SEC-06: Mitigación de enumeración de usuarios en forgot-password', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   // Caso 1: Correo que no existe
   const nonExistentRes = await apiRequest('POST', '/api/auth/forgot-password', {
     body: { email: 'fake_email_que_no_existe_88888@boyaca.gov.co' }
@@ -182,7 +239,7 @@ test('SEC-06: Mitigación de enumeración de usuarios en forgot-password', async
 
   // Caso 2: Correo que sí existe
   const existentRes = await apiRequest('POST', '/api/auth/forgot-password', {
-    body: { email: 'silvaespejojuanesteban@gmail.com' }
+    body: { email: 'alejoleo2022@gmail.com' }
   });
   assert.strictEqual(existentRes.status, 200);
   assert.strictEqual(existentRes.data?.success, true);
@@ -192,7 +249,11 @@ test('SEC-06: Mitigación de enumeración de usuarios en forgot-password', async
 });
 
 // ─── 7. Expiración Estricta de Contraseña Provisional (1 hora) ────────────────
-test('SEC-07: Caducidad estricta de credenciales provisionales', async () => {
+test('SEC-07: Caducidad estricta de credenciales provisionales', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   const testUser = 'test_provisional_sec_user@boyaca.gov.co';
   await pool.query(`
     INSERT INTO usuarios (username, password, nombre, rol, estado, debe_cambiar_password, password_reset_expires, token_version)
@@ -214,7 +275,11 @@ test('SEC-07: Caducidad estricta de credenciales provisionales', async () => {
 });
 
 // ─── 8. Invalidación Inmediata de Sesiones al Cambiar Contraseña ──────────────
-test('SEC-08: Invalidación inmediata de tokens antiguos tras cambio de contraseña (token_version)', async () => {
+test('SEC-08: Invalidación inmediata de tokens antiguos tras cambio de contraseña (token_version)', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   const testUser = 'test_session_invalidation@boyaca.gov.co';
   await pool.query(`
     INSERT INTO usuarios (username, password, nombre, rol, estado, token_version)
@@ -271,7 +336,11 @@ test('SEC-08: Invalidación inmediata de tokens antiguos tras cambio de contrase
 });
 
 // ─── 9. Bloqueo Progresivo de Cuentas (Account Lockout) ───────────────────────
-test('SEC-09: Bloqueo de cuenta tras superar intentos fallidos permitidos (auth_failed_logins)', async () => {
+test('SEC-09: Bloqueo de cuenta tras superar intentos fallidos permitidos (auth_failed_logins)', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   const lockIdentifier = 'user:test_lockout_victim@boyaca.gov.co';
   const lockDate = new Date(Date.now() + 15 * 60 * 1000); // Bloqueado por 15 min
 
@@ -354,7 +423,11 @@ test('SEC-12: Configuración restrictiva de CORS (sin comodines inseguros con cr
 });
 
 // ─── 13. Trazabilidad y Auditoría Persistente de Eventos de Seguridad ─────────
-test('SEC-13: Registro persistente de eventos de seguridad en tabla security_events', async () => {
+test('SEC-13: Registro persistente de eventos de seguridad en tabla security_events', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   // Generar un evento de seguridad de auditoría
   const auditRes = await apiRequest('POST', '/api/auth/login', {
     body: { username: 'auditor_verificacion_seguridad@boyaca.gov.co', password: 'bad_password_test' }
@@ -376,7 +449,11 @@ test('SEC-13: Registro persistente de eventos de seguridad en tabla security_eve
 });
 
 // ─── 14. Blindaje contra Inyección SQL (Uso Estricto de Parámetros $1, $2) ────
-test('SEC-14: Blindaje contra Inyección SQL mediante consultas parametrizadas', async () => {
+test('SEC-14: Blindaje contra Inyección SQL mediante consultas parametrizadas', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   const sqlInjectionPayloads = [
     "' OR '1'='1",
     "admin' --",
@@ -402,7 +479,11 @@ test('SEC-14: Blindaje contra Inyección SQL mediante consultas parametrizadas',
 });
 
 // ─── 15. Configuración de Cookies Seguras (HttpOnly, SameSite, Secure) ────────
-test('SEC-15: Configuración de atributos de cookies de autenticación (HttpOnly, SameSite)', async () => {
+test('SEC-15: Configuración de atributos de cookies de autenticación (HttpOnly, SameSite)', async (t) => {
+  if (!dbConnected) {
+    t.skip('Requiere PostgreSQL activo');
+    return;
+  }
   // Login legítimo con administrador
   const res = await apiRequest('POST', '/api/auth/login', {
     body: { username: 'alejoleo2022@gmail.com', password: '@Alejo123' }

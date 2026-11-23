@@ -1,0 +1,110 @@
+name: CI — Talento 360
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'ci/**'
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-security:
+    name: Pruebas Unitarias, Integración y Ciberseguridad OWASP
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: talento360
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificación estática de sintaxis
+        run: |
+          node --check web/backend/server.js
+          node --check web/backend/scripts/init-db.js
+
+      - name: Inicializar esquema, tablas y datos de prueba en PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: postgres
+          DB_PASSWORD: password
+          DB_NAME: talento360
+          NODE_ENV: test
+        run: |
+          npm run db:init
+
+      - name: Iniciar Backend Unificado en segundo plano
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: postgres
+          DB_PASSWORD: password
+          DB_NAME: talento360
+          PORT: '3000'
+          JWT_SECRET: talento360_ci_jwt_secret_token_key_2026
+          ALLOWED_ORIGINS: http://localhost:3000
+          APP_PUBLIC_URL: http://localhost:3000
+          APP_URL: http://localhost:3000
+          BACKEND_PUBLIC_URL: http://localhost:3000
+          NODE_ENV: test
+          AUTO_INIT_DB: 'false'
+        run: |
+          node web/backend/server.js &
+          echo "Esperando que el servidor backend responda en /health..."
+          for i in {1..30}; do
+            if curl -s -f http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Servidor backend activo y saludable en puerto 3000."
+              break
+            fi
+            echo "Esperando... intento $i/30"
+            sleep 1
+          done
+
+      - name: Ejecutar suite de pruebas completa
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          TEST_DATABASE_URL: postgresql://postgres:password@localhost:5432/talento360
+          TEST_URL: http://localhost:3000
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: postgres
+          DB_PASSWORD: password
+          DB_NAME: talento360
+          JWT_SECRET: talento360_ci_jwt_secret_token_key_2026
+          NODE_ENV: test
+        run: |
+          npm test
