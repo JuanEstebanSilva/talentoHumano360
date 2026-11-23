@@ -357,9 +357,11 @@ router.get('/', auth, async (req, res) => {
   try {
     const permPermisos = await getModulePermission(pool, req.user, 'permisos');
     const permLicencias = await getModulePermission(pool, req.user, 'licencias');
+    const permIncapacidades = await getModulePermission(pool, req.user, 'incapacidades');
 
-    const activePerm = tipo === 'Licencia' ? permLicencias : tipo === 'Permiso Laboral' ? permPermisos : (permPermisos.canManage || permLicencias.canManage ? { canManage: true } : { canManage: false });
-    if (!activePerm.canManage && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+    const canManageAny = permPermisos.canManage || permLicencias.canManage || permIncapacidades.canManage;
+    const activePerm = tipo === 'Licencia' ? permLicencias : tipo === 'Permiso Laboral' ? permPermisos : tipo === 'Incapacidad' ? permIncapacidades : (canManageAny ? { canManage: true } : { canManage: false });
+    if (!activePerm.canManage && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias', 'incapacidades'])) {
       return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar solicitudes.' });
     }
 
@@ -448,9 +450,10 @@ router.get('/stats', auth, async (req, res) => {
 
     const permPermisos = await getModulePermission(pool, req.user, 'permisos');
     const permLicencias = await getModulePermission(pool, req.user, 'licencias');
+    const permIncapacidades = await getModulePermission(pool, req.user, 'incapacidades');
 
-    const canManageAny = permPermisos.canManage || permLicencias.canManage;
-    if (!canManageAny && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias'])) {
+    const canManageAny = permPermisos.canManage || permLicencias.canManage || permIncapacidades.canManage;
+    if (!canManageAny && !hasModuleAccess(req.user, ['requests', 'admin-requests', 'permisos', 'licencias', 'incapacidades'])) {
       return res.status(403).json({ error: 'Acceso denegado. No tiene permisos para consultar estadísticas de solicitudes.' });
     }
 

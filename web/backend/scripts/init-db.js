@@ -20,10 +20,15 @@ function buildPoolConfig(useDirectUrl = false) {
   };
 
   if (connStr) {
+    const isLocal = connStr.includes('localhost') || connStr.includes('127.0.0.1');
+    const sslConfig = (process.env.DB_SSL === 'false' || (isLocal && process.env.DB_SSL !== 'true'))
+      ? false
+      : { rejectUnauthorized: false };
+
     return {
       ...baseConfig,
       connectionString: connStr,
-      ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
+      ssl: sslConfig,
     };
   }
 
