@@ -32,8 +32,10 @@ if (!process.env.JWT_SECRET) {
 }
 
 const BASE_URL = process.env.TEST_URL || 'http://localhost:3000';
+const testConnStr = process.env.TEST_DATABASE_URL || 'postgresql://postgres:admin123@localhost:5434/talento360';
 const pool = new Pool({
-  connectionString: process.env.TEST_DATABASE_URL || 'postgresql://postgres:admin123@localhost:5434/talento360'
+  connectionString: testConnStr,
+  ssl: process.env.DB_SSL === 'false' || testConnStr.includes('localhost') || testConnStr.includes('127.0.0.1') ? false : { rejectUnauthorized: false }
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'humano360_secret_super_seguro_2026';

@@ -19,6 +19,9 @@ jobs:
     name: Pruebas Unitarias, Integración y Ciberseguridad OWASP
     runs-on: ubuntu-latest
 
+    env:
+      DB_SSL: 'false'
+
     services:
       postgres:
         image: postgres:16-alpine
